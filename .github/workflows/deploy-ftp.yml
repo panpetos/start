@@ -26,6 +26,7 @@ jobs:
             put search.html;
             put css/styles.css;
             put js/layout.js;
+            put book.html;
             put book-confirm.html;
             put payment-success.html;
             put client-dashboard.html;

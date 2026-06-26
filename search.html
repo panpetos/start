@@ -638,13 +638,13 @@
         const fmtIcons = {video: 'video', chat: 'message-square', phone: 'phone'};
         const fmtLabels = {video: 'Видео', chat: 'Чат', phone: 'Звонок'};
         const formats = (p.formats || ['video']).map(f =>
-          '<span class="format-chip"><i data-lucide="' + (fmtIcons[f]||'video') + '" style="width:0.75rem;height:0.75rem;"></i>' + (fmtLabels[f]||f) + '</span>'
+          '<span style="display:inline-flex;align-items:center;gap:0.25rem;background:#F3E8FF;color:#7C3AED;border-radius:2rem;padding:0.2rem 0.75rem;font-size:0.8125rem;font-weight:500;"><i data-lucide="' + (fmtIcons[f]||'video') + '" style="width:0.75rem;height:0.75rem;"></i>' + (fmtLabels[f]||f) + '</span>'
         ).join('');
         const specs = (p.specialties || []).slice(0,2).map(s =>
           '<span style="display:inline-block;background:#F3E8FF;color:#7C3AED;border-radius:2rem;padding:0.175rem 0.625rem;font-size:0.75rem;font-weight:500;margin-right:0.375rem;">' + s + '</span>'
         ).join('');
         const verified = p.verified
-          ? '<span class="verified-badge"><i data-lucide="badge-check" style="width:0.75rem;height:0.75rem;"></i> Верификация</span>'
+          ? '<span style="display:inline-flex;align-items:center;gap:0.25rem;background:#F0FDF4;color:#16A34A;border-radius:2rem;padding:0.2rem 0.625rem;font-size:0.75rem;font-weight:600;border:1px solid #BBF7D0;"><i data-lucide="badge-check" style="width:0.75rem;height:0.75rem;"></i> Верификация</span>'
           : '';
         const delay = idx < 4 ? ' anim-delay-' + (idx+1) : '';
 
