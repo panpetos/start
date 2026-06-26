@@ -198,18 +198,18 @@
   <!-- ═══════════════ STATS ═══════════════ -->
   <section style="padding: 4rem 0; background: linear-gradient(135deg, #6D28D9 0%, #7C3AED 50%, #8B5CF6 100%);">
     <div class="container">
-      <div class="stats-grid">
-        <div class="stat-item anim-fade-up">
-          <span class="stat-number" data-count="200">0</span>
-          <span class="stat-label">психологов подключено к сервису</span>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:rgba(255,255,255,0.15);border-radius:1.25rem;overflow:hidden;">
+        <div style="padding:2rem;text-align:center;background:rgba(255,255,255,0.08);">
+          <span style="display:block;font-size:2.75rem;font-weight:800;color:white;line-height:1;letter-spacing:-0.04em;margin-bottom:0.5rem;" data-count="200">0</span>
+          <span style="font-size:0.9375rem;color:rgba(255,255,255,0.8);font-weight:400;">психологов подключено к сервису</span>
         </div>
-        <div class="stat-item anim-fade-up anim-delay-1">
-          <span class="stat-number" data-count="96">0</span>
-          <span class="stat-label">человек меняют жизнь прямо сейчас</span>
+        <div style="padding:2rem;text-align:center;background:rgba(255,255,255,0.08);border-left:1px solid rgba(255,255,255,0.15);border-right:1px solid rgba(255,255,255,0.15);">
+          <span style="display:block;font-size:2.75rem;font-weight:800;color:white;line-height:1;letter-spacing:-0.04em;margin-bottom:0.5rem;" data-count="96">0</span>
+          <span style="font-size:0.9375rem;color:rgba(255,255,255,0.8);font-weight:400;">человек меняют жизнь прямо сейчас</span>
         </div>
-        <div class="stat-item anim-fade-up anim-delay-2">
-          <span class="stat-number">2021</span>
-          <span class="stat-label">год основания сервиса</span>
+        <div style="padding:2rem;text-align:center;background:rgba(255,255,255,0.08);">
+          <span style="display:block;font-size:2.75rem;font-weight:800;color:white;line-height:1;letter-spacing:-0.04em;margin-bottom:0.5rem;">2021</span>
+          <span style="font-size:0.9375rem;color:rgba(255,255,255,0.8);font-weight:400;">год основания сервиса</span>
         </div>
       </div>
     </div>
@@ -267,31 +267,26 @@
         <p style="color: #6B7280; font-size: 1.0625rem; margin: 0;">Три простых шага до первой сессии</p>
       </div>
 
-      <div class="steps-container" style="position: relative;">
-        <div class="steps-connector"></div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:2rem;position:relative;">
+        <!-- connector line -->
+        <div style="position:absolute;top:1.5rem;left:calc(16.7% + 2rem);right:calc(16.7% + 2rem);height:2px;background:linear-gradient(90deg,#34C759,#7C3AED);opacity:0.35;z-index:0;pointer-events:none;"></div>
 
-        <div class="step-card anim-fade-up">
-          <div class="step-number">1</div>
-          <h3 style="font-size: 1.1875rem; color: #1A1A1A; font-weight: 700; margin-bottom: 0.625rem; letter-spacing: -0.02em;">Выберите психолога</h3>
-          <p style="color: #6B7280; font-size: 0.9375rem; line-height: 1.6; margin: 0;">
-            Изучите профили специалистов, их опыт, подходы и отзывы. Фильтруйте по специализации и стоимости.
-          </p>
+        <div style="background:white;border-radius:1.25rem;padding:2rem;border:1px solid #F0F0F0;box-shadow:0 2px 8px rgba(0,0,0,0.04);position:relative;z-index:1;">
+          <div style="width:3rem;height:3rem;background:linear-gradient(135deg,#34C759,#28A745);border-radius:50%;display:flex;align-items:center;justify-content:center;color:white;font-weight:800;font-size:1.125rem;box-shadow:0 4px 12px rgba(52,199,89,0.35);margin-bottom:1.25rem;">1</div>
+          <h3 style="font-size:1.1875rem;color:#1A1A1A;font-weight:700;margin-bottom:0.625rem;letter-spacing:-0.02em;">Выберите психолога</h3>
+          <p style="color:#6B7280;font-size:0.9375rem;line-height:1.6;margin:0;">Изучите профили специалистов, их опыт, подходы и отзывы. Фильтруйте по специализации и стоимости.</p>
         </div>
 
-        <div class="step-card anim-fade-up anim-delay-1">
-          <div class="step-number">2</div>
-          <h3 style="font-size: 1.1875rem; color: #1A1A1A; font-weight: 700; margin-bottom: 0.625rem; letter-spacing: -0.02em;">Запишитесь онлайн</h3>
-          <p style="color: #6B7280; font-size: 0.9375rem; line-height: 1.6; margin: 0;">
-            Выберите удобное время в календаре. Первая консультация может быть короче для знакомства.
-          </p>
+        <div style="background:white;border-radius:1.25rem;padding:2rem;border:1px solid #F0F0F0;box-shadow:0 2px 8px rgba(0,0,0,0.04);position:relative;z-index:1;">
+          <div style="width:3rem;height:3rem;background:linear-gradient(135deg,#7C3AED,#9F67FA);border-radius:50%;display:flex;align-items:center;justify-content:center;color:white;font-weight:800;font-size:1.125rem;box-shadow:0 4px 12px rgba(124,58,237,0.35);margin-bottom:1.25rem;">2</div>
+          <h3 style="font-size:1.1875rem;color:#1A1A1A;font-weight:700;margin-bottom:0.625rem;letter-spacing:-0.02em;">Запишитесь онлайн</h3>
+          <p style="color:#6B7280;font-size:0.9375rem;line-height:1.6;margin:0;">Выберите удобное время в календаре. Первая консультация может быть короче для знакомства.</p>
         </div>
 
-        <div class="step-card anim-fade-up anim-delay-2">
-          <div class="step-number">3</div>
-          <h3 style="font-size: 1.1875rem; color: #1A1A1A; font-weight: 700; margin-bottom: 0.625rem; letter-spacing: -0.02em;">Начните работу</h3>
-          <p style="color: #6B7280; font-size: 0.9375rem; line-height: 1.6; margin: 0;">
-            Видео, аудио или текстовый чат прямо на платформе. Всё конфиденциально и безопасно.
-          </p>
+        <div style="background:white;border-radius:1.25rem;padding:2rem;border:1px solid #F0F0F0;box-shadow:0 2px 8px rgba(0,0,0,0.04);position:relative;z-index:1;">
+          <div style="width:3rem;height:3rem;background:linear-gradient(135deg,#34C759,#28A745);border-radius:50%;display:flex;align-items:center;justify-content:center;color:white;font-weight:800;font-size:1.125rem;box-shadow:0 4px 12px rgba(52,199,89,0.35);margin-bottom:1.25rem;">3</div>
+          <h3 style="font-size:1.1875rem;color:#1A1A1A;font-weight:700;margin-bottom:0.625rem;letter-spacing:-0.02em;">Начните работу</h3>
+          <p style="color:#6B7280;font-size:0.9375rem;line-height:1.6;margin:0;">Видео, аудио или текстовый чат прямо на платформе. Всё конфиденциально и безопасно.</p>
         </div>
       </div>
     </div>
