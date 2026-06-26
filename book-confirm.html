@@ -123,11 +123,13 @@
             format: 'video'
         };
         let mockMode = false;
+        let fromCache = false;
 
         const FORMAT_NAMES = {
             'video': '📹 Видео',
             'audio': '📞 Аудио',
-            'chat': '💬 Чат'
+            'chat': '💬 Чат',
+            'phone': '📞 Звонок'
         };
 
         const MONTHS = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня',
@@ -172,8 +174,12 @@
 
             if (cached) {
                 mockMode = true;
+                fromCache = true;
                 psychologistData = normalizeCachedPsych(cached);
                 renderBookingForm();
+                // Hide real payment button — API requires auth which we don't have
+                const payBtn = document.getElementById('payBtn');
+                if (payBtn) payBtn.style.display = 'none';
                 if (typeof lucide !== 'undefined') { try { lucide.createIcons(); } catch(e) {} }
                 return;
             }
@@ -301,8 +307,8 @@
                     Безопасная оплата через Robokassa
                 </div>
 
-                <a href="/psychologist-profile.html?id=${p.id}" class="back-link">
-                    ← Вернуться к профилю
+                <a href="/book.html?id=${p.id}" class="back-link">
+                    ← Назад к выбору времени
                 </a>
             `;
 
@@ -365,6 +371,13 @@
             const btn = document.getElementById('mockPayBtn');
             btn.disabled = true;
             btn.textContent = '⏳ Создание тестовой записи...';
+
+            // Fully client-side mock when no session (came from book.html without login)
+            if (fromCache) {
+                const fakeId = 'mock-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+                window.location.href = `/payment-success.html?appointment_id=${fakeId}&mock=1`;
+                return;
+            }
 
             try {
                 const response = await fetch('/api/payment_mock.php?action=init', {
