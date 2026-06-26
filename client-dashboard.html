@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Личный кабинет - psytalk.pro</title>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 0;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .header {
+            background: white;
+            border-radius: 16px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header-left h1 {
+            color: #333;
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .header-left p {
+            color: #666;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .user-avatar {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+            overflow: hidden;
+        }
+
+        .user-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .card {
+            background: white;
+            border-radius: 16px;
+            padding: 2rem;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            transition: transform 0.3s;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+        }
+
+        .card h2 {
+            color: #667eea;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .card p {
+            color: #666;
+            line-height: 1.6;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.75rem 1.5rem;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 600;
+            transition: all 0.3s;
+            border: none;
+            cursor: pointer;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .appointments-list {
+            margin-top: 1rem;
+        }
+
+        .appointment-item {
+            background: #f8f9fa;
+            padding: 1rem;
+            border-radius: 12px;
+            margin-bottom: 0.75rem;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .appointment-info {
+            flex: 1;
+            min-width: 120px;
+            word-break: break-word;
+        }
+
+        .appointment-psychologist {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 0.25rem;
+            font-size: 0.9rem;
+        }
+
+        .appointment-datetime {
+            font-size: 0.85rem;
+            color: #666;
+        }
+
+        .appointment-status {
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .status-scheduled {
+            background: #e7f1ff;
+            color: #667eea;
+        }
+
+        .status-completed {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-cancelled {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .appointment-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .btn-small {
+            padding: 0.5rem 1rem;
+            font-size: 0.85rem;
+        }
+
+        .btn-danger {
+            background: #dc3545;
+        }
+
+        .btn-outline {
+            background: white;
+            border: 2px solid #667eea;
+            color: #667eea;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 2rem;
+            color: #999;
+        }
+
+        .loading {
+            text-align: center;
+            color: #999;
+            padding: 1rem;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <!-- Dashboard Content -->
+        <div class="header">
+            <div class="header-left">
+                <h1>Личный кабинет</h1>
+                <p>Управление записями и профилем</p>
+            </div>
+            <div class="user-info">
+                <span id="userName" style="font-weight: 600;">Загрузка...</span>
+                <div class="user-avatar" id="userAvatar">
+                    <img src="" alt="" style="display: none;">
+                    <span id="userInitial">?</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="cards">
+            <div class="card" style="grid-column: 1 / -1;">
+                <h2>
+                    <i data-lucide="calendar" style="width: 24px; height: 24px;"></i>
+                    Мои записи
+                </h2>
+                <div id="appointments" class="appointments-list">
+                    <div class="loading">Загрузка записей...</div>
+                </div>
+                <a href="/search.html" class="btn" style="margin-top: 1rem;">
+                    <i data-lucide="search" style="width: 18px; height: 18px;"></i>
+                    Найти психолога
+                </a>
+            </div>
+        </div>
+
+        <script src="/js/api.js"></script>
+        <script src="/js/auth.js"></script>
+        <script src="/js/header.js"></script>
+        <script>
+            // Update User Info in Dashboard Header (Legacy/Custom support)
+            window.addEventListener('load', async () => {
+                if (window.Auth) {
+                    const user = await window.Auth.getCurrentUser();
+                    if (user) {
+                        document.getElementById('userName').textContent = `${user.first_name} ${user.last_name}`.trim();
+                        const initial = (user.first_name || 'U').charAt(0).toUpperCase();
+
+                        const avatarImg = document.querySelector('#userAvatar img');
+                        const avatarSpan = document.getElementById('userInitial');
+
+                        if (user.avatar) {
+                            avatarImg.src = user.avatar;
+                            avatarImg.style.display = 'block';
+                            avatarSpan.style.display = 'none';
+                        } else {
+                            avatarImg.style.display = 'none';
+                            avatarSpan.style.display = 'block';
+                            avatarSpan.textContent = initial;
+                        }
+                    }
+                }
+            });
+
+            const MONTHS = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня',
+                'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
+
+            async function init() {
+                try {
+                    if (!window.Auth || !window.Auth.getCurrentUser) {
+                        window.location.href = '/login.html';
+                        return;
+                    }
+
+                    const user = await window.Auth.getCurrentUser();
+                    if (!user) {
+                        window.location.href = '/login.html';
+                        return;
+                    }
+
+                    // Redirect psychologists to their dashboard
+                    if (user.role === 'psychologist') {
+                        window.location.href = '/psychologist-dashboard.html';
+                        return;
+                    }
+
+                    // Проверка на заморозку аккаунта
+                    if (user.is_frozen) {
+                        const frozenBanner = document.createElement('div');
+                        frozenBanner.innerHTML = `
+                        <div style="background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%); color: white; padding: 1.5rem; border-radius: 12px; margin-bottom: 1.5rem; text-align: center;">
+                            <h3 style="margin-bottom: 0.5rem;">⚠️ Ваш аккаунт заморожен</h3>
+                            <p style="opacity: 0.9;">Функционал ограничен. Для разблокировки свяжитесь с поддержкой: support@psytalk.pro</p>
+                        </div>
+                    `;
+                        document.querySelector('.container').insertBefore(frozenBanner, document.querySelector('.cards'));
+                    }
+
+                    // Load appointments
+                    await loadAppointments();
+
+                    if (typeof lucide !== 'undefined') {
+                        lucide.createIcons();
+                    }
+                } catch (error) {
+                    console.error('Init error:', error);
+                    window.location.href = '/login.html';
+                }
+            }
+
+            async function loadAppointments() {
+                const container = document.getElementById('appointments');
+
+                try {
+                    const response = await fetch('/api/appointments.php?action=my', {
+                        credentials: 'include'
+                    });
+                    const appointments = await response.json();
+
+                    if (appointments.error) {
+                        container.innerHTML = `<div class="empty-state">${appointments.error}</div>`;
+                        return;
+                    }
+
+                    if (!appointments || appointments.length === 0) {
+                        container.innerHTML = `
+                        <div class="empty-state">
+                            <p>У вас пока нет записей</p>
+                            <p style="font-size: 0.9rem; margin-top: 0.5rem;">Найдите психолога и запишитесь на консультацию</p>
+                        </div>
+                    `;
+                        return;
+                    }
+
+                    container.innerHTML = appointments.map(a => {
+                        const date = new Date(a.date_time);
+                        const dateStr = `${date.getDate()} ${MONTHS[date.getMonth()]}, ${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
+                        const psychName = `${a.psychologist_first_name || ''} ${a.psychologist_last_name || ''}`.trim() || 'Психолог';
+
+                        let statusClass = 'status-scheduled';
+                        let statusText = 'Запланировано';
+                        if (a.status === 'completed') {
+                            statusClass = 'status-completed';
+                            statusText = 'Завершено';
+                        } else if (a.status === 'cancelled') {
+                            statusClass = 'status-cancelled';
+                            statusText = 'Отменено';
+                        }
+
+                        const canCancel = a.status === 'scheduled' && new Date(a.date_time) > new Date();
+                        const canReview = a.status === 'completed';
+
+                        return `
+                        <div class="appointment-item">
+                            <div class="appointment-info">
+                                <div class="appointment-psychologist">${psychName}</div>
+                                <div class="appointment-datetime">${dateStr}</div>
+                            </div>
+                            <span class="appointment-status ${statusClass}">${statusText}</span>
+                            <div class="appointment-actions">
+                                <a href="/chat.html?user=${a.psychologist_id}" class="btn btn-small btn-outline" title="Написать психологу">💬</a>
+                                ${canCancel ? `<button class="btn btn-small btn-danger" onclick="cancelAppointment('${a.id}')">Отменить</button>` : ''}
+                                ${canReview ? `<button class="btn btn-small btn-outline" onclick="openReview('${a.id}')">Отзыв</button>` : ''}
+                            </div>
+                        </div>
+                    `;
+                    }).join('');
+
+                } catch (error) {
+                    console.error('Load appointments error:', error);
+                    container.innerHTML = '<div class="empty-state">Ошибка загрузки записей</div>';
+                }
+            }
+
+            async function cancelAppointment(appointmentId) {
+                if (!confirm('Вы уверены, что хотите отменить запись?')) return;
+
+                try {
+                    const response = await fetch('/api/appointments.php?action=update', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        credentials: 'include',
+                        body: JSON.stringify({
+                            id: appointmentId,
+                            status: 'cancelled'
+                        })
+                    });
+
+                    const data = await response.json();
+                    if (data.error) {
+                        alert(data.error);
+                    } else {
+                        await loadAppointments();
+                    }
+                } catch (error) {
+                    console.error('Cancel error:', error);
+                    alert('Ошибка отмены записи');
+                }
+            }
+
+            function openReview(appointmentId) {
+                window.location.href = `/review.html?appointment_id=${appointmentId}`;
+            }
+
+            init();
+        </script>
+</body>
+
+</html>

@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Кабинет психолога - psytalk.pro</title>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 0;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .header {
+            background: white;
+            border-radius: 16px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header-left h1 {
+            color: #333;
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .header-left p {
+            color: #666;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #667eea;
+        }
+
+        .stat-label {
+            color: #999;
+            font-size: 0.9rem;
+            margin-top: 0.5rem;
+        }
+
+        .cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .card {
+            background: white;
+            border-radius: 16px;
+            padding: 2rem;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        .card h2 {
+            color: #667eea;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .card p {
+            color: #666;
+            line-height: 1.6;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.75rem 1.5rem;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 600;
+            transition: all 0.3s;
+            border: none;
+            cursor: pointer;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-outline {
+            background: white;
+            border: 2px solid #667eea;
+            color: #667eea;
+        }
+
+        .btn-outline:hover {
+            background: #667eea;
+            color: white;
+        }
+
+        .appointments-list {
+            margin-top: 1rem;
+        }
+
+        .appointment-item {
+            background: #f8f9fa;
+            padding: 1rem;
+            border-radius: 12px;
+            margin-bottom: 0.75rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .appointment-info {
+            flex: 1;
+        }
+
+        .appointment-client {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 0.25rem;
+        }
+
+        .appointment-datetime {
+            font-size: 0.9rem;
+            color: #666;
+        }
+
+        .appointment-status {
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .status-scheduled {
+            background: #e7f1ff;
+            color: #667eea;
+        }
+
+        .status-completed {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-cancelled {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .appointment-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .btn-small {
+            padding: 0.5rem 1rem;
+            font-size: 0.85rem;
+        }
+
+        .btn-success {
+            background: #28a745;
+        }
+
+        .btn-danger {
+            background: #dc3545;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 2rem;
+            color: #999;
+        }
+
+        .loading {
+            text-align: center;
+            color: #999;
+            padding: 1rem;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <!-- Dashboard Content -->
+        <div class="header">
+            <div class="header-left">
+                <h1>Кабинет психолога</h1>
+                <p>Управление практикой и клиентами</p>
+            </div>
+            <div class="header-actions">
+                <a href="/schedule.html" class="btn">
+                    <i data-lucide="calendar" style="width: 18px; height: 18px;"></i>
+                    Расписание
+                </a>
+                <a href="/edit-profile.html" class="btn btn-outline">
+                    <i data-lucide="settings" style="width: 18px; height: 18px;"></i>
+                    Настройки
+                </a>
+            </div>
+        </div>
+
+        <div class="stats">
+            <div class="stat-card">
+                <div class="stat-value" id="upcomingCount">0</div>
+                <div class="stat-label">Предстоящие</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="completedCount">0</div>
+                <div class="stat-label">Проведено (мес)</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="earningsMonth">0 ₽</div>
+                <div class="stat-label" id="earningsLabel">Ваш доход (мес)</div>
+            </div>
+        </div>
+
+        <div id="agencyNote" style="background:#E9F9EF; border:1px solid #BFEBCB; border-radius:12px; padding:14px 18px; margin-bottom:1.5rem; color:#1A1A1A; font-size:0.9rem; line-height:1.5;">
+            <b>Как считается доход.</b> Вы работаете по агентскому договору: платформа удерживает комиссию
+            <b id="noteCommission">40%</b>, остальное — ваш доход. Налоги со своего дохода вы платите самостоятельно
+            (самозанятость / ИП). Суммы в кабинете показаны <b>после</b> вычета комиссии.
+        </div>
+
+        <div class="cards">
+            <div class="card">
+                <h2>
+                    <i data-lucide="calendar-days" style="width: 24px; height: 24px;"></i>
+                    Мое расписание
+                </h2>
+                <p style="margin-bottom: 1.5rem;">Настройте дни и часы, когда вы доступны для онлайн-консультаций. Это
+                    необходимо, чтобы клиенты могли записаться к Вам.</p>
+                <a href="/schedule.html" class="btn">
+                    <i data-lucide="settings-2" style="width: 18px; height: 18px;"></i>
+                    Настроить расписание
+                </a>
+            </div>
+
+            <div class="card">
+                <h2>
+                    <i data-lucide="clock" style="width: 24px; height: 24px;"></i>
+                    Ближайшие записи
+                </h2>
+                <div id="appointments" class="appointments-list">
+                    <div class="loading">Загрузка...</div>
+                </div>
+            </div>
+        </div>
+
+        <script src="/js/api.js"></script>
+        <script src="/js/auth.js"></script>
+        <script src="/js/header.js"></script>
+        <script>
+            const MONTHS = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня',
+                'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
+
+            // Комиссия платформы (агентская модель). Подгружается из настроек.
+            let PLATFORM_COMMISSION = 40;
+
+            async function loadCommission() {
+                try {
+                    const res = await fetch('/api/settings.php?action=public');
+                    const s = await res.json();
+                    const c = parseFloat(s.platform_commission);
+                    if (!isNaN(c) && c >= 0 && c < 100) PLATFORM_COMMISSION = c;
+                } catch (e) { /* по умолчанию 40% */ }
+                const lbl = document.getElementById('earningsLabel');
+                if (lbl) lbl.textContent = `Ваш доход (мес) · ваша доля ${100 - PLATFORM_COMMISSION}%`;
+                const note = document.getElementById('noteCommission');
+                if (note) note.textContent = PLATFORM_COMMISSION + '%';
+            }
+
+            async function init() {
+                try {
+                    if (!window.Auth || !window.Auth.getCurrentUser) {
+                        window.location.href = '/login.html';
+                        return;
+                    }
+
+                    const user = await window.Auth.getCurrentUser();
+                    if (!user) {
+                        window.location.href = '/login.html';
+                        return;
+                    }
+
+                    // Redirect clients to their dashboard
+                    if (user.role !== 'psychologist') {
+                        window.location.href = '/client-dashboard.html';
+                        return;
+                    }
+
+                    // Проверка на заморозку аккаунта
+                    if (user.is_frozen) {
+                        const frozenBanner = document.createElement('div');
+                        frozenBanner.innerHTML = `
+                        <div style="background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%); color: white; padding: 1.5rem; border-radius: 12px; margin-bottom: 1.5rem; text-align: center; box-shadow: 0 4px 15px rgba(238, 90, 36, 0.3);">
+                            <h3 style="margin-bottom: 0.5rem;">⚠️ Ваш аккаунт заморожен</h3>
+                            <p style="opacity: 0.9; margin-bottom: 0.5rem;">Ваш профиль временно скрыт из поиска. Новые клиенты не могут вас найти.</p>
+                            <p style="opacity: 0.8; font-size: 0.9rem;">Для разблокировки свяжитесь с поддержкой: support@psytalk.pro</p>
+                        </div>
+                    `;
+                        document.querySelector('.container').insertBefore(frozenBanner, document.querySelector('.stats'));
+                    }
+
+                    // Load commission, then appointments and stats
+                    await loadCommission();
+                    await loadAppointments();
+
+                    if (typeof lucide !== 'undefined') {
+                        lucide.createIcons();
+                    }
+                } catch (error) {
+                    console.error('Init error:', error);
+                    window.location.href = '/login.html';
+                }
+            }
+
+            async function loadAppointments() {
+                const container = document.getElementById('appointments');
+
+                try {
+                    const response = await fetch('/api/appointments.php?action=my', {
+                        credentials: 'include'
+                    });
+                    const appointments = await response.json();
+
+                    if (appointments.error) {
+                        container.innerHTML = `<div class="empty-state">${appointments.error}</div>`;
+                        return;
+                    }
+
+                    // Calculate stats
+                    const now = new Date();
+                    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+
+                    let upcoming = 0;
+                    let completedThisMonth = 0;
+                    let earningsThisMonth = 0;
+
+                    if (Array.isArray(appointments)) {
+                        appointments.forEach(a => {
+                            const date = new Date(a.date_time);
+                            if (a.status === 'scheduled' && date > now) {
+                                upcoming++;
+                            }
+                            if (a.status === 'completed' && date >= monthStart) {
+                                completedThisMonth++;
+                                // Доход психолога = цена клиента минус комиссия платформы
+                                const gross = parseFloat(a.price) || 0;
+                                earningsThisMonth += gross * (100 - PLATFORM_COMMISSION) / 100;
+                            }
+                        });
+                    }
+
+                    document.getElementById('upcomingCount').textContent = upcoming;
+                    document.getElementById('completedCount').textContent = completedThisMonth;
+                    document.getElementById('earningsMonth').textContent =
+                        new Intl.NumberFormat('ru-RU').format(earningsThisMonth) + ' ₽';
+
+                    // Filter upcoming appointments
+                    const upcomingAppointments = (appointments || [])
+                        .filter(a => a.status !== 'cancelled')
+                        .sort((a, b) => new Date(a.date_time) - new Date(b.date_time))
+                        .slice(0, 5);
+
+                    if (upcomingAppointments.length === 0) {
+                        container.innerHTML = `
+                        <div class="empty-state">
+                            <p>У вас пока нет записей</p>
+                            <p style="font-size: 0.9rem; margin-top: 0.5rem;">Настройте расписание, чтобы клиенты могли записаться</p>
+                        </div>
+                    `;
+                        return;
+                    }
+
+                    container.innerHTML = upcomingAppointments.map(a => {
+                        const date = new Date(a.date_time);
+                        const dateStr = `${date.getDate()} ${MONTHS[date.getMonth()]}, ${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
+                        const clientName = `${a.client_first_name || ''} ${a.client_last_name || ''}`.trim() || a.client_email || 'Клиент';
+
+                        let statusClass = 'status-scheduled';
+                        let statusText = 'Запланировано';
+                        if (a.status === 'completed') {
+                            statusClass = 'status-completed';
+                            statusText = 'Завершено';
+                        } else if (a.status === 'cancelled') {
+                            statusClass = 'status-cancelled';
+                            statusText = 'Отменено';
+                        }
+
+                        const isPast = date < now;
+                        const canComplete = a.status === 'scheduled' && isPast;
+                        const canCancel = a.status === 'scheduled' && !isPast;
+
+                        return `
+                        <div class="appointment-item">
+                            <div class="appointment-info">
+                                <div class="appointment-client">${clientName}</div>
+                                <div class="appointment-datetime">${dateStr} • ${a.format === 'video' ? '📹 Видео' : a.format === 'audio' ? '📞 Аудио' : '💬 Чат'}</div>
+                            </div>
+                            <span class="appointment-status ${statusClass}">${statusText}</span>
+                            <div class="appointment-actions">
+                                <a href="/chat.html?user=${a.client_id}" class="btn btn-small btn-outline" title="Написать клиенту">💬</a>
+                                ${canComplete ? `<button class="btn btn-small btn-success" onclick="completeSession('${a.id}')">Завершить</button>` : ''}
+                                ${canCancel ? `<button class="btn btn-small btn-danger" onclick="cancelSession('${a.id}')">Отменить</button>` : ''}
+                            </div>
+                        </div>
+                    `;
+                    }).join('');
+
+                } catch (error) {
+                    console.error('Load appointments error:', error);
+                    container.innerHTML = '<div class="empty-state">Ошибка загрузки записей</div>';
+                }
+            }
+
+            async function completeSession(appointmentId) {
+                try {
+                    const response = await fetch('/api/appointments.php?action=update', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        credentials: 'include',
+                        body: JSON.stringify({
+                            id: appointmentId,
+                            status: 'completed'
+                        })
+                    });
+
+                    const data = await response.json();
+                    if (data.error) {
+                        alert(data.error);
+                    } else {
+                        await loadAppointments();
+                    }
+                } catch (error) {
+                    console.error('Complete error:', error);
+                    alert('Ошибка обновления статуса');
+                }
+            }
+
+            async function cancelSession(appointmentId) {
+                if (!confirm('Вы уверены, что хотите отменить сессию?')) return;
+
+                try {
+                    const response = await fetch('/api/appointments.php?action=update', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        credentials: 'include',
+                        body: JSON.stringify({
+                            id: appointmentId,
+                            status: 'cancelled'
+                        })
+                    });
+
+                    const data = await response.json();
+                    if (data.error) {
+                        alert(data.error);
+                    } else {
+                        await loadAppointments();
+                    }
+                } catch (error) {
+                    console.error('Cancel error:', error);
+                    alert('Ошибка отмены сессии');
+                }
+            }
+
+            init();
+        </script>
+</body>
+
+</html>
