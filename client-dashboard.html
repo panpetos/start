@@ -204,14 +204,16 @@
                 if (typeof lucide !== 'undefined') { try { lucide.createIcons(); } catch(e) {} }
             }
 
-            function showDemoBanner() {
+            function showDemoBanner(isLoggedIn) {
                 const banner = document.createElement('div');
                 banner.style.cssText = 'background:#FFF8E7;border:1.5px solid #F59E0B;border-radius:1rem;padding:1rem 1.5rem;margin-bottom:1.5rem;display:flex;align-items:flex-start;gap:0.875rem;';
+                const body = isLoggedIn
+                    ? 'Записи помечены <b>тестовая</b> — они созданы через пробную оплату и хранятся только в этом браузере, а не в базе данных. Как только платёжная система подключена, записи будут сохраняться в реальном времени.'
+                    : 'Записи выше созданы через тестовую оплату и хранятся только в вашем браузере. Чтобы всё работало по-настоящему — <a href="/login.html" style="color:#7C3AED;font-weight:600;">войдите или зарегистрируйтесь</a>.';
                 banner.innerHTML = `<span style="font-size:1.375rem;flex-shrink:0;">🧪</span>
                     <div>
-                        <div style="font-weight:700;color:#92400E;margin-bottom:0.25rem;">Демо-режим — данные не сохраняются в базе</div>
-                        <div style="font-size:0.875rem;color:#B45309;line-height:1.5;">Записи выше созданы через тестовую оплату и хранятся только в вашем браузере.
-                        Чтобы всё работало по-настоящему — <a href="/login.html" style="color:#7C3AED;font-weight:600;">войдите или зарегистрируйтесь</a>.</div>
+                        <div style="font-weight:700;color:#92400E;margin-bottom:0.25rem;">Тестовые записи — данные не сохраняются в базе</div>
+                        <div style="font-size:0.875rem;color:#B45309;line-height:1.5;">${body}</div>
                     </div>`;
                 const cards = document.querySelector('.cards');
                 cards.parentNode.insertBefore(banner, cards);
@@ -274,7 +276,7 @@
                             </a>`;
                         document.querySelector('.cards').parentNode.insertBefore(switchBanner, document.querySelector('.cards'));
 
-                        showDemoBanner();
+                        showDemoBanner(true);
                         renderMockAppointments(mockAppts);
                         if (typeof lucide !== 'undefined') { try { lucide.createIcons(); } catch(e) {} }
                         return;
@@ -316,7 +318,7 @@
 
                     if (appointments.error) {
                         // API failed — fall back to mock appointments only
-                        if (mockAppts.length > 0) { showDemoBanner(); renderMockAppointments(mockAppts); }
+                        if (mockAppts.length > 0) { showDemoBanner(true); renderMockAppointments(mockAppts); }
                         else container.innerHTML = `<div class="empty-state">${appointments.error}</div>`;
                         return;
                     }
@@ -324,7 +326,7 @@
                     // Prepend any mock (test) appointments not already in the API list
                     const apiIds = new Set((appointments || []).map(a => a.id));
                     const extraMock = mockAppts.filter(a => !apiIds.has(a.id));
-                    if (extraMock.length > 0) showDemoBanner();
+                    if (extraMock.length > 0) showDemoBanner(true);
 
                     const allAppts = [...extraMock, ...(appointments || [])];
 
