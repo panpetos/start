@@ -379,6 +379,25 @@
             // Fully client-side mock when no session (came from book.html without login)
             if (fromCache) {
                 const fakeId = 'mock-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+                // Persist booking so the dashboard can display it
+                try {
+                    const cachedPsych = JSON.parse(sessionStorage.getItem('bookingPsychologist') || '{}');
+                    const appt = {
+                        id: fakeId,
+                        psychologist_name: cachedPsych.name || (psychologistData.first_name + ' ' + psychologistData.last_name).trim(),
+                        psychologist_id: psychologistData.id,
+                        psychologist_color: cachedPsych.color || '#7C3AED',
+                        date_time: bookingData.datetime,
+                        format: bookingData.format,
+                        price: psychologistData.price || 0,
+                        status: 'scheduled',
+                        is_mock: true,
+                        created_at: new Date().toISOString()
+                    };
+                    const list = JSON.parse(localStorage.getItem('psyMockAppointments') || '[]');
+                    list.unshift(appt);
+                    localStorage.setItem('psyMockAppointments', JSON.stringify(list.slice(0, 20)));
+                } catch(_) {}
                 window.location.href = `/payment-success.html?appointment_id=${fakeId}&mock=1`;
                 return;
             }
