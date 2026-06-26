@@ -184,43 +184,20 @@
             btn.disabled = true;
 
             try {
-                // Try auth.js first
-                if (window.Auth && typeof window.Auth.login === 'function') {
-                    const user = await window.Auth.login(email, password);
-                    if (user) { redirectAfterLogin(user); return; }
-                }
-
-                // Direct API call
-                const res = await fetch('/api/auth.php', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include',
-                    body: JSON.stringify({ action: 'login', email, password })
-                });
-
-                if (!res.ok && res.status !== 200) {
-                    // Try alternative endpoint
-                    const res2 = await fetch('/api/users.php?action=login', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        credentials: 'include',
-                        body: JSON.stringify({ email, password })
-                    });
-                    const data2 = await res2.json();
-                    if (data2.error) { showError('loginError', data2.error); return; }
-                    if (data2.user || data2.id) { redirectAfterLogin(data2.user || data2); return; }
-                }
-
-                const data = await res.json();
-                if (data.error) {
-                    showError('loginError', data.error);
-                } else if (data.user || data.id || data.ok) {
-                    redirectAfterLogin(data.user || data);
-                } else {
-                    showError('loginError', 'Неверный email или пароль');
-                }
+                // window.Auth.login → POST /api/auth.php?action=login (реальный бэкенд)
+                const user = await window.Auth.login(email, password);
+                if (user) { redirectAfterLogin(user); return; }
+                showError('loginError', 'Неверный email или пароль');
             } catch(err) {
-                showError('loginError', 'Ошибка соединения с сервером. Проверьте подключение к интернету.');
+                const msg = (err && err.message) ? err.message : '';
+                // Бэкенд возвращает "Invalid credentials" при неверном пароле
+                if (/invalid|credential|неверн|password|парол/i.test(msg)) {
+                    showError('loginError', 'Неверный email или пароль');
+                } else if (msg) {
+                    showError('loginError', msg);
+                } else {
+                    showError('loginError', 'Не удалось войти. Проверьте подключение к интернету.');
+                }
             } finally {
                 btn.textContent = 'Войти';
                 btn.disabled = false;
@@ -242,31 +219,17 @@
             const last_name = parts.slice(1).join(' ') || '';
 
             try {
-                // Try auth.js first
-                if (window.Auth && typeof window.Auth.register === 'function') {
-                    const user = await window.Auth.register({ first_name, last_name, email, password });
-                    if (user) { redirectAfterLogin(user); return; }
-                }
-
-                // Direct API call
-                const res = await fetch('/api/auth.php', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include',
-                    body: JSON.stringify({ action: 'register', first_name, last_name, email, password })
-                });
-                const data = await res.json();
-
-                if (data.error) {
-                    showError('regError', data.error);
-                } else if (data.user || data.id || data.ok) {
+                // window.Auth.register → POST /api/auth.php?action=register (реальный бэкенд)
+                const user = await window.Auth.register({ first_name, last_name, email, password });
+                if (user) {
                     document.getElementById('regSuccess').style.display = 'block';
-                    setTimeout(() => redirectAfterLogin(data.user || data), 1000);
-                } else {
-                    showError('regError', 'Ошибка регистрации. Попробуйте позже.');
+                    setTimeout(() => redirectAfterLogin(user), 800);
+                    return;
                 }
+                showError('regError', 'Не удалось зарегистрироваться. Попробуйте позже.');
             } catch(err) {
-                showError('regError', 'Ошибка соединения с сервером.');
+                const msg = (err && err.message) ? err.message : '';
+                showError('regError', msg || 'Ошибка соединения с сервером.');
             } finally {
                 btn.textContent = 'Зарегистрироваться';
                 btn.disabled = false;

@@ -123,7 +123,6 @@
             format: 'video'
         };
         let mockMode = false;
-        let fromCache = false;
 
         const FORMAT_NAMES = {
             'video': '📹 Видео',
@@ -135,25 +134,10 @@
         const MONTHS = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня',
             'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
 
-        function normalizeCachedPsych(p) {
-            const parts = (p.name || '').split(' ');
-            return {
-                id: p.id,
-                first_name: parts[0] || '',
-                last_name: parts.slice(1).join(' ') || '',
-                specialization: (p.specialties || []).join(', ') || 'Психолог',
-                price: p.price || 0,
-                avatar: p.avatar || null,
-                formats: p.formats || ['video'],
-                color: p.color || '#7C3AED'
-            };
-        }
-
         async function init() {
             const urlParams = new URLSearchParams(window.location.search);
             const psychologistId = urlParams.get('psychologist_id');
             const datetime = urlParams.get('datetime');
-            mockMode = urlParams.get('mock') === '1';
 
             if (!psychologistId || !datetime) {
                 showError('Недостаточно данных для бронирования');
@@ -162,52 +146,30 @@
 
             bookingData.datetime = datetime;
 
-            // Try cached psychologist from booking page (no login required)
-            let cached = null;
-            try {
-                const raw = sessionStorage.getItem('bookingPsychologist');
-                if (raw) {
-                    const obj = JSON.parse(raw);
-                    if (String(obj.id) === String(psychologistId)) cached = obj;
-                }
-            } catch (_) {}
-
-            if (cached) {
-                mockMode = true;
-                fromCache = true;
-                psychologistData = normalizeCachedPsych(cached);
-                renderBookingForm();
-                // Hide real payment button — API requires auth which we don't have
-                const payBtn = document.getElementById('payBtn');
-                if (payBtn) payBtn.style.display = 'none';
-                if (typeof lucide !== 'undefined') { try { lucide.createIcons(); } catch(e) {} }
-                return;
-            }
-
+            // Запись требует авторизации — это реальный бэкенд
             let user = null;
             if (window.Auth && window.Auth.getCurrentUser) {
                 user = await window.Auth.getCurrentUser();
             }
-
             if (!user) {
-                window.location.href = '/login.html?redirect=' + encodeURIComponent(window.location.href);
+                window.location.href = '/login.html?redirect=' + encodeURIComponent(window.location.pathname + window.location.search);
                 return;
             }
 
-            // If not in URL mock mode, check server settings
-            if (!mockMode) {
-                try {
-                    const s = await fetch('/api/settings.php?action=public').then(r => r.json());
-                    if (String(s.mock_payment_enabled) === '1') mockMode = true;
-                } catch (_) {}
-            }
+            // Тестовая оплата включается в админ-настройках платформы
+            try {
+                const s = await fetch('/api/settings.php?action=public').then(r => r.json());
+                if (String(s.mock_payment_enabled) === '1') mockMode = true;
+            } catch (_) {}
 
             try {
-                const response = await fetch(`/api/psychologists.php?action=get&id=${psychologistId}`);
+                const response = await fetch(`/api/psychologists.php?action=get&id=${encodeURIComponent(psychologistId)}`, {
+                    credentials: 'include'
+                });
                 const data = await response.json();
 
-                if (data.error) {
-                    showError(data.error);
+                if (!data || data.error || !data.id) {
+                    showError((data && data.error) || 'Специалист не найден');
                     return;
                 }
 
@@ -215,7 +177,7 @@
                 renderBookingForm();
 
                 if (typeof lucide !== 'undefined') {
-                    lucide.createIcons();
+                    try { lucide.createIcons(); } catch(e) {}
                 }
             } catch (error) {
                 console.error('Load error:', error);
@@ -376,33 +338,8 @@
             btn.disabled = true;
             btn.textContent = '⏳ Создание тестовой записи...';
 
-            // Fully client-side mock when no session (came from book.html without login)
-            if (fromCache) {
-                const fakeId = 'mock-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-                // Persist booking so the dashboard can display it
-                try {
-                    const cachedPsych = JSON.parse(sessionStorage.getItem('bookingPsychologist') || '{}');
-                    const appt = {
-                        id: fakeId,
-                        psychologist_name: cachedPsych.name || (psychologistData.first_name + ' ' + psychologistData.last_name).trim(),
-                        psychologist_id: psychologistData.id,
-                        psychologist_color: cachedPsych.color || '#7C3AED',
-                        date_time: bookingData.datetime,
-                        format: bookingData.format,
-                        price: psychologistData.price || 0,
-                        status: 'scheduled',
-                        is_mock: true,
-                        created_at: new Date().toISOString()
-                    };
-                    const list = JSON.parse(localStorage.getItem('psyMockAppointments') || '[]');
-                    list.unshift(appt);
-                    localStorage.setItem('psyMockAppointments', JSON.stringify(list.slice(0, 20)));
-                } catch(_) {}
-                window.location.href = `/payment-success.html?appointment_id=${fakeId}&mock=1`;
-                return;
-            }
-
             try {
+                // Реальный мок-эндпоинт: создаёт запись и платёж в БД (нужна авторизация)
                 const response = await fetch('/api/payment_mock.php?action=init', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },

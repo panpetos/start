@@ -477,91 +477,69 @@
 
   <script>
     /* ─── Data ─── */
-    const MOCK_PSYCHOLOGISTS = [
-      {
-        id: 1, name: "Анна Соколова", gender: "female",
-        specialties: ["выгорание","тревога","карьера"],
-        description: "Помогаю IT-специалистам справляться с профессиональным выгоранием и хроническим стрессом. КПТ, схема-терапия.",
-        experience: 8, rating: 4.9, reviews: 127,
-        price: 3500, formats: ["video","chat"],
-        avatar: null, verified: true, color: "#7C3AED"
-      },
-      {
-        id: 2, name: "Дмитрий Волков", gender: "male",
-        specialties: ["депрессия","самооценка","CBT"],
-        description: "Работаю с депрессией, тревожными расстройствами и кризисами идентичности. 10 лет практики, КПТ.",
-        experience: 10, rating: 4.8, reviews: 203,
-        price: 4200, formats: ["video","phone"],
-        avatar: null, verified: true, color: "#2563EB"
-      },
-      {
-        id: 3, name: "Марина Петрова", gender: "female",
-        specialties: ["семья","тревога","выгорание"],
-        description: "Семейная и индивидуальная терапия. Специализируюсь на парах, где один или оба партнёра работают в IT.",
-        experience: 6, rating: 4.7, reviews: 89,
-        price: 3000, formats: ["video","chat","phone"],
-        avatar: null, verified: true, color: "#059669"
-      },
-      {
-        id: 4, name: "Иван Захаров", gender: "male",
-        specialties: ["карьера","самооценка","CBT"],
-        description: "Коучинг психолог. Помогаю преодолеть синдром самозванца, выстроить карьеру и найти баланс работы и жизни.",
-        experience: 4, rating: 4.6, reviews: 54,
-        price: 2800, formats: ["video"],
-        avatar: null, verified: false, color: "#D97706"
-      },
-      {
-        id: 5, name: "Елена Морозова", gender: "female",
-        specialties: ["депрессия","тревога","EMDR"],
-        description: "EMDR-терапевт. Работаю с травмой, ПТСР, фобиями и паническими атаками. Онлайн и очно.",
-        experience: 12, rating: 5.0, reviews: 311,
-        price: 5000, formats: ["video","chat"],
-        avatar: null, verified: true, color: "#DB2777"
-      },
-      {
-        id: 6, name: "Сергей Николаев", gender: "male",
-        specialties: ["выгорание","карьера","семья"],
-        description: "Бывший разработчик, ставший психологом. Понимаю технический мир изнутри. Экзистенциальная и интегративная терапия.",
-        experience: 5, rating: 4.9, reviews: 142,
-        price: 3800, formats: ["video","chat"],
-        avatar: null, verified: true, color: "#7C3AED"
-      },
-      {
-        id: 7, name: "Ольга Кузнецова", gender: "female",
-        specialties: ["самооценка","тревога","гештальт"],
-        description: "Гештальт-терапевт. Работаю с тревогой, неуверенностью в себе и проблемами в отношениях.",
-        experience: 7, rating: 4.8, reviews: 96,
-        price: 3200, formats: ["video","phone"],
-        avatar: null, verified: true, color: "#0891B2"
-      },
-      {
-        id: 8, name: "Алексей Смирнов", gender: "male",
-        specialties: ["депрессия","выгорание","CBT"],
-        description: "КПТ-терапевт. Специализируюсь на депрессии, профессиональном выгорании и нарушениях сна у разработчиков.",
-        experience: 9, rating: 4.7, reviews: 178,
-        price: 4000, formats: ["video","chat","phone"],
-        avatar: null, verified: true, color: "#2563EB"
-      }
-    ];
-
     let allPsychologists = [];
     let activeChipSpecialty = '';
 
-    /* ─── Load psychologists ─── */
+    /* ─── Палитра для аватаров (реальный API не отдаёт цвет) ─── */
+    const AVATAR_COLORS = ['#7C3AED','#2563EB','#059669','#D97706','#DB2777','#0891B2','#9F67FA','#7C3AED'];
+    function colorForId(id) {
+      const s = String(id);
+      let h = 0;
+      for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+      return AVATAR_COLORS[h % AVATAR_COLORS.length];
+    }
+
+    /* ─── Маппинг реального ответа /api/psychologists.php?action=search в формат карточки ─── */
+    function normalizePsych(p) {
+      const name = ((p.first_name || '') + ' ' + (p.last_name || '')).trim() || p.email || 'Психолог';
+      const specStr = (p.specialization || '').trim();
+      const specialties = specStr ? specStr.split(/[,;]+/).map(s => s.trim()).filter(Boolean) : [];
+      return {
+        id: p.id,
+        name,
+        gender: p.gender || '',
+        specialties,
+        description: p.description || '',
+        experience: parseInt(p.experience, 10) || 0,
+        rating: parseFloat(p.rating) || 0,
+        reviews: parseInt(p.total_reviews, 10) || 0,
+        price: parseFloat(p.price) || 0,
+        formats: Array.isArray(p.formats) && p.formats.length ? p.formats : ['video'],
+        avatar: p.avatar || null,
+        verified: String(p.is_approved) === '1',
+        color: colorForId(p.id)
+      };
+    }
+
+    /* ─── Load psychologists (реальный бэкенд) ─── */
     async function loadPsychologists() {
       try {
-        const resp = await fetch('/api/psychologists.php?status=active', {signal: AbortSignal.timeout(5000)});
+        const resp = await fetch('/api/psychologists.php?action=search', {
+          credentials: 'include',
+          signal: AbortSignal.timeout(8000)
+        });
         if (resp.ok) {
           const data = await resp.json();
-          if (Array.isArray(data) && data.length > 0) {
-            allPsychologists = data;
+          if (Array.isArray(data)) {
+            allPsychologists = data.map(normalizePsych);
             applyFilters();
             return;
           }
         }
-      } catch (_) {}
-      allPsychologists = MOCK_PSYCHOLOGISTS;
-      applyFilters();
+        throw new Error('bad response');
+      } catch (_) {
+        // Бэкенд недоступен — честное сообщение об ошибке, без фейковых данных
+        const container = document.getElementById('cardsContainer');
+        if (container) {
+          container.innerHTML =
+            '<div class="empty-state">' +
+              '<div class="empty-state-icon"><i data-lucide="wifi-off" style="width:2rem;height:2rem;"></i></div>' +
+              '<h3>Не удалось загрузить каталог</h3>' +
+              '<p>Проверьте подключение к интернету и <button onclick="loadPsychologists()" style="background:none;border:none;color:#7C3AED;font-weight:600;cursor:pointer;font-size:inherit;padding:0;">попробуйте снова</button></p>' +
+            '</div>';
+          if (window.lucide) { try { lucide.createIcons(); } catch(e) {} }
+        }
+      }
     }
 
     /* ─── Filter chip toggle ─── */
@@ -602,7 +580,7 @@
         if (spec && !p.specialties.some(s => s.toLowerCase().includes(spec.toLowerCase()))) return false;
         if (expMin && (p.experience || 0) < expMin) return false;
         if (ratingMin && (p.rating || 0) < ratingMin) return false;
-        if (gender && p.gender !== gender) return false;
+        if (gender && p.gender && p.gender !== gender) return false;
         if (priceMin && (p.price || 0) < priceMin) return false;
         if (priceMax && (p.price || 0) > priceMax) return false;
         if (anyFmt) {
@@ -665,7 +643,7 @@
       }
 
       container.innerHTML = list.map((p, idx) => {
-        const initials = p.name.split(' ').map(w => w[0]).join('').slice(0,2).toUpperCase();
+        const initials = (p.name || '?').split(' ').map(w => w[0]).join('').slice(0,2).toUpperCase();
         const avatarHtml = p.avatar
           ? '<img src="' + p.avatar + '" alt="' + p.name + '">'
           : '<span>' + initials + '</span>';

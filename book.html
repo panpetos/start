@@ -106,20 +106,37 @@
 
   <script>
   (function () {
-    var MOCK_PSYCHOLOGISTS = [
-      { id: 1, name: "Анна Соколова", gender: "female", specialties: ["выгорание","тревога","карьера"], description: "Помогаю IT-специалистам справляться с профессиональным выгоранием и хроническим стрессом. КПТ, схема-терапия.", experience: 8, rating: 4.9, reviews: 127, price: 3500, formats: ["video","chat"], avatar: null, verified: true, color: "#7C3AED" },
-      { id: 2, name: "Дмитрий Волков", gender: "male", specialties: ["депрессия","самооценка","CBT"], description: "Работаю с депрессией, тревожными расстройствами и кризисами идентичности. 10 лет практики, КПТ.", experience: 10, rating: 4.8, reviews: 203, price: 4200, formats: ["video","phone"], avatar: null, verified: true, color: "#2563EB" },
-      { id: 3, name: "Марина Петрова", gender: "female", specialties: ["семья","тревога","выгорание"], description: "Семейная и индивидуальная терапия. Специализируюсь на парах, где один или оба партнёра работают в IT.", experience: 6, rating: 4.7, reviews: 89, price: 3000, formats: ["video","chat","phone"], avatar: null, verified: true, color: "#059669" },
-      { id: 4, name: "Иван Захаров", gender: "male", specialties: ["карьера","самооценка","CBT"], description: "Коучинг психолог. Помогаю преодолеть синдром самозванца, выстроить карьеру и найти баланс работы и жизни.", experience: 4, rating: 4.6, reviews: 54, price: 2800, formats: ["video"], avatar: null, verified: false, color: "#D97706" },
-      { id: 5, name: "Елена Морозова", gender: "female", specialties: ["депрессия","тревога","EMDR"], description: "EMDR-терапевт. Работаю с травмой, ПТСР, фобиями и паническими атаками. Онлайн и очно.", experience: 12, rating: 5.0, reviews: 311, price: 5000, formats: ["video","chat"], avatar: null, verified: true, color: "#DB2777" },
-      { id: 6, name: "Сергей Николаев", gender: "male", specialties: ["выгорание","карьера","семья"], description: "Бывший разработчик, ставший психологом. Понимаю технический мир изнутри. Экзистенциальная и интегративная терапия.", experience: 5, rating: 4.9, reviews: 142, price: 3800, formats: ["video","chat"], avatar: null, verified: true, color: "#7C3AED" },
-      { id: 7, name: "Ольга Кузнецова", gender: "female", specialties: ["самооценка","тревога","гештальт"], description: "Гештальт-терапевт. Работаю с тревогой, неуверенностью в себе и проблемами в отношениях.", experience: 7, rating: 4.8, reviews: 96, price: 3200, formats: ["video","phone"], avatar: null, verified: true, color: "#0891B2" },
-      { id: 8, name: "Алексей Смирнов", gender: "male", specialties: ["депрессия","выгорание","CBT"], description: "КПТ-терапевт. Специализируюсь на депрессии, профессиональном выгоранием и нарушениях сна у разработчиков.", experience: 9, rating: 4.7, reviews: 178, price: 4000, formats: ["video","chat","phone"], avatar: null, verified: true, color: "#2563EB" }
-    ];
-
     var params = new URLSearchParams(location.search);
-    var id = parseInt(params.get('id'), 10);
-    var psych = MOCK_PSYCHOLOGISTS.find(function(p) { return p.id === id; }) || MOCK_PSYCHOLOGISTS[0];
+    var id = params.get('id');
+
+    var AVATAR_COLORS = ['#7C3AED','#2563EB','#059669','#D97706','#DB2777','#0891B2','#9F67FA'];
+    function colorForId(x) {
+      var s = String(x), h = 0;
+      for (var i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+      return AVATAR_COLORS[h % AVATAR_COLORS.length];
+    }
+
+    /* Маппинг реального ответа API в формат страницы */
+    function normalizePsych(p) {
+      var name = ((p.first_name || '') + ' ' + (p.last_name || '')).trim() || p.email || 'Психолог';
+      var specStr = (p.specialization || '').trim();
+      var specialties = specStr ? specStr.split(/[,;]+/).map(function(s){return s.trim();}).filter(Boolean) : [];
+      return {
+        id: p.id, name: name, gender: p.gender || '',
+        specialties: specialties, description: p.description || '',
+        experience: parseInt(p.experience, 10) || 0,
+        rating: parseFloat(p.rating) || 0,
+        reviews: parseInt(p.total_reviews, 10) || 0,
+        price: parseFloat(p.price) || 0,
+        formats: (Array.isArray(p.formats) && p.formats.length) ? p.formats : ['video'],
+        avatar: p.avatar || null,
+        verified: String(p.is_approved) === '1',
+        color: colorForId(p.id)
+      };
+    }
+
+    /* psych заполняется после загрузки реальных данных */
+    var psych = null;
 
     /* ---- State ---- */
     var selectedDate = null;
@@ -244,8 +261,7 @@
       document.getElementById('confirmBtn').addEventListener('click', function() {
         if (!selectedDate || !selectedTime) return;
         var iso = toISO(selectedDate, selectedTime);
-        try { sessionStorage.setItem('bookingPsychologist', JSON.stringify(psych)); } catch(e) {}
-        location.href = '/book-confirm.html?psychologist_id=' + psych.id + '&datetime=' + encodeURIComponent(iso) + '&mock=1';
+        location.href = '/book-confirm.html?psychologist_id=' + encodeURIComponent(psych.id) + '&datetime=' + encodeURIComponent(iso);
       });
 
       renderCalendar();
@@ -345,18 +361,40 @@
       }
     }
 
-    buildPage();
+    /* ── Загрузка реального психолога, затем построение страницы ── */
+    function showLoadError() {
+      document.getElementById('bookContent').innerHTML =
+        '<div style="text-align:center;padding:3rem 1rem;">' +
+          '<div style="font-size:2.5rem;margin-bottom:0.75rem;">😕</div>' +
+          '<h2 style="font-size:1.25rem;color:#1A1A1A;margin-bottom:0.5rem;">Специалист не найден</h2>' +
+          '<p style="color:#6B7280;margin-bottom:1.5rem;">Возможно, профиль был удалён или ссылка устарела.</p>' +
+          '<a href="/search.html" style="display:inline-block;padding:0.75rem 1.5rem;background:linear-gradient(135deg,#7C3AED,#9F67FA);color:white;text-decoration:none;border-radius:0.75rem;font-weight:600;">← Вернуться в каталог</a>' +
+        '</div>';
+    }
+
+    (function loadAndBuild() {
+      if (!id) { showLoadError(); return; }
+      fetch('/api/psychologists.php?action=get&id=' + encodeURIComponent(id), { credentials: 'include' })
+        .then(function(r) { return r.ok ? r.json() : null; })
+        .then(function(data) {
+          if (!data || data.error || !data.id) { showLoadError(); return; }
+          psych = normalizePsych(data);
+          buildPage();
+          checkSelfBooking();
+        })
+        .catch(function() { showLoadError(); });
+    })();
 
     /* ── Self-booking prevention ──
        If the logged-in user IS this psychologist, disable booking and show a warning.
        Psychologists can book any OTHER colleague as a client — just not themselves. */
-    (function checkSelfBooking() {
+    function checkSelfBooking() {
       if (!window.Auth || !window.Auth.getCurrentUser) return;
       Promise.resolve(window.Auth.getCurrentUser()).then(function(user) {
         if (!user) return;
         var myPsychId = user.psychologist_id || user.psychologistId;
         if (!myPsychId) return;
-        if (String(myPsychId) !== String(psych.id)) return;
+        if (!psych || String(myPsychId) !== String(psych.id)) return;
 
         /* Same person — block the flow */
         var warn = document.createElement('div');
@@ -375,7 +413,7 @@
           confirmBtn.style.boxShadow = 'none';
         }
       }).catch(function() {});
-    })();
+    }
   })();
   </script>
 </body>
