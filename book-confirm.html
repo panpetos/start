@@ -133,6 +133,20 @@
         const MONTHS = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня',
             'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
 
+        function normalizeCachedPsych(p) {
+            const parts = (p.name || '').split(' ');
+            return {
+                id: p.id,
+                first_name: parts[0] || '',
+                last_name: parts.slice(1).join(' ') || '',
+                specialization: (p.specialties || []).join(', ') || 'Психолог',
+                price: p.price || 0,
+                avatar: p.avatar || null,
+                formats: p.formats || ['video'],
+                color: p.color || '#7C3AED'
+            };
+        }
+
         async function init() {
             const urlParams = new URLSearchParams(window.location.search);
             const psychologistId = urlParams.get('psychologist_id');
@@ -145,6 +159,24 @@
             }
 
             bookingData.datetime = datetime;
+
+            // Try cached psychologist from booking page (no login required)
+            let cached = null;
+            try {
+                const raw = sessionStorage.getItem('bookingPsychologist');
+                if (raw) {
+                    const obj = JSON.parse(raw);
+                    if (String(obj.id) === String(psychologistId)) cached = obj;
+                }
+            } catch (_) {}
+
+            if (cached) {
+                mockMode = true;
+                psychologistData = normalizeCachedPsych(cached);
+                renderBookingForm();
+                if (typeof lucide !== 'undefined') { try { lucide.createIcons(); } catch(e) {} }
+                return;
+            }
 
             let user = null;
             if (window.Auth && window.Auth.getCurrentUser) {

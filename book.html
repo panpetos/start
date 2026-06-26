@@ -244,7 +244,8 @@
       document.getElementById('confirmBtn').addEventListener('click', function() {
         if (!selectedDate || !selectedTime) return;
         var iso = toISO(selectedDate, selectedTime);
-        location.href = '/book-confirm.html?psychologist_id=' + psych.id + '&datetime=' + encodeURIComponent(iso);
+        try { sessionStorage.setItem('bookingPsychologist', JSON.stringify(psych)); } catch(e) {}
+        location.href = '/book-confirm.html?psychologist_id=' + psych.id + '&datetime=' + encodeURIComponent(iso) + '&mock=1';
       });
 
       renderCalendar();
