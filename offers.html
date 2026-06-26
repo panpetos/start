@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Пакеты и цены — psytalk.pro</title>
+    <script src="/js/layout.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', -apple-system, sans-serif; background: #FAFAFA; min-height: 100vh; display: flex; flex-direction: column; color: #1A1A1A; }
+        main { flex: 1; }
+
+        /* Hero */
+        .hero {
+            background: linear-gradient(135deg, #7C3AED 0%, #9F67FA 60%, #C4B5FD 100%);
+            padding: 4rem 1rem 5rem;
+            text-align: center; color: white;
+        }
+        .hero h1 { font-size: clamp(1.75rem, 4vw, 2.75rem); font-weight: 800; letter-spacing: -0.03em; margin-bottom: 0.75rem; }
+        .hero p { font-size: 1.0625rem; opacity: 0.88; max-width: 520px; margin: 0 auto; line-height: 1.65; }
+
+        /* Cards grid */
+        .container { max-width: 1100px; margin: 0 auto; padding: 0 1.5rem; }
+        .plans {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.5rem;
+            margin-top: -2.5rem;
+            padding-bottom: 4rem;
+        }
+        .plan-card {
+            background: white; border-radius: 1.5rem; padding: 2rem 1.75rem;
+            box-shadow: 0 4px 24px rgba(0,0,0,0.07); border: 1px solid #F0ECF8;
+            display: flex; flex-direction: column; transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .plan-card:hover { transform: translateY(-4px); box-shadow: 0 12px 40px rgba(124,58,237,0.14); }
+        .plan-card.featured {
+            border: 2px solid #7C3AED;
+            box-shadow: 0 8px 32px rgba(124,58,237,0.18);
+        }
+        .plan-badge {
+            display: inline-block; background: linear-gradient(135deg,#7C3AED,#9F67FA);
+            color: white; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.05em;
+            padding: 0.2rem 0.75rem; border-radius: 2rem; margin-bottom: 1rem;
+            text-transform: uppercase;
+        }
+        .plan-name { font-size: 1.25rem; font-weight: 700; color: #1A1A1A; margin-bottom: 0.375rem; }
+        .plan-desc { font-size: 0.9rem; color: #6B7280; line-height: 1.55; margin-bottom: 1.5rem; }
+        .plan-price { margin-bottom: 1.5rem; }
+        .plan-price .amount { font-size: 2.25rem; font-weight: 800; color: #7C3AED; letter-spacing: -0.03em; }
+        .plan-price .currency { font-size: 1.25rem; font-weight: 700; color: #7C3AED; }
+        .plan-price .per { font-size: 0.875rem; color: #9CA3AF; margin-top: 0.125rem; }
+        .plan-price .original { font-size: 0.875rem; color: #9CA3AF; text-decoration: line-through; margin-left: 0.25rem; }
+        .plan-price .saving {
+            display: inline-block; background: #F0FDF4; color: #16A34A;
+            border: 1px solid #BBF7D0; border-radius: 2rem; font-size: 0.75rem;
+            font-weight: 700; padding: 0.15rem 0.6rem; margin-top: 0.375rem;
+        }
+        .plan-features { list-style: none; flex: 1; margin-bottom: 1.75rem; }
+        .plan-features li { display: flex; align-items: flex-start; gap: 0.625rem; padding: 0.5rem 0; font-size: 0.9375rem; color: #374151; border-bottom: 1px solid #F9F9F9; }
+        .plan-features li:last-child { border-bottom: none; }
+        .plan-features .check { color: #7C3AED; flex-shrink: 0; margin-top: 2px; }
+        .btn-plan {
+            display: block; text-align: center; padding: 0.875rem;
+            background: linear-gradient(135deg, #7C3AED, #9F67FA);
+            color: white; text-decoration: none; border-radius: 0.875rem;
+            font-weight: 700; font-size: 1rem; transition: all 0.2s;
+            box-shadow: 0 4px 12px rgba(124,58,237,0.3);
+        }
+        .btn-plan:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(124,58,237,0.45); color: white; }
+        .btn-plan.outline {
+            background: white; color: #7C3AED; border: 2px solid #C4B5FD;
+            box-shadow: none;
+        }
+        .btn-plan.outline:hover { background: #FAF5FF; border-color: #7C3AED; }
+
+        /* FAQ */
+        .faq-section { padding: 3rem 0 4rem; }
+        .faq-section h2 { font-size: 1.75rem; font-weight: 800; text-align: center; margin-bottom: 2rem; color: #1A1A1A; }
+        .faq-item { background: white; border-radius: 1rem; border: 1px solid #F0ECF8; margin-bottom: 0.75rem; overflow: hidden; }
+        .faq-q { padding: 1.125rem 1.25rem; font-weight: 600; cursor: pointer; display: flex; justify-content: space-between; align-items: center; user-select: none; }
+        .faq-q:hover { background: #FAF5FF; }
+        .faq-a { padding: 0 1.25rem 1.125rem; color: #6B7280; font-size: 0.9375rem; line-height: 1.65; display: none; }
+        .faq-item.open .faq-a { display: block; }
+        .faq-item.open .faq-icon { transform: rotate(180deg); }
+        .faq-icon { transition: transform 0.2s; color: #7C3AED; flex-shrink: 0; }
+
+        /* Trust strip */
+        .trust-strip {
+            background: linear-gradient(135deg, #F3E8FF, #EDE9FF);
+            border-radius: 1.5rem; padding: 2rem 2.5rem; margin-bottom: 4rem;
+            display: flex; flex-wrap: wrap; gap: 2rem; justify-content: center;
+        }
+        .trust-item { text-align: center; min-width: 120px; }
+        .trust-item .num { font-size: 1.75rem; font-weight: 800; color: #7C3AED; }
+        .trust-item .lbl { font-size: 0.875rem; color: #6B7280; margin-top: 0.25rem; }
+    </style>
+</head>
+<body>
+    <script>psyWriteHeader();</script>
+    <main>
+        <section class="hero">
+            <h1>Прозрачные цены — никаких скрытых платежей</h1>
+            <p>Оплачивайте отдельные сессии или экономьте до 28% с пакетом. Все форматы включены.</p>
+        </section>
+
+        <div class="container">
+            <div class="plans">
+
+                <!-- Single session -->
+                <div class="plan-card">
+                    <div class="plan-name">Разовая сессия</div>
+                    <div class="plan-desc">Идеально для первой консультации или точечного запроса. Без обязательств.</div>
+                    <div class="plan-price">
+                        <div><span class="amount">2 500</span> <span class="currency">₽</span></div>
+                        <div class="per">за 50-минутную сессию</div>
+                    </div>
+                    <ul class="plan-features">
+                        <li><span class="check">✓</span> Видео, аудио или чат на выбор</li>
+                        <li><span class="check">✓</span> Любой психолог из каталога</li>
+                        <li><span class="check">✓</span> Безопасное зашифрованное соединение</li>
+                        <li><span class="check">✓</span> Отмена за 24 часа без штрафа</li>
+                    </ul>
+                    <a href="/search.html" class="btn-plan outline">Найти психолога</a>
+                </div>
+
+                <!-- Pack 4 — POPULAR -->
+                <div class="plan-card featured">
+                    <div class="plan-badge">Популярный</div>
+                    <div class="plan-name">Пакет 4 сессии</div>
+                    <div class="plan-desc">Оптимальный старт: 4 встречи позволяют наладить контакт и увидеть первые результаты.</div>
+                    <div class="plan-price">
+                        <div>
+                            <span class="amount">8 400</span> <span class="currency">₽</span>
+                            <span class="original">10 000 ₽</span>
+                        </div>
+                        <div class="per">2 100 ₽/сессия</div>
+                        <div><span class="saving">Экономия 1 600 ₽ (16%)</span></div>
+                    </div>
+                    <ul class="plan-features">
+                        <li><span class="check">✓</span> Видео, аудио или чат на выбор</li>
+                        <li><span class="check">✓</span> Фиксированный психолог — постоянство</li>
+                        <li><span class="check">✓</span> Сессии действуют 3 месяца</li>
+                        <li><span class="check">✓</span> Безопасное зашифрованное соединение</li>
+                        <li><span class="check">✓</span> Приоритетная поддержка</li>
+                    </ul>
+                    <a href="/search.html" class="btn-plan">Выбрать психолога</a>
+                </div>
+
+                <!-- Pack 8 -->
+                <div class="plan-card">
+                    <div class="plan-name">Пакет 8 сессий</div>
+                    <div class="plan-desc">Глубокая работа над запросом: курс из 8 встреч для устойчивых изменений.</div>
+                    <div class="plan-price">
+                        <div>
+                            <span class="amount">14 400</span> <span class="currency">₽</span>
+                            <span class="original">20 000 ₽</span>
+                        </div>
+                        <div class="per">1 800 ₽/сессия</div>
+                        <div><span class="saving">Экономия 5 600 ₽ (28%)</span></div>
+                    </div>
+                    <ul class="plan-features">
+                        <li><span class="check">✓</span> Видео, аудио или чат на выбор</li>
+                        <li><span class="check">✓</span> Фиксированный психолог — постоянство</li>
+                        <li><span class="check">✓</span> Сессии действуют 6 месяцев</li>
+                        <li><span class="check">✓</span> Безопасное зашифрованное соединение</li>
+                        <li><span class="check">✓</span> Приоритетная поддержка 24/7</li>
+                        <li><span class="check">✓</span> Бесплатная замена психолога</li>
+                    </ul>
+                    <a href="/search.html" class="btn-plan outline">Выбрать психолога</a>
+                </div>
+
+            </div>
+
+            <!-- Trust -->
+            <div class="trust-strip">
+                <div class="trust-item"><div class="num">500+</div><div class="lbl">психологов в каталоге</div></div>
+                <div class="trust-item"><div class="num">4.8</div><div class="lbl">средняя оценка специалиста</div></div>
+                <div class="trust-item"><div class="num">100%</div><div class="lbl">защита оплаты</div></div>
+                <div class="trust-item"><div class="num">24/7</div><div class="lbl">поддержка клиентов</div></div>
+            </div>
+
+            <!-- FAQ -->
+            <div class="faq-section">
+                <h2>Часто задаваемые вопросы</h2>
+                <div class="faq-item">
+                    <div class="faq-q" onclick="toggleFaq(this)">
+                        Как проходит сессия? <i data-lucide="chevron-down" class="faq-icon" style="width:20px;height:20px;"></i>
+                    </div>
+                    <div class="faq-a">Сессия проходит онлайн через видео, аудио или текстовый чат — вы выбираете формат сами. Длительность — 50 минут. Для видео и аудио используется защищённое соединение.</div>
+                </div>
+                <div class="faq-item">
+                    <div class="faq-q" onclick="toggleFaq(this)">
+                        Можно ли вернуть деньги? <i data-lucide="chevron-down" class="faq-icon" style="width:20px;height:20px;"></i>
+                    </div>
+                    <div class="faq-a">Да. Если вы отменили запись за 24 часа и более — деньги возвращаются в полном объёме. При отмене позже — возвращается 50%. Подробнее в <a href="/refund.html" style="color:#7C3AED;">политике возврата</a>.</div>
+                </div>
+                <div class="faq-item">
+                    <div class="faq-q" onclick="toggleFaq(this)">
+                        Сколько действует пакет? <i data-lucide="chevron-down" class="faq-icon" style="width:20px;height:20px;"></i>
+                    </div>
+                    <div class="faq-a">Пакет из 4 сессий действует 3 месяца с момента покупки. Пакет из 8 сессий — 6 месяцев. Неиспользованные сессии в рамках срока действия полностью возвращаются.</div>
+                </div>
+                <div class="faq-item">
+                    <div class="faq-q" onclick="toggleFaq(this)">
+                        Как выбрать психолога? <i data-lucide="chevron-down" class="faq-icon" style="width:20px;height:20px;"></i>
+                    </div>
+                    <div class="faq-a">Воспользуйтесь <a href="/search.html" style="color:#7C3AED;">каталогом специалистов</a> — там можно фильтровать по специализации, формату и стоимости. Все психологи верифицированы и имеют подтверждённое образование.</div>
+                </div>
+                <div class="faq-item">
+                    <div class="faq-q" onclick="toggleFaq(this)">
+                        Можно ли поменять психолога в пакете? <i data-lucide="chevron-down" class="faq-icon" style="width:20px;height:20px;"></i>
+                    </div>
+                    <div class="faq-a">Да, при покупке пакета из 8 сессий замена психолога бесплатна. Для пакета из 4 сессий — одна замена стоит 500 ₽.</div>
+                </div>
+            </div>
+        </div>
+    </main>
+    <script>psyWriteFooter();</script>
+    <script>
+        function toggleFaq(el) {
+            el.closest('.faq-item').classList.toggle('open');
+        }
+        try { if (window.lucide) lucide.createIcons(); } catch(e) {}
+    </script>
+</body>
+</html>

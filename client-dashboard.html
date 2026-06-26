@@ -197,6 +197,7 @@
                         </div>
                         <span class="appointment-status ${statusClass}">${statusText}</span>
                         <div class="appointment-actions">
+                            <a href="/chat.html?user=${a.psychologist_id}&mock=1" class="btn btn-small btn-outline" title="Написать психологу">💬</a>
                             ${canCancel ? `<button class="btn btn-small btn-danger" onclick="cancelMockAppointment('${a.id}')">Отменить</button>` : ''}
                         </div>
                     </div>`;

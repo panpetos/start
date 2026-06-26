@@ -677,42 +677,150 @@
         let currentUser = null;
         let selectedUserId = null;
         let pollInterval = null;
-        let isAdminMode = false;  // Режим отправки от имени техподдержки
+        let isAdminMode = false;
+
+        // ── Demo / mock mode ─────────────────────────────────────────────────────
+        let demoMode = false;
+        let demoMessages = [];
+        let demoPsych = null;
+
+        function findMockPsychInfo(psychId) {
+            try {
+                const appts = JSON.parse(localStorage.getItem('psyMockAppointments') || '[]');
+                const appt = appts.find(a => String(a.psychologist_id) === String(psychId));
+                if (appt) return { id: psychId, name: appt.psychologist_name, color: appt.psychologist_color || '#7C3AED' };
+            } catch(e) {}
+            const KNOWN = {
+                '1': { name: 'Анна Соколова', color: '#7C3AED' },
+                '2': { name: 'Михаил Петров', color: '#0EA5E9' },
+                '3': { name: 'Елена Козлова', color: '#10B981' },
+                '4': { name: 'Дмитрий Волков', color: '#F59E0B' },
+                '5': { name: 'Юлия Морозова', color: '#EF4444' },
+                '6': { name: 'Игорь Новиков', color: '#8B5CF6' },
+                '7': { name: 'Ольга Семёнова', color: '#6366F1' },
+                '8': { name: 'Артём Лебедев', color: '#14B8A6' },
+            };
+            const known = KNOWN[String(psychId)];
+            return known ? { id: psychId, ...known } : { id: psychId, name: 'Психолог', color: '#7C3AED' };
+        }
+
+        function renderDemoMessages() {
+            const container = document.getElementById('messagesContainer');
+            container.innerHTML = demoMessages.map(m => {
+                const isMine = m.sender_id === 'demo';
+                const time = formatTime(m.created_at);
+                return `<div class="message ${isMine ? 'mine' : 'theirs'}">
+                    <div>${escapeHtml(m.content)}</div>
+                    <div class="message-time">${time}</div>
+                </div>`;
+            }).join('');
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function sendDemoMessage(content) {
+            demoMessages.push({ sender_id: 'demo', content, created_at: new Date().toISOString() });
+            renderDemoMessages();
+            setTimeout(() => {
+                const replies = [
+                    'Спасибо, что поделились. Это звучит непросто.',
+                    'Я слышу вас. Расскажите подробнее?',
+                    'Понимаю. Давайте попробуем разобраться в этом вместе.',
+                    'Это очень важно. Продолжайте — я вас слушаю.',
+                    'Хорошо. Как давно вы это замечаете?',
+                ];
+                demoMessages.push({ sender_id: demoPsych ? demoPsych.id : 'psych', content: replies[Math.floor(Math.random() * replies.length)], created_at: new Date().toISOString() });
+                renderDemoMessages();
+            }, 1500);
+        }
+
+        function initDemoMode(psychId) {
+            demoMode = true;
+            demoPsych = findMockPsychInfo(psychId);
+            selectedUserId = psychId;
+            currentUser = { id: 'demo', role: 'client', first_name: 'Вы' };
+
+            // Top banner
+            const banner = document.createElement('div');
+            banner.id = 'demoBanner';
+            banner.style.cssText = 'background:#FFF8E7;border-bottom:2px solid #F59E0B;padding:0.5rem 1.25rem;display:flex;align-items:center;justify-content:space-between;gap:0.75rem;font-size:0.875rem;color:#92400E;flex-shrink:0;';
+            banner.innerHTML = '<span>🧪 <b>Демо-режим:</b> сообщения видны только вам и не сохраняются на сервере.</span>' +
+                '<a href="/client-dashboard.html" style="color:#7C3AED;font-weight:600;white-space:nowrap;text-decoration:none;">← Личный кабинет</a>';
+            document.body.insertBefore(banner, document.body.firstChild);
+            document.querySelector('.chat-container').style.height = 'calc(100vh - 44px)';
+
+            // Sidebar
+            const init = demoPsych.name.charAt(0).toUpperCase();
+            document.getElementById('conversationsList').innerHTML = `
+                <div class="conversation-item active" style="cursor:default;">
+                    <div class="conversation-avatar" style="background:${demoPsych.color};">${init}</div>
+                    <div class="conversation-info">
+                        <div class="conversation-name">${demoPsych.name}</div>
+                        <div class="conversation-preview">Демо-переписка</div>
+                    </div>
+                </div>`;
+
+            // Open chat area
+            document.getElementById('emptyState').style.display = 'none';
+            document.getElementById('chatContent').style.display = 'flex';
+            document.getElementById('chatHeader').innerHTML = `
+                <div class="avatar" style="background:${demoPsych.color};">${init}</div>
+                <div style="flex:1;">
+                    <div class="name">${demoPsych.name}</div>
+                    <div class="role">Психолог · Демо</div>
+                </div>
+                <a href="/client-dashboard.html" class="dashboard-btn" title="Личный кабинет" style="text-decoration:none;">
+                    <i data-lucide="layout-grid" style="width:20px;height:20px;"></i>
+                </a>`;
+
+            // Seed messages
+            const now = Date.now();
+            demoMessages = [
+                { sender_id: psychId, content: 'Здравствуйте! Спасибо, что обратились. Я готов(а) вас выслушать. Расскажите, что вас беспокоит?', created_at: new Date(now - 86400000).toISOString() },
+                { sender_id: 'demo', content: 'Здравствуйте! Хочу проработать тревожность и стресс.', created_at: new Date(now - 86300000).toISOString() },
+                { sender_id: psychId, content: 'Понимаю вас. Это очень важный шаг — обратиться за помощью. Давайте разберёмся вместе. Напишите подробнее, что именно вас беспокоит?', created_at: new Date(now - 86200000).toISOString() },
+            ];
+            renderDemoMessages();
+            try { if (window.lucide) lucide.createIcons(); } catch(e) {}
+        }
+        // ─────────────────────────────────────────────────────────────────────────
 
         function getDashboardUrl() {
-            if (!currentUser) return '/login.html';
+            if (!currentUser || currentUser.id === 'demo') return '/client-dashboard.html';
             if (currentUser.role === 'psychologist') return '/psychologist-dashboard.html';
             if (currentUser.role === 'admin') return '/admin.html';
             return '/client-dashboard.html';
         }
 
         async function init() {
-            if (!window.Auth || !window.Auth.getCurrentUser) {
-                window.location.href = '/login.html';
-                return;
-            }
-
-            currentUser = await window.Auth.getCurrentUser();
-            if (!currentUser) {
-                window.location.href = '/login.html';
-                return;
-            }
-
-            // Проверяем параметры URL
             const urlParams = new URLSearchParams(window.location.search);
             const userIdFromUrl = urlParams.get('user');
+
+            // Try to get authenticated user
+            let user = null;
+            if (window.Auth && window.Auth.getCurrentUser) {
+                try { user = await window.Auth.getCurrentUser(); } catch(e) {}
+            }
+
+            if (!user) {
+                // No auth — show demo mode if a target user was specified
+                if (userIdFromUrl) {
+                    initDemoMode(userIdFromUrl);
+                } else {
+                    window.location.href = '/login.html';
+                }
+                return;
+            }
+
+            currentUser = user;
             isAdminMode = urlParams.get('admin') === '1' && currentUser.role === 'admin';
 
             await loadConversations();
 
-            // Автоматически открыть чат если есть user в URL
             if (userIdFromUrl) {
                 await startNewChat(userIdFromUrl);
             }
 
-            if (typeof lucide !== 'undefined') {
-                lucide.createIcons();
-            }
+            try { if (window.lucide) lucide.createIcons(); } catch(e) {}
         }
 
         // Начать новый чат с пользователем (даже если нет истории)
@@ -937,6 +1045,8 @@
             if (!content || !selectedUserId) return;
 
             input.value = '';
+
+            if (demoMode) { sendDemoMessage(content); return; }
 
             try {
                 const messageData = {

@@ -27,7 +27,7 @@
 
   var loginCircle =
     '<li style="margin-left:2rem;">' +
-      '<a href="/login.html" aria-label="Вход в личный кабинет" title="Вход в личный кабинет" ' +
+      '<a id="psyLoginCircle" href="/login.html" aria-label="Личный кабинет" title="Личный кабинет" ' +
       'style="width:40px;height:40px;border-radius:50%;background:#34C759;display:inline-flex;align-items:center;justify-content:center;text-decoration:none;transition:transform .2s;" ' +
       'onmouseover="this.style.transform=\'scale(1.05)\'" onmouseout="this.style.transform=\'scale(1)\'">' +
       personSvg +
@@ -120,11 +120,29 @@
     });
   }
 
+  function updateLoginCircle() {
+    if (!window.Auth || !window.Auth.getCurrentUser) return;
+    try {
+      Promise.resolve(window.Auth.getCurrentUser()).then(function(user) {
+        if (!user) return;
+        var circle = document.getElementById('psyLoginCircle');
+        if (!circle) return;
+        var url = '/client-dashboard.html';
+        if (user.role === 'psychologist') url = '/psychologist-dashboard.html';
+        else if (user.role === 'admin') url = '/admin.html';
+        circle.href = url;
+        circle.title = (user.first_name || 'Кабинет');
+        circle.style.background = 'linear-gradient(135deg,#7C3AED,#9F67FA)';
+      }).catch(function() {});
+    } catch(e) {}
+  }
+
   function onReady() {
     fillPlaceholders();
     wireBurger();
     showDevNotice();
     if (window.lucide && lucide.createIcons) lucide.createIcons();
+    setTimeout(updateLoginCircle, 500);
   }
 
   if (document.readyState === 'loading') {

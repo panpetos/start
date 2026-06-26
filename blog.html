@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Блог — psytalk.pro</title>
+    <script src="/js/layout.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', -apple-system, sans-serif; background: #FAFAFA; min-height: 100vh; display: flex; flex-direction: column; color: #1A1A1A; }
+        main { flex: 1; }
+        .container { max-width: 1100px; margin: 0 auto; padding: 0 1.5rem; }
+
+        /* Hero */
+        .hero {
+            background: linear-gradient(135deg, #7C3AED 0%, #9F67FA 60%, #C4B5FD 100%);
+            padding: 3.5rem 1rem 4rem; text-align: center; color: white;
+        }
+        .hero h1 { font-size: clamp(1.75rem, 4vw, 2.5rem); font-weight: 800; letter-spacing: -0.03em; margin-bottom: 0.6rem; }
+        .hero p { font-size: 1rem; opacity: 0.88; max-width: 480px; margin: 0 auto; line-height: 1.6; }
+
+        /* Articles grid */
+        .articles {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin-top: -2rem;
+            padding: 0 0 4rem;
+        }
+        .article-card {
+            background: white; border-radius: 1.25rem; overflow: hidden;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.06); border: 1px solid #F0ECF8;
+            transition: transform 0.2s, box-shadow 0.2s; display: flex; flex-direction: column;
+        }
+        .article-card:hover { transform: translateY(-4px); box-shadow: 0 10px 36px rgba(124,58,237,0.12); }
+        .article-thumb {
+            height: 160px; display: flex; align-items: center; justify-content: center;
+            font-size: 3rem;
+        }
+        .article-body { padding: 1.25rem 1.5rem 1.5rem; flex: 1; display: flex; flex-direction: column; }
+        .article-tag {
+            display: inline-block; background: #F3E8FF; color: #7C3AED;
+            font-size: 0.75rem; font-weight: 600; padding: 0.2rem 0.6rem; border-radius: 2rem;
+            margin-bottom: 0.625rem;
+        }
+        .article-title { font-size: 1.0625rem; font-weight: 700; color: #1A1A1A; line-height: 1.4; margin-bottom: 0.5rem; }
+        .article-excerpt { font-size: 0.875rem; color: #6B7280; line-height: 1.6; flex: 1; margin-bottom: 1rem; }
+        .article-meta { display: flex; align-items: center; justify-content: space-between; font-size: 0.8rem; color: #9CA3AF; }
+        .read-link { color: #7C3AED; font-weight: 600; text-decoration: none; font-size: 0.875rem; }
+        .read-link:hover { text-decoration: underline; }
+
+        /* Soon banner */
+        .soon-banner {
+            background: linear-gradient(135deg, #F3E8FF, #EDE9FF);
+            border-radius: 1.5rem; padding: 2rem 2.5rem; text-align: center; margin: 2.5rem 0 4rem;
+        }
+        .soon-banner h2 { font-size: 1.375rem; font-weight: 700; color: #7C3AED; margin-bottom: 0.5rem; }
+        .soon-banner p { color: #6B7280; font-size: 0.9375rem; line-height: 1.6; max-width: 420px; margin: 0 auto 1.25rem; }
+        .btn-subscribe {
+            display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.75rem 1.75rem;
+            background: linear-gradient(135deg, #7C3AED, #9F67FA);
+            color: white; text-decoration: none; border-radius: 0.75rem; font-weight: 700; font-size: 0.9375rem;
+            box-shadow: 0 4px 14px rgba(124,58,237,0.3); transition: all 0.2s; border: none; cursor: pointer; font-family: inherit;
+        }
+        .btn-subscribe:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(124,58,237,0.45); color: white; }
+    </style>
+</head>
+<body>
+    <script>psyWriteHeader();</script>
+    <main>
+        <section class="hero">
+            <h1>Блог psytalk.pro</h1>
+            <p>Полезные статьи о психологии, ментальном здоровье и личностном росте</p>
+        </section>
+
+        <div class="container">
+            <div class="articles">
+
+                <div class="article-card">
+                    <div class="article-thumb" style="background:linear-gradient(135deg,#F3E8FF,#EDE9FF);">🧠</div>
+                    <div class="article-body">
+                        <span class="article-tag">Тревога</span>
+                        <div class="article-title">5 признаков того, что тревога мешает вашей жизни</div>
+                        <div class="article-excerpt">Небольшая тревожность — это нормально. Но как понять, когда она становится проблемой? Разбираем ключевые признаки и рассказываем, что делать дальше.</div>
+                        <div class="article-meta">
+                            <span>15 мин · Статья</span>
+                            <a href="#" class="read-link">Читать →</a>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="article-card">
+                    <div class="article-thumb" style="background:linear-gradient(135deg,#F0FDF4,#DCFCE7);">💚</div>
+                    <div class="article-body">
+                        <span class="article-tag">Отношения</span>
+                        <div class="article-title">Как наладить отношения с партнёром: взгляд психолога</div>
+                        <div class="article-excerpt">Конфликты в паре — это не признак плохих отношений, а возможность для роста. Рассказываем, как говорить о проблемах конструктивно.</div>
+                        <div class="article-meta">
+                            <span>12 мин · Статья</span>
+                            <a href="#" class="read-link">Читать →</a>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="article-card">
+                    <div class="article-thumb" style="background:linear-gradient(135deg,#FFF8E7,#FEF3C7);">🌱</div>
+                    <div class="article-body">
+                        <span class="article-tag">Личностный рост</span>
+                        <div class="article-title">Что такое терапия и как понять, что она вам нужна</div>
+                        <div class="article-excerpt">Многие откладывают поход к психологу. Объясняем, чем занимается психотерапевт и почему начать никогда не поздно — но лучше раньше.</div>
+                        <div class="article-meta">
+                            <span>10 мин · Гайд</span>
+                            <a href="#" class="read-link">Читать →</a>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="article-card">
+                    <div class="article-thumb" style="background:linear-gradient(135deg,#EFF6FF,#DBEAFE);">😴</div>
+                    <div class="article-body">
+                        <span class="article-tag">Стресс</span>
+                        <div class="article-title">Выгорание на работе: как распознать и выйти из него</div>
+                        <div class="article-excerpt">Хроническая усталость, апатия, раздражительность — это не просто «устал». Рассказываем о стадиях выгорания и доказанных способах восстановления.</div>
+                        <div class="article-meta">
+                            <span>18 мин · Статья</span>
+                            <a href="#" class="read-link">Читать →</a>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="article-card">
+                    <div class="article-thumb" style="background:linear-gradient(135deg,#FFF0F3,#FFE4E8);">❤️</div>
+                    <div class="article-body">
+                        <span class="article-tag">Самооценка</span>
+                        <div class="article-title">Как перестать сравнивать себя с другими</div>
+                        <div class="article-excerpt">Социальные сети создают иллюзию «идеальной жизни». Делимся техниками, которые помогут принять себя и перестать ориентироваться на чужие стандарты.</div>
+                        <div class="article-meta">
+                            <span>8 мин · Статья</span>
+                            <a href="#" class="read-link">Читать →</a>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="article-card">
+                    <div class="article-thumb" style="background:linear-gradient(135deg,#F0F9FF,#E0F2FE);">🧘</div>
+                    <div class="article-body">
+                        <span class="article-tag">Практики</span>
+                        <div class="article-title">5-минутные техники против панических атак</div>
+                        <div class="article-excerpt">Паническая атака пугает, но она не опасна. Разбираем дыхательные и телесные техники, которые помогают прямо в момент приступа.</div>
+                        <div class="article-meta">
+                            <span>7 мин · Практика</span>
+                            <a href="#" class="read-link">Читать →</a>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <div class="soon-banner">
+                <h2>✍️ Новые статьи каждую неделю</h2>
+                <p>Подпишитесь, чтобы получать полезные материалы о психологии и ментальном здоровье прямо на почту.</p>
+                <button class="btn-subscribe" onclick="subscribeEmail()">
+                    Подписаться на рассылку
+                </button>
+            </div>
+        </div>
+    </main>
+    <script>psyWriteFooter();</script>
+    <script>
+        function subscribeEmail() {
+            const email = prompt('Введите ваш email для подписки:');
+            if (email && email.includes('@')) {
+                alert('Спасибо! Вы подписаны на рассылку. Первое письмо придёт в течение дня.');
+            } else if (email !== null) {
+                alert('Введите корректный email.');
+            }
+        }
+        try { if (window.lucide) lucide.createIcons(); } catch(e) {}
+    </script>
+</body>
+</html>

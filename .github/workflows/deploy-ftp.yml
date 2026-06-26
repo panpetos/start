@@ -32,6 +32,9 @@ jobs:
             put client-dashboard.html;
             put psychologist-dashboard.html;
             put chat.html;
+            put login.html;
+            put offers.html;
+            put blog.html;
             put consultation.html;
             put consent.html;
             put offer.html;
