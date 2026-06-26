@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Согласие на обработку персональных данных — psytalk.pro</title>
+  <meta name="description" content="Согласие на обработку персональных данных на платформе psytalk.pro">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --purple: #7C3AED; --purple-light: #8B5CF6; --purple-bg: #F5F3FF;
+      --dark: #1A1A1A; --gray-900: #111827; --gray-700: #374151;
+      --gray-500: #6B7280; --gray-300: #D1D5DB; --gray-100: #F3F4F6; --white: #ffffff;
+    }
+    body { font-family: 'Inter', sans-serif; background: #FAFAFA; color: var(--gray-900); line-height: 1.7; }
+    header { background: var(--white); border-bottom: 1px solid var(--gray-300); padding: 1rem 0; position: sticky; top: 0; z-index: 100; box-shadow: 0 1px 8px rgba(0,0,0,0.06); }
+    .header-inner { max-width: 900px; margin: 0 auto; padding: 0 1.5rem; display: flex; align-items: center; gap: 1rem; }
+    .logo { font-size: 1.25rem; font-weight: 700; text-decoration: none; }
+    .logo span:first-child { color: var(--dark); }
+    .logo span:last-child { color: var(--purple); font-style: italic; }
+    .back-btn { margin-left: auto; display: inline-flex; align-items: center; gap: 0.4rem; color: var(--purple); text-decoration: none; font-size: 0.875rem; font-weight: 500; padding: 0.4rem 0.9rem; border: 1.5px solid var(--purple); border-radius: 8px; transition: all 0.2s; }
+    .back-btn:hover { background: var(--purple); color: white; }
+    .hero { background: linear-gradient(135deg, #7C3AED 0%, #4F46E5 100%); color: white; padding: 3.5rem 1.5rem 3rem; text-align: center; }
+    .hero-badge { display: inline-block; background: rgba(255,255,255,0.18); border: 1px solid rgba(255,255,255,0.3); border-radius: 100px; padding: 0.3rem 1rem; font-size: 0.8rem; letter-spacing: 0.05em; text-transform: uppercase; font-weight: 600; margin-bottom: 1.2rem; }
+    .hero h1 { font-size: clamp(1.6rem, 4vw, 2.4rem); font-weight: 700; line-height: 1.25; margin-bottom: 0.75rem; }
+    .hero p { opacity: 0.85; font-size: 1rem; max-width: 520px; margin: 0 auto; }
+    main { max-width: 900px; margin: 0 auto; padding: 2.5rem 1.5rem 4rem; }
+    .toc { background: var(--white); border: 1px solid var(--gray-300); border-radius: 16px; padding: 1.75rem 2rem; margin-bottom: 2.5rem; box-shadow: 0 2px 12px rgba(0,0,0,0.05); }
+    .toc h2 { font-size: 0.95rem; font-weight: 600; color: var(--gray-500); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 1rem; }
+    .toc ol { padding-left: 1.25rem; display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 0.35rem 2rem; }
+    .toc li { font-size: 0.9rem; }
+    .toc a { color: var(--purple); text-decoration: none; font-weight: 500; }
+    .toc a:hover { text-decoration: underline; }
+    .section { background: var(--white); border-radius: 16px; padding: 2rem 2.25rem; margin-bottom: 1.5rem; border: 1px solid var(--gray-300); box-shadow: 0 2px 12px rgba(0,0,0,0.04); scroll-margin-top: 90px; }
+    .section-header { display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 2px solid var(--purple-bg); }
+    .section-num { flex-shrink: 0; width: 2.25rem; height: 2.25rem; border-radius: 50%; background: linear-gradient(135deg, var(--purple), #4F46E5); color: white; font-weight: 700; font-size: 0.9rem; display: flex; align-items: center; justify-content: center; }
+    .section h2 { font-size: 1.15rem; font-weight: 700; color: var(--gray-900); }
+    .clause { display: flex; gap: 0.75rem; margin-bottom: 0.9rem; }
+    .clause-num { flex-shrink: 0; font-weight: 600; color: var(--purple); font-size: 0.9rem; min-width: 2.5rem; padding-top: 0.05rem; }
+    .clause-text { font-size: 0.95rem; color: var(--gray-700); }
+    .clause-text ul { margin-top: 0.5rem; padding-left: 1.2rem; }
+    .clause-text ul li { margin-bottom: 0.35rem; }
+    p.intro-text { font-size: 0.95rem; color: var(--gray-700); margin-bottom: 1rem; line-height: 1.75; }
+    .terms-block { background: var(--purple-bg); border-left: 3px solid var(--purple); border-radius: 0 10px 10px 0; padding: 1rem 1.25rem; margin-bottom: 1.25rem; }
+    .terms-block h3 { font-size: 0.85rem; font-weight: 700; color: var(--purple); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.6rem; }
+    .req-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 1rem; }
+    .req-item { background: var(--gray-100); border-radius: 10px; padding: 0.9rem 1rem; }
+    .req-label { font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--gray-500); margin-bottom: 0.3rem; }
+    .req-value { font-size: 0.95rem; font-weight: 600; color: var(--gray-900); }
+    footer { background: var(--dark); color: white; padding: 2rem 1.5rem; text-align: center; }
+    footer .footer-logo { margin-bottom: 0.5rem; font-size: 1.1rem; font-weight: 700; }
+    footer .footer-logo span:last-child { color: var(--purple); font-style: italic; }
+    footer p { color: #999; font-size: 0.85rem; }
+    footer a { color: #999; text-decoration: none; }
+    footer a:hover { color: white; }
+    @media (max-width: 640px) { .section { padding: 1.5rem 1.25rem; } .toc ol { grid-template-columns: 1fr; } }
+  
+    .site-footer { border-top: 1px solid #e8e8e8; padding: 24px; text-align: center; font-size: 13px; color: #888; }
+    .site-footer a { color: #888; margin: 0 8px; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="header-inner">
+      <a href="/" class="logo"><span>psy</span><span>talk.pro</span></a>
+      <a href="/" class="back-btn">← На главную</a>
+    </div>
+  </header>
+
+  <div class="hero">
+    <div class="hero-badge">Юридический документ</div>
+    <h1>Согласие на обработку персональных данных</h1>
+    <p>Условия обработки и защиты ваших персональных данных на платформе psytalk.pro</p>
+  </div>
+
+  <main>
+    <!-- Operator info block -->
+    <div class="section" style="margin-bottom: 2.5rem;">
+      <div class="terms-block">
+        <h3>Оператор персональных данных</h3>
+        <p class="intro-text" style="margin-bottom: 0;">Платформа <strong>psytalk.pro</strong> — онлайн-сервис психологических консультаций.</p>
+      </div>
+      <div class="req-grid">
+        <div class="req-item">
+          <div class="req-label">Оператор</div>
+          <div class="req-value">ИП Вакульский Петр Валерьевич</div>
+        </div>
+        <div class="req-item">
+          <div class="req-label">ИНН</div>
+          <div class="req-value">230107911410</div>
+        </div>
+        <div class="req-item">
+          <div class="req-label">ОГРНИП</div>
+          <div class="req-value">326470400081272</div>
+        </div>
+        <div class="req-item">
+          <div class="req-label">E-mail</div>
+          <div class="req-value">support@psytalk.pro</div>
+        </div>
+        <div class="req-item">
+          <div class="req-label">Сайт</div>
+          <div class="req-value">psytalk.pro</div>
+        </div>
+      </div>
+      <p class="intro-text" style="margin-top: 1rem;"><strong>Дата публикации:</strong> 21 мая 2025 года</p>
+    </div>
+
+    <!-- Table of Contents -->
+    <nav class="toc">
+      <h2>Содержание</h2>
+      <ol>
+        <li><a href="#section-1">Общие положения</a></li>
+        <li><a href="#section-2">Перечень персональных данных</a></li>
+        <li><a href="#section-3">Цели обработки</a></li>
+        <li><a href="#section-4">Способы обработки</a></li>
+        <li><a href="#section-5">Сроки обработки и хранения</a></li>
+        <li><a href="#section-6">Порядок отзыва согласия</a></li>
+        <li><a href="#section-7">Передача данных третьим лицам</a></li>
+        <li><a href="#section-8">Защита персональных данных</a></li>
+        <li><a href="#section-9">Заключительные положения</a></li>
+      </ol>
+    </nav>
+
+    <!-- Section 1 -->
+    <div class="section" id="section-1">
+      <div class="section-header">
+        <div class="section-num">1</div>
+        <h2>Общие положения</h2>
+      </div>
+      <div class="clause">
+        <div class="clause-num">1.1</div>
+        <div class="clause-text">Настоящее Согласие на обработку персональных данных (далее — «Согласие») определяет порядок сбора, обработки, хранения, использования и защиты персональных данных пользователей (далее — «Субъект персональных данных», «Пользователь») на платформе psytalk.pro (далее — «Платформа», «Сайт»).</div>
+      </div>
+      <div class="clause">
+        <div class="clause-num">1.2</div>
+        <div class="clause-text">Оператором персональных данных является Индивидуальный предприниматель Вакульский Петр Валерьевич, ИНН 230107911410, ОГРНИП 326470400081272 (далее — «Оператор»), осуществляющий деятельность посредством интернет-сайта <strong>https://psytalk.pro/</strong>.</div>
+      </div>
+      <div class="clause">
+        <div class="clause-num">1.3</div>
+        <div class="clause-text">Настоящее Согласие разработано в соответствии с:
+          <ul>
+            <li>Федеральным законом от 27.07.2006 № 152-ФЗ «О персональных данных»;</li>
+            <li>Федеральным законом от 27.07.2006 № 149-ФЗ «Об информации, информационных технологиях и о защите информации»;</li>
+            <li>Постановлением Правительства РФ от 01.11.2012 № 1119 «Об утверждении требований к защите персональных данных при их обработке в информационных системах персональных данных»;</li>
+            <li>иными нормативно-правовыми актами Российской Федерации в области персональных данных.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="clause">
+        <div class="clause-num">1.4</div>
+        <div class="clause-text">Принимая условия настоящего Согласия (путём проставления соответствующей отметки при регистрации на Платформе, заполнения форм обратной связи или оформления заказа), Пользователь подтверждает, что действует свободно, своей волей и в своём интересе, а также что ознакомлен с содержанием настоящего документа и даёт осознанное и информированное согласие на обработку своих персональных данных Оператором.</div>
+      </div>
+      <div class="clause">
+        <div class="clause-num">1.5</div>
+        <div class="clause-text">Согласие действует с момента его предоставления Пользователем и до момента отзыва в порядке, установленном разделом 6 настоящего документа.</div>
+      </div>
+    </div>
+
+    <!-- Section 2 -->
+    <div class="section" id="section-2">
+      <div class="section-header">
+        <div class="section-num">2</div>
+        <h2>Перечень персональных данных</h2>
+      </div>
+      <p class="intro-text">В рамках настоящего Согласия Оператор осуществляет обработку следующих категорий персональных данных Пользователя:</p>
+      <div class="clause">
+        <div class="clause-num">2.1</div>
+        <div class="clause-text"><strong>Идентификационные данные:</strong>
+          <ul>
+            <li>фамилия, имя, отчество (при наличии);</li>
+            <li>дата рождения;</li>
+            <li>адрес электронной почты (e-mail);</li>
+            <li>номер контактного телефона.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="clause">
+        <div class="clause-num">2.2</div>
+        <div class="clause-text"><strong>Технические данные:</strong>
+          <ul>
+            <li>IP-адрес устройства Пользователя;</li>
+            <li>тип и версия интернет-браузера;</li>
+            <li>операционная система устройства;</li>
+            <li>данные файлов cookie;</li>
+            <li>сведения о действиях Пользователя на Сайте (посещённые страницы, время визита, источник перехода).</li>
+          </ul>
+        </div>
+      </div>
+      <div class="clause">
+        <div class="clause-num">2.3</div>
+        <div class="clause-text"><strong>Платёжные данные:</strong>
+          <ul>
+            <li>сведения об оплате, передаваемые через платёжный сервис Robokassa (идентификатор транзакции, сумма, дата и статус платежа);</li>
+            <li>реквизиты банковской карты Пользователя не хранятся на серверах Оператора — их обработка осуществляется непосредственно платёжным сервисом Robokassa в соответствии с международными стандартами безопасности PCI DSS.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="clause">
+        <div class="clause-num">2.4</div>
+        <div class="clause-text"><strong>Иные данные:</strong>
+          <ul>
+            <li>информация, добровольно предоставленная Пользователем при заполнении форм на Сайте, в переписке с Оператором или при использовании сервисов Платформы;</li>
+            <li>содержание обращений и запросов Пользователя.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- Section 3 -->
+    <div class="section" id="section-3">
+      <div class="section-header">
+        <div class="section-num">3</div>
+        <h2>Цели обработки</h2>
+      </div>
+      <p class="intro-text">Оператор осуществляет обработку персональных данных Пользователя исключительно в следующих целях:</p>
+      <div class="clause">
+        <div class="clause-num">3.1</div>
+        <div class="clause-text"><strong>Регистрация и идентификация Пользователя</strong> — создание учётной записи (личного кабинета) на Платформе, подтверждение личности Пользователя при авторизации и использовании сервисов Сайта.</div>
+      </div>
+      <div class="clause">
+        <div class="clause-num">3.2</div>
+        <div class="clause-text"><strong>Предоставление услуг</strong> — организация и проведение онлайн-консультаций с психологами, подбор специалиста, формирование расписания, запись на сеансы и обеспечение доступа к материалам Платформы.</div>
+      </div>
+      <div class="clause">
+        <div class="clause-num">3.3</div>
+        <div class="clause-text"><strong>Обработка платежей</strong> — приём и обработка оплаты за оказанные услуги с использованием платёжного сервиса Robokassa, формирование чеков, подтверждение оплаты и возврат денежных средств.</div>
+      </div>
+      <div class="clause">
+        <div class="clause-num">3.4</div>
+        <div class="clause-text"><strong>Связь с Пользователем</strong> — направление уведомлений (подтверждение записи, напоминания о консультациях, информирование об изменениях в работе Платформы), ответы на обращения и запросы Пользователя.</div>
+      </div>
+      <div class="clause">
+        <div class="clause-num">3.5</div>
+        <div class="clause-text"><strong>Аналитика и улучшение сервиса</strong> — анализ поведения Пользователей на Сайте для повышения качества услуг, улучшения навигации и функциональности Платформы, проведения статистических исследований в обезличенном виде.</div>
+      </div>
+      <div class="clause">
+        <div class="clause-num">3.6</div>
+        <div class="clause-text"><strong>Исполнение требований законодательства</strong> — соблюдение требований действующего законодательства Российской Федерации, в том числе в области защиты персональных данных, налогового и бухгалтерского учёта, а также исполнение запросов уполномоченных государственных органов.</div>
+      </div>
+    </div>
+
+    <!-- Section 4 -->
+    <div class="section" id="section-4">
+      <div class="section-header">
+        <div class="section-num">4</div>
+        <h2>Способы обработки</h2>
+      </div>
+      <p class="intro-text">Обработка персональных данных осуществляется Оператором с использованием как автоматизированных, так и неавтоматизированных (ручных) средств и включает следующие действия (операции):</p>
+      <div class="clause">
+        <div class="clause-num">4.1</div>
+        <div class="clause-text"><strong>Сбор</strong> — получение персональных данных непосредственно от Пользователя при регистрации, заполнении форм, оформлении заказа, обращении в службу поддержки, а также автоматический сбор технических данных при посещении Сайта.</div>
+      </div>
+      <div class="clause">
+        <div class="clause-num">4.2</div>
+        <div class="clause-text"><strong>Запись</strong> — фиксация персональных данных в информационных системах Оператора и (или) на материальных носителях.</div>
+      </div>
+      <div class="clause">
+        <div class="clause-num">4.3</div>
+        <div class="clause-text"><strong>Систематизация</strong> — организация персональных данных в структурированном виде для обеспечения возможности их поиска и использования в соответствии с целями обработки.</div>
+      </div>
+      <div class="clause">
+        <div class="clause-num">4.4</div>
+        <div class="clause-text"><strong>Накопление и хранение</strong> — содержание персональных данных на серверах и в информационных системах Оператора в течение сроков, установленных разделом 5 настоящего Согласия.</div>
+      </div>
+      <div class="clause">
+        <div class="clause-num">4.5</div>
+        <div class="clause-text"><strong>Уточнение (обновление, изменение)</strong> — внесение изменений в персональные данные по инициативе Пользователя или при получении актуальной информации.</div>
+      </div>
+      <div class="clause">
+        <div class="clause-num">4.6</div>
+        <div class="clause-text"><strong>Извлечение и использование</strong> — получение и применение персональных данных для выполнения целей, указанных в разделе 3 настоящего Согласия.</div>
+      </div>
+      <div class="clause">
+        <div class="clause-num">4.7</div>
+        <div class="clause-text"><strong>Передача (предоставление, доступ)</strong> — раскрытие персональных данных третьим лицам в порядке, установленном разделом 7 настоящего Согласия.</div>
+      </div>
+      <div class="clause">
+        <div class="clause-num">4.8</div>
+        <div class="clause-text"><strong>Обезличивание</strong> — действия, в результате которых становится невозможным без использования дополнительной информации определить принадлежность персональных данных конкретному Пользователю.</div>
+      </div>
+      <div class="clause">
+        <div class="clause-num">4.9</div>
+        <div class="clause-text"><strong>Блокирование</strong> — временное прекращение обработки персональных данных (за исключением случаев, когда обработка необходима для уточнения персональных данных).</div>
+      </div>
+      <div class="clause">
+        <div class="clause-num">4.10</div>
+        <div class="clause-text"><strong>Удаление и уничтожение</strong> — действия, в результате которых персональные данные безвозвратно удаляются из информационных систем и (или) уничтожаются материальные носители, содержащие персональные данные.</div>
+      </div>
+    </div>
+
+    <!-- Section 5 -->
+    <div class="section" id="section-5">
+      <div class="section-header">
+        <div class="section-num">5</div>
+        <h2>Сроки обработки и хранения</h2>
+      </div>
+      <div class="clause">
+        <div class="clause-num">5.1</div>
+        <div class="clause-text">Персональные данные Пользователя обрабатываются и хранятся Оператором в течение всего периода действия настоящего Согласия, то есть с момента его предоставления и до момента отзыва или достижения целей обработки.</div>
+      </div>
+      <div class="clause">
+        <div class="clause-num">5.2</div>
+        <div class="clause-text">Данные учётной записи (имя, e-mail, телефон) хранятся в течение всего срока существования учётной записи Пользователя на Платформе и в течение 3 (трёх) лет после её удаления, если иное не предусмотрено действующим законодательством.</div>
+      </div>
+      <div class="clause">
+        <div class="clause-num">5.3</div>
+        <div class="clause-text">Данные о совершённых платежах и финансовых операциях хранятся в течение 5 (пяти) лет с момента совершения соответствующей операции в соответствии с требованиями налогового и бухгалтерского законодательства Российской Федерации.</div>
+      </div>
+      <div class="clause">
+        <div class="clause-num">5.4</div>
+        <div class="clause-text">Технические данные (IP-адрес, данные браузера, файлы cookie) хранятся в течение 1 (одного) года с момента последнего посещения Сайта Пользователем.</div>
+      </div>
+      <div class="clause">
+        <div class="clause-num">5.5</div>
+        <div class="clause-text">В случае отзыва согласия на обработку персональных данных Оператор прекращает обработку и удаляет персональные данные Пользователя в срок, не превышающий 30 (тридцати) рабочих дней с момента получения соответствующего заявления, за исключением данных, хранение которых обязательно в соответствии с действующим законодательством Российской Федерации.</div>
+      </div>
+      <div class="clause">
+        <div class="clause-num">5.6</div>
+        <div class="clause-text">По истечении сроков хранения персональные данные Пользователя подлежат уничтожению или обезличиванию, если иное не предусмотрено действующим законодательством Российской Федерации.</div>
+      </div>
+    </div>
+
+    <!-- Section 6 -->
+    <div class="section" id="section-6">
+      <div class="section-header">
+        <div class="section-num">6</div>
+        <h2>Порядок отзыва согласия</h2>
+      </div>
+      <div class="clause">
+        <div class="clause-num">6.1</div>
+        <div class="clause-text">Пользователь вправе в любой момент отозвать своё согласие на обработку персональных данных, направив Оператору письменное заявление в свободной форме на адрес электронной почты: <strong>support@psytalk.pro</strong>.</div>
+      </div>
+      <div class="clause">
+        <div class="clause-num">6.2</div>
+        <div class="clause-text">Заявление об отзыве согласия должно содержать:
+          <ul>
+            <li>фамилию, имя, отчество (при наличии) Пользователя;</li>
+            <li>адрес электронной почты, указанный при регистрации на Платформе;</li>
+            <li>контактный телефон (при наличии);</li>
+            <li>чётко выраженное требование о прекращении обработки персональных данных и (или) их удалении.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="clause">
+        <div class="clause-num">6.3</div>
+        <div class="clause-text">Оператор обязан прекратить обработку персональных данных и обеспечить их удаление в срок, не превышающий 30 (тридцати) рабочих дней с момента получения заявления об отзыве согласия.</div>
+      </div>
+      <div class="clause">
+        <div class="clause-num">6.4</div>
+        <div class="clause-text">Оператор уведомляет Пользователя об удалении персональных данных путём направления соответствующего подтверждения на адрес электронной почты, указанный в заявлении.</div>
+      </div>
+      <div class="clause">
+        <div class="clause-num">6.5</div>
+        <div class="clause-text">Отзыв согласия на обработку персональных данных влечёт за собой удаление учётной записи Пользователя на Платформе и невозможность дальнейшего использования сервисов Сайта, требующих авторизации.</div>
+      </div>
+      <div class="clause">
+        <div class="clause-num">6.6</div>
+        <div class="clause-text">Отзыв согласия не распространяется на случаи, когда обработка персональных данных необходима для исполнения обязательств Оператора в соответствии с действующим законодательством Российской Федерации (в том числе хранение данных о финансовых операциях в соответствии с требованиями налогового законодательства).</div>
+      </div>
+    </div>
+
+    <!-- Section 7 -->
+    <div class="section" id="section-7">
+      <div class="section-header">
+        <div class="section-num">7</div>
+        <h2>Передача данных третьим лицам</h2>
+      </div>
+      <div class="clause">
+        <div class="clause-num">7.1</div>
+        <div class="clause-text">Оператор не передаёт персональные данные Пользователя третьим лицам, за исключением случаев, прямо предусмотренных настоящим Согласием и действующим законодательством Российской Федерации.</div>
+      </div>
+      <div class="clause">
+        <div class="clause-num">7.2</div>
+        <div class="clause-text"><strong>Платёжный сервис Robokassa.</strong> Для обработки платежей Оператор использует платёжный сервис Robokassa. В процессе оплаты Пользователь перенаправляется на защищённую страницу Robokassa, где вводит платёжные реквизиты. Robokassa обрабатывает платёжные данные самостоятельно в соответствии со своей политикой конфиденциальности и стандартами безопасности PCI DSS. Оператор получает от Robokassa только информацию о статусе платежа, идентификаторе транзакции и сумме оплаты.</div>
+      </div>
+      <div class="clause">
+        <div class="clause-num">7.3</div>
+        <div class="clause-text">Передача персональных данных третьим лицам возможна в следующих случаях:
+          <ul>
+            <li>Пользователь выразил своё согласие на такую передачу;</li>
+            <li>передача предусмотрена действующим законодательством Российской Федерации в рамках установленной законодательством процедуры;</li>
+            <li>передача необходима для защиты прав и законных интересов Оператора или третьих лиц в случаях, когда Пользователь нарушает условия использования Платформы;</li>
+            <li>передача осуществляется по запросу уполномоченных государственных органов в соответствии с действующим законодательством.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="clause">
+        <div class="clause-num">7.4</div>
+        <div class="clause-text">В случае привлечения третьих лиц для выполнения отдельных операций с персональными данными (хостинг, техническое обслуживание) Оператор обеспечивает соблюдение такими лицами конфиденциальности и безопасности персональных данных путём заключения соответствующих договоров.</div>
+      </div>
+      <div class="clause">
+        <div class="clause-num">7.5</div>
+        <div class="clause-text">Оператор не осуществляет трансграничную передачу персональных данных (передачу на территорию иностранного государства), за исключением случаев, когда это необходимо для исполнения договора с Пользователем и обеспечено надлежащей защитой прав субъекта персональных данных.</div>
+      </div>
+    </div>
+
+    <!-- Section 8 -->
+    <div class="section" id="section-8">
+      <div class="section-header">
+        <div class="section-num">8</div>
+        <h2>Защита персональных данных</h2>
+      </div>
+      <p class="intro-text">Оператор принимает необходимые и достаточные организационные и технические меры для защиты персональных данных Пользователя от неправомерного или случайного доступа, уничтожения, изменения, блокирования, копирования, распространения, а также от иных неправомерных действий с ними.</p>
+      <div class="clause">
+        <div class="clause-num">8.1</div>
+        <div class="clause-text"><strong>Шифрование данных.</strong> Передача персональных данных между устройством Пользователя и сервером Платформы осуществляется по защищённому протоколу HTTPS с использованием SSL/TLS-шифрования.</div>
+      </div>
+      <div class="clause">
+        <div class="clause-num">8.2</div>
+        <div class="clause-text"><strong>Разграничение доступа.</strong> Доступ к персональным данным Пользователей имеют только уполномоченные сотрудники Оператора, которым он необходим для исполнения их должностных обязанностей. Все указанные лица обязаны соблюдать конфиденциальность персональных данных.</div>
+      </div>
+      <div class="clause">
+        <div class="clause-num">8.3</div>
+        <div class="clause-text"><strong>Защита паролей.</strong> Пароли учётных записей Пользователей хранятся в зашифрованном (хешированном) виде. Оператор не имеет доступа к паролям Пользователей в открытом виде.</div>
+      </div>
+      <div class="clause">
+        <div class="clause-num">8.4</div>
+        <div class="clause-text"><strong>Защита серверной инфраструктуры.</strong> Серверы, на которых хранятся персональные данные, защищены межсетевыми экранами (файерволами), системами обнаружения вторжений и иными средствами защиты информации.</div>
+      </div>
+      <div class="clause">
+        <div class="clause-num">8.5</div>
+        <div class="clause-text"><strong>Резервное копирование.</strong> Оператор осуществляет регулярное резервное копирование данных для обеспечения их сохранности и возможности восстановления в случае технических сбоев.</div>
+      </div>
+      <div class="clause">
+        <div class="clause-num">8.6</div>
+        <div class="clause-text"><strong>Мониторинг и аудит.</strong> Оператор осуществляет регулярный мониторинг информационных систем на предмет выявления уязвимостей и предотвращения несанкционированного доступа к персональным данным.</div>
+      </div>
+      <div class="clause">
+        <div class="clause-num">8.7</div>
+        <div class="clause-text"><strong>Обучение персонала.</strong> Сотрудники Оператора, имеющие доступ к персональным данным, проходят инструктаж по вопросам обеспечения безопасности персональных данных и несут ответственность за нарушение режима конфиденциальности.</div>
+      </div>
+    </div>
+
+    <!-- Section 9 -->
+    <div class="section" id="section-9">
+      <div class="section-header">
+        <div class="section-num">9</div>
+        <h2>Заключительные положения</h2>
+      </div>
+      <div class="clause">
+        <div class="clause-num">9.1</div>
+        <div class="clause-text">Настоящее Согласие вступает в силу с момента его принятия Пользователем и действует бессрочно до момента отзыва в установленном порядке.</div>
+      </div>
+      <div class="clause">
+        <div class="clause-num">9.2</div>
+        <div class="clause-text">Оператор оставляет за собой право вносить изменения и дополнения в настоящее Согласие. Актуальная редакция документа размещается на Сайте по адресу: <strong>https://psytalk.pro/consent.html</strong>. Продолжение использования Платформы после внесения изменений означает согласие Пользователя с новой редакцией документа.</div>
+      </div>
+      <div class="clause">
+        <div class="clause-num">9.3</div>
+        <div class="clause-text">В случае внесения существенных изменений в настоящее Согласие Оператор уведомляет Пользователя путём размещения соответствующего уведомления на Сайте и (или) направления информации на адрес электронной почты Пользователя.</div>
+      </div>
+      <div class="clause">
+        <div class="clause-num">9.4</div>
+        <div class="clause-text">Пользователь вправе получить любые разъяснения по вопросам, касающимся обработки его персональных данных, обратившись к Оператору по электронной почте: <strong>support@psytalk.pro</strong>.</div>
+      </div>
+      <div class="clause">
+        <div class="clause-num">9.5</div>
+        <div class="clause-text">Все споры и разногласия, связанные с исполнением настоящего Согласия, разрешаются путём переговоров. В случае невозможности достижения соглашения спор передаётся на рассмотрение в суд по месту нахождения Оператора в соответствии с действующим законодательством Российской Федерации.</div>
+      </div>
+      <div class="clause">
+        <div class="clause-num">9.6</div>
+        <div class="clause-text">Если какое-либо положение настоящего Согласия будет признано недействительным или неисполнимым, это не влияет на действительность и исполнимость остальных положений документа.</div>
+      </div>
+      <div class="clause">
+        <div class="clause-num">9.7</div>
+        <div class="clause-text">Пользователь также подтверждает, что ознакомлен с <a href="/privacy.html" style="color: var(--purple); font-weight: 500;">Политикой конфиденциальности</a> и <a href="/offer.html" style="color: var(--purple); font-weight: 500;">Публичной офертой</a> Платформы psytalk.pro.</div>
+      </div>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+  <p>&copy; 2025 psytalk.pro. Все права защищены.</p>
+  <p style="margin-top:8px;">
+    <a href="https://psytalk.pro/offer.html">Публичная оферта</a>
+    <a href="https://psytalk.pro/privacy.html">Конфиденциальность</a>
+    <a href="https://psytalk.pro/refund.html">Возврат средств</a>
+    <a href="https://psytalk.pro/">Главная</a>
+  </p>
+</footer>
+</body>
+</html>
