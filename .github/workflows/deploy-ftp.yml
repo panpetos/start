@@ -1,0 +1,35 @@
+name: Deploy to psytalk.pro via FTP
+
+on:
+  push:
+    branches:
+      - claude/psytalk-pro-dev-onsqnt
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Deploy changed files via FTP
+        run: |
+          sudo apt-get install -y lftp
+          lftp -e "
+            set ftp:ssl-allow yes;
+            set ftp:passive-mode yes;
+            set net:max-retries 3;
+            set net:reconnect-interval-base 5;
+            open ftp://u3105470:k05aAoP0TZ2q2WdT@server277.hosting.reg.ru;
+            cd /www/psytalk.pro;
+            put js/layout.js -o js/layout.js;
+            put book-confirm.html -o book-confirm.html;
+            put consent.html -o consent.html;
+            put offer.html -o offer.html;
+            put privacy.html -o privacy.html;
+            put refund.html -o refund.html;
+            put api/payment_mock.php -o api/payment_mock.php;
+            bye;
+          "
+          echo "Deployment complete"
