@@ -650,7 +650,7 @@
 
         return (
           '<div class="psych-card-modern anim-fade-up' + delay + '" onclick="location.href=\'/psychologist.html?id=' + p.id + '\'" style="cursor:pointer;">' +
-            '<div class="psych-avatar-modern" style="background:' + (p.color||'#7C3AED') + ';">' + avatarHtml + '</div>' +
+            '<div class="psych-avatar-modern" style="background:' + (p.color||'#7C3AED') + ';width:96px;height:96px;min-width:96px;max-width:96px;border-radius:50%;flex-shrink:0;">' + avatarHtml + '</div>' +
             '<div>' +
               '<div style="display:flex;align-items:center;gap:0.625rem;flex-wrap:wrap;">' +
                 '<div class="psych-name">' + p.name + '</div>' +
@@ -710,7 +710,7 @@
     document.addEventListener('DOMContentLoaded', () => {
       const input = document.getElementById('searchInput');
       if (input) input.addEventListener('keydown', e => { if (e.key === 'Enter') applyFilters(); });
-      lucide.createIcons();
+      if (window.lucide) lucide.createIcons();
       loadPsychologists();
     });
   </script>
