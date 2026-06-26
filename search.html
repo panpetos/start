@@ -1,0 +1,718 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Найти психолога — psytalk.pro</title>
+  <meta name="description" content="Найдите психолога для IT-специалиста. Фильтруйте по специализации, формату, цене и опыту. Все специалисты проверены и имеют профильное образование.">
+  <link rel="stylesheet" href="/css/styles.css">
+  <script src="/js/layout.js"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="/js/api.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/header-init.js"></script>
+  <style>
+    .search-hero {
+      background: linear-gradient(135deg, #6D28D9 0%, #7C3AED 40%, #9F67FA 100%);
+      padding: 2.5rem 0 3rem;
+      position: relative;
+      overflow: hidden;
+    }
+    .search-hero::before {
+      content: '';
+      position: absolute;
+      width: 400px; height: 400px;
+      background: rgba(255,255,255,0.05);
+      border-radius: 50%;
+      top: -100px; right: -80px;
+    }
+    .search-hero::after {
+      content: '';
+      position: absolute;
+      width: 280px; height: 280px;
+      background: rgba(255,255,255,0.05);
+      border-radius: 50%;
+      bottom: -80px; left: 10%;
+    }
+    .search-hero-inner { position: relative; z-index: 1; text-align: center; }
+    .search-hero h1 { color: white; font-size: 2.125rem; margin-bottom: 0.5rem; }
+    .search-hero p  { color: rgba(255,255,255,0.8); margin-bottom: 1.75rem; font-size: 1.0625rem; }
+
+    .search-bar-hero {
+      max-width: 680px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      background: white;
+      border-radius: 1rem;
+      padding: 0.5rem 0.5rem 0.5rem 1.375rem;
+      box-shadow: 0 16px 48px rgba(0,0,0,0.2);
+      gap: 0.75rem;
+    }
+    .search-bar-hero input {
+      flex: 1;
+      border: none;
+      outline: none;
+      font-size: 1rem;
+      color: #1A1A1A;
+      background: transparent;
+      font-family: inherit;
+    }
+    .search-bar-hero input::placeholder { color: #9CA3AF; }
+    .search-bar-hero button {
+      background: linear-gradient(135deg, #7C3AED 0%, #9F67FA 100%);
+      color: white;
+      border: none;
+      border-radius: 0.75rem;
+      padding: 0.75rem 1.5rem;
+      font-size: 0.9375rem;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: inherit;
+      transition: all 0.2s;
+      white-space: nowrap;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .search-bar-hero button:hover {
+      box-shadow: 0 4px 16px rgba(124,58,237,0.5);
+      transform: translateY(-1px);
+    }
+
+    .search-stats-row {
+      display: flex;
+      gap: 2rem;
+      justify-content: center;
+      margin-top: 1.25rem;
+      flex-wrap: wrap;
+    }
+    .search-stat-item {
+      display: flex;
+      align-items: center;
+      gap: 0.375rem;
+      color: rgba(255,255,255,0.85);
+      font-size: 0.875rem;
+      font-weight: 500;
+    }
+
+    .search-layout {
+      display: grid;
+      grid-template-columns: 280px 1fr;
+      gap: 1.5rem;
+      align-items: start;
+    }
+
+    @media (max-width: 768px) {
+      .search-layout { grid-template-columns: 1fr; }
+      .filters-sidebar-modern { position: static; display: none; }
+      .filters-sidebar-modern.mobile-open { display: block; }
+      .search-hero h1 { font-size: 1.625rem; }
+    }
+
+    .mobile-filter-btn {
+      display: none;
+      align-items: center;
+      gap: 0.5rem;
+      background: white;
+      border: 1.5px solid #E2E8F0;
+      border-radius: 0.75rem;
+      padding: 0.625rem 1.25rem;
+      font-size: 0.9375rem;
+      font-weight: 600;
+      color: #374151;
+      cursor: pointer;
+      font-family: inherit;
+      transition: all 0.2s;
+    }
+    .mobile-filter-btn:hover { border-color: #7C3AED; color: #7C3AED; }
+
+    @media (max-width: 768px) {
+      .mobile-filter-btn { display: flex; }
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 4rem 2rem;
+      color: #6B7280;
+    }
+    .empty-state-icon {
+      width: 72px; height: 72px;
+      background: #F3E8FF;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 1.25rem;
+      color: #7C3AED;
+    }
+    .empty-state h3 { color: #1A1A1A; margin-bottom: 0.5rem; }
+
+    .cards-list { display: flex; flex-direction: column; gap: 1rem; }
+
+    .psych-desc-text {
+      color: #6B7280;
+      font-size: 0.875rem;
+      line-height: 1.6;
+      margin-top: 0.625rem;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    .filter-chips-wrap {
+      background: white;
+      border-radius: 1rem;
+      padding: 1rem 1.25rem;
+      border: 1px solid #F0F0F0;
+      margin-bottom: 1.25rem;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+    }
+    .filter-chips-label {
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: #9CA3AF;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      margin-bottom: 0.625rem;
+    }
+
+    .loading-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+    .skeleton-card {
+      background: white;
+      border-radius: 1.25rem;
+      padding: 1.75rem;
+      border: 1px solid #F0F0F0;
+      display: grid;
+      grid-template-columns: 96px 1fr auto;
+      gap: 1.5rem;
+      animation: shimmer 1.5s ease-in-out infinite;
+      background: linear-gradient(90deg, #F8F8F8 25%, #EFEFEF 50%, #F8F8F8 75%);
+      background-size: 200% 100%;
+    }
+  </style>
+</head>
+<body>
+  <script>psyWriteHeader();</script>
+
+  <!-- ═══════════════ HERO SEARCH ═══════════════ -->
+  <section class="search-hero">
+    <div class="container">
+      <div class="search-hero-inner">
+        <h1>Найдите своего психолога</h1>
+        <p>Специалисты, которые понимают IT — выгорание, дедлайны, удалённую работу</p>
+
+        <div class="search-bar-hero">
+          <i data-lucide="search" style="width:1.125rem;height:1.125rem;color:#9CA3AF;flex-shrink:0;"></i>
+          <input
+            type="text"
+            id="searchInput"
+            placeholder="Имя, специализация или запрос…"
+            autocomplete="off"
+          >
+          <button onclick="applyFilters()">
+            <i data-lucide="search" style="width:1rem;height:1rem;"></i>
+            Найти
+          </button>
+        </div>
+
+        <div class="search-stats-row">
+          <span class="search-stat-item">
+            <i data-lucide="shield-check" style="width:1rem;height:1rem;"></i>
+            Все специалисты проверены
+          </span>
+          <span class="search-stat-item">
+            <i data-lucide="calendar" style="width:1rem;height:1rem;"></i>
+            Запись онлайн 24/7
+          </span>
+          <span class="search-stat-item">
+            <i data-lucide="lock" style="width:1rem;height:1rem;"></i>
+            Полная конфиденциальность
+          </span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════ MAIN CONTENT ═══════════════ -->
+  <section style="padding: 2rem 0 4rem; background: #FAFAFA;">
+    <div class="container">
+
+      <!-- Quick Filter Chips -->
+      <div class="filter-chips-wrap anim-fade-up">
+        <div class="filter-chips-label">Быстрый фильтр по теме</div>
+        <div class="filter-chips-row" id="quickChips">
+          <button class="filter-chip-item active" data-specialty="" onclick="selectChip(this, '')">
+            Все специалисты
+          </button>
+          <button class="filter-chip-item" data-specialty="выгорание" onclick="selectChip(this, 'выгорание')">
+            <i data-lucide="flame" style="width:0.875rem;height:0.875rem;"></i>
+            Выгорание
+          </button>
+          <button class="filter-chip-item" data-specialty="тревога" onclick="selectChip(this, 'тревога')">
+            <i data-lucide="activity" style="width:0.875rem;height:0.875rem;"></i>
+            Тревога и стресс
+          </button>
+          <button class="filter-chip-item" data-specialty="семья" onclick="selectChip(this, 'семья')">
+            <i data-lucide="heart" style="width:0.875rem;height:0.875rem;"></i>
+            Семья и отношения
+          </button>
+          <button class="filter-chip-item" data-specialty="депрессия" onclick="selectChip(this, 'депрессия')">
+            <i data-lucide="cloud-rain" style="width:0.875rem;height:0.875rem;"></i>
+            Депрессия
+          </button>
+          <button class="filter-chip-item" data-specialty="самооценка" onclick="selectChip(this, 'самооценка')">
+            <i data-lucide="star" style="width:0.875rem;height:0.875rem;"></i>
+            Самооценка
+          </button>
+          <button class="filter-chip-item" data-specialty="карьера" onclick="selectChip(this, 'карьера')">
+            <i data-lucide="briefcase" style="width:0.875rem;height:0.875rem;"></i>
+            Карьера и цели
+          </button>
+          <button class="filter-chip-item" data-specialty="CBT" onclick="selectChip(this, 'CBT')">
+            <i data-lucide="brain" style="width:0.875rem;height:0.875rem;"></i>
+            КПТ
+          </button>
+        </div>
+      </div>
+
+      <!-- Mobile: Filter toggle -->
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;" class="anim-fade-up anim-delay-1">
+        <div style="font-size:0.9375rem;color:#6B7280;">
+          Найдено <strong id="countDisplay" style="color:#1A1A1A;">…</strong> специалистов
+        </div>
+        <button class="mobile-filter-btn" onclick="toggleMobileFilters()">
+          <i data-lucide="sliders-horizontal" style="width:1rem;height:1rem;"></i>
+          Фильтры
+        </button>
+      </div>
+
+      <!-- Layout: sidebar + results -->
+      <div class="search-layout">
+
+        <!-- ── Sidebar ── -->
+        <aside class="filters-sidebar-modern anim-fade-up anim-delay-1" id="filterSidebar">
+          <div class="filters-sidebar-title">
+            <i data-lucide="sliders-horizontal" style="width:1.125rem;height:1.125rem;color:#7C3AED;"></i>
+            Фильтры
+          </div>
+
+          <!-- Specialization -->
+          <div class="filter-group-modern">
+            <div class="filter-group-label">
+              <i data-lucide="target" style="width:0.75rem;height:0.75rem;"></i>
+              Специализация
+            </div>
+            <select class="filter-select-modern" id="filterSpecialty">
+              <option value="">Все специализации</option>
+              <option value="выгорание">Профессиональное выгорание</option>
+              <option value="тревога">Тревога и стресс</option>
+              <option value="депрессия">Депрессия</option>
+              <option value="семья">Семья и отношения</option>
+              <option value="самооценка">Самооценка и уверенность</option>
+              <option value="карьера">Карьера и цели</option>
+              <option value="CBT">КПТ (когнитивно-поведенческая)</option>
+              <option value="EMDR">EMDR терапия</option>
+              <option value="гештальт">Гештальт-терапия</option>
+            </select>
+          </div>
+
+          <!-- Session format -->
+          <div class="filter-group-modern">
+            <div class="filter-group-label">
+              <i data-lucide="video" style="width:0.75rem;height:0.75rem;"></i>
+              Формат сессии
+            </div>
+            <label class="filter-checkbox-modern">
+              <input type="checkbox" id="fmtVideo" value="video" onchange="applyFilters()">
+              Видеосессия
+            </label>
+            <label class="filter-checkbox-modern">
+              <input type="checkbox" id="fmtChat" value="chat" onchange="applyFilters()">
+              Текстовый чат
+            </label>
+            <label class="filter-checkbox-modern">
+              <input type="checkbox" id="fmtPhone" value="phone" onchange="applyFilters()">
+              Звонок
+            </label>
+          </div>
+
+          <!-- Experience -->
+          <div class="filter-group-modern">
+            <div class="filter-group-label">
+              <i data-lucide="award" style="width:0.75rem;height:0.75rem;"></i>
+              Опыт работы
+            </div>
+            <select class="filter-select-modern" id="filterExperience">
+              <option value="">Любой опыт</option>
+              <option value="1">От 1 года</option>
+              <option value="3">От 3 лет</option>
+              <option value="5">От 5 лет</option>
+              <option value="10">От 10 лет</option>
+            </select>
+          </div>
+
+          <!-- Rating -->
+          <div class="filter-group-modern">
+            <div class="filter-group-label">
+              <i data-lucide="star" style="width:0.75rem;height:0.75rem;"></i>
+              Минимальный рейтинг
+            </div>
+            <select class="filter-select-modern" id="filterRating">
+              <option value="">Любой рейтинг</option>
+              <option value="4">От 4.0 ★</option>
+              <option value="4.5">От 4.5 ★</option>
+              <option value="4.8">От 4.8 ★</option>
+            </select>
+          </div>
+
+          <!-- Gender -->
+          <div class="filter-group-modern">
+            <div class="filter-group-label">
+              <i data-lucide="users" style="width:0.75rem;height:0.75rem;"></i>
+              Пол специалиста
+            </div>
+            <select class="filter-select-modern" id="filterGender">
+              <option value="">Не важно</option>
+              <option value="female">Женщина</option>
+              <option value="male">Мужчина</option>
+            </select>
+          </div>
+
+          <!-- Price range -->
+          <div class="filter-group-modern">
+            <div class="filter-group-label">
+              <i data-lucide="banknote" style="width:0.75rem;height:0.75rem;"></i>
+              Цена за сессию, ₽
+            </div>
+            <div class="filter-price-row-modern">
+              <input class="filter-price-modern" type="number" id="priceMin" placeholder="от" min="0">
+              <span class="filter-price-sep">—</span>
+              <input class="filter-price-modern" type="number" id="priceMax" placeholder="до" min="0">
+            </div>
+          </div>
+
+          <!-- Buttons -->
+          <button class="btn-apply-modern" onclick="applyFilters()">
+            Применить фильтры
+          </button>
+          <button class="btn-reset-modern" onclick="resetFilters()">
+            Сбросить всё
+          </button>
+        </aside>
+
+        <!-- ── Results ── -->
+        <div>
+          <!-- Sort bar -->
+          <div class="sort-bar anim-fade-up anim-delay-2">
+            <div class="sort-bar-count">
+              Найдено <span id="sortBarCount">…</span> специалистов
+            </div>
+            <div style="display:flex;align-items:center;gap:0.75rem;">
+              <span style="font-size:0.875rem;color:#6B7280;white-space:nowrap;">Сортировать:</span>
+              <select class="sort-select" id="sortSelect" onchange="applyFilters()">
+                <option value="rating">По рейтингу</option>
+                <option value="price_asc">Цена: от низкой</option>
+                <option value="price_desc">Цена: от высокой</option>
+                <option value="experience">По опыту</option>
+                <option value="reviews">По отзывам</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Cards list -->
+          <div id="cardsContainer" class="cards-list">
+            <!-- Loading skeletons -->
+            <div class="skeleton-card anim-fade-up anim-delay-2"></div>
+            <div class="skeleton-card anim-fade-up anim-delay-3"></div>
+            <div class="skeleton-card anim-fade-up anim-delay-4"></div>
+          </div>
+        </div>
+
+      </div><!-- /search-layout -->
+    </div>
+  </section>
+
+  <script>psyWriteFooter();</script>
+
+  <script>
+    /* ─── Data ─── */
+    const MOCK_PSYCHOLOGISTS = [
+      {
+        id: 1, name: "Анна Соколова", gender: "female",
+        specialties: ["выгорание","тревога","карьера"],
+        description: "Помогаю IT-специалистам справляться с профессиональным выгоранием и хроническим стрессом. КПТ, схема-терапия.",
+        experience: 8, rating: 4.9, reviews: 127,
+        price: 3500, formats: ["video","chat"],
+        avatar: null, verified: true, color: "#7C3AED"
+      },
+      {
+        id: 2, name: "Дмитрий Волков", gender: "male",
+        specialties: ["депрессия","самооценка","CBT"],
+        description: "Работаю с депрессией, тревожными расстройствами и кризисами идентичности. 10 лет практики, КПТ.",
+        experience: 10, rating: 4.8, reviews: 203,
+        price: 4200, formats: ["video","phone"],
+        avatar: null, verified: true, color: "#2563EB"
+      },
+      {
+        id: 3, name: "Марина Петрова", gender: "female",
+        specialties: ["семья","тревога","выгорание"],
+        description: "Семейная и индивидуальная терапия. Специализируюсь на парах, где один или оба партнёра работают в IT.",
+        experience: 6, rating: 4.7, reviews: 89,
+        price: 3000, formats: ["video","chat","phone"],
+        avatar: null, verified: true, color: "#059669"
+      },
+      {
+        id: 4, name: "Иван Захаров", gender: "male",
+        specialties: ["карьера","самооценка","CBT"],
+        description: "Коучинг психолог. Помогаю преодолеть синдром самозванца, выстроить карьеру и найти баланс работы и жизни.",
+        experience: 4, rating: 4.6, reviews: 54,
+        price: 2800, formats: ["video"],
+        avatar: null, verified: false, color: "#D97706"
+      },
+      {
+        id: 5, name: "Елена Морозова", gender: "female",
+        specialties: ["депрессия","тревога","EMDR"],
+        description: "EMDR-терапевт. Работаю с травмой, ПТСР, фобиями и паническими атаками. Онлайн и очно.",
+        experience: 12, rating: 5.0, reviews: 311,
+        price: 5000, formats: ["video","chat"],
+        avatar: null, verified: true, color: "#DB2777"
+      },
+      {
+        id: 6, name: "Сергей Николаев", gender: "male",
+        specialties: ["выгорание","карьера","семья"],
+        description: "Бывший разработчик, ставший психологом. Понимаю технический мир изнутри. Экзистенциальная и интегративная терапия.",
+        experience: 5, rating: 4.9, reviews: 142,
+        price: 3800, formats: ["video","chat"],
+        avatar: null, verified: true, color: "#7C3AED"
+      },
+      {
+        id: 7, name: "Ольга Кузнецова", gender: "female",
+        specialties: ["самооценка","тревога","гештальт"],
+        description: "Гештальт-терапевт. Работаю с тревогой, неуверенностью в себе и проблемами в отношениях.",
+        experience: 7, rating: 4.8, reviews: 96,
+        price: 3200, formats: ["video","phone"],
+        avatar: null, verified: true, color: "#0891B2"
+      },
+      {
+        id: 8, name: "Алексей Смирнов", gender: "male",
+        specialties: ["депрессия","выгорание","CBT"],
+        description: "КПТ-терапевт. Специализируюсь на депрессии, профессиональном выгорании и нарушениях сна у разработчиков.",
+        experience: 9, rating: 4.7, reviews: 178,
+        price: 4000, formats: ["video","chat","phone"],
+        avatar: null, verified: true, color: "#2563EB"
+      }
+    ];
+
+    let allPsychologists = [];
+    let activeChipSpecialty = '';
+
+    /* ─── Load psychologists ─── */
+    async function loadPsychologists() {
+      try {
+        const resp = await fetch('/api/psychologists.php?status=active', {signal: AbortSignal.timeout(5000)});
+        if (resp.ok) {
+          const data = await resp.json();
+          if (Array.isArray(data) && data.length > 0) {
+            allPsychologists = data;
+            applyFilters();
+            return;
+          }
+        }
+      } catch (_) {}
+      allPsychologists = MOCK_PSYCHOLOGISTS;
+      applyFilters();
+    }
+
+    /* ─── Filter chip toggle ─── */
+    function selectChip(el, specialty) {
+      document.querySelectorAll('#quickChips .filter-chip-item').forEach(c => c.classList.remove('active'));
+      el.classList.add('active');
+      activeChipSpecialty = specialty;
+      const sel = document.getElementById('filterSpecialty');
+      if (sel) sel.value = specialty;
+      applyFilters();
+    }
+
+    /* ─── Mobile filters toggle ─── */
+    function toggleMobileFilters() {
+      const sidebar = document.getElementById('filterSidebar');
+      sidebar.classList.toggle('mobile-open');
+    }
+
+    /* ─── Apply filters + sort ─── */
+    function applyFilters() {
+      const search  = (document.getElementById('searchInput')?.value || '').toLowerCase().trim();
+      const spec    = document.getElementById('filterSpecialty')?.value || '';
+      const expMin  = parseInt(document.getElementById('filterExperience')?.value || '0') || 0;
+      const ratingMin = parseFloat(document.getElementById('filterRating')?.value || '0') || 0;
+      const gender  = document.getElementById('filterGender')?.value || '';
+      const priceMin = parseInt(document.getElementById('priceMin')?.value || '0') || 0;
+      const priceMax = parseInt(document.getElementById('priceMax')?.value || '0') || 0;
+      const fmtVideo = document.getElementById('fmtVideo')?.checked;
+      const fmtChat  = document.getElementById('fmtChat')?.checked;
+      const fmtPhone = document.getElementById('fmtPhone')?.checked;
+      const anyFmt   = fmtVideo || fmtChat || fmtPhone;
+      const sortBy   = document.getElementById('sortSelect')?.value || 'rating';
+
+      let result = allPsychologists.filter(p => {
+        if (search && !p.name.toLowerCase().includes(search) &&
+            !p.description.toLowerCase().includes(search) &&
+            !p.specialties.some(s => s.toLowerCase().includes(search))) return false;
+        if (spec && !p.specialties.some(s => s.toLowerCase().includes(spec.toLowerCase()))) return false;
+        if (expMin && (p.experience || 0) < expMin) return false;
+        if (ratingMin && (p.rating || 0) < ratingMin) return false;
+        if (gender && p.gender !== gender) return false;
+        if (priceMin && (p.price || 0) < priceMin) return false;
+        if (priceMax && (p.price || 0) > priceMax) return false;
+        if (anyFmt) {
+          const fmts = p.formats || [];
+          if (fmtVideo && !fmts.includes('video')) return false;
+          if (fmtChat  && !fmts.includes('chat'))  return false;
+          if (fmtPhone && !fmts.includes('phone')) return false;
+        }
+        return true;
+      });
+
+      result.sort((a, b) => {
+        if (sortBy === 'price_asc')  return (a.price||0) - (b.price||0);
+        if (sortBy === 'price_desc') return (b.price||0) - (a.price||0);
+        if (sortBy === 'experience') return (b.experience||0) - (a.experience||0);
+        if (sortBy === 'reviews')    return (b.reviews||0) - (a.reviews||0);
+        return (b.rating||0) - (a.rating||0);
+      });
+
+      renderCards(result);
+    }
+
+    /* ─── Reset filters ─── */
+    function resetFilters() {
+      document.getElementById('searchInput').value = '';
+      document.getElementById('filterSpecialty').value = '';
+      document.getElementById('filterExperience').value = '';
+      document.getElementById('filterRating').value = '';
+      document.getElementById('filterGender').value = '';
+      document.getElementById('priceMin').value = '';
+      document.getElementById('priceMax').value = '';
+      document.getElementById('fmtVideo').checked = false;
+      document.getElementById('fmtChat').checked  = false;
+      document.getElementById('fmtPhone').checked = false;
+      document.getElementById('sortSelect').value = 'rating';
+      activeChipSpecialty = '';
+      document.querySelectorAll('#quickChips .filter-chip-item').forEach((c, i) => {
+        c.classList.toggle('active', i === 0);
+      });
+      applyFilters();
+    }
+
+    /* ─── Render cards ─── */
+    function renderCards(list) {
+      const container = document.getElementById('cardsContainer');
+      const countEl   = document.getElementById('countDisplay');
+      const sortCount = document.getElementById('sortBarCount');
+      if (countEl) countEl.textContent = list.length;
+      if (sortCount) sortCount.innerHTML = '<span style="font-weight:700;color:#7C3AED;">' + list.length + '</span>';
+
+      if (list.length === 0) {
+        container.innerHTML =
+          '<div class="empty-state">' +
+            '<div class="empty-state-icon"><i data-lucide="search-x" style="width:2rem;height:2rem;"></i></div>' +
+            '<h3>Специалисты не найдены</h3>' +
+            '<p>Попробуйте изменить параметры поиска или <button onclick="resetFilters()" style="background:none;border:none;color:#7C3AED;font-weight:600;cursor:pointer;font-size:inherit;padding:0;">сбросить фильтры</button></p>' +
+          '</div>';
+        if (window.lucide) lucide.createIcons();
+        return;
+      }
+
+      container.innerHTML = list.map((p, idx) => {
+        const initials = p.name.split(' ').map(w => w[0]).join('').slice(0,2).toUpperCase();
+        const avatarHtml = p.avatar
+          ? '<img src="' + p.avatar + '" alt="' + p.name + '">'
+          : '<span>' + initials + '</span>';
+        const stars = renderStars(p.rating || 0);
+        const fmtIcons = {video: 'video', chat: 'message-square', phone: 'phone'};
+        const fmtLabels = {video: 'Видео', chat: 'Чат', phone: 'Звонок'};
+        const formats = (p.formats || ['video']).map(f =>
+          '<span class="format-chip"><i data-lucide="' + (fmtIcons[f]||'video') + '" style="width:0.75rem;height:0.75rem;"></i>' + (fmtLabels[f]||f) + '</span>'
+        ).join('');
+        const specs = (p.specialties || []).slice(0,2).map(s =>
+          '<span style="display:inline-block;background:#F3E8FF;color:#7C3AED;border-radius:2rem;padding:0.175rem 0.625rem;font-size:0.75rem;font-weight:500;margin-right:0.375rem;">' + s + '</span>'
+        ).join('');
+        const verified = p.verified
+          ? '<span class="verified-badge"><i data-lucide="badge-check" style="width:0.75rem;height:0.75rem;"></i> Верификация</span>'
+          : '';
+        const delay = idx < 4 ? ' anim-delay-' + (idx+1) : '';
+
+        return (
+          '<div class="psych-card-modern anim-fade-up' + delay + '" onclick="location.href=\'/psychologist.html?id=' + p.id + '\'" style="cursor:pointer;">' +
+            '<div class="psych-avatar-modern" style="background:' + (p.color||'#7C3AED') + ';">' + avatarHtml + '</div>' +
+            '<div>' +
+              '<div style="display:flex;align-items:center;gap:0.625rem;flex-wrap:wrap;">' +
+                '<div class="psych-name">' + p.name + '</div>' +
+                verified +
+              '</div>' +
+              '<div class="psych-spec-tag">' + (p.specialties||[]).slice(0,1).join(', ') + '</div>' +
+              '<div class="psych-meta-row">' +
+                '<span>' + stars + '<span class="stars-rating">' + (p.rating||0).toFixed(1) + '</span></span>' +
+                '<span><i data-lucide="message-circle" style="width:0.875rem;height:0.875rem;"></i>' + (p.reviews||0) + ' отзывов</span>' +
+                '<span><i data-lucide="briefcase" style="width:0.875rem;height:0.875rem;"></i>' + (p.experience||0) + ' лет опыта</span>' +
+              '</div>' +
+              '<div style="margin-bottom:0.5rem;">' + specs + '</div>' +
+              '<div class="format-chips">' + formats + '</div>' +
+              '<div class="psych-desc-text">' + (p.description||'') + '</div>' +
+            '</div>' +
+            '<div class="psych-booking-col">' +
+              '<div style="text-align:right;">' +
+                '<div class="psych-price-big">' + ((p.price||0)).toLocaleString('ru-RU') + ' ₽</div>' +
+                '<div class="psych-price-sub">за сессию</div>' +
+              '</div>' +
+              '<a href="/book.html?id=' + p.id + '" class="btn btn-primary" style="width:100%;text-align:center;text-decoration:none;" onclick="event.stopPropagation();">Записаться</a>' +
+            '</div>' +
+          '</div>'
+        );
+      }).join('');
+
+      if (window.lucide) lucide.createIcons();
+
+      /* Animate new cards */
+      requestAnimationFrame(() => {
+        container.querySelectorAll('.anim-fade-up').forEach(el => {
+          observer.observe(el);
+        });
+      });
+    }
+
+    /* ─── Stars helper ─── */
+    function renderStars(rating) {
+      const full  = Math.floor(rating);
+      const half  = rating - full >= 0.5;
+      const empty = 5 - full - (half ? 1 : 0);
+      return '<span class="stars">' +
+        '★'.repeat(full) +
+        (half ? '½' : '') +
+        '<span style="color:#D1D5DB;">' + '★'.repeat(empty) + '</span>' +
+        '</span>';
+    }
+
+    /* ─── Intersection Observer for entrance animations ─── */
+    const observer = new IntersectionObserver(entries => {
+      entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('in-view'); observer.unobserve(e.target); } });
+    }, { threshold: 0.08 });
+
+    document.querySelectorAll('.anim-fade-up').forEach(el => observer.observe(el));
+
+    /* ─── Search on Enter ─── */
+    document.addEventListener('DOMContentLoaded', () => {
+      const input = document.getElementById('searchInput');
+      if (input) input.addEventListener('keydown', e => { if (e.key === 'Enter') applyFilters(); });
+      lucide.createIcons();
+      loadPsychologists();
+    });
+  </script>
+</body>
+</html>

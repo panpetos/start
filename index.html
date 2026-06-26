@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>psytalk.pro — психологи для IT-специалистов, разработчиков и их семей</title>
+  <meta name="description" content="Онлайн-психологи, которые понимают IT. Помощь разработчикам, корпоративным IT-командам крупных компаний и их семьям: выгорание, синдром самозванца, стресс дедлайнов, баланс работы и личной жизни.">
+  <link rel="stylesheet" href="/css/styles.css">
+  <script src="/js/layout.js"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="/js/api.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/header-init.js"></script>
+</head>
+<body>
+  <script>psyWriteHeader();</script>
+
+  <!-- ═══════════════ HERO ═══════════════ -->
+  <section style="padding: 5rem 0 4rem; background: white; position: relative; overflow: hidden;">
+    <!-- Animated gradient blobs -->
+    <div class="hero-blob-container">
+      <div class="hero-blob hero-blob-purple"></div>
+      <div class="hero-blob hero-blob-green"></div>
+      <div class="hero-blob hero-blob-blue"></div>
+    </div>
+
+    <div class="container" style="position: relative; z-index: 1;">
+      <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 4rem; align-items: center;">
+
+        <!-- Text -->
+        <div>
+          <div style="display: inline-flex; align-items: center; gap: 0.5rem; background: #F3E8FF; color: #7C3AED; padding: 0.375rem 1rem; border-radius: 2rem; font-size: 0.8125rem; font-weight: 600; margin-bottom: 1.5rem; border: 1px solid rgba(124,58,237,0.15);">
+            <i data-lucide="sparkles" style="width: 0.875rem; height: 0.875rem;"></i>
+            Специалисты, которые понимают IT
+          </div>
+
+          <h1 class="font-bold mb-4" style="font-size: 3.25rem; line-height: 1.1; color: #1A1A1A; letter-spacing: -0.03em;" data-testid="text-hero-title">
+            Психологи для IT —<br>
+            <span class="gradient-text">для вас и семьи</span>
+          </h1>
+
+          <p class="text-xl mb-6" style="color: #6B7280; line-height: 1.7; font-size: 1.125rem;" data-testid="text-hero-description">
+            Онлайн-консультации для разработчиков, корпоративных IT-специалистов и их близких. Выгорание, синдром самозванца, стресс дедлайнов, баланс работы и жизни.
+          </p>
+
+          <!-- CTAs -->
+          <div class="hero-cta-buttons flex gap-3 mb-5">
+            <a href="/search.html"
+               class="btn btn-green btn-lg"
+               style="padding: 0.875rem 2.25rem; font-size: 1.0625rem;"
+               data-testid="button-find-psychologist">
+              <i data-lucide="search" style="width: 1.125rem; height: 1.125rem;"></i>
+              Найти психолога
+            </a>
+            <a href="/register.html?type=psychologist"
+               class="btn btn-outline btn-lg"
+               style="padding: 0.875rem 2rem; font-size: 1.0625rem;"
+               data-testid="button-become-psychologist">
+              Стать психологом
+            </a>
+          </div>
+
+          <!-- Price badge -->
+          <div style="display: inline-flex; align-items: center; gap: 0.5rem; background: #F0FDF4; color: #16A34A; padding: 0.5rem 1.125rem; border-radius: 2rem; font-size: 0.875rem; font-weight: 600; border: 1px solid #BBF7D0; margin-bottom: 1.5rem;">
+            <i data-lucide="check-circle" style="width: 1rem; height: 1rem;"></i>
+            <span id="heroPriceText">Первая консультация по специальной цене</span>
+          </div>
+
+          <!-- Trust badges -->
+          <div class="trust-badges">
+            <div class="trust-badge">
+              <i data-lucide="shield-check" style="color: #34C759; width: 1rem; height: 1rem;"></i>
+              Конфиденциально
+            </div>
+            <div class="trust-badge">
+              <i data-lucide="award" style="color: #34C759; width: 1rem; height: 1rem;"></i>
+              Дипломированные специалисты
+            </div>
+            <div class="trust-badge">
+              <i data-lucide="clock" style="color: #34C759; width: 1rem; height: 1rem;"></i>
+              Запись онлайн 24/7
+            </div>
+          </div>
+        </div>
+
+        <!-- Hero image -->
+        <div style="position: relative;">
+          <div style="position: absolute; inset: -1.5rem; background: linear-gradient(135deg, rgba(124,58,237,0.06) 0%, rgba(52,199,89,0.06) 100%); border-radius: 2rem; z-index: 0;"></div>
+          <img
+            src="/images/hero-video-call.jpg"
+            alt="Онлайн консультация психолога"
+            style="width: 100%; height: auto; border-radius: 1.5rem; box-shadow: 0 24px 80px rgba(124,58,237,0.18); position: relative; z-index: 1;"
+          />
+          <!-- Floating stat bubble -->
+          <div style="position: absolute; bottom: 1.5rem; left: -1rem; background: white; border-radius: 1rem; padding: 0.875rem 1.25rem; box-shadow: 0 8px 32px rgba(0,0,0,0.12); z-index: 2; display: flex; align-items: center; gap: 0.75rem; border: 1px solid #F0F0F0;">
+            <div style="width: 2.5rem; height: 2.5rem; background: linear-gradient(135deg, #34C759, #28A745); border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+              <i data-lucide="users" style="width: 1.25rem; height: 1.25rem; color: white;"></i>
+            </div>
+            <div>
+              <div style="font-size: 1.125rem; font-weight: 800; color: #1A1A1A; line-height: 1;">+200</div>
+              <div style="font-size: 0.75rem; color: #6B7280;">психологов</div>
+            </div>
+          </div>
+          <!-- Floating rating bubble -->
+          <div style="position: absolute; top: 1.5rem; right: -1rem; background: white; border-radius: 1rem; padding: 0.875rem 1.25rem; box-shadow: 0 8px 32px rgba(0,0,0,0.12); z-index: 2; border: 1px solid #F0F0F0;">
+            <div style="display: flex; align-items: center; gap: 0.375rem; margin-bottom: 0.25rem;">
+              <span style="color: #F59E0B; font-size: 0.875rem;">★★★★★</span>
+            </div>
+            <div style="font-size: 0.75rem; color: #6B7280; white-space: nowrap;">4.9 средний рейтинг</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════ ISSUES / SERVICES ═══════════════ -->
+  <section id="services" style="padding: 5rem 0; background: #FAFAFA;">
+    <div class="container">
+      <div class="text-center mb-6" style="max-width: 600px; margin: 0 auto 3rem;">
+        <h2 style="font-size: 2.25rem; color: #1A1A1A; letter-spacing: -0.03em; margin-bottom: 0.75rem;" data-testid="text-how-title">
+          С чем мы помогаем людям из IT
+        </h2>
+        <p style="color: #6B7280; font-size: 1.0625rem; line-height: 1.6; margin: 0;">
+          Запросы, знакомые каждому, кто работает в технологиях — и тем, кто рядом с ними
+        </p>
+      </div>
+
+      <div class="services-grid">
+        <div class="card anim-fade-up" style="padding: 1.75rem; text-align: center; display: flex; flex-direction: column; align-items: center; border-radius: 1.25rem;">
+          <div class="icon-3d" style="width: 3.75rem; height: 3.75rem; border-radius: 1rem; display: flex; align-items: center; justify-content: center; margin-bottom: 1.25rem;">
+            <i data-lucide="flame" style="color: white; width: 1.75rem; height: 1.75rem;"></i>
+          </div>
+          <h3 style="color: #1A1A1A; font-size: 1.0625rem; font-weight: 700; margin-bottom: 0.5rem; letter-spacing: -0.02em;">Выгорание и переработки</h3>
+          <p style="color: #6B7280; font-size: 0.875rem; line-height: 1.6; margin: 0;">
+            Хроническая усталость, стресс дедлайнов и авралов, потеря интереса к работе
+          </p>
+        </div>
+
+        <div class="card anim-fade-up anim-delay-1" style="padding: 1.75rem; text-align: center; display: flex; flex-direction: column; align-items: center; border-radius: 1.25rem;">
+          <div class="icon-3d" style="width: 3.75rem; height: 3.75rem; border-radius: 1rem; display: flex; align-items: center; justify-content: center; margin-bottom: 1.25rem;">
+            <i data-lucide="user-check" style="color: white; width: 1.75rem; height: 1.75rem;"></i>
+          </div>
+          <h3 style="color: #1A1A1A; font-size: 1.0625rem; font-weight: 700; margin-bottom: 0.5rem; letter-spacing: -0.02em;">Синдром самозванца</h3>
+          <p style="color: #6B7280; font-size: 0.875rem; line-height: 1.6; margin: 0;">
+            Перфекционизм, страх ревью и собеседований, обесценивание достижений
+          </p>
+        </div>
+
+        <div class="card anim-fade-up anim-delay-2" style="padding: 1.75rem; text-align: center; display: flex; flex-direction: column; align-items: center; border-radius: 1.25rem;">
+          <div class="icon-3d" style="width: 3.75rem; height: 3.75rem; border-radius: 1rem; display: flex; align-items: center; justify-content: center; margin-bottom: 1.25rem;">
+            <i data-lucide="users" style="color: white; width: 1.75rem; height: 1.75rem;"></i>
+          </div>
+          <h3 style="color: #1A1A1A; font-size: 1.0625rem; font-weight: 700; margin-bottom: 0.5rem; letter-spacing: -0.02em;">Команда и удалёнка</h3>
+          <p style="color: #6B7280; font-size: 0.875rem; line-height: 1.6; margin: 0;">
+            Конфликты, токсичный менеджмент, изоляция на удалёнке, релокация
+          </p>
+        </div>
+
+        <div class="card anim-fade-up anim-delay-3" style="padding: 1.75rem; text-align: center; display: flex; flex-direction: column; align-items: center; border-radius: 1.25rem;">
+          <div class="icon-3d" style="width: 3.75rem; height: 3.75rem; border-radius: 1rem; display: flex; align-items: center; justify-content: center; margin-bottom: 1.25rem;">
+            <i data-lucide="home" style="color: white; width: 1.75rem; height: 1.75rem;"></i>
+          </div>
+          <h3 style="color: #1A1A1A; font-size: 1.0625rem; font-weight: 700; margin-bottom: 0.5rem; letter-spacing: -0.02em;">Семья и отношения</h3>
+          <p style="color: #6B7280; font-size: 0.875rem; line-height: 1.6; margin: 0;">
+            Баланс работы и дома, поддержка партнёров и детей айтишников
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════ STATS ═══════════════ -->
+  <section style="padding: 4rem 0; background: linear-gradient(135deg, #6D28D9 0%, #7C3AED 50%, #8B5CF6 100%);">
+    <div class="container">
+      <div class="stats-grid">
+        <div class="stat-item anim-fade-up">
+          <span class="stat-number" data-count="200">0</span>
+          <span class="stat-label">психологов подключено к сервису</span>
+        </div>
+        <div class="stat-item anim-fade-up anim-delay-1">
+          <span class="stat-number" data-count="96">0</span>
+          <span class="stat-label">человек меняют жизнь прямо сейчас</span>
+        </div>
+        <div class="stat-item anim-fade-up anim-delay-2">
+          <span class="stat-number">2021</span>
+          <span class="stat-label">год основания сервиса</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════ FOR WHOM ═══════════════ -->
+  <section style="padding: 5rem 0; background: white;">
+    <div class="container">
+      <div class="text-center mb-6" style="max-width: 600px; margin: 0 auto 3rem;">
+        <h2 style="font-size: 2.25rem; color: #1A1A1A; letter-spacing: -0.03em; margin-bottom: 0.75rem;">Для кого мы</h2>
+        <p style="color: #6B7280; font-size: 1.0625rem; margin: 0;">
+          psytalk.pro создан для людей из технологий и тех, кто рядом с ними
+        </p>
+      </div>
+
+      <div class="services-grid">
+        <div class="card anim-fade-up" style="padding: 1.75rem; border-radius: 1.25rem; border-left: 4px solid #7C3AED;">
+          <div class="icon-3d" style="width: 3.25rem; height: 3.25rem; border-radius: 0.875rem; display: flex; align-items: center; justify-content: center; margin-bottom: 1rem;">
+            <i data-lucide="code" style="color: white; width: 1.5rem; height: 1.5rem;"></i>
+          </div>
+          <h3 style="color: #1A1A1A; font-size: 1.125rem; font-weight: 700; margin-bottom: 0.5rem; letter-spacing: -0.02em;">Разработчики и IT-специалисты</h3>
+          <p style="color: #6B7280; font-size: 0.9375rem; line-height: 1.7; margin: 0;">
+            Инженеры, дизайнеры, аналитики, QA, DevOps, продакты. Психологи понимают вашу сферу — не нужно объяснять, что такое релиз или овертайм.
+          </p>
+        </div>
+
+        <div class="card anim-fade-up anim-delay-1" style="padding: 1.75rem; border-radius: 1.25rem; border-left: 4px solid #8B5CF6;">
+          <div class="icon-3d" style="width: 3.25rem; height: 3.25rem; border-radius: 0.875rem; display: flex; align-items: center; justify-content: center; margin-bottom: 1rem;">
+            <i data-lucide="building-2" style="color: white; width: 1.5rem; height: 1.5rem;"></i>
+          </div>
+          <h3 style="color: #1A1A1A; font-size: 1.125rem; font-weight: 700; margin-bottom: 0.5rem; letter-spacing: -0.02em;">Корпоративные IT-команды</h3>
+          <p style="color: #6B7280; font-size: 0.9375rem; line-height: 1.7; margin: 0;">
+            Сотрудники крупных компаний, тимлиды и менеджеры. Помогаем справляться с нагрузкой, выгоранием и ответственностью.
+          </p>
+        </div>
+
+        <div class="card anim-fade-up anim-delay-2" style="padding: 1.75rem; border-radius: 1.25rem; border-left: 4px solid #34C759;">
+          <div class="icon-3d" style="width: 3.25rem; height: 3.25rem; border-radius: 0.875rem; display: flex; align-items: center; justify-content: center; margin-bottom: 1rem;">
+            <i data-lucide="heart-handshake" style="color: white; width: 1.5rem; height: 1.5rem;"></i>
+          </div>
+          <h3 style="color: #1A1A1A; font-size: 1.125rem; font-weight: 700; margin-bottom: 0.5rem; letter-spacing: -0.02em;">Семьи и близкие айтишников</h3>
+          <p style="color: #6B7280; font-size: 0.9375rem; line-height: 1.7; margin: 0;">
+            Партнёры, родители и дети тех, кто работает в IT. Поддержка при релокации, переработках и помощь всей семье.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════ HOW IT WORKS ═══════════════ -->
+  <section style="padding: 5rem 0; background: #FAFAFA;">
+    <div class="container">
+      <div class="text-center" style="max-width: 600px; margin: 0 auto 3.5rem;">
+        <h2 style="font-size: 2.25rem; color: #1A1A1A; letter-spacing: -0.03em; margin-bottom: 0.75rem;">Как это работает</h2>
+        <p style="color: #6B7280; font-size: 1.0625rem; margin: 0;">Три простых шага до первой сессии</p>
+      </div>
+
+      <div class="steps-container" style="position: relative;">
+        <div class="steps-connector"></div>
+
+        <div class="step-card anim-fade-up">
+          <div class="step-number">1</div>
+          <h3 style="font-size: 1.1875rem; color: #1A1A1A; font-weight: 700; margin-bottom: 0.625rem; letter-spacing: -0.02em;">Выберите психолога</h3>
+          <p style="color: #6B7280; font-size: 0.9375rem; line-height: 1.6; margin: 0;">
+            Изучите профили специалистов, их опыт, подходы и отзывы. Фильтруйте по специализации и стоимости.
+          </p>
+        </div>
+
+        <div class="step-card anim-fade-up anim-delay-1">
+          <div class="step-number">2</div>
+          <h3 style="font-size: 1.1875rem; color: #1A1A1A; font-weight: 700; margin-bottom: 0.625rem; letter-spacing: -0.02em;">Запишитесь онлайн</h3>
+          <p style="color: #6B7280; font-size: 0.9375rem; line-height: 1.6; margin: 0;">
+            Выберите удобное время в календаре. Первая консультация может быть короче для знакомства.
+          </p>
+        </div>
+
+        <div class="step-card anim-fade-up anim-delay-2">
+          <div class="step-number">3</div>
+          <h3 style="font-size: 1.1875rem; color: #1A1A1A; font-weight: 700; margin-bottom: 0.625rem; letter-spacing: -0.02em;">Начните работу</h3>
+          <p style="color: #6B7280; font-size: 0.9375rem; line-height: 1.6; margin: 0;">
+            Видео, аудио или текстовый чат прямо на платформе. Всё конфиденциально и безопасно.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════ CTA ═══════════════ -->
+  <section id="offers" style="padding: 5rem 0; background: linear-gradient(135deg, #6D28D9 0%, #7C3AED 60%, #A78BFA 100%); position: relative; overflow: hidden;">
+    <div style="position: absolute; top: -100px; right: -100px; width: 400px; height: 400px; background: rgba(255,255,255,0.05); border-radius: 50%;"></div>
+    <div style="position: absolute; bottom: -80px; left: -80px; width: 300px; height: 300px; background: rgba(255,255,255,0.04); border-radius: 50%;"></div>
+    <div class="container" style="position: relative; z-index: 1;">
+      <div class="text-center" style="max-width: 680px; margin: 0 auto; color: white;">
+        <div style="display: inline-flex; align-items: center; gap: 0.5rem; background: rgba(255,255,255,0.15); color: white; padding: 0.375rem 1rem; border-radius: 2rem; font-size: 0.8125rem; font-weight: 600; margin-bottom: 1.5rem; border: 1px solid rgba(255,255,255,0.25);">
+          <i data-lucide="heart" style="width: 0.875rem; height: 0.875rem;"></i>
+          Начните прямо сейчас
+        </div>
+        <h2 style="font-size: 2.75rem; color: white; font-weight: 800; letter-spacing: -0.04em; margin-bottom: 1rem; line-height: 1.1;">
+          Готовы начать путь к себе?
+        </h2>
+        <p style="font-size: 1.125rem; color: rgba(255,255,255,0.85); margin-bottom: 2rem; line-height: 1.6;" id="ctaPriceText">
+          Первая консультация по специальной цене. Найдите своего психолога уже сегодня.
+        </p>
+        <a href="/search.html" class="btn" style="background: white; color: #7C3AED; border: none; padding: 1rem 3rem; font-weight: 700; font-size: 1.0625rem; border-radius: 0.875rem; box-shadow: 0 8px 30px rgba(0,0,0,0.2); transition: all 0.2s;" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 12px 40px rgba(0,0,0,0.3)';" onmouseout="this.style.transform=''; this.style.boxShadow='0 8px 30px rgba(0,0,0,0.2)';" data-testid="button-cta-find">
+          Найти психолога
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════ FAQ ═══════════════ -->
+  <section id="blog" style="padding: 5rem 0; background: white;">
+    <div class="container" style="max-width: 780px;">
+      <div class="text-center" style="margin-bottom: 3rem;">
+        <h2 style="font-size: 2.25rem; color: #1A1A1A; letter-spacing: -0.03em; margin-bottom: 0.75rem;">Частые вопросы</h2>
+        <p style="color: #6B7280; font-size: 1.0625rem; margin: 0;">Всё, что вы хотели знать перед первой сессией</p>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+        <details class="card anim-fade-up" style="padding: 1.5rem 1.75rem; cursor: pointer; border-radius: 1rem;">
+          <summary class="font-semibold" style="color: #1A1A1A; font-size: 1.0625rem; cursor: pointer; font-weight: 600;">
+            Как проходит онлайн-консультация?
+          </summary>
+          <p style="color: #6B7280; margin-top: 1rem; line-height: 1.7; margin-bottom: 0;">
+            Консультация проходит через видеозвонок, аудиозвонок или текстовый чат прямо на нашей платформе. Вы можете выбрать наиболее комфортный для вас формат.
+          </p>
+        </details>
+
+        <details class="card anim-fade-up anim-delay-1" style="padding: 1.5rem 1.75rem; cursor: pointer; border-radius: 1rem;">
+          <summary class="font-semibold" style="color: #1A1A1A; font-size: 1.0625rem; cursor: pointer; font-weight: 600;">
+            Как выбрать психолога?
+          </summary>
+          <p style="color: #6B7280; margin-top: 1rem; line-height: 1.7; margin-bottom: 0;">
+            Изучите профили специалистов: образование, опыт, специализацию и отзывы клиентов. Фильтруйте по запросу, стоимости и формату работы. Если первый сеанс не подошёл — вы можете сменить психолога.
+          </p>
+        </details>
+
+        <details class="card anim-fade-up anim-delay-2" style="padding: 1.5rem 1.75rem; cursor: pointer; border-radius: 1rem;">
+          <summary class="font-semibold" style="color: #1A1A1A; font-size: 1.0625rem; cursor: pointer; font-weight: 600;">
+            Конфиденциальны ли консультации?
+          </summary>
+          <p style="color: #6B7280; margin-top: 1rem; line-height: 1.7; margin-bottom: 0;">
+            Да, мы гарантируем полную конфиденциальность. Все данные защищены, а психологи соблюдают профессиональную этику и не разглашают информацию о клиентах.
+          </p>
+        </details>
+
+        <details class="card anim-fade-up anim-delay-3" style="padding: 1.5rem 1.75rem; cursor: pointer; border-radius: 1rem;">
+          <summary class="font-semibold" style="color: #1A1A1A; font-size: 1.0625rem; cursor: pointer; font-weight: 600;">
+            Сколько стоит консультация?
+          </summary>
+          <p style="color: #6B7280; margin-top: 1rem; line-height: 1.7; margin-bottom: 0;">
+            Стоимость зависит от психолога и составляет от 1 000 до 5 000 рублей за консультацию. Актуальная цена первой сессии указана на странице <a href="/offers.html" style="color: #7C3AED; font-weight: 600;">«Пакеты и цены»</a>.
+          </p>
+        </details>
+
+        <details class="card anim-fade-up anim-delay-1" style="padding: 1.5rem 1.75rem; cursor: pointer; border-radius: 1rem;">
+          <summary class="font-semibold" style="color: #1A1A1A; font-size: 1.0625rem; cursor: pointer; font-weight: 600;">
+            Обязательно ли работать именно в IT?
+          </summary>
+          <p style="color: #6B7280; margin-top: 1rem; line-height: 1.7; margin-bottom: 0;">
+            Нет. Мы специализируемся на запросах людей из технологий, но к нам обращаются и члены их семей — партнёры, родители, дети. Если близкий человек работает в IT и это влияет на ваши отношения — мы поможем.
+          </p>
+        </details>
+
+        <details class="card anim-fade-up anim-delay-2" style="padding: 1.5rem 1.75rem; cursor: pointer; border-radius: 1rem;">
+          <summary class="font-semibold" style="color: #1A1A1A; font-size: 1.0625rem; cursor: pointer; font-weight: 600;">
+            Есть ли корпоративный формат?
+          </summary>
+          <p style="color: #6B7280; margin-top: 1rem; line-height: 1.7; margin-bottom: 0;">
+            Да. Для крупных компаний и IT-команд предлагаем корпоративные пакеты консультаций для сотрудников. Напишите нам через раздел поддержки — подберём условия под вашу команду.
+          </p>
+        </details>
+      </div>
+    </div>
+  </section>
+
+  <script>psyWriteFooter();</script>
+
+  <script>
+    // Init icons
+    lucide.createIcons();
+
+    // Intersection Observer for entrance animations
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(e => {
+        if (e.isIntersecting) {
+          e.target.classList.add('in-view');
+          observer.unobserve(e.target);
+        }
+      });
+    }, { threshold: 0.12 });
+
+    document.querySelectorAll('.anim-fade-up').forEach(el => observer.observe(el));
+
+    // Animated counter for stats
+    function animateCounter(el) {
+      const target = parseInt(el.dataset.count);
+      if (!target) return;
+      const prefix = target === 200 ? '+' : '';
+      const duration = 1200;
+      const step = Math.ceil(duration / 60);
+      let current = 0;
+      const increment = target / (duration / step);
+      const timer = setInterval(() => {
+        current = Math.min(current + increment, target);
+        el.textContent = prefix + Math.floor(current);
+        if (current >= target) clearInterval(timer);
+      }, step);
+    }
+
+    const statObserver = new IntersectionObserver((entries) => {
+      entries.forEach(e => {
+        if (e.isIntersecting) {
+          e.querySelectorAll
+            ? e.target.querySelectorAll('[data-count]').forEach(animateCounter)
+            : null;
+          if (e.target.dataset && e.target.dataset.count) animateCounter(e.target);
+          statObserver.unobserve(e.target);
+        }
+      });
+    }, { threshold: 0.3 });
+
+    document.querySelectorAll('[data-count]').forEach(el => statObserver.observe(el));
+    // Also observe stats section
+    document.querySelectorAll('.stat-item').forEach(el => statObserver.observe(el));
+
+    // Load first session price
+    (async function loadFirstSessionPrice() {
+      try {
+        const res = await fetch('/api/settings.php?action=public');
+        const s = await res.json();
+        const rub = n => { const v = parseInt(n, 10); return isNaN(v) ? null : v.toLocaleString('ru-RU') + ' ₽'; };
+
+        const enabled = String(s.promo_self_enabled || '0') === '1';
+        const raw = (s.promo_self_deadline || '').trim();
+        const iso = raw && raw.length <= 16 ? raw + ':00+03:00' : raw;
+        const deadline = raw ? new Date(iso) : null;
+        const valid = deadline && !isNaN(deadline.getTime()) && deadline > new Date();
+        const promoForSelf = enabled && valid && s.promo_self_price;
+
+        const basePrice = rub(s.price_self) || '3 000 ₽';
+        const heroEl = document.getElementById('heroPriceText');
+        const ctaEl = document.getElementById('ctaPriceText');
+
+        if (promoForSelf) {
+          const p = rub(s.promo_self_price);
+          if (heroEl) heroEl.textContent = 'Первая сессия всего ' + p;
+          if (ctaEl) ctaEl.textContent = 'Первая сессия всего ' + p + '. Найдите своего психолога уже сегодня.';
+        } else {
+          if (heroEl) heroEl.textContent = 'Первая сессия — ' + basePrice;
+          if (ctaEl) ctaEl.textContent = 'Сессия от ' + basePrice + '. Найдите своего психолога уже сегодня.';
+        }
+      } catch (e) { /* keep static text */ }
+    })();
+  </script>
+</body>
+</html>
