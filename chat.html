@@ -7,14 +7,11 @@
     <title>Сообщения - psytalk.pro</title>
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
             background: #f5f7fa;
             height: 100vh;
             display: flex;
@@ -22,7 +19,7 @@
         }
 
         .header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #7C3AED 0%, #9F67FA 100%);
             padding: 1rem 2rem;
             color: white;
             display: flex;
@@ -74,14 +71,14 @@
         }
 
         .conversation-item.active {
-            background: #e7f1ff;
+            background: #F3E8FF;
         }
 
         .conversation-avatar {
             width: 50px;
             height: 50px;
             border-radius: 50%;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #7C3AED 0%, #6D28D9 100%);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -126,7 +123,7 @@
         }
 
         .unread-badge {
-            background: #667eea;
+            background: #7C3AED;
             color: white;
             font-size: 0.75rem;
             padding: 0.2rem 0.5rem;
@@ -155,7 +152,7 @@
             width: 45px;
             height: 45px;
             border-radius: 50%;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #7C3AED 0%, #6D28D9 100%);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -197,7 +194,7 @@
         }
 
         .message.mine {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #7C3AED 0%, #6D28D9 100%);
             color: white;
             align-self: flex-end;
             border-bottom-right-radius: 4px;
@@ -235,14 +232,14 @@
         }
 
         .chat-input input:focus {
-            border-color: #667eea;
+            border-color: #7C3AED;
         }
 
         .chat-input button {
             width: 48px;
             height: 48px;
             border-radius: 50%;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #7C3AED 0%, #6D28D9 100%);
             color: white;
             border: none;
             cursor: pointer;
@@ -339,7 +336,7 @@
             display: flex;
             align-items: center;
             gap: 8px;
-            color: #667eea;
+            color: #7C3AED;
             text-decoration: none;
         }
 
@@ -396,7 +393,7 @@
             padding: 8px 16px;
             border-radius: 20px;
             border: none;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #7C3AED 0%, #6D28D9 100%);
             color: white;
             cursor: pointer;
             font-weight: 500;
@@ -408,7 +405,7 @@
             align-items: center;
             gap: 10px;
             padding: 8px 12px;
-            background: rgba(102, 126, 234, 0.1);
+            background: rgba(124, 58, 237, 0.1);
             border-radius: 16px;
             min-width: 200px;
         }
@@ -417,7 +414,7 @@
             width: 40px;
             height: 40px;
             border-radius: 50%;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #7C3AED 0%, #6D28D9 100%);
             color: white;
             border: none;
             cursor: pointer;
@@ -438,7 +435,7 @@
 
         .voice-waveform span {
             width: 3px;
-            background: #667eea;
+            background: #7C3AED;
             border-radius: 2px;
             opacity: 0.6;
         }
@@ -461,21 +458,21 @@
             width: 44px;
             height: 44px;
             border-radius: 50%;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #7C3AED 0%, #6D28D9 100%);
             border: none;
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
             transition: all 0.3s;
-            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+            box-shadow: 0 2px 8px rgba(124, 58, 237, 0.3);
             color: white;
             text-decoration: none;
         }
 
         .dashboard-btn:hover {
             transform: scale(1.1);
-            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+            box-shadow: 0 4px 12px rgba(124, 58, 237, 0.4);
         }
 
         /* Video Call Button */
@@ -581,21 +578,7 @@
 </head>
 
 <body>
-    <!-- Replaced header with dynamic header from js/header.js -->
-    <style>
-        /* Дополнительные стили для чата с новым хедером */
-        body {
-            /* header.js добавляет хедер в body, flex-direction column уже есть */
-        }
-
-        .chat-container {
-            /* Убедимся что контейнер занимает оставшееся место */
-            height: calc(100vh - 80px);
-            /* Примерная высота хедера */
-        }
-    </style>
-
-    <div class="chat-container">
+    <div class="chat-container" style="height:100vh;">
         <div class="conversations-list" id="conversationsList">
             <div class="no-conversations">Загрузка...</div>
         </div>

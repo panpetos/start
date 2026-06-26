@@ -7,209 +7,89 @@
     <title>Личный кабинет - psytalk.pro</title>
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #F4F0FF;
             min-height: 100vh;
             padding: 0;
         }
 
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 2rem;
-        }
+        .container { max-width: 1200px; margin: 0 auto; padding: 2rem; }
 
         .header {
-            background: white;
-            border-radius: 16px;
-            padding: 2rem;
-            margin-bottom: 2rem;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+            background: white; border-radius: 1.25rem; padding: 1.75rem 2rem;
+            margin-bottom: 1.75rem;
+            box-shadow: 0 4px 20px rgba(124,58,237,0.1);
+            border: 1px solid #EDE9FF;
+            display: flex; justify-content: space-between; align-items: center;
         }
+        .header-left h1 { color: #1A1A1A; font-size: 1.75rem; margin-bottom: 0.25rem; letter-spacing: -0.02em; }
+        .header-left p { color: #6B7280; font-size: 0.9375rem; }
 
-        .header-left h1 {
-            color: #333;
-            font-size: 2rem;
-            margin-bottom: 0.5rem;
-        }
-
-        .header-left p {
-            color: #666;
-        }
-
-        .user-info {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-        }
-
+        .user-info { display: flex; align-items: center; gap: 0.875rem; }
         .user-avatar {
-            width: 50px;
-            height: 50px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-weight: 600;
-            overflow: hidden;
+            width: 48px; height: 48px; border-radius: 50%;
+            background: linear-gradient(135deg, #7C3AED 0%, #9F67FA 100%);
+            display: flex; align-items: center; justify-content: center;
+            color: white; font-weight: 700; font-size: 1.125rem; overflow: hidden;
+            box-shadow: 0 4px 12px rgba(124,58,237,0.3);
         }
+        .user-avatar img { width: 100%; height: 100%; object-fit: cover; }
 
-        .user-avatar img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-
-        .cards {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 1.5rem;
-        }
+        .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem; }
 
         .card {
-            background: white;
-            border-radius: 16px;
-            padding: 2rem;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
-            transition: transform 0.3s;
+            background: white; border-radius: 1.25rem; padding: 1.75rem;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+            border: 1px solid #F0ECF8;
+            transition: box-shadow 0.2s, transform 0.2s;
         }
-
-        .card:hover {
-            transform: translateY(-5px);
-        }
-
+        .card:hover { box-shadow: 0 8px 30px rgba(124,58,237,0.12); transform: translateY(-2px); }
         .card h2 {
-            color: #667eea;
-            margin-bottom: 1rem;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
+            color: #7C3AED; margin-bottom: 1rem; font-size: 1.125rem;
+            display: flex; align-items: center; gap: 0.5rem;
         }
-
-        .card p {
-            color: #666;
-            line-height: 1.6;
-        }
+        .card p { color: #6B7280; line-height: 1.6; }
 
         .btn {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
-            padding: 0.75rem 1.5rem;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            text-decoration: none;
-            border-radius: 8px;
-            font-weight: 600;
-            transition: all 0.3s;
-            border: none;
-            cursor: pointer;
+            display: inline-flex; align-items: center; gap: 0.5rem;
+            padding: 0.625rem 1.375rem;
+            background: linear-gradient(135deg, #7C3AED 0%, #9F67FA 100%);
+            color: white; text-decoration: none; border-radius: 0.625rem;
+            font-weight: 600; font-size: 0.9375rem; transition: all 0.2s;
+            border: none; cursor: pointer; font-family: inherit;
+            box-shadow: 0 3px 10px rgba(124,58,237,0.3);
         }
+        .btn:hover { transform: translateY(-1px); box-shadow: 0 5px 16px rgba(124,58,237,0.4); color: white; }
 
-        .btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
-        }
-
-        .appointments-list {
-            margin-top: 1rem;
-        }
-
+        .appointments-list { margin-top: 1rem; }
         .appointment-item {
-            background: #f8f9fa;
-            padding: 1rem;
-            border-radius: 12px;
-            margin-bottom: 0.75rem;
-            display: flex;
-            flex-wrap: wrap;
-            justify-content: space-between;
-            align-items: center;
-            gap: 0.75rem;
+            background: #FAFAFA; padding: 1rem; border-radius: 0.875rem;
+            margin-bottom: 0.625rem; display: flex; flex-wrap: wrap;
+            justify-content: space-between; align-items: center; gap: 0.75rem;
+            border: 1px solid #F0F0F0; transition: border-color 0.2s;
         }
-
-        .appointment-info {
-            flex: 1;
-            min-width: 120px;
-            word-break: break-word;
-        }
-
-        .appointment-psychologist {
-            font-weight: 600;
-            color: #333;
-            margin-bottom: 0.25rem;
-            font-size: 0.9rem;
-        }
-
-        .appointment-datetime {
-            font-size: 0.85rem;
-            color: #666;
-        }
-
-        .appointment-status {
-            padding: 0.25rem 0.75rem;
-            border-radius: 20px;
-            font-size: 0.8rem;
-            font-weight: 600;
-        }
-
-        .status-scheduled {
-            background: #e7f1ff;
-            color: #667eea;
-        }
-
-        .status-completed {
-            background: #d4edda;
-            color: #155724;
-        }
-
-        .status-cancelled {
-            background: #f8d7da;
-            color: #721c24;
-        }
-
-        .appointment-actions {
-            display: flex;
-            gap: 0.5rem;
-        }
-
-        .btn-small {
-            padding: 0.5rem 1rem;
-            font-size: 0.85rem;
-        }
-
-        .btn-danger {
-            background: #dc3545;
-        }
-
+        .appointment-item:hover { border-color: #EDE9FF; }
+        .appointment-info { flex: 1; min-width: 120px; word-break: break-word; }
+        .appointment-psychologist { font-weight: 600; color: #1A1A1A; margin-bottom: 0.2rem; font-size: 0.9375rem; }
+        .appointment-datetime { font-size: 0.8125rem; color: #6B7280; }
+        .appointment-status { padding: 0.2rem 0.75rem; border-radius: 2rem; font-size: 0.75rem; font-weight: 600; }
+        .status-scheduled { background: #F3E8FF; color: #7C3AED; }
+        .status-completed { background: #F0FDF4; color: #16A34A; }
+        .status-cancelled { background: #FFF1F2; color: #BE123C; }
+        .appointment-actions { display: flex; gap: 0.5rem; }
+        .btn-small { padding: 0.4rem 0.875rem; font-size: 0.8125rem; }
+        .btn-danger { background: linear-gradient(135deg, #ef4444, #dc2626); box-shadow: none; }
         .btn-outline {
-            background: white;
-            border: 2px solid #667eea;
-            color: #667eea;
+            background: white; border: 1.5px solid #E2E8F0; color: #374151;
+            box-shadow: none;
         }
-
-        .empty-state {
-            text-align: center;
-            padding: 2rem;
-            color: #999;
-        }
-
-        .loading {
-            text-align: center;
-            color: #999;
-            padding: 1rem;
-        }
+        .btn-outline:hover { border-color: #7C3AED; color: #7C3AED; background: #FAF5FF; }
+        .empty-state { text-align: center; padding: 2rem; color: #9CA3AF; }
+        .loading { text-align: center; color: #9CA3AF; padding: 1rem; }
     </style>
 </head>
 

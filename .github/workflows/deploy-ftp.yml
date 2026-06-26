@@ -27,6 +27,11 @@ jobs:
             put css/styles.css;
             put js/layout.js;
             put book-confirm.html;
+            put payment-success.html;
+            put client-dashboard.html;
+            put psychologist-dashboard.html;
+            put chat.html;
+            put consultation.html;
             put consent.html;
             put offer.html;
             put privacy.html;

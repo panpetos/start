@@ -9,25 +9,25 @@
    CSS Variables
    ============================================ */
 :root {
-  --background: hsl(0 0% 100%);
-  --foreground: hsl(0 0% 10%);
-  --card: hsl(0 0% 100%);
-  --card-foreground: hsl(0 0% 10%);
-  --popover: hsl(0 0% 100%);
-  --popover-foreground: hsl(0 0% 10%);
-  --primary: hsl(258 80% 57%);
-  --primary-foreground: hsl(0 0% 100%);
-  --secondary: hsl(270 95% 95%);
-  --secondary-foreground: hsl(258 80% 57%);
-  --muted: hsl(270 30% 96%);
-  --muted-foreground: hsl(0 0% 45%);
-  --accent: hsl(258 80% 57%);
-  --accent-foreground: hsl(0 0% 100%);
-  --destructive: hsl(0 84% 60%);
-  --destructive-foreground: hsl(0 0% 100%);
-  --border: hsl(270 20% 90%);
-  --input: hsl(270 20% 95%);
-  --ring: hsl(258 80% 57%);
+  --background: 0 0% 100%;
+  --foreground: 0 0% 10%;
+  --card: 0 0% 100%;
+  --card-foreground: 0 0% 10%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 0 0% 10%;
+  --primary: 258 80% 57%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 270 95% 95%;
+  --secondary-foreground: 258 80% 57%;
+  --muted: 270 30% 96%;
+  --muted-foreground: 0 0% 45%;
+  --accent: 258 80% 57%;
+  --accent-foreground: 0 0% 100%;
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 270 20% 90%;
+  --input: 270 20% 95%;
+  --ring: 258 80% 57%;
   --radius: 0.75rem;
 
   --primary-custom: #7C3AED;
