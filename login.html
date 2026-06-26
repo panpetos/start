@@ -4,7 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Войти — psytalk.pro</title>
+    <link rel="stylesheet" href="/css/styles.css">
     <script src="/js/layout.js"></script>
+    <script src="/js/api.js"></script>
+    <script src="/js/auth.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
@@ -34,6 +37,13 @@
             outline: none; transition: border-color 0.2s;
         }
         input:focus { border-color: #7C3AED; }
+        input.error { border-color: #EF4444; }
+        .inline-error {
+            display: none; background: #FEF2F2; border: 1px solid #FECACA; color: #DC2626;
+            border-radius: 0.625rem; padding: 0.625rem 0.875rem; font-size: 0.875rem;
+            margin-bottom: 0.875rem; line-height: 1.5;
+        }
+        .inline-error.visible { display: block; }
         .btn-submit {
             width: 100%; padding: 0.875rem; margin-top: 0.5rem;
             background: linear-gradient(135deg, #7C3AED, #9F67FA);
@@ -41,7 +51,8 @@
             font-family: inherit; font-size: 1rem; font-weight: 700; cursor: pointer;
             box-shadow: 0 4px 14px rgba(124,58,237,0.35); transition: all 0.2s;
         }
-        .btn-submit:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(124,58,237,0.45); }
+        .btn-submit:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(124,58,237,0.45); }
+        .btn-submit:disabled { opacity: 0.65; cursor: not-allowed; transform: none; }
         .divider { text-align: center; color: #9CA3AF; font-size: 0.875rem; margin: 1.25rem 0; position: relative; }
         .divider::before, .divider::after {
             content: ''; position: absolute; top: 50%; width: 42%; height: 1px; background: #E5E7EB;
@@ -54,16 +65,17 @@
             font-weight: 600; cursor: pointer; transition: all 0.2s; text-align: center; text-decoration: none; display: block;
         }
         .btn-demo:hover { border-color: #7C3AED; color: #7C3AED; background: #FAF5FF; }
-        .dev-notice {
-            background: #FFF8E7; border: 1px solid #F59E0B; border-radius: 0.875rem;
-            padding: 0.875rem 1rem; margin-top: 1.25rem; font-size: 0.8125rem; color: #92400E; line-height: 1.5;
-        }
         .tab-panel { display: none; }
         .tab-panel.active { display: block; }
         .forgot-link { display: block; text-align: right; font-size: 0.8125rem; color: #7C3AED; margin-top: 0.25rem; text-decoration: none; }
         .forgot-link:hover { text-decoration: underline; }
         .psy-register-note { font-size: 0.8125rem; color: #6B7280; margin-top: 1rem; text-align: center; }
         .psy-register-note a { color: #7C3AED; font-weight: 600; }
+        .success-msg {
+            background: #F0FDF4; border: 1px solid #BBF7D0; color: #16A34A;
+            border-radius: 0.625rem; padding: 0.625rem 0.875rem; font-size: 0.875rem;
+            margin-bottom: 0.875rem; display: none;
+        }
     </style>
 </head>
 <body>
@@ -81,7 +93,8 @@
 
             <!-- Login -->
             <div class="tab-panel active" id="panel-login">
-                <form onsubmit="handleLogin(event)">
+                <div class="inline-error" id="loginError"></div>
+                <form id="loginForm" onsubmit="handleLogin(event)">
                     <div class="form-group">
                         <label for="loginEmail">Email</label>
                         <input type="email" id="loginEmail" placeholder="your@email.com" required autocomplete="email">
@@ -91,16 +104,18 @@
                         <input type="password" id="loginPassword" placeholder="••••••••" required autocomplete="current-password">
                         <a href="#" class="forgot-link">Забыли пароль?</a>
                     </div>
-                    <button type="submit" class="btn-submit">Войти</button>
+                    <button type="submit" class="btn-submit" id="loginBtn">Войти</button>
                 </form>
 
                 <div class="divider">или</div>
-                <a href="/client-dashboard.html" class="btn-demo">Попробовать без регистрации →</a>
+                <a href="/client-dashboard.html" class="btn-demo">Посмотреть демо без входа →</a>
             </div>
 
             <!-- Register -->
             <div class="tab-panel" id="panel-register">
-                <form onsubmit="handleRegister(event)">
+                <div class="inline-error" id="regError"></div>
+                <div class="success-msg" id="regSuccess">Регистрация прошла успешно! Перенаправляем...</div>
+                <form id="regForm" onsubmit="handleRegister(event)">
                     <div class="form-group">
                         <label for="regName">Имя и фамилия</label>
                         <input type="text" id="regName" placeholder="Иван Иванов" required autocomplete="name">
@@ -113,74 +128,149 @@
                         <label for="regPassword">Пароль</label>
                         <input type="password" id="regPassword" placeholder="Минимум 8 символов" required autocomplete="new-password" minlength="8">
                     </div>
-                    <button type="submit" class="btn-submit">Зарегистрироваться</button>
+                    <button type="submit" class="btn-submit" id="regBtn">Зарегистрироваться</button>
                 </form>
                 <p class="psy-register-note">
                     Вы психолог? <a href="/psychologist-register.html">Регистрация как специалист →</a>
                 </p>
             </div>
-
-            <div class="dev-notice">
-                🚧 <b>Сайт в разработке.</b> Вход через форму будет доступен после запуска. Пока что вы можете <a href="/client-dashboard.html" style="color:#7C3AED;font-weight:600;">посмотреть демо-кабинет</a> или <a href="/search.html" style="color:#7C3AED;font-weight:600;">найти психолога</a>.
-            </div>
         </div>
     </div>
     <script>psyWriteFooter();</script>
     <script>
+        // Redirect if already logged in
+        (async function() {
+            if (window.Auth && window.Auth.getCurrentUser) {
+                try {
+                    const user = await window.Auth.getCurrentUser();
+                    if (user) redirectAfterLogin(user);
+                } catch(e) {}
+            }
+        })();
+
         function switchTab(tab) {
             document.querySelectorAll('.tab-btn').forEach((b, i) => b.classList.toggle('active', (i === 0 && tab === 'login') || (i === 1 && tab === 'register')));
             document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
             document.getElementById('panel-' + tab).classList.add('active');
         }
 
+        function showError(id, msg) {
+            const el = document.getElementById(id);
+            el.textContent = msg;
+            el.classList.add('visible');
+        }
+
+        function hideError(id) {
+            const el = document.getElementById(id);
+            el.classList.remove('visible');
+        }
+
+        function redirectAfterLogin(user) {
+            const redirect = new URLSearchParams(window.location.search).get('redirect');
+            if (redirect) { window.location.href = redirect; return; }
+            const role = user.role || user.user_role || '';
+            if (role === 'admin') window.location.href = '/admin.html';
+            else if (role === 'psychologist') window.location.href = '/psychologist-dashboard.html';
+            else window.location.href = '/client-dashboard.html';
+        }
+
         async function handleLogin(e) {
             e.preventDefault();
+            hideError('loginError');
             const email = document.getElementById('loginEmail').value.trim();
             const password = document.getElementById('loginPassword').value;
+            const btn = document.getElementById('loginBtn');
+            btn.textContent = 'Входим...';
+            btn.disabled = true;
 
-            if (window.Auth && window.Auth.login) {
-                try {
+            try {
+                // Try auth.js first
+                if (window.Auth && typeof window.Auth.login === 'function') {
                     const user = await window.Auth.login(email, password);
-                    if (user) {
-                        const redirect = new URLSearchParams(window.location.search).get('redirect') || '/client-dashboard.html';
-                        window.location.href = redirect;
-                        return;
-                    }
-                } catch(err) {
-                    alert('Ошибка входа: ' + (err.message || 'попробуйте позже'));
-                    return;
+                    if (user) { redirectAfterLogin(user); return; }
                 }
-            }
 
-            // Fallback when no auth backend yet
-            alert('Авторизация временно недоступна — сайт находится в разработке. Вы можете попробовать демо-режим.');
+                // Direct API call
+                const res = await fetch('/api/auth.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ action: 'login', email, password })
+                });
+
+                if (!res.ok && res.status !== 200) {
+                    // Try alternative endpoint
+                    const res2 = await fetch('/api/users.php?action=login', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        credentials: 'include',
+                        body: JSON.stringify({ email, password })
+                    });
+                    const data2 = await res2.json();
+                    if (data2.error) { showError('loginError', data2.error); return; }
+                    if (data2.user || data2.id) { redirectAfterLogin(data2.user || data2); return; }
+                }
+
+                const data = await res.json();
+                if (data.error) {
+                    showError('loginError', data.error);
+                } else if (data.user || data.id || data.ok) {
+                    redirectAfterLogin(data.user || data);
+                } else {
+                    showError('loginError', 'Неверный email или пароль');
+                }
+            } catch(err) {
+                showError('loginError', 'Ошибка соединения с сервером. Проверьте подключение к интернету.');
+            } finally {
+                btn.textContent = 'Войти';
+                btn.disabled = false;
+            }
         }
 
         async function handleRegister(e) {
             e.preventDefault();
+            hideError('regError');
             const name = document.getElementById('regName').value.trim();
             const email = document.getElementById('regEmail').value.trim();
             const password = document.getElementById('regPassword').value;
+            const btn = document.getElementById('regBtn');
+            btn.textContent = 'Регистрируем...';
+            btn.disabled = true;
 
-            if (window.Auth && window.Auth.register) {
-                try {
-                    const parts = name.split(' ');
-                    const user = await window.Auth.register({
-                        first_name: parts[0] || name,
-                        last_name: parts.slice(1).join(' ') || '',
-                        email, password
-                    });
-                    if (user) {
-                        window.location.href = '/client-dashboard.html';
-                        return;
-                    }
-                } catch(err) {
-                    alert('Ошибка регистрации: ' + (err.message || 'попробуйте позже'));
-                    return;
+            const parts = name.split(' ');
+            const first_name = parts[0] || name;
+            const last_name = parts.slice(1).join(' ') || '';
+
+            try {
+                // Try auth.js first
+                if (window.Auth && typeof window.Auth.register === 'function') {
+                    const user = await window.Auth.register({ first_name, last_name, email, password });
+                    if (user) { redirectAfterLogin(user); return; }
                 }
-            }
 
-            alert('Регистрация временно недоступна — сайт находится в разработке. Вы можете попробовать демо-режим.');
+                // Direct API call
+                const res = await fetch('/api/auth.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ action: 'register', first_name, last_name, email, password })
+                });
+                const data = await res.json();
+
+                if (data.error) {
+                    showError('regError', data.error);
+                } else if (data.user || data.id || data.ok) {
+                    document.getElementById('regSuccess').style.display = 'block';
+                    setTimeout(() => redirectAfterLogin(data.user || data), 1000);
+                } else {
+                    showError('regError', 'Ошибка регистрации. Попробуйте позже.');
+                }
+            } catch(err) {
+                showError('regError', 'Ошибка соединения с сервером.');
+            } finally {
+                btn.textContent = 'Зарегистрироваться';
+                btn.disabled = false;
+            }
         }
 
         try { if (window.lucide) lucide.createIcons(); } catch(e) {}
