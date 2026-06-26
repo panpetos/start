@@ -346,6 +346,36 @@
     }
 
     buildPage();
+
+    /* ── Self-booking prevention ──
+       If the logged-in user IS this psychologist, disable booking and show a warning.
+       Psychologists can book any OTHER colleague as a client — just not themselves. */
+    (function checkSelfBooking() {
+      if (!window.Auth || !window.Auth.getCurrentUser) return;
+      Promise.resolve(window.Auth.getCurrentUser()).then(function(user) {
+        if (!user) return;
+        var myPsychId = user.psychologist_id || user.psychologistId;
+        if (!myPsychId) return;
+        if (String(myPsychId) !== String(psych.id)) return;
+
+        /* Same person — block the flow */
+        var warn = document.createElement('div');
+        warn.style.cssText = 'background:#FFF8E7;border:1.5px solid #F59E0B;border-radius:1rem;padding:1rem 1.25rem;margin-bottom:1.5rem;display:flex;align-items:center;gap:0.75rem;color:#92400E;font-size:0.9375rem;font-weight:500;';
+        warn.innerHTML = '<span style="font-size:1.375rem;flex-shrink:0;">⚠️</span><span>Это ваш профиль. Чтобы записаться как клиент — выберите другого специалиста.</span>';
+
+        var calWrap = document.querySelector('.calendar-wrap');
+        if (calWrap) calWrap.parentNode.insertBefore(warn, calWrap);
+
+        var confirmBtn = document.getElementById('confirmBtn');
+        if (confirmBtn) {
+          confirmBtn.disabled = true;
+          confirmBtn.textContent = 'Нельзя записаться к себе';
+          confirmBtn.style.background = '#E5E7EB';
+          confirmBtn.style.color = '#9CA3AF';
+          confirmBtn.style.boxShadow = 'none';
+        }
+      }).catch(function() {});
+    })();
   })();
   </script>
 </body>
