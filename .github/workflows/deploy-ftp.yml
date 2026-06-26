@@ -13,24 +13,22 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Deploy changed files via FTP
+      - name: Deploy changed files via SFTP
         run: |
           sudo apt-get install -y lftp
-          lftp -e "
-            set ftp:ssl-allow yes;
-            set ssl:verify-certificate no;
-            set ftp:passive-mode yes;
+          lftp -c "
+            set sftp:auto-confirm yes;
             set net:max-retries 3;
             set net:reconnect-interval-base 5;
-            open ftp://u3105470:k05aAoP0TZ2q2WdT@server277.hosting.reg.ru;
-            cd /www/psytalk.pro;
-            put js/layout.js -o js/layout.js;
-            put book-confirm.html -o book-confirm.html;
-            put consent.html -o consent.html;
-            put offer.html -o offer.html;
-            put privacy.html -o privacy.html;
-            put refund.html -o refund.html;
-            put api/payment_mock.php -o api/payment_mock.php;
+            open sftp://u3105470:a9Y3yfN5Im4It0bF@31.31.197.13;
+            cd /var/www/u3105470/data/www/psytalk.pro;
+            put js/layout.js;
+            put book-confirm.html;
+            put consent.html;
+            put offer.html;
+            put privacy.html;
+            put refund.html;
+            put api/payment_mock.php;
             bye;
           "
           echo "Deployment complete"
