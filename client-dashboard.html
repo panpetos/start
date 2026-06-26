@@ -248,9 +248,35 @@
                         return;
                     }
 
-                    // Redirect psychologists to their dashboard
+                    // Psychologists who have client bookings stay here to see them;
+                    // otherwise redirect to their provider dashboard.
                     if (user.role === 'psychologist') {
-                        window.location.href = '/psychologist-dashboard.html';
+                        const mockAppts = getMockAppointments();
+                        if (mockAppts.length === 0) {
+                            // No client bookings — go to provider view
+                            window.location.href = '/psychologist-dashboard.html';
+                            return;
+                        }
+                        // Has client bookings — show them with a switch link
+                        document.getElementById('userName').textContent =
+                            `${user.first_name || ''} ${user.last_name || ''}`.trim() || 'Психолог';
+                        document.getElementById('userInitial').textContent =
+                            (user.first_name || 'П').charAt(0).toUpperCase();
+
+                        const switchBanner = document.createElement('div');
+                        switchBanner.style.cssText = 'background:#F3E8FF;border:1.5px solid #C4B5FD;border-radius:1rem;padding:0.875rem 1.25rem;margin-bottom:1.25rem;display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;';
+                        switchBanner.innerHTML = `
+                            <span style="display:flex;align-items:center;gap:0.5rem;color:#5B21B6;font-weight:600;font-size:0.9375rem;">
+                                👤 Вы просматриваете записи как клиент
+                            </span>
+                            <a href="/psychologist-dashboard.html" style="display:inline-flex;align-items:center;gap:0.375rem;padding:0.5rem 1rem;background:linear-gradient(135deg,#7C3AED,#9F67FA);color:white;text-decoration:none;border-radius:0.625rem;font-size:0.875rem;font-weight:600;">
+                                Перейти в кабинет психолога →
+                            </a>`;
+                        document.querySelector('.cards').parentNode.insertBefore(switchBanner, document.querySelector('.cards'));
+
+                        showDemoBanner();
+                        renderMockAppointments(mockAppts);
+                        if (typeof lucide !== 'undefined') { try { lucide.createIcons(); } catch(e) {} }
                         return;
                     }
 
