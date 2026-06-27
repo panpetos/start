@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Сообщения - psytalk.pro</title>
     <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://meet.jit.si/external_api.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
         *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
@@ -565,14 +566,25 @@
             color: #999;
         }
 
+        .chat-back-btn {
+            display: none;
+            width: 40px; height: 40px; border-radius: 50%;
+            background: #f0f0f0; border: none; cursor: pointer;
+            align-items: center; justify-content: center; font-size: 1.25rem; color: #333;
+            flex-shrink: 0; margin-right: 0.25rem;
+        }
+
         @media (max-width: 768px) {
             .conversations-list {
                 width: 100%;
             }
-
-            .chat-area.has-chat .conversations-list {
+            .chat-area {
                 display: none;
             }
+            /* Когда открыт диалог — показываем чат на весь экран, список прячем */
+            .chat-container.mobile-chat-open .conversations-list { display: none; }
+            .chat-container.mobile-chat-open .chat-area { display: flex; }
+            .chat-back-btn { display: flex; }
         }
     </style>
 </head>
@@ -663,7 +675,12 @@
     <div id="videoModal" class="video-modal" style="display:none;">
         <div class="video-modal-header">
             <h3 id="videoCallTitle">📹 Видеозвонок</h3>
-            <button onclick="endVideoCall()" class="video-modal-close">✕</button>
+            <div style="display:flex;align-items:center;gap:0.75rem;">
+                <a id="videoFallbackLink" href="#" target="_blank" rel="noopener"
+                   style="color:#fff;opacity:0.85;font-size:0.85rem;text-decoration:underline;white-space:nowrap;"
+                   title="Если видео не загрузилось — открыть в новой вкладке">Открыть в новой вкладке ↗</a>
+                <button onclick="endVideoCall()" class="video-modal-close">✕</button>
+            </div>
         </div>
         <div class="video-modal-body" id="jitsiContainer">
             <!-- Jitsi iframe будет здесь -->
@@ -732,6 +749,7 @@
                     const roleText = userData.role === 'psychologist' ? 'Психолог' : 'Клиент';
 
                     document.getElementById('chatHeader').innerHTML = `
+                        <button class="chat-back-btn" onclick="goBackToList()" title="Назад к диалогам">←</button>
                         <div class="avatar">
                             ${userData.avatar ? `<img src="${userData.avatar}" alt="${name}">` : name.charAt(0)}
                         </div>
@@ -750,6 +768,7 @@
 
             document.getElementById('emptyState').style.display = 'none';
             document.getElementById('chatContent').style.display = 'flex';
+            document.querySelector('.chat-container').classList.add('mobile-chat-open');
 
             await loadMessages();
 
@@ -806,6 +825,10 @@
             }
         }
 
+        function goBackToList() {
+            document.querySelector('.chat-container').classList.remove('mobile-chat-open');
+        }
+
         async function openChat(userId) {
             selectedUserId = userId;
 
@@ -816,6 +839,7 @@
 
             document.getElementById('emptyState').style.display = 'none';
             document.getElementById('chatContent').style.display = 'flex';
+            document.querySelector('.chat-container').classList.add('mobile-chat-open');
 
             await loadMessages();
 
@@ -840,6 +864,7 @@
                     const roleText = otherUser.role === 'psychologist' ? 'Психолог' : 'Клиент';
 
                     document.getElementById('chatHeader').innerHTML = `
+                        <button class="chat-back-btn" onclick="goBackToList()" title="Назад к диалогам">←</button>
                         <div class="avatar">
                             ${otherUser.avatar ? `<img src="${otherUser.avatar}" alt="${name}">` : name.charAt(0)}
                         </div>
@@ -1264,71 +1289,109 @@
             event.target.value = '';
         }
 
-        // === ВИДЕОЗВОНКИ JITSI MEET ===
+        // === ВИДЕОЗВОНКИ JITSI MEET (External API) ===
         let jitsiApi = null;
         let currentCallId = null;
         let callStartTime = null;
+        let currentRoomName = null;
+
+        // Детерминированное имя комнаты: оба участника попадают в одну и ту же.
+        function buildRoomName() {
+            const pair = [String(currentUser.id), String(selectedUserId)].sort().join('-');
+            const day = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+            return ('psytalk-' + pair + '-' + day).replace(/[^a-zA-Z0-9-]/g, '');
+        }
 
         async function startVideoCall() {
             if (!selectedUserId) {
-                alert('Выберите пользователя для звонка');
+                alert('Выберите собеседника для звонка');
                 return;
             }
 
-            // Генерировать уникальный ID комнаты
-            const roomName = `psytalk-${currentUser.id}-${selectedUserId}-${Date.now()}`.replace(/[^a-zA-Z0-9-]/g, '');
+            const roomName = buildRoomName();
+            currentRoomName = roomName;
+            const roomUrl = 'https://meet.jit.si/' + roomName;
 
-            // Записать начало звонка в базу
+            // Записать начало звонка в базу (не критично, если упадёт)
             try {
                 const startResponse = await fetch('/api/calls.php?action=start', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     credentials: 'include',
-                    body: JSON.stringify({
-                        participant_id: selectedUserId,
-                        room_name: roomName
-                    })
+                    body: JSON.stringify({ participant_id: selectedUserId, room_name: roomName })
                 });
                 const startResult = await startResponse.json();
                 if (startResult.call_id) {
                     currentCallId = startResult.call_id;
                     callStartTime = Date.now();
                 }
-            } catch (e) {
-                console.error('Call start tracking error:', e);
+            } catch (e) { console.error('Call start tracking error:', e); }
+            if (!callStartTime) callStartTime = Date.now();
+
+            // Показать модальное окно и ссылку-фолбэк
+            document.getElementById('videoModal').style.display = 'flex';
+            const fallback = document.getElementById('videoFallbackLink');
+            if (fallback) fallback.href = roomUrl;
+
+            const container = document.getElementById('jitsiContainer');
+            container.innerHTML = '';
+
+            // Предпочтительно — External API (надёжнее, без жёсткого лимита времени)
+            if (typeof JitsiMeetExternalAPI !== 'undefined') {
+                try {
+                    jitsiApi = new JitsiMeetExternalAPI('meet.jit.si', {
+                        roomName: roomName,
+                        parentNode: container,
+                        width: '100%',
+                        height: '100%',
+                        userInfo: { displayName: (currentUser.first_name || 'Пользователь') + ' ' + (currentUser.last_name || '') },
+                        configOverwrite: {
+                            prejoinPageEnabled: false,
+                            disableDeepLinking: true,
+                            startWithAudioMuted: false,
+                            startWithVideoMuted: false,
+                            enableClosePage: false
+                        },
+                        interfaceConfigOverwrite: {
+                            SHOW_JITSI_WATERMARK: false,
+                            SHOW_WATERMARK_FOR_GUESTS: false,
+                            SHOW_BRAND_WATERMARK: false,
+                            DISABLE_DEEP_LINKING: true,
+                            MOBILE_APP_PROMO: false
+                        }
+                    });
+                    jitsiApi.addEventListener('readyToClose', function () { endVideoCall(); });
+                } catch (e) {
+                    console.error('Jitsi External API error, falling back to iframe:', e);
+                    container.innerHTML =
+                        '<iframe src="' + roomUrl + '#config.prejoinPageEnabled=false&config.disableDeepLinking=true" ' +
+                        'allow="camera; microphone; fullscreen; display-capture; autoplay" ' +
+                        'style="width:100%;height:100%;border:0;"></iframe>';
+                }
+            } else {
+                // SDK не загрузился — обычный iframe
+                container.innerHTML =
+                    '<iframe src="' + roomUrl + '#config.prejoinPageEnabled=false&config.disableDeepLinking=true" ' +
+                    'allow="camera; microphone; fullscreen; display-capture; autoplay" ' +
+                    'style="width:100%;height:100%;border:0;"></iframe>';
             }
 
-            // Показать модальное окно
-            document.getElementById('videoModal').style.display = 'flex';
-
-            // Встроить Jitsi Meet
-            const container = document.getElementById('jitsiContainer');
-            container.innerHTML = `
-                <iframe 
-                    src="https://meet.jit.si/${roomName}#config.prejoinPageEnabled=false&config.startWithAudioMuted=false&config.startWithVideoMuted=false&interfaceConfig.SHOW_JITSI_WATERMARK=false&interfaceConfig.SHOW_WATERMARK_FOR_GUESTS=false&interfaceConfig.SHOW_BRAND_WATERMARK=false&interfaceConfig.TOOLBAR_BUTTONS=['microphone','camera','closedcaptions','desktop','fullscreen','fodeviceselection','hangup','chat','recording','livestreaming','etherpad','sharedvideo','settings','raisehand','videoquality','filmstrip','invite','feedback','stats','shortcuts','tileview','select-background','download','help','mute-everyone','security']"
-                    allow="camera; microphone; fullscreen; display-capture; autoplay"
-                    style="width: 100%; height: 100%; border: 0;">
-                </iframe>
-            `;
-
-            // Отправить приглашение в чат
+            // Отправить приглашение со ссылкой (собеседник присоединится в ту же комнату)
             const inviteMessage = {
                 receiver_id: selectedUserId,
-                content: `📹 Начат видеозвонок! Присоединяйтесь: https://meet.jit.si/${roomName}`
+                content: '📹 Я начал(а) видеозвонок. Присоединяйтесь: ' + roomUrl
             };
+            if (isAdminMode) inviteMessage.as_support = true;
 
-            if (isAdminMode) {
-                inviteMessage.as_support = true;
-            }
-
-            await fetch('/api/messages.php?action=send', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                credentials: 'include',
-                body: JSON.stringify(inviteMessage)
-            });
-
-            await loadMessages();
+            try {
+                await fetch('/api/messages.php?action=send', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify(inviteMessage)
+                });
+                await loadMessages();
+            } catch (e) { console.error('Invite send error:', e); }
         }
 
         async function endVideoCall() {
@@ -1367,10 +1430,12 @@
                 }
             }
 
+            if (jitsiApi) { try { jitsiApi.dispose(); } catch (e) {} jitsiApi = null; }
             document.getElementById('videoModal').style.display = 'none';
             document.getElementById('jitsiContainer').innerHTML = '';
             currentCallId = null;
             callStartTime = null;
+            currentRoomName = null;
         }
 
         init();
