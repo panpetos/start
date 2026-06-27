@@ -16,11 +16,13 @@ header('Access-Control-Allow-Headers: Content-Type');
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') { http_response_code(204); exit; }
 
 require_once __DIR__ . '/config.php';
-if (!function_exists('getDB')) {
+if (!function_exists('getDB') && !function_exists('getDbConnection') && !function_exists('getPDO')) {
     require_once __DIR__ . '/db.php';
 }
 
-$pdo = getDB();
+$pdo = function_exists('getDB') ? getDB()
+     : (function_exists('getDbConnection') ? getDbConnection()
+     : (function_exists('getPDO') ? getPDO() : null));
 
 // ── Auth check ──────────────────────────────────────────────────────────────
 if (session_status() === PHP_SESSION_NONE) session_start();
