@@ -6,7 +6,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Сообщения - psytalk.pro</title>
     <script src="https://unpkg.com/lucide@latest"></script>
-    <script src="https://meet.jit.si/external_api.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
         *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
@@ -671,19 +670,27 @@
         </div>
     </div>
 
-    <!-- Video Call Modal -->
-    <div id="videoModal" class="video-modal" style="display:none;">
-        <div class="video-modal-header">
-            <h3 id="videoCallTitle">📹 Видеозвонок</h3>
-            <div style="display:flex;align-items:center;gap:0.75rem;">
-                <a id="videoFallbackLink" href="#" target="_blank" rel="noopener"
-                   style="color:#fff;opacity:0.85;font-size:0.85rem;text-decoration:underline;white-space:nowrap;"
-                   title="Если видео не загрузилось — открыть в новой вкладке">Открыть в новой вкладке ↗</a>
-                <button onclick="endVideoCall()" class="video-modal-close">✕</button>
+    <!-- Telemost Video Call Modal -->
+    <div id="videoModal" style="display:none;position:fixed;inset:0;background:rgba(26,26,46,0.6);z-index:1000;align-items:center;justify-content:center;padding:1rem;">
+        <div style="background:#fff;border-radius:1.25rem;max-width:440px;width:100%;padding:2rem;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+            <div style="text-align:center;margin-bottom:1.25rem;">
+                <div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#FF0000,#CC0000);display:flex;align-items:center;justify-content:center;margin:0 auto 0.75rem;font-size:2rem;">📹</div>
+                <h3 style="font-size:1.25rem;color:#1A1A1A;margin-bottom:0.25rem;">Видеовстреча в Телемост</h3>
+                <p style="font-size:0.875rem;color:#6B7280;line-height:1.5;">Создайте встречу в открывшейся вкладке Яндекс&nbsp;Телемоста и пришлите ссылку собеседнику.</p>
             </div>
-        </div>
-        <div class="video-modal-body" id="jitsiContainer">
-            <!-- Jitsi iframe будет здесь -->
+            <ol style="font-size:0.875rem;color:#374151;line-height:1.7;padding-left:1.25rem;margin-bottom:1rem;">
+                <li>В новой вкладке нажмите <b>«Создать видеовстречу»</b></li>
+                <li>Скопируйте ссылку на встречу</li>
+                <li>Вставьте её сюда и отправьте собеседнику</li>
+            </ol>
+            <input type="text" id="telemostLinkInput" placeholder="https://telemost.yandex.ru/j/..."
+                style="width:100%;padding:0.75rem 1rem;border:2px solid #E5E7EB;border-radius:0.75rem;font-size:0.9rem;outline:none;margin-bottom:0.5rem;font-family:inherit;">
+            <div id="telemostError" style="display:none;color:#DC2626;font-size:0.8125rem;margin-bottom:0.5rem;"></div>
+            <button onclick="sendTelemostLink()" style="width:100%;padding:0.875rem;background:linear-gradient(135deg,#7C3AED,#9F67FA);color:#fff;border:none;border-radius:0.75rem;font-weight:700;font-size:0.9375rem;cursor:pointer;font-family:inherit;margin-bottom:0.5rem;">Отправить ссылку собеседнику</button>
+            <div style="display:flex;gap:0.5rem;">
+                <a id="telemostOpenAgain" href="https://telemost.yandex.ru/" target="_blank" rel="noopener" style="flex:1;text-align:center;padding:0.625rem;border:1.5px solid #E5E7EB;border-radius:0.75rem;color:#374151;text-decoration:none;font-size:0.875rem;font-weight:600;">Открыть Телемост ↗</a>
+                <button onclick="closeVideoModal()" style="flex:1;padding:0.625rem;background:#F3F4F6;border:none;border-radius:0.75rem;color:#374151;font-weight:600;font-size:0.875rem;cursor:pointer;font-family:inherit;">Закрыть</button>
+            </div>
         </div>
     </div>
 
@@ -932,10 +939,22 @@
                     }
 
                     // Не показывать "[Файл: ...]" или "[Голосовое сообщение: ...]" если есть вложение
-                    const content = m.attachment_url && (m.content.startsWith('[Файл:') || m.content.startsWith('[Голосовое')) ? '' : escapeHtml(m.content);
+                    let content = m.attachment_url && (m.content.startsWith('[Файл:') || m.content.startsWith('[Голосовое')) ? '' : escapeHtml(m.content);
+
+                    // Ссылка на видеовстречу Телемост → кнопка «Присоединиться»
+                    let callBtn = '';
+                    const tmMatch = (m.content || '').match(/https:\/\/telemost\.yandex\.(?:ru|com)\/[^\s]+/i);
+                    if (tmMatch) {
+                        content = '';
+                        callBtn = `<div style="font-weight:600;margin-bottom:0.35rem;">📹 Видеовстреча в Телемост</div>
+                            <a href="${tmMatch[0]}" target="_blank" rel="noopener"
+                            style="display:inline-flex;align-items:center;gap:0.5rem;background:#fff;color:#7C3AED;border:1.5px solid #7C3AED;border-radius:0.75rem;padding:0.55rem 1rem;text-decoration:none;font-weight:700;font-size:0.9rem;">
+                            Присоединиться →</a>`;
+                    }
 
                     return `
                         <div class="message ${isMine ? 'mine' : 'theirs'}">
+                            ${callBtn}
                             ${content ? `<div>${content}</div>` : ''}
                             ${attachmentHtml}
                             <div class="message-time">${time}</div>
@@ -1289,153 +1308,59 @@
             event.target.value = '';
         }
 
-        // === ВИДЕОЗВОНКИ JITSI MEET (External API) ===
-        let jitsiApi = null;
-        let currentCallId = null;
-        let callStartTime = null;
-        let currentRoomName = null;
+        // === ВИДЕОЗВОНКИ ЧЕРЕЗ ЯНДЕКС ТЕЛЕМОСТ ===
+        // Телемост нельзя встроить в iframe, поэтому встреча создаётся в Телемосте,
+        // а ссылка отправляется собеседнику в чат (он присоединяется одним кликом).
 
-        // Детерминированное имя комнаты: оба участника попадают в одну и ту же.
-        function buildRoomName() {
-            const pair = [String(currentUser.id), String(selectedUserId)].sort().join('-');
-            const day = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-            return ('psytalk-' + pair + '-' + day).replace(/[^a-zA-Z0-9-]/g, '');
-        }
-
-        async function startVideoCall() {
+        function startVideoCall() {
             if (!selectedUserId) {
                 alert('Выберите собеседника для звонка');
                 return;
             }
-
-            const roomName = buildRoomName();
-            currentRoomName = roomName;
-            const roomUrl = 'https://meet.jit.si/' + roomName;
-
-            // Записать начало звонка в базу (не критично, если упадёт)
-            try {
-                const startResponse = await fetch('/api/calls.php?action=start', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include',
-                    body: JSON.stringify({ participant_id: selectedUserId, room_name: roomName })
-                });
-                const startResult = await startResponse.json();
-                if (startResult.call_id) {
-                    currentCallId = startResult.call_id;
-                    callStartTime = Date.now();
-                }
-            } catch (e) { console.error('Call start tracking error:', e); }
-            if (!callStartTime) callStartTime = Date.now();
-
-            // Показать модальное окно и ссылку-фолбэк
+            // Открываем Телемост в новой вкладке — там хост создаёт встречу
+            window.open('https://telemost.yandex.ru/', '_blank', 'noopener');
+            // Показываем окно для вставки ссылки
+            const err = document.getElementById('telemostError');
+            if (err) err.style.display = 'none';
+            const input = document.getElementById('telemostLinkInput');
+            if (input) input.value = '';
             document.getElementById('videoModal').style.display = 'flex';
-            const fallback = document.getElementById('videoFallbackLink');
-            if (fallback) fallback.href = roomUrl;
+            setTimeout(function () { if (input) input.focus(); }, 100);
+        }
 
-            const container = document.getElementById('jitsiContainer');
-            container.innerHTML = '';
+        function closeVideoModal() {
+            document.getElementById('videoModal').style.display = 'none';
+        }
 
-            // Предпочтительно — External API (надёжнее, без жёсткого лимита времени)
-            if (typeof JitsiMeetExternalAPI !== 'undefined') {
-                try {
-                    jitsiApi = new JitsiMeetExternalAPI('meet.jit.si', {
-                        roomName: roomName,
-                        parentNode: container,
-                        width: '100%',
-                        height: '100%',
-                        userInfo: { displayName: (currentUser.first_name || 'Пользователь') + ' ' + (currentUser.last_name || '') },
-                        configOverwrite: {
-                            prejoinPageEnabled: false,
-                            disableDeepLinking: true,
-                            startWithAudioMuted: false,
-                            startWithVideoMuted: false,
-                            enableClosePage: false
-                        },
-                        interfaceConfigOverwrite: {
-                            SHOW_JITSI_WATERMARK: false,
-                            SHOW_WATERMARK_FOR_GUESTS: false,
-                            SHOW_BRAND_WATERMARK: false,
-                            DISABLE_DEEP_LINKING: true,
-                            MOBILE_APP_PROMO: false
-                        }
-                    });
-                    jitsiApi.addEventListener('readyToClose', function () { endVideoCall(); });
-                } catch (e) {
-                    console.error('Jitsi External API error, falling back to iframe:', e);
-                    container.innerHTML =
-                        '<iframe src="' + roomUrl + '#config.prejoinPageEnabled=false&config.disableDeepLinking=true" ' +
-                        'allow="camera; microphone; fullscreen; display-capture; autoplay" ' +
-                        'style="width:100%;height:100%;border:0;"></iframe>';
-                }
-            } else {
-                // SDK не загрузился — обычный iframe
-                container.innerHTML =
-                    '<iframe src="' + roomUrl + '#config.prejoinPageEnabled=false&config.disableDeepLinking=true" ' +
-                    'allow="camera; microphone; fullscreen; display-capture; autoplay" ' +
-                    'style="width:100%;height:100%;border:0;"></iframe>';
+        async function sendTelemostLink() {
+            const input = document.getElementById('telemostLinkInput');
+            const err = document.getElementById('telemostError');
+            const link = (input.value || '').trim();
+
+            if (!/^https:\/\/telemost\.yandex\.(ru|com)\//i.test(link)) {
+                err.textContent = 'Вставьте корректную ссылку вида https://telemost.yandex.ru/j/...';
+                err.style.display = 'block';
+                return;
             }
 
-            // Отправить приглашение со ссылкой (собеседник присоединится в ту же комнату)
-            const inviteMessage = {
-                receiver_id: selectedUserId,
-                content: '📹 Я начал(а) видеозвонок. Присоединяйтесь: ' + roomUrl
-            };
-            if (isAdminMode) inviteMessage.as_support = true;
+            const msg = { receiver_id: selectedUserId, content: '📹 Видеовстреча в Телемост: ' + link };
+            if (isAdminMode) msg.as_support = true;
 
             try {
                 await fetch('/api/messages.php?action=send', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     credentials: 'include',
-                    body: JSON.stringify(inviteMessage)
+                    body: JSON.stringify(msg)
                 });
+                closeVideoModal();
                 await loadMessages();
-            } catch (e) { console.error('Invite send error:', e); }
-        }
-
-        async function endVideoCall() {
-            // Записать завершение звонка
-            if (currentCallId) {
-                try {
-                    const duration = callStartTime ? Math.floor((Date.now() - callStartTime) / 1000) : 0;
-
-                    await fetch('/api/calls.php?action=end', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        credentials: 'include',
-                        body: JSON.stringify({ call_id: currentCallId })
-                    });
-
-                    // Отправить сообщение о завершении
-                    if (selectedUserId && duration > 5) {
-                        const mins = Math.floor(duration / 60);
-                        const secs = duration % 60;
-                        const durationStr = `${mins}:${secs.toString().padStart(2, '0')}`;
-
-                        await fetch('/api/messages.php?action=send', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            credentials: 'include',
-                            body: JSON.stringify({
-                                receiver_id: selectedUserId,
-                                content: `📞 Видеозвонок завершён. Длительность: ${durationStr}`,
-                                as_support: isAdminMode
-                            })
-                        });
-                        await loadMessages();
-                    }
-                } catch (e) {
-                    console.error('Call end tracking error:', e);
-                }
+                // Хосту тоже открываем встречу
+                window.open(link, '_blank', 'noopener');
+            } catch (e) {
+                err.textContent = 'Не удалось отправить ссылку. Попробуйте ещё раз.';
+                err.style.display = 'block';
             }
-
-            if (jitsiApi) { try { jitsiApi.dispose(); } catch (e) {} jitsiApi = null; }
-            document.getElementById('videoModal').style.display = 'none';
-            document.getElementById('jitsiContainer').innerHTML = '';
-            currentCallId = null;
-            callStartTime = null;
-            currentRoomName = null;
         }
 
         init();
