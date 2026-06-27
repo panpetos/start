@@ -3,126 +3,24 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Консультация - psytalk.pro</title>
-  <link rel="stylesheet" href="/css/styles.css">
-  <script src="/js/layout.js"></script>
+  <title>Консультация — psytalk.pro</title>
   <style>
-    body { padding-top: 80px; background: #FAFAFA; }
-    .consult-card { background: white; border-radius: 1.25rem; padding: 2rem; border: 1px solid #F0F0F0; box-shadow: 0 2px 12px rgba(0,0,0,0.06); }
-    .video-box { background: #1A1A2E; border-radius: 1rem; aspect-ratio: 16/9; display: flex; align-items: center; justify-content: center; color: #9CA3AF; font-size: 0.9375rem; }
-    .messages-box { height: 300px; overflow-y: auto; border: 1.5px solid #E2E8F0; border-radius: 0.875rem; padding: 1rem; margin-bottom: 1rem; background: #FAFAFA; }
+    body { font-family: 'Inter', -apple-system, sans-serif; background: #F4F0FF; min-height: 100vh; display: flex; align-items: center; justify-content: center; margin: 0; }
+    .box { text-align: center; color: #6B7280; }
+    .spin { width: 40px; height: 40px; border: 3px solid #EDE9FF; border-top-color: #7C3AED; border-radius: 50%; animation: r 0.8s linear infinite; margin: 0 auto 1rem; }
+    @keyframes r { to { transform: rotate(360deg); } }
   </style>
 </head>
 <body>
-  <script>psyWriteHeader();</script>
-  <div class="container" style="padding-top: 2rem; padding-bottom: 3rem;">
-    <div class="consult-card">
-      <div class="flex justify-between items-center" style="margin-bottom:1.5rem;">
-        <h1 style="margin:0;">Консультация</h1>
-        <button class="btn btn-destructive" onclick="window.history.back()">Завершить</button>
-      </div>
-
-      <div id="consultation-info" style="margin-bottom:1.5rem;">
-        <div class="spinner"></div>
-      </div>
-
-      <div class="grid grid-cols-2">
-        <div class="card" style="padding:1.5rem;">
-          <h3 style="margin-bottom:1rem;">Видео</h3>
-          <div id="video-container" class="video-box">
-            <p>Видео-функционал будет доступен в следующей версии</p>
-          </div>
-        </div>
-
-        <div class="card" style="padding:1.5rem;">
-          <h3 style="margin-bottom:1rem;">Чат</h3>
-          <div id="messages" class="messages-box">
-            <p style="color:#9CA3AF;text-align:center;">Сообщений пока нет</p>
-          </div>
-          
-          <div class="flex gap-2">
-            <input type="text" id="message-input" class="form-input" placeholder="Введите сообщение..." style="margin-bottom: 0;">
-            <button class="btn" onclick="sendMessage()">Отправить</button>
-          </div>
-        </div>
-      </div>
-    </div>
+  <div class="box">
+    <div class="spin"></div>
+    <p>Открываем чат и видеосвязь...</p>
   </div>
-  <script>psyWriteFooter();</script>
-
-  <script src="/js/api.js"></script>
-  <script src="/js/auth.js"></script>
   <script>
-    const urlParams = new URLSearchParams(window.location.search);
-    const appointmentId = urlParams.get('id');
-    let currentUser = null;
-    let appointment = null;
-    
-    // Load appointment info
-    async function loadAppointment() {
-      if (!appointmentId) {
-        document.getElementById('consultation-info').innerHTML = '<p class="text-danger">Консультация не найдена</p>';
-        return;
-      }
-      
-      try {
-        // Note: We need to add a getAppointment endpoint or load from client/psychologist appointments
-        document.getElementById('consultation-info').innerHTML = `
-          <div class="alert alert-info">
-            <p><strong>ID консультации:</strong> ${appointmentId}</p>
-            <p class="mb-0"><strong>Формат:</strong> Видео/Аудио/Чат</p>
-          </div>
-        `;
-      } catch (error) {
-        console.error('Error loading appointment:', error);
-      }
-    }
-    
-    // Send message
-    function sendMessage() {
-      const input = document.getElementById('message-input');
-      const message = input.value.trim();
-      
-      if (!message) return;
-      
-      const messagesDiv = document.getElementById('messages');
-      const messageEl = document.createElement('div');
-      messageEl.className = 'card mb-2';
-      messageEl.style.background = 'white';
-      messageEl.innerHTML = `
-        <p class="text-sm text-secondary mb-1">${currentUser.firstName} ${currentUser.lastName}</p>
-        <p class="mb-0">${message}</p>
-      `;
-      
-      if (messagesDiv.querySelector('.text-center')) {
-        messagesDiv.innerHTML = '';
-      }
-      
-      messagesDiv.appendChild(messageEl);
-      messagesDiv.scrollTop = messagesDiv.scrollHeight;
-      
-      input.value = '';
-    }
-    
-    // Allow Enter to send message
-    document.getElementById('message-input').addEventListener('keypress', (e) => {
-      if (e.key === 'Enter') {
-        sendMessage();
-      }
-    });
-    
-    // Make sendMessage global
-    window.sendMessage = sendMessage;
-    
-    // Initialize
-    Auth.requireAuth().then(ok => {
-      if (ok) {
-        currentUser = Auth.getUser();
-        loadAppointment();
-      }
-    });
+    // Реальные видеозвонки и чат живут на /chat.html. Перенаправляем туда.
+    var p = new URLSearchParams(location.search);
+    var user = p.get('user');
+    location.replace(user ? ('/chat.html?user=' + encodeURIComponent(user)) : '/chat.html');
   </script>
-  <script src="/js/guard.js"></script>
-
 </body>
 </html>
