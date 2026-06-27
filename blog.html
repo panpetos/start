@@ -77,87 +77,7 @@
         </section>
 
         <div class="container">
-            <div class="articles">
-
-                <div class="article-card">
-                    <div class="article-thumb" style="background:linear-gradient(135deg,#F3E8FF,#EDE9FF);">🧠</div>
-                    <div class="article-body">
-                        <span class="article-tag">Тревога</span>
-                        <div class="article-title">5 признаков того, что тревога мешает вашей жизни</div>
-                        <div class="article-excerpt">Небольшая тревожность — это нормально. Но как понять, когда она становится проблемой? Разбираем ключевые признаки и рассказываем, что делать дальше.</div>
-                        <div class="article-meta">
-                            <span>15 мин · Статья</span>
-                            <a href="#" class="read-link">Читать →</a>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="article-card">
-                    <div class="article-thumb" style="background:linear-gradient(135deg,#F0FDF4,#DCFCE7);">💚</div>
-                    <div class="article-body">
-                        <span class="article-tag">Отношения</span>
-                        <div class="article-title">Как наладить отношения с партнёром: взгляд психолога</div>
-                        <div class="article-excerpt">Конфликты в паре — это не признак плохих отношений, а возможность для роста. Рассказываем, как говорить о проблемах конструктивно.</div>
-                        <div class="article-meta">
-                            <span>12 мин · Статья</span>
-                            <a href="#" class="read-link">Читать →</a>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="article-card">
-                    <div class="article-thumb" style="background:linear-gradient(135deg,#FFF8E7,#FEF3C7);">🌱</div>
-                    <div class="article-body">
-                        <span class="article-tag">Личностный рост</span>
-                        <div class="article-title">Что такое терапия и как понять, что она вам нужна</div>
-                        <div class="article-excerpt">Многие откладывают поход к психологу. Объясняем, чем занимается психотерапевт и почему начать никогда не поздно — но лучше раньше.</div>
-                        <div class="article-meta">
-                            <span>10 мин · Гайд</span>
-                            <a href="#" class="read-link">Читать →</a>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="article-card">
-                    <div class="article-thumb" style="background:linear-gradient(135deg,#EFF6FF,#DBEAFE);">😴</div>
-                    <div class="article-body">
-                        <span class="article-tag">Стресс</span>
-                        <div class="article-title">Выгорание на работе: как распознать и выйти из него</div>
-                        <div class="article-excerpt">Хроническая усталость, апатия, раздражительность — это не просто «устал». Рассказываем о стадиях выгорания и доказанных способах восстановления.</div>
-                        <div class="article-meta">
-                            <span>18 мин · Статья</span>
-                            <a href="#" class="read-link">Читать →</a>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="article-card">
-                    <div class="article-thumb" style="background:linear-gradient(135deg,#FFF0F3,#FFE4E8);">❤️</div>
-                    <div class="article-body">
-                        <span class="article-tag">Самооценка</span>
-                        <div class="article-title">Как перестать сравнивать себя с другими</div>
-                        <div class="article-excerpt">Социальные сети создают иллюзию «идеальной жизни». Делимся техниками, которые помогут принять себя и перестать ориентироваться на чужие стандарты.</div>
-                        <div class="article-meta">
-                            <span>8 мин · Статья</span>
-                            <a href="#" class="read-link">Читать →</a>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="article-card">
-                    <div class="article-thumb" style="background:linear-gradient(135deg,#F0F9FF,#E0F2FE);">🧘</div>
-                    <div class="article-body">
-                        <span class="article-tag">Практики</span>
-                        <div class="article-title">5-минутные техники против панических атак</div>
-                        <div class="article-excerpt">Паническая атака пугает, но она не опасна. Разбираем дыхательные и телесные техники, которые помогают прямо в момент приступа.</div>
-                        <div class="article-meta">
-                            <span>7 мин · Практика</span>
-                            <a href="#" class="read-link">Читать →</a>
-                        </div>
-                    </div>
-                </div>
-
-            </div>
+            <div class="articles" id="articlesGrid"></div>
 
             <div class="soon-banner">
                 <h2>✍️ Новые статьи каждую неделю</h2>
@@ -169,14 +89,39 @@
         </div>
     </main>
     <script>psyWriteFooter();</script>
+    <script src="/js/articles.js"></script>
     <script>
-        function subscribeEmail() {
-            const email = prompt('Введите ваш email для подписки:');
-            if (email && email.includes('@')) {
-                alert('Спасибо! Вы подписаны на рассылку. Первое письмо придёт в течение дня.');
-            } else if (email !== null) {
-                alert('Введите корректный email.');
-            }
+        function esc(s){ const d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
+        (function renderArticles(){
+            const list = window.PSY_ARTICLES || [];
+            document.getElementById('articlesGrid').innerHTML = list.map(a => `
+                <a class="article-card" href="/article.html?id=${encodeURIComponent(a.id)}" style="text-decoration:none;color:inherit;">
+                    <div class="article-thumb" style="background:${a.grad};">${a.emoji}</div>
+                    <div class="article-body">
+                        <span class="article-tag">${esc(a.tag)}</span>
+                        <div class="article-title">${esc(a.title)}</div>
+                        <div class="article-excerpt">${esc(a.excerpt)}</div>
+                        <div class="article-meta">
+                            <span>${esc(a.read)} · Статья</span>
+                            <span class="read-link">Читать →</span>
+                        </div>
+                    </div>
+                </a>`).join('');
+        })();
+
+        async function subscribeEmail() {
+            const email = prompt('Введите ваш email для подписки на рассылку:');
+            if (email === null) return;
+            if (!email.includes('@')) { alert('Введите корректный email.'); return; }
+            try {
+                const r = await fetch('/api/subscribe.php?action=newsletter', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: email.trim() })
+                });
+                const d = await r.json();
+                if (d.ok) alert('Спасибо! Вы подписаны на рассылку.');
+                else alert(d.error || 'Не удалось подписаться, попробуйте позже.');
+            } catch(e) { alert('Ошибка соединения. Попробуйте позже.'); }
         }
         try { if (window.lucide) lucide.createIcons(); } catch(e) {}
     </script>

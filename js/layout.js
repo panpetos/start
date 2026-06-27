@@ -52,7 +52,7 @@
 
   var footerHtml =
     '<footer class="site-footer">' +
-      '<p>&copy; 2025 psytalk.pro. Все права защищены.</p>' +
+      '<p>&copy; ' + new Date().getFullYear() + ' psytalk.pro. Все права защищены.</p>' +
       '<p style="margin-top:4px;font-size:0.8rem;color:#aaa;">ИП Вакульский Петр Валерьевич &nbsp;|&nbsp; ИНН: 230107911410 &nbsp;|&nbsp; ОГРНИП: 326470400081272 &nbsp;|&nbsp; <a href="mailto:support@psytalk.pro" style="color:#aaa;">support@psytalk.pro</a></p>' +
       '<p style="margin-top:8px;">' +
         '<a href="/offer.html">Публичная оферта</a>' +
@@ -137,10 +137,29 @@
     } catch(e) {}
   }
 
+  // Согласие с политикой конфиденциальности (один раз на устройство)
+  function showConsentBanner() {
+    try { if (localStorage.getItem('psy_privacy_consent') === '1') return; } catch (e) {}
+    var bar = document.createElement('div');
+    bar.id = 'psyConsent';
+    bar.style.cssText = 'position:fixed;left:0;right:0;bottom:0;z-index:1900;background:#1A1A2E;color:#fff;padding:0.9rem 1.25rem;display:flex;align-items:center;justify-content:center;gap:1rem;flex-wrap:wrap;box-shadow:0 -4px 20px rgba(0,0,0,0.25);font-size:0.875rem;';
+    bar.innerHTML =
+      '<span style="max-width:760px;line-height:1.5;">🍪 Мы используем файлы cookie и обрабатываем данные для работы сайта. Продолжая пользоваться сайтом, вы соглашаетесь с ' +
+      '<a href="/privacy.html" style="color:#9F67FA;font-weight:600;">политикой конфиденциальности</a> и ' +
+      '<a href="/consent.html" style="color:#9F67FA;font-weight:600;">обработкой ПД</a>.</span>' +
+      '<button id="psyConsentOk" style="background:#34C759;color:#fff;border:none;font-weight:700;padding:0.6rem 1.5rem;border-radius:0.5rem;cursor:pointer;white-space:nowrap;">Принять</button>';
+    document.body.appendChild(bar);
+    document.getElementById('psyConsentOk').addEventListener('click', function () {
+      try { localStorage.setItem('psy_privacy_consent', '1'); } catch (e) {}
+      bar.remove();
+    });
+  }
+
   function onReady() {
     fillPlaceholders();
     wireBurger();
     showDevNotice();
+    showConsentBanner();
     if (window.lucide && lucide.createIcons) lucide.createIcons();
     setTimeout(updateLoginCircle, 500);
   }

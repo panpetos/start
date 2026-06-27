@@ -100,6 +100,7 @@ function usersMap(PDO $pdo): array {
             $map[(string)$u['id']] = [
                 'name'  => $name !== '' ? $name : ($u['email'] ?? 'Пользователь'),
                 'email' => $u['email'] ?? '',
+                'phone' => $u['phone'] ?? ($u['phone_number'] ?? ''),
                 'role'  => $u['role'] ?? '',
             ];
         }
@@ -177,6 +178,7 @@ if ($action === 'psychologists') {
         $uid = (string)pick($r, ['user_id'], '');
         $r['name']  = $um[$uid]['name']  ?? '';
         $r['email'] = $um[$uid]['email'] ?? '';
+        $r['phone'] = pick($r, ['phone', 'phone_number'], $um[$uid]['phone'] ?? '');
     }
     echo json_encode(['ok' => true, 'data' => $rows]);
     exit;
@@ -230,6 +232,22 @@ if ($action === 'calls') {
         $r['to_name']   = $um[$b]['name'] ?? '';
     }
     echo json_encode(['ok' => true, 'data' => $rows]);
+    exit;
+}
+
+if ($action === 'subscribers') {
+    $rows = safeRows($pdo, 'newsletter_subscribers', ['created_at', 'id'], 5000);
+    echo json_encode(['ok' => true, 'data' => $rows]);
+    exit;
+}
+
+if ($action === 'referrals') {
+    $rows = safeRows($pdo, 'referral_sources', ['created_at', 'id'], 5000);
+    // агрегируем по источнику
+    $agg = [];
+    foreach ($rows as $r) { $s = $r['source'] ?? '—'; $agg[$s] = ($agg[$s] ?? 0) + 1; }
+    arsort($agg);
+    echo json_encode(['ok' => true, 'data' => $rows, 'summary' => $agg]);
     exit;
 }
 

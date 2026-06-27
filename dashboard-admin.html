@@ -12,7 +12,7 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
         *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Inter', -apple-system, sans-serif; background: #F4F0FF; min-height: 100vh; color: #1A1A1A; }
+        body { font-family: 'Inter', -apple-system, sans-serif; background: #F4F0FF; min-height: 100vh; color: #1A1A1A; padding-top: 84px; }
         .container { max-width: 1280px; margin: 0 auto; padding: 1.5rem; }
         .page-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; flex-wrap: wrap; gap: 0.75rem; }
         .page-head h1 { font-size: 1.6rem; letter-spacing: -0.02em; }
@@ -79,6 +79,8 @@
             <button class="tab" data-tab="appointments" onclick="switchTab('appointments')">Записи</button>
             <button class="tab" data-tab="calls" onclick="switchTab('calls')">Звонки / сессии</button>
             <button class="tab" data-tab="payments" onclick="switchTab('payments')">Оплаты</button>
+            <button class="tab" data-tab="subscribers" onclick="switchTab('subscribers')">Подписки</button>
+            <button class="tab" data-tab="referrals" onclick="switchTab('referrals')">Источники</button>
             <button class="tab" data-tab="activity" onclick="switchTab('activity')">Журнал активности</button>
         </div>
 
@@ -121,7 +123,7 @@
             document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab===tab));
             const el = document.getElementById('content');
             el.innerHTML = '<div class="loading">Загрузка...</div>';
-            ({ overview:renderOverview, users:renderUsers, psychologists:renderPsych, appointments:renderAppointments, calls:renderCalls, payments:renderPayments, activity:renderActivity }[tab])();
+            ({ overview:renderOverview, users:renderUsers, psychologists:renderPsych, appointments:renderAppointments, calls:renderCalls, payments:renderPayments, subscribers:renderSubscribers, referrals:renderReferrals, activity:renderActivity }[tab])();
         }
 
         async function renderOverview(){
@@ -186,15 +188,26 @@
             if (!res.ok) return fail();
             const rows = res.data || [];
             if (!rows.length) return empty('Нет психологов');
+            // на модерации — сверху
+            rows.sort((a,b)=> (String(a.is_approved)==='1'?1:0) - (String(b.is_approved)==='1'?1:0));
             const body = `<table id="dataTable"><thead><tr>
-                <th>Имя</th><th>Email</th><th>Специализация</th><th>Цена</th><th>Рейтинг</th><th>Статус</th><th>Действия</th></tr></thead><tbody>` +
-                rows.map(p => {
+                <th>Имя</th><th>Контакты</th><th>Специализация</th><th>Цена</th><th>Опыт</th><th>Статус</th><th>Действия</th></tr></thead><tbody>` +
+                rows.map((p,idx) => {
                     const approved = String(p.is_approved)==='1';
                     const status = approved?'<span class="badge b-green">одобрен</span>':'<span class="badge b-amber">на модерации</span>';
                     const btn = approved
                         ? `<button class="btn-sm btn-outline" onclick="toggleApproved('${esc(p.id)}',0)">Снять</button>`
                         : `<button class="btn-sm btn-purple" onclick="toggleApproved('${esc(p.id)}',1)">Одобрить</button>`;
-                    return `<tr><td>${esc(p.name||'—')}</td><td>${esc(p.email||'—')}</td><td>${esc(p.specialization||'—')}</td><td>${fmtMoney(p.price)} ₽</td><td>${esc(p.rating||'0')} (${esc(p.total_reviews||0)})</td><td>${status}</td><td>${btn}</td></tr>`;
+                    const contact = `${esc(p.email||'—')}${p.phone?('<br>'+esc(p.phone)):''}`;
+                    const details = [
+                        p.description ? '<b>О себе:</b> '+esc(p.description) : '',
+                        p.education ? '<b>Образование:</b> '+esc(p.education) : '',
+                        (Array.isArray(p.certifications)&&p.certifications.length) ? '<b>Сертификаты:</b> '+esc(p.certifications.join(', ')) : '',
+                        p.not_working_with ? '<b>Не работает с:</b> '+esc(p.not_working_with) : '',
+                        '<b>ID:</b> '+esc(p.id)
+                    ].filter(Boolean).join('<br>');
+                    return `<tr><td>${esc(p.name||'—')}</td><td style="font-size:0.8rem;">${contact}</td><td>${esc(p.specialization||'—')}</td><td>${fmtMoney(p.price)} ₽</td><td>${esc(p.experience||0)} лет</td><td>${status}</td><td style="white-space:nowrap;">${btn} <button class="btn-sm btn-outline" onclick="document.getElementById('pd${idx}').style.display=document.getElementById('pd${idx}').style.display==='none'?'table-row':'none'">Подробнее</button></td></tr>
+                    <tr id="pd${idx}" style="display:none;"><td colspan="7" style="background:#FBFAFF;font-size:0.82rem;line-height:1.7;color:#374151;">${details||'<span class="muted">Профиль не заполнен — стоит запросить данные перед одобрением.</span>'}</td></tr>`;
                 }).join('') + '</tbody></table>';
             document.getElementById('content').innerHTML = panel('Психологи ('+rows.length+')','sPsych',body);
         }
@@ -248,6 +261,40 @@
                     return `<tr><td>${fmtDateTime(p.paid_at||p.created_at)}</td><td>${esc(p.client_name||'—')}</td><td>${esc(p.psychologist_name||'—')}</td><td><b>${fmtMoney(p.amount)} ₽</b></td><td>${st}</td></tr>`;
                 }).join('') + '</tbody></table>';
             document.getElementById('content').innerHTML = panel('Оплаты ('+rows.length+')','sPay',body);
+        }
+
+        async function renderSubscribers(){
+            const res = await apiGet('subscribers');
+            if (!res.ok) return fail();
+            const rows = res.data || [];
+            if (!rows.length) return empty('Пока никто не подписался на рассылку');
+            const emails = rows.map(r => r.email).filter(Boolean);
+            const body = `<table id="dataTable"><thead><tr><th>Email</th><th>Дата подписки</th></tr></thead><tbody>` +
+                rows.map(r => `<tr><td>${esc(r.email)}</td><td class="muted">${fmtDateTime(r.created_at)}</td></tr>`).join('') + '</tbody></table>';
+            document.getElementById('content').innerHTML =
+                `<div class="panel"><div class="panel-head"><h2>Подписки на рассылку (${rows.length})</h2>
+                  <button class="btn-sm btn-purple" onclick="copyEmails()">📋 Скопировать все email</button></div>
+                  <textarea id="allEmails" style="position:absolute;left:-9999px;">${esc(emails.join(', '))}</textarea>
+                  <div class="tbl-wrap">${body}</div></div>`;
+        }
+        function copyEmails(){
+            const t = document.getElementById('allEmails'); t.style.left='0'; t.select();
+            try { document.execCommand('copy'); alert('Email-адреса скопированы в буфер обмена'); } catch(e){ alert('Скопируйте вручную из поля'); }
+            t.style.left='-9999px';
+        }
+
+        async function renderReferrals(){
+            const res = await apiGet('referrals');
+            if (!res.ok) return fail();
+            const rows = res.data || [];
+            const summary = res.summary || {};
+            const sumHtml = Object.keys(summary).length
+                ? '<div class="stats-grid">' + Object.entries(summary).map(([k,v])=>`<div class="stat"><div class="v">${v}</div><div class="l">${esc(k)}</div></div>`).join('') + '</div>'
+                : '';
+            if (!rows.length) return document.getElementById('content').innerHTML = '<div class="note">Здесь будет статистика «Как вы нас нашли» — данные появятся после регистраций с этим вопросом.</div>';
+            const body = `<table id="dataTable"><thead><tr><th>Источник</th><th>Email</th><th>Роль</th><th>Дата</th></tr></thead><tbody>` +
+                rows.map(r => `<tr><td><b>${esc(r.source)}</b></td><td>${esc(r.email||'—')}</td><td>${esc(r.role||'—')}</td><td class="muted">${fmtDateTime(r.created_at)}</td></tr>`).join('') + '</tbody></table>';
+            document.getElementById('content').innerHTML = sumHtml + panel('Как нас находят ('+rows.length+')','sRef',body);
         }
 
         async function renderActivity(){
