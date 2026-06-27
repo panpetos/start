@@ -47,6 +47,7 @@ jobs:
             put js/articles.js -o js/articles.js;
             put api/admin_ext.php -o api/admin_ext.php;
             put api/subscribe.php -o api/subscribe.php;
+            put api/my_profile.php -o api/my_profile.php;
             put api/payment_mock.php -o api/payment_mock.php;
             bye;
           "

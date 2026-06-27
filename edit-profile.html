@@ -477,28 +477,32 @@
                     document.getElementById('psyAvatarInitials').style.display = 'none';
                 }
 
-                // Load psychologist profile.
-                // ВАЖНО: профиль ищем по user_id (а не по id пользователя как id психолога —
-                // из-за этого раньше данные регистрации не подтягивались).
+                // Load psychologist profile через свой эндпоинт (работает и для «на модерации»,
+                // в отличие от публичного поиска, который отдаёт только одобренных).
+                let mine = null;
                 try {
-                    const resp = await fetch('/api/psychologists.php?action=search', { credentials: 'include' });
-                    const all = await resp.json();
-                    const mine = Array.isArray(all)
-                        ? all.find(p => String(p.user_id) === String(currentUser.id))
-                        : null;
-                    if (mine) {
-                        document.getElementById('specialization').value = mine.specialization || '';
-                        document.getElementById('experience').value = mine.experience || '';
-                        document.getElementById('education').value = mine.education || '';
-                        document.getElementById('description').value = mine.description || '';
-                        const pv = document.getElementById('priceValue');
-                        if (pv) pv.textContent = (parseFloat(mine.price) > 0)
-                            ? (parseFloat(mine.price).toLocaleString('ru-RU') + ' ₽')
-                            : 'уточняется (назначит администратор)';
-                        window._psyId = mine.id; // пригодится при сохранении
-                    }
-                } catch (e) {
-                    console.error('Load psychologist error:', e);
+                    const r = await fetch('/api/my_profile.php?action=get', { credentials: 'include' });
+                    const j = await r.json();
+                    if (j && j.ok) mine = j.profile;
+                } catch (e) {}
+                // Фолбэк: публичный поиск по user_id (если эндпоинт недоступен)
+                if (!mine) {
+                    try {
+                        const resp = await fetch('/api/psychologists.php?action=search', { credentials: 'include' });
+                        const all = await resp.json();
+                        mine = Array.isArray(all) ? all.find(p => String(p.user_id) === String(currentUser.id)) : null;
+                    } catch (e) {}
+                }
+                if (mine) {
+                    document.getElementById('specialization').value = mine.specialization || '';
+                    document.getElementById('experience').value = mine.experience || '';
+                    document.getElementById('education').value = mine.education || '';
+                    document.getElementById('description').value = mine.description || '';
+                    const pv = document.getElementById('priceValue');
+                    if (pv) pv.textContent = (parseFloat(mine.price) > 0)
+                        ? (parseFloat(mine.price).toLocaleString('ru-RU') + ' ₽')
+                        : 'уточняется (назначит администратор)';
+                    window._psyId = mine.id;
                 }
             }
 
