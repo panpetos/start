@@ -32,6 +32,7 @@ jobs:
             put psychologist-dashboard.html;
             put chat.html;
             put login.html;
+            put register.html;
             put offers.html;
             put blog.html;
             put article.html;

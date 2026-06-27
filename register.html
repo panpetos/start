@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Регистрация - psytalk.pro</title>
+  <link rel="stylesheet" href="/css/styles.css">
+  <script src="/js/layout.js"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body style="background-color: #FAFAFA;">
+  <!-- Шапка (сквозная — js/layout.js) -->
+  <script>psyWriteHeader();</script>
+
+  <div class="section" style="padding: 3rem 0;">
+    <div class="container" style="max-width: 500px;">
+      <div class="card" style="background-color: white; padding: 2.5rem;">
+        <!-- Header -->
+        <div class="text-center mb-6">
+          <h1 class="font-bold mb-2" style="font-size: 1.75rem; color: #1A1A1A;">
+            Создать аккаунт
+          </h1>
+          <p style="color: #666;">
+            Присоединяйтесь к psytalk.pro
+          </p>
+        </div>
+
+        <!-- Alert -->
+        <div id="alert" class="alert" style="display: none; margin-bottom: 1.5rem;"></div>
+
+        <!-- Registration Form -->
+        <form id="register-form">
+          <!-- User Type Selection -->
+          <div class="form-group">
+            <label class="form-label">Я хочу зарегистрироваться как:</label>
+            <div class="flex gap-3 auth-buttons">
+              <label class="flex-1" style="cursor: pointer;">
+                <input 
+                  type="radio" 
+                  name="role" 
+                  value="client" 
+                  checked 
+                  style="display: none;"
+                  data-testid="radio-client"
+                />
+                <div class="role-option active" data-role="client" style="padding: 1rem; border: 2px solid #7C3AED; border-radius: 0.5rem; text-align: center; transition: all 0.2s; background: #F3E8FF;">
+                  <i data-lucide="user" style="width: 2rem; height: 2rem; margin: 0 auto 0.5rem; color: #7C3AED;"></i>
+                  <div style="font-weight: 600; color: #7C3AED;">Клиент</div>
+                </div>
+              </label>
+              <label class="flex-1" style="cursor: pointer;">
+                <input 
+                  type="radio" 
+                  name="role" 
+                  value="psychologist" 
+                  style="display: none;"
+                  data-testid="radio-psychologist"
+                />
+                <div class="role-option" data-role="psychologist" style="padding: 1rem; border: 2px solid #E5E5E5; border-radius: 0.5rem; text-align: center; transition: all 0.2s; background: white;">
+                  <i data-lucide="brain" style="width: 2rem; height: 2rem; margin: 0 auto 0.5rem; color: #999;"></i>
+                  <div style="font-weight: 600; color: #666;">Психолог</div>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          <!-- First Name -->
+          <div class="form-group">
+            <label class="form-label" for="firstName">Имя</label>
+            <input 
+              type="text" 
+              id="firstName" 
+              name="firstName" 
+              class="form-input" 
+              required 
+              placeholder="Введите ваше имя"
+              data-testid="input-firstName"
+            />
+          </div>
+
+          <!-- Last Name -->
+          <div class="form-group">
+            <label class="form-label" for="lastName">Фамилия</label>
+            <input 
+              type="text" 
+              id="lastName" 
+              name="lastName" 
+              class="form-input" 
+              required 
+              placeholder="Введите вашу фамилию"
+              data-testid="input-lastName"
+            />
+          </div>
+
+          <!-- Email -->
+          <div class="form-group">
+            <label class="form-label" for="email">Email</label>
+            <input 
+              type="email" 
+              id="email" 
+              name="email" 
+              class="form-input" 
+              required 
+              placeholder="your@email.com"
+              data-testid="input-email"
+            />
+          </div>
+
+          <!-- Password -->
+          <div class="form-group">
+            <label class="form-label" for="password">Пароль</label>
+            <input 
+              type="password" 
+              id="password" 
+              name="password" 
+              class="form-input" 
+              required 
+              placeholder="Минимум 6 символов"
+              minlength="6"
+              data-testid="input-password"
+            />
+          </div>
+
+          <!-- How did you find us (statistics) -->
+          <div class="form-group">
+            <label class="form-label" for="referralSource">Как вы о нас узнали?</label>
+            <select id="referralSource" name="referralSource" class="form-input">
+              <option value="">— выберите —</option>
+              <option value="Поиск (Яндекс/Google)">Поиск (Яндекс / Google)</option>
+              <option value="Соцсети">Соцсети (VK, Telegram, Instagram)</option>
+              <option value="Реклама">Реклама</option>
+              <option value="Рекомендация">Рекомендация знакомых</option>
+              <option value="Блог/статья">Блог или статья</option>
+              <option value="YouTube">YouTube</option>
+              <option value="Другое">Другое</option>
+            </select>
+          </div>
+
+          <!-- Psychologist-only professional fields -->
+          <div id="psych-fields" style="display: none;">
+            <div style="border-top: 1px solid #F0F0F0; margin: 1.5rem 0 1.25rem; padding-top: 1.25rem;">
+              <h3 style="font-size: 1rem; font-weight: 600; color: #1A1A1A; margin-bottom: 0.25rem;">Профессиональная анкета</h3>
+              <p style="font-size: 0.8125rem; color: #999; margin-bottom: 1rem;">Эти данные видит модератор при одобрении. Все поля обязательны.</p>
+            </div>
+
+            <!-- Specialization -->
+            <div class="form-group">
+              <label class="form-label" for="specialization">Специализация / направления</label>
+              <input
+                type="text"
+                id="specialization"
+                name="specialization"
+                class="form-input"
+                placeholder="Напр.: КПТ, тревожные расстройства, отношения"
+                data-testid="input-specialization"
+              />
+            </div>
+
+            <!-- Experience -->
+            <div class="form-group">
+              <label class="form-label" for="experience">Опыт работы (лет)</label>
+              <input
+                type="number"
+                id="experience"
+                name="experience"
+                class="form-input"
+                min="3"
+                max="70"
+                placeholder="Не менее 3 лет"
+                data-testid="input-experience"
+              />
+              <span style="font-size: 0.75rem; color: #999;">На платформу принимаются специалисты с опытом от 3 лет.</span>
+            </div>
+
+            <!-- Education -->
+            <div class="form-group">
+              <label class="form-label" for="education">Образование</label>
+              <textarea
+                id="education"
+                name="education"
+                class="form-input"
+                rows="2"
+                placeholder="ВУЗ, специальность, год выпуска, доп. обучение"
+                data-testid="input-education"
+              ></textarea>
+            </div>
+
+            <!-- Description -->
+            <div class="form-group">
+              <label class="form-label" for="description">О себе</label>
+              <textarea
+                id="description"
+                name="description"
+                class="form-input"
+                rows="3"
+                placeholder="Кратко о вашем подходе и с какими запросами работаете"
+                data-testid="input-description"
+              ></textarea>
+            </div>
+
+            <!-- Not working with (key new field) -->
+            <div class="form-group">
+              <label class="form-label" for="notWorkingWith">С чем НЕ работаете (направления / паттерны)</label>
+              <textarea
+                id="notWorkingWith"
+                name="notWorkingWith"
+                class="form-input"
+                rows="3"
+                placeholder="Перечислите запросы, темы и состояния, с которыми вы не работаете (напр.: зависимости, расстройства пищевого поведения, острые психозы)"
+                data-testid="input-notWorkingWith"
+              ></textarea>
+              <span style="font-size: 0.75rem; color: #999;">Это поле помогает модератору принять решение об одобрении.</span>
+            </div>
+
+            <!-- Price -->
+            <div class="form-group">
+              <label class="form-label" for="price">Цена консультации (₽)</label>
+              <input
+                type="number"
+                id="price"
+                name="price"
+                class="form-input"
+                min="0"
+                step="50"
+                placeholder="Напр.: 3000"
+                data-testid="input-price"
+              />
+            </div>
+
+            <!-- Formats -->
+            <div class="form-group">
+              <label class="form-label">Форматы работы</label>
+              <div class="flex gap-3" style="flex-wrap: wrap;">
+                <label class="flex items-center gap-2" style="cursor: pointer;">
+                  <input type="checkbox" name="formats" value="video" data-testid="checkbox-format-video" /> Видео
+                </label>
+                <label class="flex items-center gap-2" style="cursor: pointer;">
+                  <input type="checkbox" name="formats" value="audio" data-testid="checkbox-format-audio" /> Аудио
+                </label>
+                <label class="flex items-center gap-2" style="cursor: pointer;">
+                  <input type="checkbox" name="formats" value="chat" data-testid="checkbox-format-chat" /> Чат
+                </label>
+              </div>
+              <span style="font-size: 0.75rem; color: #999;">Отметьте хотя бы один формат.</span>
+            </div>
+          </div>
+
+          <!-- Consent (all required) -->
+          <div class="form-group">
+            <label class="flex items-start gap-2" style="cursor: pointer; margin-bottom: 0.75rem;">
+              <input
+                type="checkbox"
+                id="terms"
+                required
+                style="margin-top: 0.25rem;"
+                data-testid="checkbox-terms"
+              />
+              <span style="font-size: 0.875rem; color: #666;">
+                Я принимаю
+                <a href="/offer.html" target="_blank" style="color: #34C759; text-decoration: underline;">Публичную оферту</a>,
+                <a href="/privacy.html" target="_blank" style="color: #34C759; text-decoration: underline;">Политику конфиденциальности</a>
+                и
+                <a href="/refund.html" target="_blank" style="color: #34C759; text-decoration: underline;">Условия возврата</a>
+              </span>
+            </label>
+            <label class="flex items-start gap-2" style="cursor: pointer;">
+              <input
+                type="checkbox"
+                id="consent"
+                required
+                style="margin-top: 0.25rem;"
+                data-testid="checkbox-consent"
+              />
+              <span style="font-size: 0.875rem; color: #666;">
+                Я даю
+                <a href="/consent.html" target="_blank" style="color: #34C759; text-decoration: underline;">согласие на обработку персональных данных</a>
+              </span>
+            </label>
+          </div>
+
+          <!-- Submit Button -->
+          <button 
+            type="submit" 
+            class="btn w-full btn-lg" 
+            id="submit-btn"
+            style="background: #34C759; color: white; border: none; transition: all 0.2s ease;"
+            onmouseover="this.style.background='#28A745'"
+            onmouseout="this.style.background='#34C759'"
+            data-testid="button-register"
+          >
+            Зарегистрироваться
+          </button>
+
+          <!-- Login Link -->
+          <div class="text-center mt-4">
+            <span style="color: #666; font-size: 0.875rem;">
+              Уже есть аккаунт? 
+              <a href="/login.html" style="color: #7C3AED; font-weight: 600; text-decoration: none;" data-testid="link-login">
+                Войти
+              </a>
+            </span>
+          </div>
+        </form>
+      </div>
+
+      <!-- Additional Info -->
+      <div class="text-center mt-4" style="color: #999; font-size: 0.875rem;">
+        Регистрируясь, вы получаете доступ к нашей платформе психологической поддержки
+      </div>
+    </div>
+  </div>
+
+  <!-- Foreign email modal -->
+  <div id="foreignEmailModal" style="display:none; position:fixed; inset:0; background:rgba(26,26,46,0.6); z-index:1000; align-items:center; justify-content:center; padding:1rem;">
+    <div style="background:#fff; border-radius:1rem; max-width:420px; width:100%; padding:2rem; text-align:center; box-shadow:0 20px 60px rgba(0,0,0,0.25);">
+      <div style="width:4rem; height:4rem; margin:0 auto 1rem; border-radius:50%; background:#FEF2F2; display:flex; align-items:center; justify-content:center;">
+        <i data-lucide="shield-alert" style="width:2rem; height:2rem; color:#DC2626;"></i>
+      </div>
+      <h3 style="font-size:1.25rem; font-weight:700; color:#1A1A1A; margin-bottom:0.75rem;">Доступна только российская почта</h3>
+      <p style="color:#666; font-size:0.95rem; line-height:1.6; margin-bottom:1.5rem;">
+        Регистрация через зарубежные почтовые сервисы (Gmail, Outlook, iCloud и др.) недоступна.
+        По требованиям законодательства РФ используйте российскую почту — например,
+        <b>Яндекс</b> (yandex.ru) или <b>Mail.ru</b>.
+      </p>
+      <button type="button" onclick="closeForeignEmailModal()"
+        style="background:#34C759; color:#fff; border:none; font-weight:600; padding:0.75rem 2rem; border-radius:0.5rem; cursor:pointer; width:100%;">
+        Понятно
+      </button>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script>
+    // Psychologist fields: required text/number inputs (formats handled separately)
+    const psychRequiredFields = ['specialization', 'experience', 'education', 'description', 'notWorkingWith', 'price'];
+
+    function togglePsychFields(role) {
+      const block = document.getElementById('psych-fields');
+      const isPsych = role === 'psychologist';
+      block.style.display = isPsych ? 'block' : 'none';
+      psychRequiredFields.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.required = isPsych;
+      });
+    }
+
+    // Role selection
+    document.querySelectorAll('.role-option').forEach(option => {
+      option.addEventListener('click', function() {
+        const role = this.dataset.role;
+
+        // Update radio
+        document.querySelector(`input[value="${role}"]`).checked = true;
+
+        // Show/hide and require psychologist fields
+        togglePsychFields(role);
+
+        // Update styles
+        document.querySelectorAll('.role-option').forEach(opt => {
+          opt.classList.remove('active');
+          opt.style.borderColor = '#E5E5E5';
+          opt.style.background = 'white';
+          const icon = opt.querySelector('i');
+          const text = opt.querySelector('div');
+          if (icon) icon.style.color = '#999';
+          if (text) text.style.color = '#666';
+        });
+        
+        this.classList.add('active');
+        this.style.borderColor = '#7C3AED';
+        this.style.background = '#F3E8FF';
+        const icon = this.querySelector('i');
+        const text = this.querySelector('div');
+        if (icon) icon.style.color = '#7C3AED';
+        if (text) text.style.color = '#7C3AED';
+      });
+    });
+
+    // --- Проверка российской почты ---
+    // Разрешены домены РФ (.ru / .su / .рф) и российские сервисы. Зарубежные — запрещены.
+    const ALLOWED_EMAIL_DOMAINS = ['yandex.com', 'ya.ru', 'vk.com', 'vk.ru'];
+    const ALLOWED_EMAIL_TLDS = ['.ru', '.su', '.рф', '.xn--p1ai'];
+
+    function isRussianEmail(email) {
+      if (!email || email.indexOf('@') === -1) return false;
+      const domain = email.split('@').pop().trim().toLowerCase();
+      if (!domain) return false;
+      if (ALLOWED_EMAIL_DOMAINS.includes(domain)) return true;
+      return ALLOWED_EMAIL_TLDS.some(tld => domain.endsWith(tld));
+    }
+
+    function showForeignEmailModal() {
+      document.getElementById('foreignEmailModal').style.display = 'flex';
+    }
+    function closeForeignEmailModal() {
+      document.getElementById('foreignEmailModal').style.display = 'none';
+    }
+
+    // Form submission
+    document.getElementById('register-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const submitBtn = document.getElementById('submit-btn');
+      const alert = document.getElementById('alert');
+      
+      // Get form data
+      const formData = new FormData(e.target);
+      const role = formData.get('role');
+      const data = {
+        email: formData.get('email'),
+        password: formData.get('password'),
+        firstName: formData.get('firstName'),
+        lastName: formData.get('lastName'),
+        role: role
+      };
+
+      // Только российская почта (требования законодательства РФ)
+      if (!isRussianEmail(data.email)) {
+        showForeignEmailModal();
+        return;
+      }
+
+      // Согласия (галочки обязательны)
+      const termsOk = document.getElementById('terms').checked;
+      const consentOk = document.getElementById('consent').checked;
+      if (!termsOk || !consentOk) {
+        alert.className = 'alert alert-error';
+        alert.textContent = 'Отметьте обе галочки согласия с документами';
+        alert.style.display = 'block';
+        return;
+      }
+      data.acceptedTerms = termsOk;
+      data.acceptedConsent = consentOk;
+
+      // Psychologist professional fields
+      if (role === 'psychologist') {
+        const formats = formData.getAll('formats');
+        if (formats.length === 0) {
+          alert.className = 'alert alert-error';
+          alert.textContent = 'Выберите хотя бы один формат работы';
+          alert.style.display = 'block';
+          return;
+        }
+        // Минимальный стаж — 3 года
+        if (parseInt(formData.get('experience'), 10) < 3 || isNaN(parseInt(formData.get('experience'), 10))) {
+          alert.className = 'alert alert-error';
+          alert.textContent = 'На платформу принимаются специалисты с опытом работы от 3 лет.';
+          alert.style.display = 'block';
+          return;
+        }
+        data.specialization = (formData.get('specialization') || '').trim();
+        data.experience = formData.get('experience');
+        data.education = (formData.get('education') || '').trim();
+        data.description = (formData.get('description') || '').trim();
+        data.notWorkingWith = (formData.get('notWorkingWith') || '').trim();
+        data.price = formData.get('price');
+        data.formats = formats;
+      }
+
+      // Disable button
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Регистрация...';
+      alert.style.display = 'none';
+      
+      try {
+        const response = await fetch('/api/auth.php?action=register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data)
+        });
+        
+        if (response.ok) {
+          alert.className = 'alert alert-success';
+          alert.textContent = 'Регистрация успешна! Перенаправление...';
+          alert.style.display = 'block';
+
+          // Статистика «как вы о нас узнали» (не блокирует регистрацию)
+          const refSrc = (formData.get('referralSource') || '').trim();
+          if (refSrc) {
+            try {
+              fetch('/api/subscribe.php?action=referral', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ source: refSrc, email: data.email, role: data.role })
+              });
+            } catch (e) {}
+          }
+
+          setTimeout(() => {
+            if (data.role === 'psychologist') {
+              window.location.href = '/psychologist-dashboard.html';
+            } else {
+              window.location.href = '/client-dashboard.html';
+            }
+          }, 1500);
+        } else {
+          const error = await response.json();
+          alert.className = 'alert alert-error';
+          alert.textContent = error.message || 'Ошибка регистрации';
+          alert.style.display = 'block';
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'Зарегистрироваться';
+        }
+      } catch (error) {
+        console.error('Registration error:', error);
+        alert.className = 'alert alert-error';
+        alert.textContent = 'Сервер временно недоступен. Попробуйте позже.';
+        alert.style.display = 'block';
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Зарегистрироваться';
+      }
+    });
+
+    // Check for role in URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const roleParam = urlParams.get('type');
+    if (roleParam === 'psychologist') {
+      document.querySelector('input[value="psychologist"]').click();
+    }
+
+    // Initialize Lucide icons
+    if (window.lucide) lucide.createIcons();
+  </script>
+
+  <!-- Подвал (сквозной — js/layout.js) -->
+  <script>psyWriteFooter();</script>
+</body>
+</html>
