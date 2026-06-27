@@ -721,7 +721,7 @@
         function getDashboardUrl() {
             if (!currentUser) return '/login.html';
             if (currentUser.role === 'psychologist') return '/psychologist-dashboard.html';
-            if (currentUser.role === 'admin') return '/admin.html';
+            if (currentUser.role === 'admin') return '/dashboard-admin.html';
             return '/client-dashboard.html';
         }
 

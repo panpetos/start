@@ -106,7 +106,7 @@
         async function init(){
             let user = null;
             if (window.Auth && window.Auth.getCurrentUser) { try { user = await window.Auth.getCurrentUser(); } catch(e){} }
-            if (!user) { window.location.href = '/login.html?redirect=' + encodeURIComponent('/admin.html'); return; }
+            if (!user) { window.location.href = '/login.html?redirect=' + encodeURIComponent('/dashboard-admin.html'); return; }
             if (user.role !== 'admin') {
                 document.getElementById('content').innerHTML = '<div class="panel"><div class="empty">⛔ Доступ только для администратора.<br>Вы вошли как «'+esc(user.role)+'».</div></div>';
                 document.getElementById('tabs').style.display = 'none';

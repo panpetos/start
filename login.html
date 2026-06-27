@@ -166,7 +166,7 @@
             const redirect = new URLSearchParams(window.location.search).get('redirect');
             if (redirect) { window.location.href = redirect; return; }
             const role = user.role || user.user_role || '';
-            if (role === 'admin') window.location.href = '/admin.html';
+            if (role === 'admin') window.location.href = '/dashboard-admin.html';
             else if (role === 'psychologist') window.location.href = '/psychologist-dashboard.html';
             else window.location.href = '/client-dashboard.html';
         }

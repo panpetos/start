@@ -129,7 +129,7 @@
         if (!circle) return;
         var url = '/client-dashboard.html';
         if (user.role === 'psychologist') url = '/psychologist-dashboard.html';
-        else if (user.role === 'admin') url = '/admin.html';
+        else if (user.role === 'admin') url = '/dashboard-admin.html';
         circle.href = url;
         circle.title = (user.first_name || 'Кабинет');
         circle.style.background = 'linear-gradient(135deg,#7C3AED,#9F67FA)';

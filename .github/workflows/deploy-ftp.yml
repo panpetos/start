@@ -18,14 +18,13 @@ jobs:
           sudo apt-get install -y lftp
           lftp -c "
             set sftp:auto-confirm yes;
+            set cmd:fail-exit no;
             set net:max-retries 3;
             set net:reconnect-interval-base 5;
             open sftp://u3105470:a9Y3yfN5Im4It0bF@31.31.197.13;
             cd /var/www/u3105470/data/www/psytalk.pro;
             put index.html;
             put search.html;
-            put css/styles.css;
-            put js/layout.js;
             put book.html;
             put book-confirm.html;
             put payment-success.html;
@@ -35,14 +34,15 @@ jobs:
             put login.html;
             put offers.html;
             put blog.html;
-            put admin.html;
-            put api/admin_ext.php;
+            put dashboard-admin.html;
             put consultation.html;
             put consent.html;
             put offer.html;
             put privacy.html;
             put refund.html;
-            put api/payment_mock.php;
+            put js/layout.js -o js/layout.js;
+            put api/admin_ext.php -o api/admin_ext.php;
+            put api/payment_mock.php -o api/payment_mock.php;
             bye;
           "
           echo "Deployment complete"
