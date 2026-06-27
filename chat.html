@@ -496,6 +496,16 @@
             box-shadow: 0 4px 12px rgba(0, 200, 83, 0.4);
         }
 
+        /* Кнопка учёта времени сессии (видна психологу) */
+        .session-btn {
+            padding: 0.5rem 0.9rem; border-radius: 0.75rem; border: none;
+            background: #16A34A; color: #fff; font-weight: 700; font-size: 0.8rem;
+            cursor: pointer; white-space: nowrap; flex-shrink: 0; font-family: inherit;
+            transition: background 0.2s, transform 0.2s;
+        }
+        .session-btn:hover { transform: translateY(-1px); }
+        .session-btn.session-active { background: #DC2626; }
+
         /* Video Call Modal */
         .video-modal {
             position: fixed;
@@ -678,15 +688,19 @@
                 <h3 style="font-size:1.25rem;color:#1A1A1A;margin-bottom:0.25rem;">Видеовстреча в Телемост</h3>
                 <p style="font-size:0.875rem;color:#6B7280;line-height:1.5;">Создайте встречу в открывшейся вкладке Яндекс&nbsp;Телемоста и пришлите ссылку собеседнику.</p>
             </div>
-            <ol style="font-size:0.875rem;color:#374151;line-height:1.7;padding-left:1.25rem;margin-bottom:1rem;">
-                <li>В новой вкладке нажмите <b>«Создать видеовстречу»</b></li>
-                <li>Скопируйте ссылку на встречу</li>
-                <li>Вставьте её сюда и отправьте собеседнику</li>
+            <ol style="font-size:0.875rem;color:#374151;line-height:1.7;padding-left:1.25rem;margin-bottom:0.75rem;">
+                <li>В открывшейся вкладке Телемоста нажмите <b>«Создать видеовстречу»</b></li>
+                <li>Вверху нажмите <b>«Скопировать ссылку»</b> (или скопируйте адрес из адресной строки)</li>
+                <li>Вставьте ссылку в поле ниже и нажмите <b>«Отправить»</b> — клиент получит кнопку «Присоединиться»</li>
             </ol>
-            <input type="text" id="telemostLinkInput" placeholder="https://telemost.yandex.ru/j/..."
+            <label style="display:block;font-size:0.8125rem;font-weight:600;color:#374151;margin-bottom:0.35rem;">Ссылка на встречу из Телемоста</label>
+            <input type="text" id="telemostLinkInput" placeholder="Вставьте сюда: https://telemost.yandex.ru/j/0123456789"
                 style="width:100%;padding:0.75rem 1rem;border:2px solid #E5E7EB;border-radius:0.75rem;font-size:0.9rem;outline:none;margin-bottom:0.5rem;font-family:inherit;">
             <div id="telemostError" style="display:none;color:#DC2626;font-size:0.8125rem;margin-bottom:0.5rem;"></div>
-            <button onclick="sendTelemostLink()" style="width:100%;padding:0.875rem;background:linear-gradient(135deg,#7C3AED,#9F67FA);color:#fff;border:none;border-radius:0.75rem;font-weight:700;font-size:0.9375rem;cursor:pointer;font-family:inherit;margin-bottom:0.5rem;">Отправить ссылку собеседнику</button>
+            <button onclick="sendTelemostLink()" style="width:100%;padding:0.875rem;background:linear-gradient(135deg,#7C3AED,#9F67FA);color:#fff;border:none;border-radius:0.75rem;font-weight:700;font-size:0.9375rem;cursor:pointer;font-family:inherit;margin-bottom:0.5rem;">Отправить ссылку клиенту</button>
+            <div style="background:#FFF8E7;border:1px solid #FCD34D;border-radius:0.625rem;padding:0.5rem 0.75rem;font-size:0.78rem;color:#92400E;line-height:1.45;margin-bottom:0.625rem;">
+                ✏️ Вставили не ту ссылку? Создайте встречу заново и отправьте новую — у клиента действует <b>последняя</b> отправленная ссылка.
+            </div>
             <div style="display:flex;gap:0.5rem;">
                 <a id="telemostOpenAgain" href="https://telemost.yandex.ru/" target="_blank" rel="noopener" style="flex:1;text-align:center;padding:0.625rem;border:1.5px solid #E5E7EB;border-radius:0.75rem;color:#374151;text-decoration:none;font-size:0.875rem;font-weight:600;">Открыть Телемост ↗</a>
                 <button onclick="closeVideoModal()" style="flex:1;padding:0.625rem;background:#F3F4F6;border:none;border-radius:0.75rem;color:#374151;font-weight:600;font-size:0.875rem;cursor:pointer;font-family:inherit;">Закрыть</button>
@@ -702,12 +716,119 @@
         let selectedUserId = null;
         let pollInterval = null;
         let isAdminMode = false;  // Режим отправки от имени техподдержки
+        let headerRenderedFor = null; // чтобы не пересобирать шапку при каждом поллинге
 
         function getDashboardUrl() {
             if (!currentUser) return '/login.html';
             if (currentUser.role === 'psychologist') return '/psychologist-dashboard.html';
             if (currentUser.role === 'admin') return '/admin.html';
             return '/client-dashboard.html';
+        }
+
+        // ── Единая шапка диалога (роле-зависимая) ──
+        function renderChatHeader(other) {
+            const name = `${other.first_name || ''} ${other.last_name || ''}`.trim() || 'Пользователь';
+            const roleText = other.role === 'psychologist' ? 'Психолог' : 'Клиент';
+            const isPsy = currentUser && currentUser.role === 'psychologist';
+            // Видеовстречу создаёт и сессию ведёт психолог; клиент только присоединяется по ссылке
+            const sessionBtn = isPsy
+                ? `<button id="sessionBtn" class="session-btn" onclick="toggleSession()" title="Засечь реальное время консультации"><span id="sessionBtnText">▶ Начать сессию</span></button>`
+                : '';
+            const videoBtn = isPsy
+                ? `<button onclick="startVideoCall()" class="video-call-btn" title="Создать видеовстречу в Телемост">📹</button>`
+                : '';
+            return `
+                <button class="chat-back-btn" onclick="goBackToList()" title="Назад к диалогам">←</button>
+                <div class="avatar">${other.avatar ? `<img src="${other.avatar}" alt="${name}">` : name.charAt(0)}</div>
+                <div style="flex:1;min-width:0;">
+                    <div class="name">${name}</div>
+                    <div class="role">${roleText}</div>
+                </div>
+                ${sessionBtn}
+                ${videoBtn}
+                <a href="${getDashboardUrl()}" class="dashboard-btn" title="Личный кабинет">
+                    <i data-lucide="layout-grid" style="width: 20px; height: 20px;"></i>
+                </a>`;
+        }
+
+        // ── Учёт реального времени консультации (логируется в /api/calls.php) ──
+        let sessionCallId = null;
+        let sessionForUser = null;
+        let sessionStartMs = 0;
+        let sessionInterval = null;
+
+        function fmtDur(sec) {
+            const m = Math.floor(sec / 60).toString().padStart(2, '0');
+            const s = (sec % 60).toString().padStart(2, '0');
+            return m + ':' + s;
+        }
+
+        function updateSessionButton() {
+            const el = document.getElementById('sessionBtnText');
+            if (!el) return;
+            const btn = document.getElementById('sessionBtn');
+            if (sessionCallId && sessionForUser === selectedUserId) {
+                const sec = Math.floor((Date.now() - sessionStartMs) / 1000);
+                el.textContent = '⏹ Завершить · ' + fmtDur(sec);
+                if (btn) btn.classList.add('session-active');
+            } else {
+                el.textContent = '▶ Начать сессию';
+                if (btn) btn.classList.remove('session-active');
+            }
+        }
+
+        async function toggleSession() {
+            if (sessionCallId) await endSession();
+            else await startSession();
+        }
+
+        async function startSession() {
+            if (!selectedUserId) return;
+            if (sessionCallId) { alert('Сессия уже идёт. Сначала завершите текущую.'); return; }
+            sessionForUser = selectedUserId;
+            sessionStartMs = Date.now();
+            try {
+                const r = await fetch('/api/calls.php?action=start', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+                    body: JSON.stringify({ participant_id: selectedUserId, room_name: 'session-' + Date.now() })
+                });
+                const d = await r.json();
+                sessionCallId = d.call_id || ('local-' + Date.now());
+            } catch (e) { sessionCallId = 'local-' + Date.now(); }
+            // Системная отметка в чате — видит клиент, остаётся в истории (аудит)
+            try {
+                await fetch('/api/messages.php?action=send', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+                    body: JSON.stringify({ receiver_id: selectedUserId, content: '▶️ Психолог начал сессию' })
+                });
+            } catch (e) {}
+            updateSessionButton();
+            if (sessionInterval) clearInterval(sessionInterval);
+            sessionInterval = setInterval(updateSessionButton, 1000);
+            await loadMessages();
+        }
+
+        async function endSession() {
+            if (sessionInterval) { clearInterval(sessionInterval); sessionInterval = null; }
+            const dur = Math.floor((Date.now() - sessionStartMs) / 1000);
+            const target = sessionForUser;
+            const cid = sessionCallId;
+            sessionCallId = null;
+            sessionForUser = null;
+            try {
+                await fetch('/api/calls.php?action=end', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+                    body: JSON.stringify({ call_id: cid })
+                });
+            } catch (e) {}
+            try {
+                await fetch('/api/messages.php?action=send', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+                    body: JSON.stringify({ receiver_id: target, content: '⏹️ Сессия завершена. Длительность: ' + fmtDur(dur) })
+                });
+            } catch (e) {}
+            updateSessionButton();
+            await loadMessages();
         }
 
         async function init() {
@@ -752,22 +873,10 @@
                 const userData = result.data || result; // Поддержка обоих форматов
 
                 if (userData && !result.error) {
-                    const name = `${userData.first_name || ''} ${userData.last_name || ''}`.trim() || 'Пользователь';
-                    const roleText = userData.role === 'psychologist' ? 'Психолог' : 'Клиент';
-
-                    document.getElementById('chatHeader').innerHTML = `
-                        <button class="chat-back-btn" onclick="goBackToList()" title="Назад к диалогам">←</button>
-                        <div class="avatar">
-                            ${userData.avatar ? `<img src="${userData.avatar}" alt="${name}">` : name.charAt(0)}
-                        </div>
-                        <div style="flex:1;">
-                            <div class="name">${name}</div>
-                            <div class="role">${roleText}</div>
-                        </div>
-                        <a href="${getDashboardUrl()}" class="dashboard-btn" title="Личный кабинет">
-                            <i data-lucide="layout-grid" style="width: 20px; height: 20px;"></i>
-                        </a>
-                    `;
+                    document.getElementById('chatHeader').innerHTML = renderChatHeader(userData);
+                    headerRenderedFor = selectedUserId;
+                    updateSessionButton();
+                    try { if (window.lucide) lucide.createIcons(); } catch(e) {}
                 }
             } catch (error) {
                 console.error('Error loading user data:', error);
@@ -838,6 +947,7 @@
 
         async function openChat(userId) {
             selectedUserId = userId;
+            headerRenderedFor = null; // пересобрать шапку под нового собеседника
 
             // Обновить активный элемент
             document.querySelectorAll('.conversation-item').forEach(el => {
@@ -866,26 +976,13 @@
                 const conversations = await convResponse.json();
                 const otherUser = conversations.find(c => c.user_id === selectedUserId);
 
-                if (otherUser) {
-                    const name = `${otherUser.first_name || ''} ${otherUser.last_name || ''}`.trim() || 'Пользователь';
-                    const roleText = otherUser.role === 'psychologist' ? 'Психолог' : 'Клиент';
-
-                    document.getElementById('chatHeader').innerHTML = `
-                        <button class="chat-back-btn" onclick="goBackToList()" title="Назад к диалогам">←</button>
-                        <div class="avatar">
-                            ${otherUser.avatar ? `<img src="${otherUser.avatar}" alt="${name}">` : name.charAt(0)}
-                        </div>
-                        <div style="flex:1;">
-                            <div class="name">${name}</div>
-                            <div class="role">${roleText}</div>
-                        </div>
-                        <a href="${getDashboardUrl()}" class="dashboard-btn" title="Личный кабинет">
-                            <i data-lucide="layout-grid" style="width: 20px; height: 20px;"></i>
-                        </a>
-                        <button onclick="startVideoCall()" class="video-call-btn" title="Видеозвонок">
-                            📹
-                        </button>
-                    `;
+                // Шапку строим один раз на диалог (а не каждые 5 сек при поллинге),
+                // иначе сбрасывался бы таймер сессии.
+                if (otherUser && headerRenderedFor !== selectedUserId) {
+                    document.getElementById('chatHeader').innerHTML = renderChatHeader(otherUser);
+                    headerRenderedFor = selectedUserId;
+                    updateSessionButton();
+                    try { if (window.lucide) lucide.createIcons(); } catch(e) {}
                 }
 
                 // Загрузить сообщения
