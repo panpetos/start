@@ -681,8 +681,9 @@
             '</div>' +
             '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:0.875rem;min-width:120px;">' +
               '<div style="text-align:right;">' +
-                '<div style="font-size:1.375rem;font-weight:800;color:#1A1A1A;letter-spacing:-0.02em;">' + ((p.price||0)).toLocaleString('ru-RU') + ' ₽</div>' +
-                '<div style="font-size:0.8125rem;color:#6B7280;">за сессию</div>' +
+                ((p.price||0) > 0
+                  ? '<div style="font-size:1.375rem;font-weight:800;color:#1A1A1A;letter-spacing:-0.02em;">' + p.price.toLocaleString('ru-RU') + ' ₽</div><div style="font-size:0.8125rem;color:#6B7280;">за сессию</div>'
+                  : '<div style="font-size:1rem;font-weight:700;color:#9CA3AF;">Цена уточняется</div>') +
               '</div>' +
               '<span style="display:inline-flex;align-items:center;justify-content:center;padding:0.625rem 1.25rem;background:linear-gradient(135deg,#7C3AED,#9F67FA);color:white;border-radius:0.75rem;font-size:0.9375rem;font-weight:600;text-decoration:none;white-space:nowrap;box-shadow:0 3px 10px rgba(124,58,237,0.3);">Записаться</span>' +
             '</div>' +

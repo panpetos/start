@@ -212,19 +212,33 @@
               <span style="font-size: 0.75rem; color: #999;">Это поле помогает модератору принять решение об одобрении.</span>
             </div>
 
-            <!-- Price -->
+            <!-- Стоимость консультаций назначает администрация — психолог цену не указывает -->
             <div class="form-group">
-              <label class="form-label" for="price">Цена консультации (₽)</label>
-              <input
-                type="number"
-                id="price"
-                name="price"
-                class="form-input"
-                min="0"
-                step="50"
-                placeholder="Напр.: 3000"
-                data-testid="input-price"
-              />
+              <div style="background:#F8F6FF;border:1px solid #EDE9FF;border-radius:0.75rem;padding:0.875rem 1rem;color:#6B7280;font-size:0.875rem;line-height:1.5;">
+                💡 Стоимость консультаций устанавливает администрация платформы — единые прозрачные цены для всех клиентов. Её назначат при одобрении профиля.
+              </div>
+            </div>
+
+            <!-- Контакты для связи (видит только администратор при модерации) -->
+            <div style="border-top: 1px solid #F0F0F0; margin: 1.25rem 0; padding-top: 1.25rem;">
+              <h3 style="font-size: 1rem; font-weight: 600; color: #1A1A1A; margin-bottom: 0.25rem;">Контакты для связи</h3>
+              <p style="font-size: 0.8125rem; color: #999; margin-bottom: 1rem;">Нужны администратору для проверки и связи. Клиентам они НЕ показываются.</p>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="phone">Телефон <span style="color:#EF4444;">*</span></label>
+              <input type="tel" id="phone" name="phone" class="form-input" placeholder="+7 999 123-45-67" />
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="telegram">Telegram</label>
+              <input type="text" id="telegram" name="telegram" class="form-input" placeholder="@username или ссылка" />
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="whatsapp">WhatsApp</label>
+              <input type="text" id="whatsapp" name="whatsapp" class="form-input" placeholder="+7 999 123-45-67" />
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="maxmsg">MAX</label>
+              <input type="text" id="maxmsg" name="maxmsg" class="form-input" placeholder="ник или номер в MAX" />
             </div>
 
             <!-- Formats -->
@@ -332,7 +346,7 @@
   <script src="/js/api.js"></script>
   <script>
     // Psychologist fields: required text/number inputs (formats handled separately)
-    const psychRequiredFields = ['specialization', 'experience', 'education', 'description', 'notWorkingWith', 'price'];
+    const psychRequiredFields = ['specialization', 'experience', 'education', 'description', 'notWorkingWith'];
 
     function togglePsychFields(role) {
       const block = document.getElementById('psych-fields');
@@ -453,8 +467,15 @@
         data.education = (formData.get('education') || '').trim();
         data.description = (formData.get('description') || '').trim();
         data.notWorkingWith = (formData.get('notWorkingWith') || '').trim();
-        data.price = formData.get('price');
+        data.phone = (formData.get('phone') || '').trim();
         data.formats = formats;
+        // Контакты для связи (видит только администратор)
+        if (!data.phone) {
+          alert.className = 'alert alert-error';
+          alert.textContent = 'Укажите телефон для связи — он нужен администратору для проверки.';
+          alert.style.display = 'block';
+          return;
+        }
       }
 
       // Disable button
@@ -481,6 +502,22 @@
               fetch('/api/subscribe.php?action=referral', {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ source: refSrc, email: data.email, role: data.role })
+              });
+            } catch (e) {}
+          }
+
+          // Контакты психолога — для админ-карточки (клиентам не показываются)
+          if (data.role === 'psychologist') {
+            try {
+              fetch('/api/subscribe.php?action=psy_contact', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  email: data.email,
+                  phone: data.phone || '',
+                  telegram: (formData.get('telegram') || '').trim(),
+                  whatsapp: (formData.get('whatsapp') || '').trim(),
+                  max: (formData.get('maxmsg') || '').trim()
+                })
               });
             } catch (e) {}
           }

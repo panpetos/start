@@ -174,11 +174,22 @@ if ($action === 'users') {
 if ($action === 'psychologists') {
     $rows = safeRows($pdo, 'psychologists', ['created_at', 'id'], 2000);
     $um = usersMap($pdo);
+    // карта контактов по email (телефон/telegram/whatsapp/max из регистрации)
+    $contacts = [];
+    try {
+        foreach ($pdo->query("SELECT * FROM psychologist_contacts LIMIT 5000")->fetchAll(PDO::FETCH_ASSOC) as $c) {
+            $contacts[mb_strtolower((string)$c['email'])] = $c;
+        }
+    } catch (Exception $e) {}
     foreach ($rows as &$r) {
         $uid = (string)pick($r, ['user_id'], '');
         $r['name']  = $um[$uid]['name']  ?? '';
         $r['email'] = $um[$uid]['email'] ?? '';
-        $r['phone'] = pick($r, ['phone', 'phone_number'], $um[$uid]['phone'] ?? '');
+        $c = $contacts[mb_strtolower((string)$r['email'])] ?? [];
+        $r['phone']    = pick($r, ['phone', 'phone_number'], $c['phone'] ?? ($um[$uid]['phone'] ?? ''));
+        $r['telegram'] = $c['telegram'] ?? '';
+        $r['whatsapp'] = $c['whatsapp'] ?? '';
+        $r['max_msg']  = $c['max_msg'] ?? '';
     }
     echo json_encode(['ok' => true, 'data' => $rows]);
     exit;
@@ -336,6 +347,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             echo json_encode(['ok' => true]);
         } catch (Exception $e) {
             http_response_code(500); echo json_encode(['error' => 'Не удалось обновить (поле is_frozen?)']);
+        }
+        exit;
+    }
+
+    if ($action === 'set-price') {
+        $pid = $body['psychologist_id'] ?? null;
+        $price = isset($body['price']) ? (float)$body['price'] : null;
+        if (!$pid || $price === null || $price < 0) { http_response_code(400); echo json_encode(['error' => 'Нужны psychologist_id и цена']); exit; }
+        try {
+            $st = $pdo->prepare("UPDATE psychologists SET price = ? WHERE id = ?");
+            $st->execute([$price, $pid]);
+            echo json_encode(['ok' => true]);
+        } catch (Exception $e) {
+            http_response_code(500); echo json_encode(['error' => 'Не удалось обновить цену']);
         }
         exit;
     }

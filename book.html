@@ -212,8 +212,9 @@
             '</div>' +
           '</div>' +
           '<div class="psych-price">' +
-            '<div class="psych-price-val">' + p.price.toLocaleString('ru-RU') + ' ₽</div>' +
-            '<div class="psych-price-label">за сессию (50 мин)</div>' +
+            ((p.price||0) > 0
+              ? '<div class="psych-price-val">' + p.price.toLocaleString('ru-RU') + ' ₽</div><div class="psych-price-label">за сессию (50 мин)</div>'
+              : '<div class="psych-price-val" style="font-size:1rem;color:#9CA3AF;">Цена уточняется</div>') +
           '</div>' +
         '</div>' +
 

@@ -75,5 +75,36 @@ if ($action === 'referral') {
     exit;
 }
 
+if ($action === 'psy_contact') {
+    $email = trim((string)($body['email'] ?? ''));
+    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        http_response_code(400); echo json_encode(['error' => 'Некорректный email']); exit;
+    }
+    try {
+        $pdo->exec("CREATE TABLE IF NOT EXISTS psychologist_contacts (
+            email VARCHAR(255) NOT NULL PRIMARY KEY,
+            phone VARCHAR(100) NULL,
+            telegram VARCHAR(255) NULL,
+            whatsapp VARCHAR(100) NULL,
+            max_msg VARCHAR(255) NULL,
+            created_at DATETIME NOT NULL
+        ) DEFAULT CHARSET=utf8mb4");
+        $st = $pdo->prepare("INSERT INTO psychologist_contacts (email, phone, telegram, whatsapp, max_msg, created_at)
+            VALUES (?, ?, ?, ?, ?, NOW())
+            ON DUPLICATE KEY UPDATE phone=VALUES(phone), telegram=VALUES(telegram), whatsapp=VALUES(whatsapp), max_msg=VALUES(max_msg)");
+        $st->execute([
+            $email,
+            mb_substr(trim((string)($body['phone'] ?? '')), 0, 100) ?: null,
+            mb_substr(trim((string)($body['telegram'] ?? '')), 0, 255) ?: null,
+            mb_substr(trim((string)($body['whatsapp'] ?? '')), 0, 100) ?: null,
+            mb_substr(trim((string)($body['max'] ?? '')), 0, 255) ?: null,
+        ]);
+        echo json_encode(['ok' => true]);
+    } catch (Exception $e) {
+        http_response_code(500); echo json_encode(['error' => 'Не удалось сохранить контакты']);
+    }
+    exit;
+}
+
 http_response_code(400);
 echo json_encode(['error' => 'Неизвестное действие']);

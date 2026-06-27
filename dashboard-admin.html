@@ -198,15 +198,25 @@
                     const btn = approved
                         ? `<button class="btn-sm btn-outline" onclick="toggleApproved('${esc(p.id)}',0)">Снять</button>`
                         : `<button class="btn-sm btn-purple" onclick="toggleApproved('${esc(p.id)}',1)">Одобрить</button>`;
+                    const contactLines = [
+                        p.phone ? '📞 '+esc(p.phone) : '',
+                        p.telegram ? '✈️ TG: '+esc(p.telegram) : '',
+                        p.whatsapp ? '🟢 WA: '+esc(p.whatsapp) : '',
+                        p.max_msg ? '🅼 MAX: '+esc(p.max_msg) : ''
+                    ].filter(Boolean).join('<br>');
                     const contact = `${esc(p.email||'—')}${p.phone?('<br>'+esc(p.phone)):''}`;
                     const details = [
+                        contactLines ? '<b>Связь:</b><br>'+contactLines : '<span class="muted">Контакты не указаны</span>',
                         p.description ? '<b>О себе:</b> '+esc(p.description) : '',
                         p.education ? '<b>Образование:</b> '+esc(p.education) : '',
                         (Array.isArray(p.certifications)&&p.certifications.length) ? '<b>Сертификаты:</b> '+esc(p.certifications.join(', ')) : '',
                         p.not_working_with ? '<b>Не работает с:</b> '+esc(p.not_working_with) : '',
                         '<b>ID:</b> '+esc(p.id)
                     ].filter(Boolean).join('<br>');
-                    return `<tr><td>${esc(p.name||'—')}</td><td style="font-size:0.8rem;">${contact}</td><td>${esc(p.specialization||'—')}</td><td>${fmtMoney(p.price)} ₽</td><td>${esc(p.experience||0)} лет</td><td>${status}</td><td style="white-space:nowrap;">${btn} <button class="btn-sm btn-outline" onclick="document.getElementById('pd${idx}').style.display=document.getElementById('pd${idx}').style.display==='none'?'table-row':'none'">Подробнее</button></td></tr>
+                    const priceCell = (parseFloat(p.price)>0)
+                        ? `${fmtMoney(p.price)} ₽ <button class="btn-sm btn-outline" onclick="setPrice('${esc(p.id)}',${parseFloat(p.price)||0})" title="Изменить цену">✎</button>`
+                        : `<span class="badge b-amber">не задана</span> <button class="btn-sm btn-purple" onclick="setPrice('${esc(p.id)}',0)">Назначить</button>`;
+                    return `<tr><td>${esc(p.name||'—')}</td><td style="font-size:0.8rem;">${contact}</td><td>${esc(p.specialization||'—')}</td><td style="white-space:nowrap;">${priceCell}</td><td>${esc(p.experience||0)} лет</td><td>${status}</td><td style="white-space:nowrap;">${btn} <button class="btn-sm btn-outline" onclick="document.getElementById('pd${idx}').style.display=document.getElementById('pd${idx}').style.display==='none'?'table-row':'none'">Подробнее</button></td></tr>
                     <tr id="pd${idx}" style="display:none;"><td colspan="7" style="background:#FBFAFF;font-size:0.82rem;line-height:1.7;color:#374151;">${details||'<span class="muted">Профиль не заполнен — стоит запросить данные перед одобрением.</span>'}</td></tr>`;
                 }).join('') + '</tbody></table>';
             document.getElementById('content').innerHTML = panel('Психологи ('+rows.length+')','sPsych',body);
@@ -214,6 +224,16 @@
 
         async function toggleApproved(id, approved){
             const res = await apiPost('set-approved', { psychologist_id:id, approved });
+            if (res.error) return alert(res.error);
+            renderPsych();
+        }
+
+        async function setPrice(id, current){
+            const v = prompt('Стоимость сессии для этого психолога (₽):', current || '');
+            if (v === null) return;
+            const price = parseFloat(v);
+            if (isNaN(price) || price < 0) { alert('Введите корректную сумму'); return; }
+            const res = await apiPost('set-price', { psychologist_id:id, price });
             if (res.error) return alert(res.error);
             renderPsych();
         }

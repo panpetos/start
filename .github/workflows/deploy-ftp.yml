@@ -33,6 +33,7 @@ jobs:
             put chat.html;
             put login.html;
             put register.html;
+            put edit-profile.html;
             put offers.html;
             put blog.html;
             put article.html;

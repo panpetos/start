@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Настройки профиля - psytalk.pro</title>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 0;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .back-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: white;
+            text-decoration: none;
+            margin-bottom: 2rem;
+            font-weight: 500;
+            transition: opacity 0.2s;
+        }
+
+        .back-link:hover {
+            opacity: 0.8;
+        }
+
+        .card {
+            background: white;
+            border-radius: 16px;
+            padding: 2.5rem;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 2rem;
+            font-size: 2rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            color: #555;
+            font-size: 0.95rem;
+        }
+
+        input[type="text"],
+        input[type="email"],
+        input[type="tel"],
+        input[type="number"],
+        textarea {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.3s, box-shadow 0.3s;
+            font-family: inherit;
+        }
+
+        input:focus,
+        textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        input:disabled {
+            background: #f5f5f5;
+            cursor: not-allowed;
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        small {
+            display: block;
+            margin-top: 0.25rem;
+            color: #999;
+            font-size: 0.85rem;
+        }
+
+        .avatar-container {
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+        }
+
+        .avatar-preview {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+
+        .avatar-initials {
+            font-size: 2rem;
+            font-weight: 700;
+            color: white;
+        }
+
+        .avatar-image {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: none;
+        }
+
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-family: inherit;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            width: 100%;
+            padding: 1rem;
+            font-size: 1.1rem;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-outline {
+            background: white;
+            border: 2px solid #667eea;
+            color: #667eea;
+        }
+
+        .btn-outline:hover {
+            background: #667eea;
+            color: white;
+        }
+
+        .alert {
+            padding: 1rem 1.25rem;
+            border-radius: 8px;
+            margin-bottom: 1.5rem;
+            display: none;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .alert-error {
+            background: #fee;
+            color: #c00;
+            border: 1px solid #fcc;
+        }
+
+        .alert-success {
+            background: #efe;
+            color: #060;
+            border: 1px solid #cfc;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 3rem;
+        }
+
+        .loading-spinner {
+            font-size: 2rem;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .role-badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 12px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-left: 0.5rem;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <!-- Back link removed -->
+
+        <div class="card">
+            <h1>
+                Настройки профиля
+                <span class="role-badge" id="roleBadge"></span>
+            </h1>
+
+            <!-- Alert Messages -->
+            <div id="errorMessage" class="alert alert-error"></div>
+            <div id="successMessage" class="alert alert-success"></div>
+
+            <!-- Loading Indicator -->
+            <div id="loadingIndicator" class="loading">
+                <div class="loading-spinner">⏳</div>
+                <p style="color: #666; margin-top: 1rem;">Загрузка данных профиля...</p>
+            </div>
+
+            <!-- Client Form -->
+            <div id="clientForm" class="hidden">
+                <div class="form-group">
+                    <label>Имя</label>
+                    <input type="text" id="firstName" placeholder="Ваше имя">
+                </div>
+
+                <div class="form-group">
+                    <label>Фамилия</label>
+                    <input type="text" id="lastName" placeholder="Ваша фамилия">
+                </div>
+
+                <div class="form-group">
+                    <label>Email</label>
+                    <input type="email" id="email" disabled placeholder="email@example.com">
+                    <small>Email нельзя изменить</small>
+                </div>
+
+                <div class="form-group">
+                    <label>Телефон (необязательно)</label>
+                    <input type="tel" id="phone" placeholder="+7 (900) 123-45-67">
+                </div>
+
+                <div class="form-group">
+                    <label>Фото профиля</label>
+                    <div class="avatar-container">
+                        <div class="avatar-preview" id="avatarPreview">
+                            <span class="avatar-initials" id="avatarInitials">?</span>
+                            <img class="avatar-image" id="avatarImage">
+                        </div>
+                        <input type="file" id="avatarInput" accept="image/*" style="display: none;">
+                        <button type="button" id="uploadAvatarBtn" class="btn btn-outline">Загрузить фото</button>
+                    </div>
+                    <small>Максимальный размер: 5MB</small>
+                </div>
+
+                <button type="button" id="saveClientBtn" class="btn btn-primary">Сохранить изменения</button>
+            </div>
+
+            <!-- Psychologist Form -->
+            <div id="psychologistForm" class="hidden">
+                <div class="form-group">
+                    <label>Имя</label>
+                    <input type="text" id="psyFirstName" placeholder="Ваше имя">
+                </div>
+
+                <div class="form-group">
+                    <label>Фамилия</label>
+                    <input type="text" id="psyLastName" placeholder="Ваша фамилия">
+                </div>
+
+                <div class="form-group">
+                    <label>Email</label>
+                    <input type="email" id="psyEmail" disabled placeholder="email@example.com">
+                    <small>Email нельзя изменить</small>
+                </div>
+
+                <div class="form-group">
+                    <label>Телефон (необязательно)</label>
+                    <input type="tel" id="psyPhone" placeholder="+7 (900) 123-45-67">
+                </div>
+
+                <div class="form-group">
+                    <label>Специализация</label>
+                    <input type="text" id="specialization" placeholder="Например: Семейная психология">
+                </div>
+
+                <div class="form-group">
+                    <label>Опыт работы (лет)</label>
+                    <input type="number" id="experience" placeholder="5" min="0">
+                </div>
+
+                <div class="form-group">
+                    <label>Образование</label>
+                    <textarea id="education" rows="3" placeholder="Образование и квалификация"></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label>О себе</label>
+                    <textarea id="description" rows="5"
+                        placeholder="Расскажите о себе, вашем подходе к работе..."></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label>Стоимость сессии</label>
+                    <div id="priceInfo" style="background:#F8F6FF;border:1px solid #EDE9FF;border-radius:0.75rem;padding:0.875rem 1rem;color:#6B7280;font-size:0.9rem;line-height:1.5;">
+                        Стоимость консультаций устанавливает администрация платформы — так мы держим единые прозрачные цены. Ваша текущая ставка: <b id="priceValue">уточняется</b>.
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Фото профиля</label>
+                    <div class="avatar-container">
+                        <div class="avatar-preview" id="psyAvatarPreview">
+                            <span class="avatar-initials" id="psyAvatarInitials">?</span>
+                            <img class="avatar-image" id="psyAvatarImage">
+                        </div>
+                        <input type="file" id="psyAvatarInput" accept="image/*" style="display: none;">
+                        <button type="button" id="uploadPsyAvatarBtn" class="btn btn-outline">Загрузить фото</button>
+                    </div>
+                    <small>Максимальный размер: 5MB</small>
+                </div>
+
+                <button type="button" id="savePsychologistBtn" class="btn btn-primary">Сохранить изменения</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <!-- Scripts -->
+    <script src="/js/api.js"></script>
+    <script src="/js/auth.js"></script>
+    <script src="/js/header.js"></script>
+    <script>
+        (async function init() {
+            'use strict';
+
+            let currentUser = null;
+            const elements = {
+                loading: document.getElementById('loadingIndicator'),
+                error: document.getElementById('errorMessage'),
+                success: document.getElementById('successMessage'),
+                clientForm: document.getElementById('clientForm'),
+                psychForm: document.getElementById('psychologistForm'),
+                roleBadge: document.getElementById('roleBadge')
+            };
+
+            function showError(msg) {
+                elements.error.textContent = msg;
+                elements.error.style.display = 'block';
+                elements.success.style.display = 'none';
+                setTimeout(() => elements.error.style.display = 'none', 5000);
+            }
+
+            function showSuccess(msg) {
+                elements.success.textContent = '✅ ' + msg;
+                elements.success.style.display = 'block';
+                elements.error.style.display = 'none';
+                setTimeout(() => elements.success.style.display = 'none', 3000);
+            }
+
+            function getInitials(first, last) {
+                const f = (first || '').charAt(0).toUpperCase();
+                const l = (last || '').charAt(0).toUpperCase();
+                return (f + l) || '?';
+            }
+
+            async function loadUserData() {
+                try {
+                    if (!window.Auth || !window.Auth.getCurrentUser) {
+                        throw new Error('Auth не загружен');
+                    }
+
+                    currentUser = await window.Auth.getCurrentUser();
+
+                    if (!currentUser) {
+                        window.location.href = '/login.html';
+                        return;
+                    }
+
+                    elements.loading.style.display = 'none';
+
+                    // Set role badge
+                    const roleNames = {
+                        'client': 'КЛИЕНТ',
+                        'psychologist': 'ПСИХОЛОГ',
+                        'admin': 'АДМИН'
+                    };
+                    elements.roleBadge.textContent = roleNames[currentUser.role] || 'КЛИЕНТ';
+
+                    if (currentUser.role === 'psychologist') {
+                        loadPsychologistForm();
+                    } else {
+                        loadClientForm();
+                    }
+
+                } catch (error) {
+                    console.error('Load error:', error);
+                    elements.loading.style.display = 'none';
+                    showError('Не удалось загрузить данные: ' + error.message);
+                }
+            }
+
+            function loadClientForm() {
+                elements.clientForm.classList.remove('hidden');
+                elements.psychForm.classList.add('hidden');
+
+                document.getElementById('firstName').value = currentUser.first_name || '';
+                document.getElementById('lastName').value = currentUser.last_name || '';
+                document.getElementById('email').value = currentUser.email || '';
+                document.getElementById('phone').value = currentUser.phone || '';
+
+                const initials = getInitials(currentUser.first_name, currentUser.last_name);
+                document.getElementById('avatarInitials').textContent = initials;
+
+                if (currentUser.avatar) {
+                    const img = document.getElementById('avatarImage');
+                    img.src = currentUser.avatar;
+                    img.style.display = 'block';
+                    document.getElementById('avatarInitials').style.display = 'none';
+                }
+            }
+
+            async function loadPsychologistForm() {
+                elements.psychForm.classList.remove('hidden');
+                elements.clientForm.classList.add('hidden');
+
+                document.getElementById('psyFirstName').value = currentUser.first_name || '';
+                document.getElementById('psyLastName').value = currentUser.last_name || '';
+                document.getElementById('psyEmail').value = currentUser.email || '';
+                document.getElementById('psyPhone').value = currentUser.phone || '';
+
+                const initials = getInitials(currentUser.first_name, currentUser.last_name);
+                document.getElementById('psyAvatarInitials').textContent = initials;
+
+                if (currentUser.avatar) {
+                    const img = document.getElementById('psyAvatarImage');
+                    img.src = currentUser.avatar;
+                    img.style.display = 'block';
+                    document.getElementById('psyAvatarInitials').style.display = 'none';
+                }
+
+                // Load psychologist profile.
+                // ВАЖНО: профиль ищем по user_id (а не по id пользователя как id психолога —
+                // из-за этого раньше данные регистрации не подтягивались).
+                try {
+                    const resp = await fetch('/api/psychologists.php?action=search', { credentials: 'include' });
+                    const all = await resp.json();
+                    const mine = Array.isArray(all)
+                        ? all.find(p => String(p.user_id) === String(currentUser.id))
+                        : null;
+                    if (mine) {
+                        document.getElementById('specialization').value = mine.specialization || '';
+                        document.getElementById('experience').value = mine.experience || '';
+                        document.getElementById('education').value = mine.education || '';
+                        document.getElementById('description').value = mine.description || '';
+                        const pv = document.getElementById('priceValue');
+                        if (pv) pv.textContent = (parseFloat(mine.price) > 0)
+                            ? (parseFloat(mine.price).toLocaleString('ru-RU') + ' ₽')
+                            : 'уточняется (назначит администратор)';
+                        window._psyId = mine.id; // пригодится при сохранении
+                    }
+                } catch (e) {
+                    console.error('Load psychologist error:', e);
+                }
+            }
+
+            // Save Client
+            document.getElementById('saveClientBtn')?.addEventListener('click', async () => {
+                const data = {
+                    firstName: document.getElementById('firstName').value,
+                    lastName: document.getElementById('lastName').value,
+                    phone: document.getElementById('phone').value
+                };
+
+                if (!data.firstName) {
+                    showError('Пожалуйста, введите имя');
+                    return;
+                }
+
+                try {
+                    // Попытка через API
+                    if (window.API && window.API.users) {
+                        // Собрать данные для отправки
+                        const updateData = {
+                            first_name: data.firstName,
+                            last_name: data.lastName,
+                            phone: data.phone
+                        };
+
+                        // Добавить avatar если он был загружен (base64)
+                        const avatarImg = document.getElementById('avatarImage');
+                        if (avatarImg && avatarImg.style.display !== 'none' && avatarImg.src.startsWith('data:')) {
+                            updateData.avatar = avatarImg.src;
+                        }
+
+                        const response = await window.API.users.update(currentUser.id, updateData);
+
+                        if (response.ok) {
+                            showSuccess('Данные успешно сохранены!');
+                            setTimeout(() => window.location.reload(), 1500);
+                        } else {
+                            throw new Error(response.error || 'API error');
+                        }
+                    } else {
+                        // Fallback: сохранить в localStorage (временно)
+                        currentUser.first_name = data.firstName;
+                        currentUser.last_name = data.lastName;
+                        currentUser.phone = data.phone;
+                        localStorage.setItem('tempUserData', JSON.stringify(currentUser));
+                        showSuccess('Данные сохранены локально (требуется загрузить api.js на сервер)');
+                    }
+                } catch (error) {
+                    console.error('Save error:', error);
+                    showError('Ошибка сохранения. Убедитесь что файлы api.js и users.php загружены на сервер.');
+                }
+            });
+
+            // Save Psychologist
+            document.getElementById('savePsychologistBtn')?.addEventListener('click', async () => {
+                const userData = {
+                    firstName: document.getElementById('psyFirstName').value,
+                    lastName: document.getElementById('psyLastName').value,
+                    phone: document.getElementById('psyPhone').value
+                };
+
+                // Цену психолог не задаёт — её назначает администратор.
+                const profileData = {
+                    specialization: document.getElementById('specialization').value,
+                    experience: parseInt(document.getElementById('experience').value) || 0,
+                    education: document.getElementById('education').value,
+                    description: document.getElementById('description').value
+                };
+
+                if (!userData.firstName) {
+                    showError('Пожалуйста, введите имя');
+                    return;
+                }
+
+                try {
+                    if (window.API && window.API.users && window.API.psychologists) {
+                        // Собрать данные пользователя
+                        const userUpdateData = {
+                            first_name: userData.firstName,
+                            last_name: userData.lastName,
+                            phone: userData.phone
+                        };
+
+                        // Добавить avatar если он был загружен (base64)
+                        const psyAvatarImg = document.getElementById('psyAvatarImage');
+                        if (psyAvatarImg && psyAvatarImg.style.display !== 'none' && psyAvatarImg.src.startsWith('data:')) {
+                            userUpdateData.avatar = psyAvatarImg.src;
+                        }
+
+                        // Сначала обновить пользователя
+                        const userResp = await window.API.users.update(currentUser.id, userUpdateData);
+
+                        // Попробовать обновить профиль психолога
+                        let profResp = await window.API.psychologists.update(profileData);
+
+                        // Если профиль не найден (404), создать его
+                        if (profResp.error && profResp.error.includes('not found')) {
+                            console.log('Profile not found, creating...');
+                            profResp = await window.API.psychologists.create(profileData);
+                        }
+
+                        // Проверка: userResp должен иметь ok=true, profResp не должен иметь error
+                        if (userResp.ok && !profResp.error) {
+                            showSuccess('Все данные успешно сохранены!');
+                            setTimeout(() => window.location.reload(), 1500);
+                        } else {
+                            throw new Error(userResp.error || profResp.error || 'API error');
+                        }
+                    } else {
+                        // Fallback
+                        showError('API не загружен. Загрузите api.js и header-init.js на сервер.');
+                    }
+                } catch (error) {
+                    console.error('Save error:', error);
+                    showError('Ошибка сохранения: ' + (error.message || 'Проверьте подключение'));
+                }
+            });
+
+            // Avatar upload for client
+            document.getElementById('uploadAvatarBtn')?.addEventListener('click', () => {
+                document.getElementById('avatarInput').click();
+            });
+
+            document.getElementById('avatarInput')?.addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    if (file.size > 5 * 1024 * 1024) {
+                        showError('Файл слишком большой. Максимум 5MB');
+                        return;
+                    }
+                    const reader = new FileReader();
+                    reader.onload = (event) => {
+                        const img = document.getElementById('avatarImage');
+                        img.src = event.target.result;
+                        img.style.display = 'block';
+                        document.getElementById('avatarInitials').style.display = 'none';
+                    };
+                    reader.readAsDataURL(file);
+                    showSuccess('Фото загружено (сохраните изменения)');
+                }
+            });
+
+            // Avatar upload for psychologist
+            document.getElementById('uploadPsyAvatarBtn')?.addEventListener('click', () => {
+                document.getElementById('psyAvatarInput').click();
+            });
+
+            document.getElementById('psyAvatarInput')?.addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    if (file.size > 5 * 1024 * 1024) {
+                        showError('Файл слишком большой. Максимум 5MB');
+                        return;
+                    }
+                    const reader = new FileReader();
+                    reader.onload = (event) => {
+                        const img = document.getElementById('psyAvatarImage');
+                        img.src = event.target.result;
+                        img.style.display = 'block';
+                        document.getElementById('psyAvatarInitials').style.display = 'none';
+                    };
+                    reader.readAsDataURL(file);
+                    showSuccess('Фото загружено (сохраните изменения)');
+                }
+            });
+
+            // Initialize
+            await loadUserData();
+
+            // Initialize Lucide icons
+            if (typeof lucide !== 'undefined') {
+                lucide.createIcons();
+            }
+        })();
+    </script>
+</body>
+
+</html>
