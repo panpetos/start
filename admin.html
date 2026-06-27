@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Админка — psytalk.pro</title>
+    <link rel="stylesheet" href="/css/styles.css">
+    <script src="/js/layout.js"></script>
+    <script src="/js/api.js"></script>
+    <script src="/js/auth.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', -apple-system, sans-serif; background: #F4F0FF; min-height: 100vh; color: #1A1A1A; }
+        .container { max-width: 1280px; margin: 0 auto; padding: 1.5rem; }
+        .page-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; flex-wrap: wrap; gap: 0.75rem; }
+        .page-head h1 { font-size: 1.6rem; letter-spacing: -0.02em; }
+        .page-head p { color: #6B7280; font-size: 0.9rem; }
+
+        .tabs { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-bottom: 1.25rem; }
+        .tab { padding: 0.55rem 1rem; border-radius: 0.7rem; border: 1px solid #E5E0F5; background: #fff; color: #4B5563; font-weight: 600; font-size: 0.875rem; cursor: pointer; font-family: inherit; transition: all 0.15s; }
+        .tab:hover { border-color: #C4B5FD; }
+        .tab.active { background: linear-gradient(135deg,#7C3AED,#9F67FA); color: #fff; border-color: transparent; box-shadow: 0 3px 10px rgba(124,58,237,0.3); }
+
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px,1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+        .stat { background: #fff; border-radius: 1rem; padding: 1.25rem; border: 1px solid #EDE9FF; box-shadow: 0 2px 10px rgba(124,58,237,0.06); }
+        .stat .v { font-size: 1.75rem; font-weight: 800; color: #7C3AED; letter-spacing: -0.02em; }
+        .stat .l { font-size: 0.8rem; color: #6B7280; margin-top: 0.2rem; }
+
+        .panel { background: #fff; border-radius: 1.1rem; border: 1px solid #EDE9FF; box-shadow: 0 2px 12px rgba(0,0,0,0.05); overflow: hidden; }
+        .panel-head { padding: 1rem 1.25rem; border-bottom: 1px solid #F0ECF8; display: flex; justify-content: space-between; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
+        .panel-head h2 { font-size: 1.05rem; }
+        .panel-head .search { padding: 0.5rem 0.85rem; border: 1.5px solid #E5E7EB; border-radius: 0.6rem; font-size: 0.85rem; font-family: inherit; outline: none; min-width: 200px; }
+        .panel-head .search:focus { border-color: #7C3AED; }
+
+        .tbl-wrap { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+        th { text-align: left; padding: 0.7rem 1rem; background: #FAFAFA; color: #6B7280; font-weight: 600; white-space: nowrap; border-bottom: 1px solid #F0F0F0; position: sticky; top: 0; }
+        td { padding: 0.7rem 1rem; border-bottom: 1px solid #F5F5F5; vertical-align: middle; }
+        tr:hover td { background: #FBFAFF; }
+        .badge { display: inline-block; padding: 0.15rem 0.6rem; border-radius: 2rem; font-size: 0.72rem; font-weight: 700; }
+        .b-green { background: #F0FDF4; color: #16A34A; border: 1px solid #BBF7D0; }
+        .b-purple { background: #F3E8FF; color: #7C3AED; border: 1px solid #E9D5FF; }
+        .b-red { background: #FFF1F2; color: #BE123C; border: 1px solid #FECDD3; }
+        .b-amber { background: #FFF8E7; color: #92400E; border: 1px solid #FCD34D; }
+        .b-gray { background: #F3F4F6; color: #6B7280; border: 1px solid #E5E7EB; }
+        .btn-sm { padding: 0.35rem 0.7rem; border-radius: 0.5rem; border: none; font-size: 0.78rem; font-weight: 600; cursor: pointer; font-family: inherit; }
+        .btn-purple { background: linear-gradient(135deg,#7C3AED,#9F67FA); color: #fff; }
+        .btn-outline { background: #fff; border: 1.5px solid #E5E7EB; color: #374151; }
+        .btn-outline:hover { border-color: #7C3AED; color: #7C3AED; }
+        .btn-red { background: #FEF2F2; color: #DC2626; border: 1px solid #FECACA; }
+        .muted { color: #9CA3AF; }
+        .loading, .empty { text-align: center; padding: 2.5rem; color: #9CA3AF; }
+        .note { background: #FFF8E7; border: 1px solid #FCD34D; color: #92400E; border-radius: 0.7rem; padding: 0.75rem 1rem; font-size: 0.83rem; margin-bottom: 1rem; line-height: 1.5; }
+
+        .timeline { padding: 0.5rem 0; }
+        .tl-item { display: flex; gap: 0.85rem; padding: 0.65rem 1.25rem; border-bottom: 1px solid #F5F5F5; align-items: flex-start; }
+        .tl-ico { width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 0.9rem; }
+        .tl-body { flex: 1; min-width: 0; }
+        .tl-sum { font-size: 0.87rem; color: #1A1A1A; }
+        .tl-ts { font-size: 0.74rem; color: #9CA3AF; margin-top: 0.1rem; }
+    </style>
+</head>
+<body>
+    <script>psyWriteHeader();</script>
+    <div class="container">
+        <div class="page-head">
+            <div>
+                <h1>Админ-панель</h1>
+                <p id="adminWho">Загрузка...</p>
+            </div>
+        </div>
+
+        <div class="tabs" id="tabs">
+            <button class="tab active" data-tab="overview" onclick="switchTab('overview')">Обзор</button>
+            <button class="tab" data-tab="users" onclick="switchTab('users')">Пользователи</button>
+            <button class="tab" data-tab="psychologists" onclick="switchTab('psychologists')">Психологи</button>
+            <button class="tab" data-tab="appointments" onclick="switchTab('appointments')">Записи</button>
+            <button class="tab" data-tab="calls" onclick="switchTab('calls')">Звонки / сессии</button>
+            <button class="tab" data-tab="payments" onclick="switchTab('payments')">Оплаты</button>
+            <button class="tab" data-tab="activity" onclick="switchTab('activity')">Журнал активности</button>
+        </div>
+
+        <div id="content"><div class="loading">Загрузка...</div></div>
+    </div>
+
+    <script>
+        const API = '/api/admin_ext.php';
+        let cache = {};
+
+        function fmtMoney(n){ return (Number(n)||0).toLocaleString('ru-RU'); }
+        function fmtDateTime(s){ if(!s) return '—'; const d=new Date(String(s).replace(' ','T')); if(isNaN(d)) return s; return d.toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'}); }
+        function fmtDur(sec){ sec=Number(sec)||0; if(!sec) return '—'; const m=Math.floor(sec/60), s=sec%60; return m+':'+String(s).padStart(2,'0'); }
+        function esc(s){ const d=document.createElement('div'); d.textContent=(s==null?'':String(s)); return d.innerHTML; }
+
+        async function apiGet(action){
+            const r = await fetch(`${API}?action=${action}`, { credentials:'include' });
+            return r.json();
+        }
+        async function apiPost(action, body){
+            const r = await fetch(`${API}?action=${action}`, { method:'POST', headers:{'Content-Type':'application/json'}, credentials:'include', body: JSON.stringify(body) });
+            return r.json();
+        }
+
+        async function init(){
+            let user = null;
+            if (window.Auth && window.Auth.getCurrentUser) { try { user = await window.Auth.getCurrentUser(); } catch(e){} }
+            if (!user) { window.location.href = '/login.html?redirect=' + encodeURIComponent('/admin.html'); return; }
+            if (user.role !== 'admin') {
+                document.getElementById('content').innerHTML = '<div class="panel"><div class="empty">⛔ Доступ только для администратора.<br>Вы вошли как «'+esc(user.role)+'».</div></div>';
+                document.getElementById('tabs').style.display = 'none';
+                document.getElementById('adminWho').textContent = '';
+                return;
+            }
+            document.getElementById('adminWho').textContent = 'Вы вошли как администратор: ' + ((user.first_name||'')+' '+(user.last_name||'')).trim();
+            switchTab('overview');
+        }
+
+        function switchTab(tab){
+            document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab===tab));
+            const el = document.getElementById('content');
+            el.innerHTML = '<div class="loading">Загрузка...</div>';
+            ({ overview:renderOverview, users:renderUsers, psychologists:renderPsych, appointments:renderAppointments, calls:renderCalls, payments:renderPayments, activity:renderActivity }[tab])();
+        }
+
+        async function renderOverview(){
+            const res = await apiGet('overview');
+            if (!res.ok) return fail();
+            const d = res.data;
+            const cards = [
+                ['Пользователей', d.users_total], ['Клиентов', d.clients], ['Психологов', d.psychologists],
+                ['На модерации', d.psy_pending], ['Записей всего', d.appointments_total],
+                ['Запланировано', d.appt_scheduled], ['Завершено', d.appt_completed], ['Отменено', d.appt_cancelled],
+                ['Успешных оплат', d.payments_total], ['Выручка всего, ₽', fmtMoney(d.revenue_total)],
+                ['Выручка за месяц, ₽', fmtMoney(d.revenue_month)], ['Звонков', d.calls_total],
+                ['Среднее время звонка', fmtDur(d.avg_call_sec)],
+            ];
+            document.getElementById('content').innerHTML =
+                '<div class="stats-grid">' + cards.map(c => `<div class="stat"><div class="v">${esc(c[1])}</div><div class="l">${esc(c[0])}</div></div>`).join('') + '</div>' +
+                '<div class="note">📊 Сводка по реальным данным БД. Раздел «Журнал активности» собирает события (регистрации, записи, оплаты, звонки) в единую ленту — это аудит на основе данных. Детальный аудит действий (входы, правки полей) требует логирующих хуков в бэкенде — добавлю, когда дашь доступ к серверной части.</div>';
+        }
+
+        function tableSearch(id){
+            const q = document.getElementById(id).value.toLowerCase();
+            document.querySelectorAll('#dataTable tbody tr').forEach(tr => {
+                tr.style.display = tr.textContent.toLowerCase().includes(q) ? '' : 'none';
+            });
+        }
+
+        function panel(title, searchId, bodyHtml){
+            return `<div class="panel">
+                <div class="panel-head"><h2>${title}</h2>
+                  <input class="search" id="${searchId}" placeholder="Поиск..." oninput="tableSearch('${searchId}')"></div>
+                <div class="tbl-wrap">${bodyHtml}</div></div>`;
+        }
+
+        async function renderUsers(){
+            const res = await apiGet('users');
+            if (!res.ok) return fail();
+            const rows = res.data || [];
+            if (!rows.length) return empty('Нет пользователей');
+            const body = `<table id="dataTable"><thead><tr>
+                <th>Имя</th><th>Email</th><th>Роль</th><th>Статус</th><th>Регистрация</th><th>Действия</th></tr></thead><tbody>` +
+                rows.map(u => {
+                    const name = ((u.first_name||'')+' '+(u.last_name||'')).trim() || '—';
+                    const role = u.role==='admin'?'<span class="badge b-purple">админ</span>':u.role==='psychologist'?'<span class="badge b-green">психолог</span>':'<span class="badge b-gray">клиент</span>';
+                    const frozen = String(u.is_frozen)==='1';
+                    const status = frozen?'<span class="badge b-red">заморожен</span>':'<span class="badge b-green">активен</span>';
+                    const btn = frozen
+                        ? `<button class="btn-sm btn-outline" onclick="toggleFrozen('${esc(u.id)}',0)">Разморозить</button>`
+                        : `<button class="btn-sm btn-red" onclick="toggleFrozen('${esc(u.id)}',1)">Заморозить</button>`;
+                    return `<tr><td>${esc(name)}</td><td>${esc(u.email||'—')}</td><td>${role}</td><td>${status}</td><td class="muted">${fmtDateTime(u.created_at)}</td><td>${u.role!=='admin'?btn:''}</td></tr>`;
+                }).join('') + '</tbody></table>';
+            document.getElementById('content').innerHTML = panel('Пользователи ('+rows.length+')','sUsers',body);
+        }
+
+        async function toggleFrozen(id, frozen){
+            const res = await apiPost('set-frozen', { user_id:id, frozen });
+            if (res.error) return alert(res.error);
+            renderUsers();
+        }
+
+        async function renderPsych(){
+            const res = await apiGet('psychologists');
+            if (!res.ok) return fail();
+            const rows = res.data || [];
+            if (!rows.length) return empty('Нет психологов');
+            const body = `<table id="dataTable"><thead><tr>
+                <th>Имя</th><th>Email</th><th>Специализация</th><th>Цена</th><th>Рейтинг</th><th>Статус</th><th>Действия</th></tr></thead><tbody>` +
+                rows.map(p => {
+                    const approved = String(p.is_approved)==='1';
+                    const status = approved?'<span class="badge b-green">одобрен</span>':'<span class="badge b-amber">на модерации</span>';
+                    const btn = approved
+                        ? `<button class="btn-sm btn-outline" onclick="toggleApproved('${esc(p.id)}',0)">Снять</button>`
+                        : `<button class="btn-sm btn-purple" onclick="toggleApproved('${esc(p.id)}',1)">Одобрить</button>`;
+                    return `<tr><td>${esc(p.name||'—')}</td><td>${esc(p.email||'—')}</td><td>${esc(p.specialization||'—')}</td><td>${fmtMoney(p.price)} ₽</td><td>${esc(p.rating||'0')} (${esc(p.total_reviews||0)})</td><td>${status}</td><td>${btn}</td></tr>`;
+                }).join('') + '</tbody></table>';
+            document.getElementById('content').innerHTML = panel('Психологи ('+rows.length+')','sPsych',body);
+        }
+
+        async function toggleApproved(id, approved){
+            const res = await apiPost('set-approved', { psychologist_id:id, approved });
+            if (res.error) return alert(res.error);
+            renderPsych();
+        }
+
+        async function renderAppointments(){
+            const res = await apiGet('appointments');
+            if (!res.ok) return fail();
+            const rows = res.data || [];
+            if (!rows.length) return empty('Нет записей');
+            const stMap = { scheduled:['b-purple','запланировано'], completed:['b-green','завершено'], cancelled:['b-red','отменено'] };
+            const body = `<table id="dataTable"><thead><tr>
+                <th>Дата/время</th><th>Клиент</th><th>Психолог</th><th>Формат</th><th>Цена</th><th>Статус</th></tr></thead><tbody>` +
+                rows.map(a => {
+                    const s = stMap[a.status] || ['b-gray', a.status||'—'];
+                    return `<tr><td>${fmtDateTime(a.date_time)}</td><td>${esc(a.client_name||'—')}</td><td>${esc(a.psychologist_name||'—')}</td><td>${esc(a.format||'—')}</td><td>${fmtMoney(a.price)} ₽</td><td><span class="badge ${s[0]}">${esc(s[1])}</span></td></tr>`;
+                }).join('') + '</tbody></table>';
+            document.getElementById('content').innerHTML = panel('Записи ('+rows.length+')','sAppt',body);
+        }
+
+        async function renderCalls(){
+            const res = await apiGet('calls');
+            if (!res.ok) return fail();
+            const rows = res.data || [];
+            if (!rows.length) return empty('Звонков пока нет (появятся после первых сессий)');
+            const body = `<table id="dataTable"><thead><tr>
+                <th>Время</th><th>От кого</th><th>Кому</th><th>Длительность</th><th>Статус</th></tr></thead><tbody>` +
+                rows.map(c => {
+                    const dur = c.duration ?? c.duration_sec ?? c.seconds ?? c.length;
+                    const st = c.status ? `<span class="badge b-gray">${esc(c.status)}</span>` : '';
+                    return `<tr><td>${fmtDateTime(c.created_at||c.started_at||c.start_time)}</td><td>${esc(c.from_name||'—')}</td><td>${esc(c.to_name||'—')}</td><td>${fmtDur(dur)}</td><td>${st}</td></tr>`;
+                }).join('') + '</tbody></table>';
+            document.getElementById('content').innerHTML = panel('Звонки / сессии ('+rows.length+')','sCalls',body);
+        }
+
+        async function renderPayments(){
+            const res = await apiGet('payments');
+            if (!res.ok) return fail();
+            const rows = res.data || [];
+            if (!rows.length) return empty('Оплат пока нет');
+            const body = `<table id="dataTable"><thead><tr>
+                <th>Дата</th><th>Клиент</th><th>Психолог</th><th>Сумма</th><th>Статус</th></tr></thead><tbody>` +
+                rows.map(p => {
+                    const ok = p.status==='success';
+                    const st = ok?'<span class="badge b-green">успешно</span>':`<span class="badge b-amber">${esc(p.status||'—')}</span>`;
+                    return `<tr><td>${fmtDateTime(p.paid_at||p.created_at)}</td><td>${esc(p.client_name||'—')}</td><td>${esc(p.psychologist_name||'—')}</td><td><b>${fmtMoney(p.amount)} ₽</b></td><td>${st}</td></tr>`;
+                }).join('') + '</tbody></table>';
+            document.getElementById('content').innerHTML = panel('Оплаты ('+rows.length+')','sPay',body);
+        }
+
+        async function renderActivity(){
+            const res = await apiGet('activity');
+            if (!res.ok) return fail();
+            const rows = res.data || [];
+            if (!rows.length) return empty('Событий пока нет');
+            const ico = { register:['👤','#F3E8FF'], appointment:['📅','#EFF6FF'], payment:['💳','#F0FDF4'], call:['📹','#FFF1F2'] };
+            const items = rows.map(e => {
+                const i = ico[e.type] || ['•','#F3F4F6'];
+                return `<div class="tl-item"><div class="tl-ico" style="background:${i[1]}">${i[0]}</div>
+                    <div class="tl-body"><div class="tl-sum">${esc(e.summary)}</div><div class="tl-ts">${fmtDateTime(e.ts)}</div></div></div>`;
+            }).join('');
+            document.getElementById('content').innerHTML =
+                '<div class="note">🧾 Журнал собран из реальных событий системы (регистрации, записи, оплаты, звонки). Это аудит на основе данных. Для детального аудита (входы, изменения профилей, действия админа) нужны логирующие хуки в бэкенде — подключу при доступе к серверной части.</div>' +
+                `<div class="panel"><div class="timeline">${items}</div></div>`;
+        }
+
+        function fail(){ document.getElementById('content').innerHTML = '<div class="panel"><div class="empty">Не удалось загрузить данные. Проверьте, что вы вошли как администратор.</div></div>'; }
+        function empty(msg){ document.getElementById('content').innerHTML = '<div class="panel"><div class="empty">'+esc(msg)+'</div></div>'; }
+
+        try { if (window.lucide) lucide.createIcons(); } catch(e){}
+        init();
+    </script>
+</body>
+</html>

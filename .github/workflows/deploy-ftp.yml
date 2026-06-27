@@ -35,6 +35,8 @@ jobs:
             put login.html;
             put offers.html;
             put blog.html;
+            put admin.html;
+            put api/admin_ext.php;
             put consultation.html;
             put consent.html;
             put offer.html;
