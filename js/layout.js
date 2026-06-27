@@ -58,8 +58,15 @@
         '<a href="/offer.html">Публичная оферта</a>' +
         '<a href="/privacy.html">Конфиденциальность</a>' +
         '<a href="/refund.html">Возврат средств</a>' +
+        '<a href="/payment-info.html">Оплата и безопасность</a>' +
         '<a href="/consent.html">Согласие на обработку ПД</a>' +
         '<a href="/">Главная</a>' +
+      '</p>' +
+      '<p style="margin-top:10px;display:flex;gap:8px;justify-content:center;align-items:center;flex-wrap:wrap;">' +
+        '<span style="font-size:0.75rem;color:#aaa;">Принимаем к оплате:</span>' +
+        '<span style="background:#fff;border:1px solid #e5e5e5;border-radius:4px;padding:2px 8px;font-size:0.72rem;font-weight:700;color:#0066b3;">Мир</span>' +
+        '<span style="background:#fff;border:1px solid #e5e5e5;border-radius:4px;padding:2px 8px;font-size:0.72rem;font-weight:700;color:#1a1f71;">VISA</span>' +
+        '<span style="background:#fff;border:1px solid #e5e5e5;border-radius:4px;padding:2px 8px;font-size:0.72rem;font-weight:700;color:#eb001b;">Mastercard</span>' +
       '</p>' +
     '</footer>';
 
@@ -158,7 +165,7 @@
   function onReady() {
     fillPlaceholders();
     wireBurger();
-    showDevNotice();
+    // showDevNotice(); — отключено: оверлей «сайт в разработке» мешает проверке эквайринга
     showConsentBanner();
     if (window.lucide && lucide.createIcons) lucide.createIcons();
     setTimeout(updateLoginCircle, 500);

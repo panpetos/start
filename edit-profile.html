@@ -5,6 +5,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Настройки профиля - psytalk.pro</title>
+    <link rel="stylesheet" href="/css/styles.css">
+    <script src="/js/layout.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
         * {
@@ -18,6 +20,7 @@
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
             padding: 0;
+            padding-top: 84px;
         }
 
         .container {
@@ -236,8 +239,9 @@
 </head>
 
 <body>
+    <script>psyWriteHeader();</script>
     <div class="container">
-        <!-- Back link removed -->
+        <a href="#" id="backToDash" style="display:inline-flex;align-items:center;gap:0.4rem;color:#fff;text-decoration:none;font-weight:600;margin-bottom:1rem;opacity:0.95;">← В личный кабинет</a>
 
         <div class="card">
             <h1>
@@ -424,6 +428,14 @@
                         'admin': 'АДМИН'
                     };
                     elements.roleBadge.textContent = roleNames[currentUser.role] || 'КЛИЕНТ';
+
+                    // Ссылка «назад» ведёт в нужный кабинет
+                    const backLink = document.getElementById('backToDash');
+                    if (backLink) {
+                        backLink.href = currentUser.role === 'psychologist' ? '/psychologist-dashboard.html'
+                            : currentUser.role === 'admin' ? '/dashboard-admin.html'
+                            : '/client-dashboard.html';
+                    }
 
                     if (currentUser.role === 'psychologist') {
                         loadPsychologistForm();
