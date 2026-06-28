@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Моё расписание — psytalk.pro</title>
+    <link rel="stylesheet" href="/css/styles.css">
+    <script src="/js/layout.js"></script>
+    <script src="/js/api.js"></script>
+    <script src="/js/auth.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', -apple-system, sans-serif; background: #F4F0FF; min-height: 100vh; color: #1A1A1A; padding-top: 84px; }
+        .container { max-width: 1000px; margin: 0 auto; padding: 1.5rem; }
+        .head { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 0.5rem; }
+        h1 { font-size: 1.6rem; letter-spacing: -0.02em; }
+        .sub { color: #6B7280; margin-bottom: 1.5rem; }
+        .panel { background: #fff; border-radius: 1.1rem; border: 1px solid #EDE9FF; box-shadow: 0 2px 12px rgba(124,58,237,0.06); padding: 1.5rem; }
+        .grid-wrap { overflow-x: auto; }
+        table { border-collapse: collapse; width: 100%; min-width: 640px; }
+        th, td { text-align: center; padding: 0.3rem; }
+        th { font-size: 0.8rem; color: #6B7280; font-weight: 600; }
+        td.time { color: #6B7280; font-size: 0.8rem; font-weight: 600; white-space: nowrap; text-align: right; padding-right: 0.6rem; }
+        .cell { width: 100%; height: 34px; border-radius: 0.5rem; border: 1.5px solid #E5E7EB; background: #fff; cursor: pointer; transition: all 0.1s; }
+        .cell:hover { border-color: #C4B5FD; }
+        .cell.on { background: linear-gradient(135deg,#7C3AED,#9F67FA); border-color: transparent; }
+        .day-toggle { font-size: 0.72rem; color: #7C3AED; cursor: pointer; display: block; margin-top: 2px; }
+        .actions { display: flex; gap: 0.75rem; margin-top: 1.5rem; align-items: center; flex-wrap: wrap; }
+        .btn-save { padding: 0.8rem 2rem; border: none; border-radius: 0.75rem; background: linear-gradient(135deg,#7C3AED,#9F67FA); color: #fff; font-weight: 700; cursor: pointer; font-family: inherit; box-shadow: 0 4px 14px rgba(124,58,237,0.35); }
+        .btn-back { padding: 0.8rem 1.5rem; border: 1.5px solid #E5E7EB; border-radius: 0.75rem; background: #fff; color: #374151; font-weight: 600; text-decoration: none; }
+        .saved { color: #16A34A; font-weight: 600; display: none; }
+        .hint { background: #F8F6FF; border: 1px solid #EDE9FF; border-radius: 0.75rem; padding: 0.875rem 1rem; color: #6B7280; font-size: 0.875rem; margin-bottom: 1.25rem; line-height: 1.5; }
+    </style>
+</head>
+<body>
+    <script>psyWriteHeader();</script>
+    <div class="container">
+        <div class="head">
+            <div><h1>Моё расписание</h1></div>
+            <a href="/psychologist-dashboard.html" class="btn-back">← В кабинет</a>
+        </div>
+        <p class="sub">Отметьте дни и часы, когда вы доступны для онлайн-консультаций. Клиенты увидят только эти окна при записи.</p>
+        <div class="hint">💡 Нажимайте на клетки, чтобы включить/выключить слот. Можно включить весь день кнопкой «всё» под названием дня. Не забудьте сохранить.</div>
+        <div class="panel">
+            <div class="grid-wrap"><table id="grid"></table></div>
+            <div class="actions">
+                <button class="btn-save" onclick="saveSchedule()">Сохранить расписание</button>
+                <span class="saved" id="savedMsg">✓ Сохранено</span>
+            </div>
+        </div>
+    </div>
+    <script>
+        const DAYS = [['mon','Пн'],['tue','Вт'],['wed','Ср'],['thu','Чт'],['fri','Пт'],['sat','Сб'],['sun','Вс']];
+        const TIMES = ['09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00','20:00','21:00'];
+        let state = {}; DAYS.forEach(d => state[d[0]] = new Set());
+
+        function buildGrid() {
+            let html = '<tr><th></th>' + DAYS.map(d =>
+                `<th>${d[1]}<span class="day-toggle" onclick="toggleDay('${d[0]}')">всё</span></th>`).join('') + '</tr>';
+            TIMES.forEach(t => {
+                html += `<tr><td class="time">${t}</td>` + DAYS.map(d =>
+                    `<td><button class="cell" data-d="${d[0]}" data-t="${t}" onclick="toggleCell('${d[0]}','${t}',this)"></button></td>`).join('') + '</tr>';
+            });
+            document.getElementById('grid').innerHTML = html;
+            refresh();
+        }
+        function toggleCell(d, t, el) {
+            if (state[d].has(t)) state[d].delete(t); else state[d].add(t);
+            el.classList.toggle('on', state[d].has(t));
+        }
+        function toggleDay(d) {
+            const allOn = TIMES.every(t => state[d].has(t));
+            state[d] = new Set(allOn ? [] : TIMES);
+            refresh();
+        }
+        function refresh() {
+            document.querySelectorAll('.cell').forEach(el => {
+                el.classList.toggle('on', state[el.dataset.d].has(el.dataset.t));
+            });
+        }
+        function toObj() { const o = {}; DAYS.forEach(d => o[d[0]] = Array.from(state[d[0]]).sort()); return o; }
+
+        async function saveSchedule() {
+            try {
+                const r = await fetch('/api/schedule.php?action=save', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+                    body: JSON.stringify({ slots: toObj() })
+                });
+                const d = await r.json();
+                if (d.ok) { const m = document.getElementById('savedMsg'); m.style.display = 'inline'; setTimeout(()=>m.style.display='none', 2500); }
+                else alert(d.error || 'Не удалось сохранить');
+            } catch (e) { alert('Ошибка соединения'); }
+        }
+
+        async function init() {
+            let user = null;
+            if (window.Auth && window.Auth.getCurrentUser) { try { user = await window.Auth.getCurrentUser(); } catch(e){} }
+            if (!user) { window.location.href = '/login.html?redirect=' + encodeURIComponent('/schedule.html'); return; }
+            if (user.role !== 'psychologist') { window.location.href = '/client-dashboard.html'; return; }
+            buildGrid();
+            try {
+                const r = await fetch('/api/schedule.php?action=mine', { credentials: 'include' });
+                const d = await r.json();
+                if (d.ok && d.slots) {
+                    DAYS.forEach(dd => { (d.slots[dd[0]] || []).forEach(t => state[dd[0]].add(t)); });
+                    refresh();
+                }
+            } catch (e) {}
+        }
+        init();
+    </script>
+</body>
+</html>

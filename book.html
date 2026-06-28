@@ -137,6 +137,7 @@
 
     /* psych заполняется после загрузки реальных данных */
     var psych = null;
+    var psychSchedule = null; // недельное расписание психолога (или null, если не задано)
 
     /* ---- State ---- */
     var selectedDate = null;
@@ -147,18 +148,19 @@
     calYear  = now.getFullYear();
     calMonth = now.getMonth();
 
-    /* Seeded pseudo-random busy slots per psychologist */
-    function isBusy(dateStr, time) {
-      var seed = (psych.id * 31 + dateStr.charCodeAt(0) * 7 + parseInt(time) * 13) % 5;
-      return seed === 0 || seed === 2;
-    }
-
     var ALL_SLOTS = ['09:00','10:00','11:00','13:00','14:00','15:00','16:00','18:00','19:00','20:00'];
+    var WEEKDAY_KEYS = ['sun','mon','tue','wed','thu','fri','sat'];
 
     function getSlots(dateStr) {
-      return ALL_SLOTS.map(function(t) {
-        return { time: t, busy: isBusy(dateStr, t) };
-      });
+      // Если психолог задал расписание — показываем только его окна на этот день недели.
+      if (psychSchedule) {
+        var d = new Date(dateStr + 'T12:00:00');
+        var key = WEEKDAY_KEYS[d.getDay()];
+        var times = (psychSchedule[key] || []).slice().sort();
+        return times.map(function(t) { return { time: t, busy: false }; });
+      }
+      // Нет расписания — дефолтные окна (старое поведение для незаполненных профилей).
+      return ALL_SLOTS.map(function(t) { return { time: t, busy: false }; });
     }
 
     function toISO(dateStr, time) {
@@ -330,6 +332,11 @@
       label.textContent = formatDate(selectedDate);
 
       var slots = getSlots(selectedDate);
+      if (!slots.length) {
+        grid.innerHTML = '<div style="color:#9CA3AF;padding:0.5rem 0;">В этот день у специалиста нет свободных окон. Выберите другой день.</div>';
+        updateConfirmBar();
+        return;
+      }
       var html = slots.map(function(s) {
         var cls = 'slot-btn' + (s.busy ? ' busy' : '') + (s.time === selectedTime ? ' selected' : '');
         return '<button class="' + cls + '" data-time="' + s.time + '"' + (s.busy ? ' disabled' : '') + '>' + s.time + '</button>';
@@ -380,8 +387,12 @@
         .then(function(data) {
           if (!data || data.error || !data.id) { showLoadError(); return; }
           psych = normalizePsych(data);
-          buildPage();
-          checkSelfBooking();
+          // Подгружаем расписание психолога (если задано) — затем строим страницу.
+          fetch('/api/schedule.php?action=get&psychologist_id=' + encodeURIComponent(psych.id), { credentials: 'include' })
+            .then(function(r) { return r.ok ? r.json() : null; })
+            .then(function(s) { if (s && s.ok && s.slots) psychSchedule = s.slots; })
+            .catch(function() {})
+            .finally(function() { buildPage(); checkSelfBooking(); });
         })
         .catch(function() { showLoadError(); });
     })();
