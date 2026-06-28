@@ -708,6 +708,20 @@
         </div>
     </div>
 
+    <!-- Notes drawer (psychologist only) -->
+    <div id="notesDrawer" style="display:none;position:fixed;top:0;right:0;bottom:0;width:380px;max-width:90vw;background:#fff;box-shadow:-8px 0 30px rgba(0,0,0,0.18);z-index:1100;flex-direction:column;">
+        <div style="padding:1rem 1.25rem;background:linear-gradient(135deg,#0EA5E9,#0284C7);color:#fff;display:flex;align-items:center;justify-content:space-between;">
+            <div><div style="font-weight:700;">📝 Заметки по клиенту</div><div style="font-size:0.78rem;opacity:0.9;" id="notesClientName"></div></div>
+            <button onclick="closeNotes()" style="background:rgba(255,255,255,0.2);border:none;color:#fff;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:1.1rem;">✕</button>
+        </div>
+        <div style="padding:0.875rem 1rem;border-bottom:1px solid #eee;">
+            <textarea id="noteText" placeholder="Заметка по сессии, наблюдения, план работы... (видите только вы)" style="width:100%;height:90px;border:1.5px solid #E5E7EB;border-radius:0.625rem;padding:0.625rem;font-family:inherit;font-size:0.875rem;resize:vertical;outline:none;"></textarea>
+            <button onclick="addNote()" style="margin-top:0.5rem;width:100%;padding:0.625rem;background:linear-gradient(135deg,#7C3AED,#9F67FA);color:#fff;border:none;border-radius:0.625rem;font-weight:700;cursor:pointer;font-family:inherit;">Сохранить заметку</button>
+        </div>
+        <div id="notesList" style="flex:1;overflow-y:auto;padding:0.5rem 1rem 2rem;"></div>
+        <div style="padding:0.5rem 1rem;font-size:0.72rem;color:#9CA3AF;border-top:1px solid #eee;">🔒 Заметки приватны — клиент их не видит.</div>
+    </div>
+
     <script src="/js/api.js"></script>
     <script src="/js/auth.js"></script>
     <script src="/js/header.js"></script>
@@ -737,6 +751,9 @@
             const videoBtn = isPsy
                 ? `<button onclick="startVideoCall()" class="video-call-btn" title="Создать видеовстречу в Телемост">📹</button>`
                 : '';
+            const notesBtn = isPsy
+                ? `<button onclick="openNotes()" class="session-btn" style="background:#0EA5E9;" title="Приватные заметки по клиенту">📝 Заметки</button>`
+                : '';
             return `
                 <button class="chat-back-btn" onclick="goBackToList()" title="Назад к диалогам">←</button>
                 <div class="avatar">${other.avatar ? `<img src="${other.avatar}" alt="${name}">` : name.charAt(0)}</div>
@@ -745,6 +762,7 @@
                     <div class="role">${roleText}</div>
                 </div>
                 ${sessionBtn}
+                ${notesBtn}
                 ${videoBtn}
                 <a href="${getDashboardUrl()}" class="dashboard-btn" title="Личный кабинет">
                     <i data-lucide="layout-grid" style="width: 20px; height: 20px;"></i>
@@ -780,6 +798,59 @@
         async function toggleSession() {
             if (sessionCallId) await endSession();
             else await startSession();
+        }
+
+        // ── Приватные заметки по клиенту (только у психолога) ──
+        function escNote(s){ const d=document.createElement('div'); d.textContent=(s==null?'':String(s)); return d.innerHTML; }
+        async function openNotes() {
+            if (!selectedUserId) return;
+            document.getElementById('notesDrawer').style.display = 'flex';
+            const nm = document.getElementById('notesClientName');
+            const hdrName = document.querySelector('#chatHeader .name');
+            if (nm) nm.textContent = hdrName ? hdrName.textContent : '';
+            await loadNotes();
+        }
+        function closeNotes() { document.getElementById('notesDrawer').style.display = 'none'; }
+        async function loadNotes() {
+            const list = document.getElementById('notesList');
+            list.innerHTML = '<div style="color:#9CA3AF;text-align:center;padding:1rem;">Загрузка...</div>';
+            try {
+                const r = await fetch('/api/notes.php?action=list&about=' + encodeURIComponent(selectedUserId), { credentials: 'include' });
+                const d = await r.json();
+                const rows = (d && d.data) || [];
+                if (!rows.length) { list.innerHTML = '<div style="color:#9CA3AF;text-align:center;padding:1.5rem;">Заметок пока нет</div>'; return; }
+                list.innerHTML = rows.map(n => `
+                    <div style="background:#F8FAFC;border:1px solid #EEF2F7;border-radius:0.625rem;padding:0.7rem 0.8rem;margin-bottom:0.6rem;">
+                        <div style="white-space:pre-wrap;font-size:0.875rem;color:#1A1A1A;line-height:1.5;">${escNote(n.text)}</div>
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:0.4rem;">
+                            <span style="font-size:0.72rem;color:#9CA3AF;">${formatTime(n.created_at)}</span>
+                            <button onclick="deleteNote(${n.id})" style="background:none;border:none;color:#EF4444;cursor:pointer;font-size:0.75rem;">Удалить</button>
+                        </div>
+                    </div>`).join('');
+            } catch (e) { list.innerHTML = '<div style="color:#EF4444;text-align:center;padding:1rem;">Ошибка загрузки</div>'; }
+        }
+        async function addNote() {
+            const ta = document.getElementById('noteText');
+            const text = ta.value.trim();
+            if (!text || !selectedUserId) return;
+            ta.value = '';
+            try {
+                await fetch('/api/notes.php?action=add', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+                    body: JSON.stringify({ about: selectedUserId, text })
+                });
+                await loadNotes();
+            } catch (e) { alert('Не удалось сохранить заметку'); ta.value = text; }
+        }
+        async function deleteNote(id) {
+            if (!confirm('Удалить заметку?')) return;
+            try {
+                await fetch('/api/notes.php?action=delete', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+                    body: JSON.stringify({ id })
+                });
+                await loadNotes();
+            } catch (e) {}
         }
 
         async function startSession() {

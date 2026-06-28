@@ -50,6 +50,7 @@ jobs:
             put api/admin_ext.php -o api/admin_ext.php;
             put api/subscribe.php -o api/subscribe.php;
             put api/my_profile.php -o api/my_profile.php;
+            put api/notes.php -o api/notes.php;
             put api/payment_mock.php -o api/payment_mock.php;
             bye;
           "
