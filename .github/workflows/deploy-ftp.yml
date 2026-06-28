@@ -45,6 +45,7 @@ jobs:
             put privacy.html;
             put refund.html;
             put js/layout.js -o js/layout.js;
+            put js/auth.js -o js/auth.js;
             put js/articles.js -o js/articles.js;
             put api/admin_ext.php -o api/admin_ext.php;
             put api/subscribe.php -o api/subscribe.php;

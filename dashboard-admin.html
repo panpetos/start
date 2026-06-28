@@ -70,6 +70,7 @@
                 <h1>Админ-панель</h1>
                 <p id="adminWho">Загрузка...</p>
             </div>
+            <button class="btn-sm btn-outline" onclick="psyLogout()" style="padding:0.5rem 1rem;">Выйти →</button>
         </div>
 
         <div class="tabs" id="tabs">
@@ -104,6 +105,16 @@
             const r = await fetch(`${API}?action=${action}`, { method:'POST', headers:{'Content-Type':'application/json'}, credentials:'include', body: JSON.stringify(body) });
             return r.json();
         }
+
+        async function psyLogout(){
+            try { sessionStorage.removeItem('psy_user'); } catch(e) {}
+            try {
+                if (window.Auth && window.Auth.logout) { await window.Auth.logout(); return; }
+                await fetch('/api/auth.php?action=logout', { method: 'POST', credentials: 'include' });
+            } catch (e) {}
+            window.location.href = '/';
+        }
+        window.psyLogout = psyLogout;
 
         async function init(){
             let user = null;

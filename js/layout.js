@@ -39,9 +39,12 @@
     return '<li><a href="' + l.href + '" class="nav-link"' + st + '>' + l.text + '</a></li>';
   }).join('') + loginCircle;
 
+  // ВАЖНО: не используем класс .container внутри шапки — многие страницы
+  // переопределяют .container (свой max-width/padding), из-за чего меню «плясало».
+  // Здесь фиксированная обёртка с инлайн-стилями — одинаково на всех страницах.
   var headerHtml =
     '<nav class="nav" style="background:#fff;border-bottom:1px solid #F0F0F0;">' +
-      '<div class="container"><div class="nav-container">' +
+      '<div style="max-width:1200px;margin:0 auto;padding:0 1.5rem;width:100%;"><div class="nav-container">' +
         '<a href="/" class="nav-brand" style="font-size:1.25rem;font-weight:600;word-spacing:0;letter-spacing:0;">' +
           '<span style="color:#1A1A1A;">psy</span><span style="color:#7C3AED;font-style:italic;">talk.pro</span>' +
         '</a>' +
@@ -128,21 +131,34 @@
     });
   }
 
+  function dashUrlFor(user) {
+    if (!user) return '/login.html';
+    if (user.role === 'psychologist') return '/psychologist-dashboard.html';
+    if (user.role === 'admin') return '/dashboard-admin.html';
+    return '/client-dashboard.html';
+  }
+
+  function applyLoggedInCircle(user) {
+    var circle = document.getElementById('psyLoginCircle');
+    if (!circle || !user) return;
+    circle.href = dashUrlFor(user);
+    circle.title = (user.first_name || 'Кабинет');
+    circle.style.background = 'linear-gradient(135deg,#7C3AED,#9F67FA)';
+  }
+
   function updateLoginCircle() {
+    // 1) Мгновенно из кэша — чтобы клик по «ЛК» сразу вёл в кабинет, а не на вход.
+    try {
+      var c = sessionStorage.getItem('psy_user');
+      if (c) applyLoggedInCircle(JSON.parse(c));
+    } catch (e) {}
+    // 2) Затем валидируем в фоне.
     if (!window.Auth || !window.Auth.getCurrentUser) return;
     try {
       Promise.resolve(window.Auth.getCurrentUser()).then(function(user) {
-        if (!user) return;
-        var circle = document.getElementById('psyLoginCircle');
-        if (!circle) return;
-        var url = '/client-dashboard.html';
-        if (user.role === 'psychologist') url = '/psychologist-dashboard.html';
-        else if (user.role === 'admin') url = '/dashboard-admin.html';
-        circle.href = url;
-        circle.title = (user.first_name || 'Кабинет');
-        circle.style.background = 'linear-gradient(135deg,#7C3AED,#9F67FA)';
+        if (user) applyLoggedInCircle(user);
       }).catch(function() {});
-    } catch(e) {}
+    } catch (e) {}
   }
 
   // Согласие с политикой конфиденциальности (один раз на устройство)
@@ -169,7 +185,7 @@
     // showDevNotice(); — отключено: оверлей «сайт в разработке» мешает проверке эквайринга
     showConsentBanner();
     if (window.lucide && lucide.createIcons) lucide.createIcons();
-    setTimeout(updateLoginCircle, 500);
+    updateLoginCircle();
   }
 
   if (document.readyState === 'loading') {

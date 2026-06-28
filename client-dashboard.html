@@ -106,6 +106,8 @@
                 <p>Управление записями и профилем</p>
             </div>
             <div class="user-info">
+                <a href="/edit-profile.html" class="btn btn-outline btn-small" title="Настройки профиля">⚙ Профиль</a>
+                <button class="btn btn-outline btn-small" onclick="psyLogout()" title="Выйти из аккаунта">Выйти →</button>
                 <span id="userName" style="font-weight: 600;">Загрузка...</span>
                 <div class="user-avatar" id="userAvatar">
                     <img src="" alt="" style="display: none;">
@@ -160,6 +162,16 @@
 
             const MONTHS = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня',
                 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
+
+            async function psyLogout() {
+                try { sessionStorage.removeItem('psy_user'); } catch(e) {}
+                try {
+                    if (window.Auth && window.Auth.logout) { await window.Auth.logout(); return; }
+                    await fetch('/api/auth.php?action=logout', { method: 'POST', credentials: 'include' });
+                } catch (e) {}
+                window.location.href = '/';
+            }
+            window.psyLogout = psyLogout;
 
             async function init() {
                 try {

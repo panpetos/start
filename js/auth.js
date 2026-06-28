@@ -17,6 +17,7 @@ window.Auth = {
             const response = await window.API.auth.login({ email, password });
 
             if (response.ok && response.data && response.data.user) {
+                try { sessionStorage.setItem('psy_user', JSON.stringify(response.data.user)); } catch (e) {}
                 return response.data.user;
             }
 
@@ -52,13 +53,13 @@ window.Auth = {
      * @returns {Promise<void>}
      */
     async logout() {
+        try { sessionStorage.removeItem('psy_user'); } catch (e) {}
         try {
             await window.API.auth.logout();
-            window.location.href = '/';
         } catch (error) {
             console.error('Logout error:', error);
-            throw error;
         }
+        window.location.href = '/';
     },
 
     /**
@@ -70,14 +71,24 @@ window.Auth = {
             const response = await window.API.auth.getCurrentUser();
 
             if (response.ok && response.data && response.data.user) {
+                try { sessionStorage.setItem('psy_user', JSON.stringify(response.data.user)); } catch (e) {}
                 return response.data.user;
             }
 
+            try { sessionStorage.removeItem('psy_user'); } catch (e) {}
             return null;
         } catch (error) {
             console.error('Get current user error:', error);
+            // Сетевой сбой — не выкидываем пользователя на вход, отдаём кэш.
+            try { const c = sessionStorage.getItem('psy_user'); if (c) return JSON.parse(c); } catch (e) {}
             return null;
         }
+    },
+
+    /** Синхронно вернуть кэшированного пользователя (для мгновенного рендера). */
+    getCachedUser() {
+        try { const c = sessionStorage.getItem('psy_user'); return c ? JSON.parse(c) : null; }
+        catch (e) { return null; }
     },
 
     /**

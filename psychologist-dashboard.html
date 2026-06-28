@@ -109,6 +109,10 @@
                     <i data-lucide="settings" style="width: 18px; height: 18px;"></i>
                     Настройки
                 </a>
+                <button class="btn btn-outline" onclick="psyLogout()" title="Выйти из аккаунта">
+                    <i data-lucide="log-out" style="width: 18px; height: 18px;"></i>
+                    Выйти
+                </button>
             </div>
         </div>
 
@@ -180,6 +184,16 @@
                 const note = document.getElementById('noteCommission');
                 if (note) note.textContent = PLATFORM_COMMISSION + '%';
             }
+
+            async function psyLogout() {
+                try { sessionStorage.removeItem('psy_user'); } catch(e) {}
+                try {
+                    if (window.Auth && window.Auth.logout) { await window.Auth.logout(); return; }
+                    await fetch('/api/auth.php?action=logout', { method: 'POST', credentials: 'include' });
+                } catch (e) {}
+                window.location.href = '/';
+            }
+            window.psyLogout = psyLogout;
 
             async function init() {
                 try {
