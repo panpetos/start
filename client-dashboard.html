@@ -285,7 +285,7 @@
                             <div class="appointment-actions">
                                 ${canChat ? `<a href="/chat.html?user=${a.psychologist_user_id || a.psychologist_id}" class="btn btn-small btn-outline" title="Написать психологу">💬</a>` : ''}
                                 ${canCancel ? `<button class="btn btn-small btn-danger" onclick="cancelAppointment('${a.id}')">Отменить</button>` : ''}
-                                ${canReview ? `<button class="btn btn-small btn-outline" onclick="openReview('${a.id}')">Отзыв</button>` : ''}
+                                ${canReview ? `<button class="btn btn-small btn-outline" onclick="openReview('${a.psychologist_id}')">Отзыв</button>` : ''}
                             </div>
                         </div>
                     `;
@@ -323,8 +323,9 @@
                 }
             }
 
-            function openReview(appointmentId) {
-                window.location.href = `/review.html?appointment_id=${appointmentId}`;
+            function openReview(psychologistId) {
+                // Отзыв оставляется на странице психолога
+                window.location.href = `/psychologist-profile.html?id=${psychologistId}`;
             }
 
             init();

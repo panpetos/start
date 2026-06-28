@@ -662,7 +662,7 @@
         const delay = idx < 4 ? ' anim-delay-' + (idx+1) : '';
 
         return (
-          '<a href="/book.html?id=' + p.id + '" data-psych-id="' + p.id + '" style="display:grid;grid-template-columns:auto 1fr auto;gap:1.5rem;align-items:start;background:white;border-radius:1.25rem;padding:1.75rem;border:1px solid #F0F0F0;box-shadow:0 2px 8px rgba(0,0,0,0.04);text-decoration:none;color:inherit;transition:box-shadow 0.2s,transform 0.2s;cursor:pointer;" class="anim-fade-up' + delay + '" onmouseover="this.style.boxShadow=\'0 8px 32px rgba(124,58,237,0.12)\';this.style.transform=\'translateY(-2px)\'" onmouseout="this.style.boxShadow=\'0 2px 8px rgba(0,0,0,0.04)\';this.style.transform=\'\'">' +
+          '<a href="/psychologist-profile.html?id=' + p.id + '" data-psych-id="' + p.id + '" style="display:grid;grid-template-columns:auto 1fr auto;gap:1.5rem;align-items:start;background:white;border-radius:1.25rem;padding:1.75rem;border:1px solid #F0F0F0;box-shadow:0 2px 8px rgba(0,0,0,0.04);text-decoration:none;color:inherit;transition:box-shadow 0.2s,transform 0.2s;cursor:pointer;" class="anim-fade-up' + delay + '" onmouseover="this.style.boxShadow=\'0 8px 32px rgba(124,58,237,0.12)\';this.style.transform=\'translateY(-2px)\'" onmouseout="this.style.boxShadow=\'0 2px 8px rgba(0,0,0,0.04)\';this.style.transform=\'\'">' +
             '<div style="width:88px;height:88px;min-width:88px;max-width:88px;border-radius:50%;background:' + (p.color||'#7C3AED') + ';display:flex;align-items:center;justify-content:center;color:white;font-size:1.75rem;font-weight:700;border:3px solid #F3E8FF;overflow:hidden;flex-shrink:0;">' + avatarHtml + '</div>' +
             '<div style="min-width:0;">' +
               '<div style="display:flex;align-items:center;gap:0.625rem;flex-wrap:wrap;margin-bottom:0.25rem;">' +
@@ -685,7 +685,7 @@
                   ? '<div style="font-size:1.375rem;font-weight:800;color:#1A1A1A;letter-spacing:-0.02em;">' + p.price.toLocaleString('ru-RU') + ' ₽</div><div style="font-size:0.8125rem;color:#6B7280;">за сессию</div>'
                   : '<div style="font-size:1rem;font-weight:700;color:#9CA3AF;">Цена уточняется</div>') +
               '</div>' +
-              '<span style="display:inline-flex;align-items:center;justify-content:center;padding:0.625rem 1.25rem;background:linear-gradient(135deg,#7C3AED,#9F67FA);color:white;border-radius:0.75rem;font-size:0.9375rem;font-weight:600;text-decoration:none;white-space:nowrap;box-shadow:0 3px 10px rgba(124,58,237,0.3);">Записаться</span>' +
+              '<span style="display:inline-flex;align-items:center;justify-content:center;padding:0.625rem 1.25rem;background:linear-gradient(135deg,#7C3AED,#9F67FA);color:white;border-radius:0.75rem;font-size:0.9375rem;font-weight:600;text-decoration:none;white-space:nowrap;box-shadow:0 3px 10px rgba(124,58,237,0.3);">Профиль и запись →</span>' +
             '</div>' +
           '</a>'
         );

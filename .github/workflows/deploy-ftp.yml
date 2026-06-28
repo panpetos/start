@@ -40,6 +40,7 @@ jobs:
             put payment-info.html;
             put quiz.html;
             put schedule.html;
+            put psychologist-profile.html;
             put dashboard-admin.html;
             put consultation.html;
             put consent.html;
@@ -54,6 +55,7 @@ jobs:
             put api/my_profile.php -o api/my_profile.php;
             put api/notes.php -o api/notes.php;
             put api/schedule.php -o api/schedule.php;
+            put api/reviews.php -o api/reviews.php;
             put api/payment_mock.php -o api/payment_mock.php;
             bye;
           "
