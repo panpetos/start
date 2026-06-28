@@ -725,6 +725,16 @@
       const input = document.getElementById('searchInput');
       if (input) input.addEventListener('keydown', e => { if (e.key === 'Enter') applyFilters(); });
       if (window.lucide) lucide.createIcons();
+
+      /* ── Применяем параметры из квиза подбора (/quiz.html) ── */
+      const up = new URLSearchParams(location.search);
+      const q = up.get('q'), fmt = up.get('fmt'), gender = up.get('gender');
+      if (q && input) input.value = q;
+      if (gender) { const g = document.getElementById('filterGender'); if (g) g.value = gender; }
+      if (fmt === 'video') { const e = document.getElementById('fmtVideo'); if (e) e.checked = true; }
+      if (fmt === 'chat')  { const e = document.getElementById('fmtChat');  if (e) e.checked = true; }
+      if (fmt === 'phone') { const e = document.getElementById('fmtPhone'); if (e) e.checked = true; }
+
       loadPsychologists();
 
       /* ── Own-card detection for psychologists ──

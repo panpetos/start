@@ -45,13 +45,19 @@
 
           <!-- CTAs -->
           <div style="display:flex;gap:1rem;flex-wrap:wrap;margin-bottom:1.5rem;">
+            <a href="/quiz.html"
+               style="display:inline-flex;align-items:center;gap:0.625rem;padding:0.9rem 2.25rem;background:linear-gradient(135deg,#7C3AED 0%,#9F67FA 100%);color:#fff;text-decoration:none;border:none;border-radius:0.875rem;font-size:1.0625rem;font-weight:700;font-family:'Inter',-apple-system,sans-serif;box-shadow:0 4px 16px rgba(124,58,237,0.35);cursor:pointer;white-space:nowrap;transition:all 0.2s;"
+               onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 8px 24px rgba(124,58,237,0.45)'"
+               onmouseout="this.style.transform='';this.style.boxShadow='0 4px 16px rgba(124,58,237,0.35)'">
+              ✨ Подобрать за минуту
+            </a>
             <a href="/search.html"
                data-testid="button-find-psychologist"
-               style="display:inline-flex;align-items:center;gap:0.625rem;padding:0.9rem 2.25rem;background:linear-gradient(135deg,#34C759 0%,#28A745 100%);color:#fff;text-decoration:none;border:none;border-radius:0.875rem;font-size:1.0625rem;font-weight:700;font-family:'Inter',-apple-system,sans-serif;box-shadow:0 4px 16px rgba(52,199,89,0.35);cursor:pointer;white-space:nowrap;transition:all 0.2s;"
-               onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 8px 24px rgba(52,199,89,0.45)'"
-               onmouseout="this.style.transform='';this.style.boxShadow='0 4px 16px rgba(52,199,89,0.35)'">
+               style="display:inline-flex;align-items:center;gap:0.625rem;padding:0.9rem 2.25rem;background:white;color:#7C3AED;text-decoration:none;border:2px solid #7C3AED;border-radius:0.875rem;font-size:1.0625rem;font-weight:700;font-family:'Inter',-apple-system,sans-serif;cursor:pointer;white-space:nowrap;transition:all 0.2s;"
+               onmouseover="this.style.background='#FAF5FF'"
+               onmouseout="this.style.background='white'">
               <i data-lucide="search" style="width:1.125rem;height:1.125rem;"></i>
-              Найти психолога
+              Каталог психологов
             </a>
             <a href="/register.html?type=psychologist"
                data-testid="button-become-psychologist"

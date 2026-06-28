@@ -38,6 +38,7 @@ jobs:
             put blog.html;
             put article.html;
             put payment-info.html;
+            put quiz.html;
             put dashboard-admin.html;
             put consultation.html;
             put consent.html;
