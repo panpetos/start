@@ -23,6 +23,10 @@ jobs:
             set net:reconnect-interval-base 5;
             open sftp://u3105470:a9Y3yfN5Im4It0bF@31.31.197.13;
             cd /var/www/u3105470/data/www/psytalk.pro;
+            mkdir -f assets;
+            put assets/quiz-hero.jpg -o assets/quiz-hero.jpg;
+            put assets/session.mp4 -o assets/session.mp4;
+            put assets/session-poster.jpg -o assets/session-poster.jpg;
             put index.html;
             put search.html;
             put book.html;

@@ -25,18 +25,21 @@
     '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
     '<circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6"/></svg>';
 
+  // Инлайн-сброс, чтобы любые правила страниц для li/a не ломали шапку
+  var liReset = 'list-style:none;margin:0;padding:0;border:0;display:flex;align-items:center;';
+
   var loginCircle =
-    '<li style="margin-left:2rem;">' +
+    '<li style="' + liReset + 'margin-left:2rem;flex-shrink:0;">' +
       '<a id="psyLoginCircle" href="/login.html" aria-label="Личный кабинет" title="Личный кабинет" ' +
-      'style="width:40px;height:40px;border-radius:50%;background:#34C759;display:inline-flex;align-items:center;justify-content:center;text-decoration:none;transition:transform .2s;" ' +
+      'style="width:40px;height:40px;min-width:40px;border-radius:50%;background:#34C759;display:inline-flex;align-items:center;justify-content:center;text-decoration:none;border:0;transition:transform .2s;" ' +
       'onmouseover="this.style.transform=\'scale(1.05)\'" onmouseout="this.style.transform=\'scale(1)\'">' +
       personSvg +
       '</a>' +
     '</li>';
 
   var menu = links.map(function (l) {
-    var st = active(l.href) ? ' style="color:#34C759;font-weight:600;"' : '';
-    return '<li><a href="' + l.href + '" class="nav-link"' + st + '>' + l.text + '</a></li>';
+    var st = active(l.href) ? 'color:#34C759;font-weight:600;' : '';
+    return '<li style="' + liReset + '"><a href="' + l.href + '" class="nav-link" style="' + st + '">' + l.text + '</a></li>';
   }).join('') + loginCircle;
 
   // ВАЖНО: не используем класс .container внутри шапки — многие страницы

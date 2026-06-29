@@ -225,8 +225,8 @@
                         '<b>ID:</b> '+esc(p.id)
                     ].filter(Boolean).join('<br>');
                     const priceCell = (parseFloat(p.price)>0)
-                        ? `${fmtMoney(p.price)} ₽ <button class="btn-sm btn-outline" onclick="setPrice('${esc(p.id)}',${parseFloat(p.price)||0})" title="Изменить цену">✎</button>`
-                        : `<span class="badge b-amber">не задана</span> <button class="btn-sm btn-purple" onclick="setPrice('${esc(p.id)}',0)">Назначить</button>`;
+                        ? `<div style="font-weight:700;margin-bottom:0.25rem;">${fmtMoney(p.price)} ₽</div><button class="btn-sm btn-outline" onclick="setPrice('${esc(p.id)}',${parseFloat(p.price)||0})" title="Изменить цену">✎ Изменить</button>`
+                        : `<div><span class="badge b-amber">не задана</span></div><button class="btn-sm btn-purple" style="margin-top:0.25rem;" onclick="setPrice('${esc(p.id)}',0)">Назначить цену</button>`;
                     return `<tr><td>${esc(p.name||'—')}</td><td style="font-size:0.8rem;">${contact}</td><td>${esc(p.specialization||'—')}</td><td style="white-space:nowrap;">${priceCell}</td><td>${esc(p.experience||0)} лет</td><td>${status}</td><td style="white-space:nowrap;">${btn} <button class="btn-sm btn-outline" onclick="document.getElementById('pd${idx}').style.display=document.getElementById('pd${idx}').style.display==='none'?'table-row':'none'">Подробнее</button></td></tr>
                     <tr id="pd${idx}" style="display:none;"><td colspan="7" style="background:#FBFAFF;font-size:0.82rem;line-height:1.7;color:#374151;">${details||'<span class="muted">Профиль не заполнен — стоит запросить данные перед одобрением.</span>'}</td></tr>`;
                 }).join('') + '</tbody></table>';
