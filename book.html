@@ -108,6 +108,7 @@
   (function () {
     var params = new URLSearchParams(location.search);
     var id = params.get('id');
+    var pkg = params.get('pkg'); // id абонемента — запись без повторной оплаты
 
     var AVATAR_COLORS = ['#7C3AED','#2563EB','#059669','#D97706','#DB2777','#0891B2','#9F67FA'];
     function colorForId(x) {
@@ -201,6 +202,7 @@
       var html =
         '<h1 class="section-title">Запись на сессию</h1>' +
         '<p class="section-sub">Выберите удобный день и время</p>' +
+        (pkg ? '<div style="background:#F0FDF4;border:1.5px solid #BBF7D0;border-radius:1rem;padding:0.9rem 1.25rem;margin-bottom:1.5rem;color:#16A34A;font-weight:600;font-size:0.9375rem;">🎟 Запись по абонементу — без повторной оплаты, спишется одна сессия.</div>' : '') +
 
         '<div class="psych-card">' +
           '<div class="psych-avatar" style="background:' + (p.color || '#7C3AED') + ';">' + initials(p.name) + '</div>' +
@@ -264,7 +266,9 @@
       document.getElementById('confirmBtn').addEventListener('click', function() {
         if (!selectedDate || !selectedTime) return;
         var iso = toISO(selectedDate, selectedTime);
-        location.href = '/book-confirm.html?psychologist_id=' + encodeURIComponent(psych.id) + '&datetime=' + encodeURIComponent(iso);
+        var url = '/book-confirm.html?psychologist_id=' + encodeURIComponent(psych.id) + '&datetime=' + encodeURIComponent(iso);
+        if (pkg) url += '&pkg=' + encodeURIComponent(pkg);
+        location.href = url;
       });
 
       renderCalendar();

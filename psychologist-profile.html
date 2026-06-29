@@ -96,13 +96,60 @@
                     ${p.education?`<h2>Образование</h2><p class="desc">${esc(p.education)}</p>`:''}
                     ${p.not_working_with?`<h2>Не работает с запросами</h2><p class="desc">${esc(p.not_working_with)}</p>`:''}
                     <div class="price-row">
-                        <div>${price>0?`<div class="price">${price.toLocaleString('ru-RU')} ₽</div><div style="color:#9CA3AF;font-size:0.85rem;">за сессию</div>`:'<div class="price" style="font-size:1.1rem;color:#9CA3AF;">Цена уточняется</div>'}</div>
-                        <a href="/book.html?id=${encodeURIComponent(p.id)}" class="btn-book">Записаться →</a>
+                        <div>${price>0?`<div class="price">${price.toLocaleString('ru-RU')} ₽</div><div style="color:#9CA3AF;font-size:0.85rem;">за разовую сессию</div>`:'<div class="price" style="font-size:1.1rem;color:#9CA3AF;">Цена уточняется</div>'}</div>
+                        <a href="/book.html?id=${encodeURIComponent(p.id)}" class="btn-book">Записаться на разовую →</a>
                     </div>
+                    ${price>0 ? renderPackages(price) : ''}
                 </div>
                 <div class="card" id="reviewsCard"><div style="color:#9CA3AF;">Загрузка отзывов...</div></div>`;
             try { if (window.lucide) lucide.createIcons(); } catch(e){}
         }
+
+        // ── Абонементы (пакеты сессий) к этому психологу ──
+        function renderPackages(base) {
+            const packs = [
+                { sessions:5,  disc:10, badge:'Выгодно', validity:'3 месяца' },
+                { sessions:10, disc:20, badge:'Максимум пользы', validity:'6 месяцев' }
+            ];
+            const cards = packs.map(p => {
+                const per = Math.round(base * (100 - p.disc) / 100);
+                const total = per * p.sessions;
+                const old = base * p.sessions;
+                return `<div style="flex:1;min-width:200px;border:1.5px solid #E9D5FF;border-radius:1rem;padding:1.1rem 1.2rem;background:#FCFAFF;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.4rem;">
+                        <b style="font-size:1.05rem;">${p.sessions} сессий</b>
+                        <span style="background:#F0FDF4;color:#16A34A;border:1px solid #BBF7D0;border-radius:2rem;padding:0.1rem 0.6rem;font-size:0.72rem;font-weight:700;">−${p.disc}%</span>
+                    </div>
+                    <div style="font-size:1.4rem;font-weight:800;color:#7C3AED;">${total.toLocaleString('ru-RU')} ₽</div>
+                    <div style="color:#9CA3AF;font-size:0.82rem;margin-bottom:0.1rem;"><s>${old.toLocaleString('ru-RU')} ₽</s> · ${per.toLocaleString('ru-RU')} ₽ за сессию</div>
+                    <div style="color:#6B7280;font-size:0.78rem;margin-bottom:0.7rem;">Действует ${p.validity} · экономия ${(old-total).toLocaleString('ru-RU')} ₽</div>
+                    <button onclick="buyPackage(${p.sessions})" class="btn-sec" style="width:100%;padding:0.6rem;">Оформить абонемент</button>
+                </div>`;
+            }).join('');
+            return `<h2 style="margin-bottom:0.5rem;">Абонементы — выгоднее</h2>
+                <p style="color:#6B7280;font-size:0.9rem;margin-bottom:0.9rem;">Купите пакет сессий с этим специалистом со скидкой. Баланс отображается в личном кабинете, каждая запись списывает одну сессию.</p>
+                <div style="display:flex;gap:1rem;flex-wrap:wrap;">${cards}</div>`;
+        }
+
+        async function buyPackage(sessions) {
+            if (!currentUser) { window.location.href = '/login.html?redirect=' + encodeURIComponent(location.pathname + location.search); return; }
+            const base = parseFloat(psych.price) || 0;
+            const disc = sessions >= 10 ? 20 : (sessions >= 5 ? 10 : 0);
+            const per = Math.round(base * (100 - disc) / 100);
+            const total = per * sessions;
+            if (!confirm('Оформить абонемент на ' + sessions + ' сессий за ' + total.toLocaleString('ru-RU') + ' ₽ (' + per.toLocaleString('ru-RU') + ' ₽ за сессию, скидка ' + disc + '%)?\n\nБаланс появится в личном кабинете, оттуда можно записываться без повторной оплаты.')) return;
+            try {
+                const r = await fetch('/api/packages.php?action=create', {
+                    method:'POST', headers:{'Content-Type':'application/json'}, credentials:'include',
+                    body: JSON.stringify({ psychologist_id: psych.id, sessions })
+                });
+                const d = await r.json();
+                if (!d.ok) { alert(d.error || 'Не удалось оформить абонемент'); return; }
+                alert('Абонемент оформлен! Откройте личный кабинет, чтобы записаться по нему.');
+                window.location.href = '/client-dashboard.html';
+            } catch (e) { alert('Ошибка соединения'); }
+        }
+        window.buyPackage = buyPackage;
 
         async function loadReviews() {
             let res = { data:[], avg:0, count:0 };

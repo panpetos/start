@@ -117,6 +117,14 @@
         </div>
 
         <div class="cards">
+            <div class="card" id="packagesCard" style="grid-column: 1 / -1; display: none;">
+                <h2>
+                    <i data-lucide="ticket" style="width: 24px; height: 24px;"></i>
+                    Мои абонементы
+                </h2>
+                <div id="packagesList" class="appointments-list"></div>
+            </div>
+
             <div class="card" style="grid-column: 1 / -1;">
                 <h2>
                     <i data-lucide="calendar" style="width: 24px; height: 24px;"></i>
@@ -235,6 +243,7 @@
                         document.querySelector('.container').insertBefore(frozenBanner, document.querySelector('.cards'));
                     }
 
+                    await loadPackages();
                     await loadAppointments();
 
                     if (typeof lucide !== 'undefined') { try { lucide.createIcons(); } catch(e) {} }
@@ -243,6 +252,39 @@
                     window.location.href = '/login.html';
                 }
             }
+
+            async function loadPackages() {
+                const card = document.getElementById('packagesCard');
+                const list = document.getElementById('packagesList');
+                try {
+                    const r = await fetch('/api/packages.php?action=list', { credentials: 'include' });
+                    const d = await r.json();
+                    const rows = (d && d.data) || [];
+                    if (!rows.length) { card.style.display = 'none'; return; }
+                    card.style.display = 'block';
+                    list.innerHTML = rows.map(p => {
+                        const remaining = p.remaining != null ? p.remaining : Math.max(0, p.total_sessions - p.used_sessions);
+                        const total = p.total_sessions;
+                        const isActive = p.state === 'active' && remaining > 0;
+                        const stLabel = p.state === 'used' ? '<span class="appointment-status status-completed">Использован</span>'
+                            : p.state === 'expired' ? '<span class="appointment-status status-cancelled">Истёк</span>'
+                            : '<span class="appointment-status status-scheduled">Активен</span>';
+                        const expires = p.expires_at ? ('до ' + new Date(String(p.expires_at).replace(' ','T')).toLocaleDateString('ru-RU')) : '';
+                        return `
+                        <div class="appointment-item">
+                            <div class="appointment-info">
+                                <div class="appointment-psychologist">🎟 Абонемент · ${psychEsc(p.psychologist_name || 'Психолог')}</div>
+                                <div class="appointment-datetime">Осталось <b style="color:#7C3AED;">${remaining}</b> из ${total} сессий ${expires ? '· ' + expires : ''}</div>
+                            </div>
+                            ${stLabel}
+                            <div class="appointment-actions">
+                                ${isActive ? `<a href="/book.html?id=${p.psychologist_id}&pkg=${p.id}" class="btn btn-small" title="Записаться по абонементу">📅 Записаться по абонементу</a>` : ''}
+                            </div>
+                        </div>`;
+                    }).join('');
+                } catch (e) { card.style.display = 'none'; }
+            }
+            function psychEsc(s){ const d=document.createElement('div'); d.textContent=(s==null?'':String(s)); return d.innerHTML; }
 
             async function loadAppointments() {
                 const container = document.getElementById('appointments');
@@ -289,6 +331,8 @@
                         }
 
                         const canCancel = a.status === 'scheduled' && new Date(a.date_time) > new Date();
+                        const hoursUntil = (new Date(a.date_time) - new Date()) / 36e5;
+                        const lateCancel = hoursUntil < 24;
                         const canReview = a.status === 'completed';
                         const canChat   = a.status !== 'cancelled';
 
@@ -302,7 +346,7 @@
                             <div class="appointment-actions">
                                 ${a.psychologist_id ? `<a href="/book.html?id=${a.psychologist_id}" class="btn btn-small" title="Записаться к этому психологу ещё раз">📅 Записаться ещё</a>` : ''}
                                 ${canChat ? `<a href="/chat.html?user=${a.psychologist_user_id || a.psychologist_id}${a.psychologist_id ? '&pid=' + a.psychologist_id : ''}" class="btn btn-small btn-outline" title="Написать психологу">💬</a>` : ''}
-                                ${canCancel ? `<button class="btn btn-small btn-danger" onclick="cancelAppointment('${a.id}')">Отменить</button>` : ''}
+                                ${canCancel ? `<button class="btn btn-small btn-danger" onclick="cancelAppointment('${a.id}', ${lateCancel ? 'true' : 'false'}, ${Math.round(parseFloat(a.price)||0)})" title="${lateCancel ? 'Менее 24 часов — удерживается 50%' : 'Бесплатная отмена'}">Отменить${lateCancel ? ' (−50%)' : ''}</button>` : ''}
                                 ${canReview ? `<button class="btn btn-small btn-outline" onclick="openReview('${a.psychologist_id}')">Отзыв</button>` : ''}
                                 ${canChat ? `<button class="btn btn-small btn-outline" onclick="openReplace('${a.psychologist_id}', '${psychName.replace(/'/g, "\\'")}')" title="Не подошёл — подберём другого бесплатно">🔄 Заменить</button>` : ''}
                             </div>
@@ -316,8 +360,15 @@
                 }
             }
 
-            async function cancelAppointment(appointmentId) {
-                if (!confirm('Вы уверены, что хотите отменить запись?')) return;
+            async function cancelAppointment(appointmentId, lateCancel, price) {
+                let msg = 'Вы уверены, что хотите отменить запись?';
+                if (lateCancel) {
+                    const fee = Math.round((price || 0) * 0.5);
+                    msg = '⚠️ До сессии меньше 24 часов.\n\nПри отмене удерживается 50%'
+                        + (price ? ' (' + fee.toLocaleString('ru-RU') + ' ₽), возврат — ' + (price - fee).toLocaleString('ru-RU') + ' ₽' : '')
+                        + '.\nЕсли запись по абонементу — сессия сгорает.\n\nВсё равно отменить?';
+                }
+                if (!confirm(msg)) return;
 
                 try {
                     const response = await fetch('/api/appointments.php?action=update', {
@@ -326,7 +377,9 @@
                         credentials: 'include',
                         body: JSON.stringify({
                             id: appointmentId,
-                            status: 'cancelled'
+                            status: 'cancelled',
+                            late_cancel: !!lateCancel,
+                            penalty_pct: lateCancel ? 50 : 0
                         })
                     });
 

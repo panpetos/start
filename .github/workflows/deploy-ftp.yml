@@ -63,6 +63,7 @@ jobs:
             put api/payment_mock.php -o api/payment_mock.php;
             put api/orders.php -o api/orders.php;
             put api/replace.php -o api/replace.php;
+            put api/packages.php -o api/packages.php;
             bye;
           "
           echo "Deployment complete"
