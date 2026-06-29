@@ -86,6 +86,10 @@
         .faq-item.open .faq-a { display: block; }
         .faq-item.open .faq-icon { transform: rotate(180deg); }
         .faq-icon { transition: transform 0.2s; color: #7C3AED; flex-shrink: 0; }
+        @media (max-width: 820px) {
+            .selector-wrap { grid-template-columns: 1fr !important; margin-top: -2rem !important; }
+            .selector-img { display: none; }
+        }
     </style>
 </head>
 <body>
@@ -97,6 +101,34 @@
         </section>
 
         <div class="container">
+            <!-- Tabbed selector (Для себя / пары / подростка) -->
+            <div class="selector-wrap" style="display:grid;grid-template-columns:1fr 1fr;gap:2rem;align-items:stretch;margin-top:-3rem;margin-bottom:3rem;">
+                <div style="background:#fff;border-radius:1.5rem;padding:2rem;box-shadow:0 8px 40px rgba(0,0,0,0.08);border:1px solid #F0ECF8;display:flex;flex-direction:column;">
+                    <div class="seg" id="segTabs" style="display:flex;background:#F4F0FF;border-radius:0.875rem;padding:5px;margin-bottom:1.5rem;">
+                        <button class="seg-btn active" data-t="self" onclick="selType('self')" style="flex:1;border:none;background:#fff;border-radius:0.625rem;padding:0.6rem;font-family:inherit;font-weight:600;font-size:0.9rem;cursor:pointer;color:#7C3AED;box-shadow:0 2px 8px rgba(0,0,0,0.06);">Для себя</button>
+                        <button class="seg-btn" data-t="couple" onclick="selType('couple')" style="flex:1;border:none;background:transparent;border-radius:0.625rem;padding:0.6rem;font-family:inherit;font-weight:600;font-size:0.9rem;cursor:pointer;color:#6B7280;">Для пары</button>
+                        <button class="seg-btn" data-t="teen" onclick="selType('teen')" style="flex:1;border:none;background:transparent;border-radius:0.625rem;padding:0.6rem;font-family:inherit;font-weight:600;font-size:0.9rem;cursor:pointer;color:#6B7280;">Для подростка</button>
+                    </div>
+                    <div style="display:flex;gap:2rem;align-items:flex-end;margin-bottom:0.5rem;">
+                        <div>
+                            <div id="selPrice" style="font-size:2.5rem;font-weight:800;color:#7C3AED;letter-spacing:-0.03em;line-height:1;">—</div>
+                            <div id="selPriceSub" style="color:#9CA3AF;font-size:0.85rem;margin-top:0.35rem;">за сессию</div>
+                        </div>
+                        <div style="border-left:1px solid #F0F0F0;padding-left:2rem;">
+                            <div id="selDur" style="font-size:1.5rem;font-weight:700;color:#1A1A1A;">—</div>
+                            <div style="color:#9CA3AF;font-size:0.85rem;margin-top:0.35rem;">длительность</div>
+                        </div>
+                    </div>
+                    <div id="selPromo" style="display:none;background:#FEF3C7;color:#92400E;border:1px solid #F59E0B;border-radius:0.625rem;padding:0.5rem 0.75rem;font-size:0.85rem;font-weight:600;margin:0.75rem 0;"></div>
+                    <p id="selDesc" style="color:#6B7280;line-height:1.6;margin:1rem 0 1.5rem;flex:1;"></p>
+                    <a href="/search.html" class="btn-plan" style="text-align:center;">Найти психолога</a>
+                    <div style="text-align:center;color:#9CA3AF;font-size:0.8rem;margin-top:0.75rem;">Доступны пакеты сессий с выгодой — см. ниже</div>
+                </div>
+                <div class="selector-img" style="border-radius:1.5rem;min-height:340px;background:url('https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?w=800&q=80') center/cover;box-shadow:0 8px 40px rgba(124,58,237,0.15);"></div>
+            </div>
+
+            <h2 style="text-align:center;font-size:1.75rem;font-weight:800;margin-bottom:0.5rem;">Все форматы консультаций</h2>
+            <p style="text-align:center;color:#6B7280;margin-bottom:2rem;">Выберите подходящий вам тип сессии</p>
             <div class="plans" id="plansGrid">
                 <!-- Карточки подставляются из настроек -->
                 <div style="grid-column:1/-1;text-align:center;color:#9CA3AF;padding:2rem;">Загрузка цен...</div>
@@ -106,6 +138,10 @@
                 <i data-lucide="shield-check" style="width:18px;height:18px;color:#16A34A;"></i>
                 Оплата защищена. Возврат за 24 часа до сессии — без штрафа.
             </div>
+
+            <h2 style="text-align:center;font-size:1.75rem;font-weight:800;margin:1rem 0 0.5rem;">Пакеты сессий — выгоднее</h2>
+            <p style="text-align:center;color:#6B7280;margin-bottom:2rem;">Регулярная работа даёт результат. Чем больше пакет — тем ниже цена за сессию.</p>
+            <div class="plans" id="packagesGrid" style="margin-top:0;"></div>
 
             <div class="info-section">
                 <div class="info-grid">
@@ -239,8 +275,71 @@
             ];
 
             document.getElementById('plansGrid').innerHTML = cards.join('');
+
+            // данные для переключателя
+            window._S = s;
+            selType('self');
+            renderPackages(s);
+
             try { if (window.lucide) lucide.createIcons(); } catch(e) {}
         })();
+
+        // ── Переключатель типа сессии ──
+        const TYPE_INFO = {
+            self:   { name:'Для себя',     dur:'50 мин', desc:'Личная работа один на один с психологом над вашим запросом: тревога, выгорание, отношения, самооценка.' },
+            couple: { name:'Для пары',     dur:'90 мин', desc:'Совместная сессия для пары — работа над отношениями и общими сложностями вместе со специалистом.' },
+            teen:   { name:'Для подростка',dur:'50 мин', desc:'Бережная работа с подростком с учётом возраста, в безопасном и доверительном формате.' }
+        };
+        function selType(t) {
+            const s = window._S; if (!s) return;
+            document.querySelectorAll('.seg-btn').forEach(b => {
+                const on = b.dataset.t === t;
+                b.classList.toggle('active', on);
+                b.style.background = on ? '#fff' : 'transparent';
+                b.style.color = on ? '#7C3AED' : '#6B7280';
+                b.style.boxShadow = on ? '0 2px 8px rgba(0,0,0,0.06)' : 'none';
+            });
+            const base = s['price_' + t];
+            const info = TYPE_INFO[t];
+            const promoOn = s['promo_' + t + '_enabled'] === '1' && s['promo_' + t + '_price'] && promoActive(s['promo_' + t + '_deadline']);
+            const dur = s['promo_' + t + '_duration'] || info.dur;
+            document.getElementById('selPrice').innerHTML = (promoOn ? rub(s['promo_' + t + '_price']) : rub(base)) + ' ₽'
+                + (promoOn ? ` <span style="font-size:1.1rem;color:#9CA3AF;text-decoration:line-through;font-weight:600;">${rub(base)} ₽</span>` : '');
+            document.getElementById('selPriceSub').textContent = promoOn ? ('первая сессия · далее ' + rub(base) + ' ₽') : 'за сессию';
+            document.getElementById('selDur').textContent = info.dur;
+            document.getElementById('selDesc').textContent = info.desc;
+            const promoEl = document.getElementById('selPromo');
+            if (promoOn) { promoEl.style.display = 'block'; promoEl.textContent = '🎁 ' + (s['promo_' + t + '_title'] || 'Акция') + ' · ' + dur; }
+            else promoEl.style.display = 'none';
+        }
+
+        // ── Пакеты сессий (из базовой индивидуальной цены) ──
+        function renderPackages(s) {
+            const base = parseInt(s.price_self, 10) || 3000;
+            const packs = [
+                { n:'Разовая', cnt:1, per:base, disc:0, emoji:'1️⃣', feat:['Знакомство с форматом','Без обязательств'] },
+                { n:'Пакет 5 сессий', cnt:5, per:Math.round(base*0.9), disc:10, emoji:'5️⃣', featured:true, feat:['Скидка 10%','Постоянный специалист','Действует 3 месяца'] },
+                { n:'Пакет 10 сессий', cnt:10, per:Math.round(base*0.8), disc:20, emoji:'🔟', feat:['Скидка 20%','Глубокая проработка','Действует 6 месяцев'] }
+            ];
+            document.getElementById('packagesGrid').innerHTML = packs.map(p => {
+                const total = p.per * p.cnt;
+                const old = base * p.cnt;
+                return `<div class="plan-card${p.featured?' featured':''}">
+                    ${p.featured?'<div class="plan-badge">Выгодно</div>':''}
+                    <div class="plan-emoji">${p.emoji}</div>
+                    <div class="plan-name">${p.n}</div>
+                    <div class="plan-desc">${p.cnt===1?'Одна консультация':p.cnt+' сессий по '+rub(p.per)+' ₽'}</div>
+                    <div class="plan-price">
+                        <span class="amount">${rub(total)}</span> <span class="currency">₽</span>
+                        ${p.disc?`<span class="original">${rub(old)} ₽</span>`:''}
+                        <div class="per">${p.cnt===1?'за сессию':rub(p.per)+' ₽ за сессию'}</div>
+                        ${p.disc?`<div><span class="promo-tag" style="background:#F0FDF4;color:#16A34A;border-color:#BBF7D0;">Экономия ${rub(old-total)} ₽</span></div>`:''}
+                    </div>
+                    <ul class="plan-features">${p.feat.map(f=>`<li><span class="check">✓</span> ${f}</li>`).join('')}</ul>
+                    <a href="/search.html" class="btn-plan${p.featured?'':' outline'}">Выбрать психолога</a>
+                </div>`;
+            }).join('');
+        }
 
         try { if (window.lucide) lucide.createIcons(); } catch(e) {}
     </script>
