@@ -182,11 +182,148 @@
     });
   }
 
+  // ── Закреплённый чат поддержки ───────────────────────────────────────────────
+  function getCachedUserSafe() {
+    try { var c = sessionStorage.getItem('psy_user'); return c ? JSON.parse(c) : null; } catch (e) { return null; }
+  }
+  var SUPPORT_ROLES = ['Клиент', 'Психолог', 'Хочу стать психологом', 'Компания (бизнес)', 'Другое'];
+  function roleFromUser(u) {
+    if (!u) return '';
+    if (u.role === 'client') return 'Клиент';
+    if (u.role === 'psychologist') return 'Психолог';
+    return 'Другое';
+  }
+  function escSup(s) { var d = document.createElement('div'); d.textContent = (s == null ? '' : String(s)); return d.innerHTML; }
+
+  function buildSupportWidget() {
+    if (document.getElementById('psySupport')) return;
+    var user = getCachedUserSafe();
+    if (user && user.role === 'admin') return; // админ отвечает в панели, виджет ему не нужен
+
+    var TOKEN_KEY = 'psy_support_token';
+    var token = null; try { token = localStorage.getItem(TOKEN_KEY); } catch (e) {}
+    var pollTimer = null;
+
+    var roleOpts = SUPPORT_ROLES.map(function (r) { return '<option value="' + r + '">' + r + '</option>'; }).join('');
+
+    var el = document.createElement('div');
+    el.id = 'psySupport';
+    el.innerHTML =
+      '<button id="psySupBubble" aria-label="Чат поддержки" style="position:fixed;right:20px;bottom:20px;z-index:1700;width:60px;height:60px;border-radius:50%;border:none;cursor:pointer;background:linear-gradient(135deg,#7C3AED,#9F67FA);color:#fff;font-size:1.6rem;box-shadow:0 8px 24px rgba(124,58,237,0.4);display:flex;align-items:center;justify-content:center;transition:transform .2s;">💬</button>' +
+      '<div id="psySupPanel" style="display:none;position:fixed;right:20px;bottom:90px;z-index:1701;width:350px;max-width:calc(100vw - 32px);height:480px;max-height:calc(100vh - 120px);background:#fff;border-radius:1.1rem;box-shadow:0 20px 60px rgba(0,0,0,0.28);overflow:hidden;flex-direction:column;">' +
+        '<div style="background:linear-gradient(135deg,#7C3AED,#9F67FA);color:#fff;padding:0.9rem 1.1rem;display:flex;align-items:center;justify-content:space-between;">' +
+          '<div><div style="font-weight:700;">Чат поддержки</div><div style="font-size:0.75rem;opacity:0.9;">Обычно отвечаем в течение дня</div></div>' +
+          '<button id="psySupClose" aria-label="Закрыть" style="background:rgba(255,255,255,0.2);border:none;color:#fff;width:30px;height:30px;border-radius:50%;cursor:pointer;font-size:1.05rem;">✕</button>' +
+        '</div>' +
+        '<div id="psySupForm" style="padding:1rem 1.1rem;overflow-y:auto;flex:1;">' +
+          '<p style="color:#6B7280;font-size:0.85rem;line-height:1.5;margin-bottom:0.8rem;">Здравствуйте! Представьтесь, чтобы мы могли ответить.</p>' +
+          '<input id="psySupName" placeholder="Ваше имя" style="width:100%;padding:0.6rem 0.75rem;border:1.5px solid #E5E7EB;border-radius:0.6rem;font-family:inherit;font-size:0.9rem;outline:none;margin-bottom:0.5rem;">' +
+          '<input id="psySupEmail" type="email" placeholder="Email для ответа" style="width:100%;padding:0.6rem 0.75rem;border:1.5px solid #E5E7EB;border-radius:0.6rem;font-family:inherit;font-size:0.9rem;outline:none;margin-bottom:0.5rem;">' +
+          '<select id="psySupRole" style="width:100%;padding:0.6rem 0.75rem;border:1.5px solid #E5E7EB;border-radius:0.6rem;font-family:inherit;font-size:0.9rem;outline:none;margin-bottom:0.5rem;background:#fff;">' + roleOpts + '</select>' +
+          '<textarea id="psySupFirstMsg" placeholder="Ваш вопрос..." style="width:100%;height:72px;padding:0.6rem 0.75rem;border:1.5px solid #E5E7EB;border-radius:0.6rem;font-family:inherit;font-size:0.9rem;outline:none;resize:vertical;margin-bottom:0.5rem;"></textarea>' +
+          '<div id="psySupFormErr" style="display:none;color:#DC2626;font-size:0.8rem;margin-bottom:0.5rem;"></div>' +
+          '<button id="psySupStart" style="width:100%;padding:0.7rem;background:linear-gradient(135deg,#7C3AED,#9F67FA);color:#fff;border:none;border-radius:0.6rem;font-weight:700;cursor:pointer;font-family:inherit;">Начать чат</button>' +
+        '</div>' +
+        '<div id="psySupChat" style="display:none;flex:1;flex-direction:column;min-height:0;">' +
+          '<div id="psySupMsgs" style="flex:1;overflow-y:auto;padding:0.85rem;display:flex;flex-direction:column;gap:0.5rem;background:#F7F8FA;"></div>' +
+          '<div style="display:flex;gap:0.5rem;padding:0.6rem;border-top:1px solid #eee;">' +
+            '<input id="psySupInput" placeholder="Сообщение..." style="flex:1;padding:0.6rem 0.8rem;border:1.5px solid #E5E7EB;border-radius:1.2rem;font-family:inherit;font-size:0.9rem;outline:none;">' +
+            '<button id="psySupSend" style="width:42px;height:42px;border-radius:50%;border:none;background:linear-gradient(135deg,#7C3AED,#9F67FA);color:#fff;cursor:pointer;font-size:1.05rem;flex-shrink:0;">➤</button>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+    document.body.appendChild(el);
+
+    var bubble = document.getElementById('psySupBubble');
+    var panel = document.getElementById('psySupPanel');
+    var formView = document.getElementById('psySupForm');
+    var chatView = document.getElementById('psySupChat');
+
+    // Авто-подстановка для залогиненных
+    if (user) {
+      var nm = ((user.first_name || '') + ' ' + (user.last_name || '')).trim();
+      var nameI = document.getElementById('psySupName'); if (nameI) nameI.value = nm;
+      var emailI = document.getElementById('psySupEmail'); if (emailI) emailI.value = user.email || '';
+      var roleS = document.getElementById('psySupRole'); if (roleS) roleS.value = roleFromUser(user);
+      // Прячем поля идентификации — контакты возьмём из аккаунта
+      ['psySupName', 'psySupEmail', 'psySupRole'].forEach(function (idd) { var e = document.getElementById(idd); if (e) e.style.display = 'none'; });
+      var hint = formView.querySelector('p'); if (hint) hint.textContent = 'Здравствуйте, ' + (user.first_name || '') + '! Напишите ваш вопрос — ответим в чат.';
+    }
+
+    function showChat() { formView.style.display = 'none'; chatView.style.display = 'flex'; }
+    function renderMsgs(rows) {
+      var box = document.getElementById('psySupMsgs');
+      if (!box) return;
+      if (!rows.length) { box.innerHTML = '<div style="color:#9CA3AF;text-align:center;font-size:0.85rem;padding:1rem;">Напишите сообщение — мы ответим здесь.</div>'; return; }
+      box.innerHTML = rows.map(function (m) {
+        var mine = m.sender === 'user';
+        return '<div style="align-self:' + (mine ? 'flex-end' : 'flex-start') + ';max-width:80%;background:' + (mine ? 'linear-gradient(135deg,#7C3AED,#9F67FA)' : '#fff') + ';color:' + (mine ? '#fff' : '#1A1A1A') + ';border:' + (mine ? 'none' : '1px solid #ECECEC') + ';border-radius:0.9rem;padding:0.5rem 0.75rem;font-size:0.875rem;line-height:1.4;">' +
+          (mine ? '' : '<div style="font-size:0.7rem;color:#7C3AED;font-weight:700;margin-bottom:0.15rem;">Поддержка</div>') +
+          escSup(m.body) + '</div>';
+      }).join('');
+      box.scrollTop = box.scrollHeight;
+    }
+    function poll() {
+      if (!token) return;
+      fetch('/api/support.php?action=poll&token=' + encodeURIComponent(token), { credentials: 'include' })
+        .then(function (r) { return r.json(); }).then(function (d) { if (d && d.ok) renderMsgs(d.data || []); }).catch(function () {});
+    }
+    function startPolling() { if (pollTimer) clearInterval(pollTimer); poll(); pollTimer = setInterval(poll, 7000); }
+
+    bubble.addEventListener('click', function () {
+      var open = panel.style.display === 'flex';
+      panel.style.display = open ? 'none' : 'flex';
+      if (!open) {
+        if (token) { showChat(); startPolling(); }
+        else if (user) { showChat(); } // залогинен — сразу чат, первое сообщение создаст тред
+        setTimeout(function () { var i = document.getElementById(token || user ? 'psySupInput' : 'psySupFirstMsg'); if (i) i.focus(); }, 80);
+      } else if (pollTimer) { clearInterval(pollTimer); }
+    });
+    document.getElementById('psySupClose').addEventListener('click', function () { panel.style.display = 'none'; if (pollTimer) clearInterval(pollTimer); });
+
+    function doStart(message, name, email, role) {
+      return fetch('/api/support.php?action=start', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+        body: JSON.stringify({ token: token || '', message: message, name: name, email: email, role: role })
+      }).then(function (r) { return r.json(); }).then(function (d) {
+        if (d && d.ok && d.token) { token = d.token; try { localStorage.setItem(TOKEN_KEY, token); } catch (e) {} showChat(); startPolling(); return true; }
+        throw new Error((d && d.error) || 'Ошибка');
+      });
+    }
+
+    document.getElementById('psySupStart').addEventListener('click', function () {
+      var err = document.getElementById('psySupFormErr');
+      var msg = document.getElementById('psySupFirstMsg').value.trim();
+      var name = user ? '' : document.getElementById('psySupName').value.trim();
+      var email = user ? '' : document.getElementById('psySupEmail').value.trim();
+      var role = user ? '' : document.getElementById('psySupRole').value;
+      if (!user && !name) { err.textContent = 'Укажите имя'; err.style.display = 'block'; return; }
+      if (!msg) { err.textContent = 'Введите вопрос'; err.style.display = 'block'; return; }
+      err.style.display = 'none';
+      doStart(msg, name, email, role).catch(function () { err.textContent = 'Не удалось отправить. Попробуйте ещё раз.'; err.style.display = 'block'; });
+    });
+
+    function sendChat() {
+      var inp = document.getElementById('psySupInput');
+      var msg = inp.value.trim();
+      if (!msg) return;
+      inp.value = '';
+      if (!token) { doStart(msg, '', '', '').catch(function () { inp.value = msg; }); return; }
+      fetch('/api/support.php?action=send', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+        body: JSON.stringify({ token: token, message: msg })
+      }).then(function () { poll(); }).catch(function () { inp.value = msg; });
+    }
+    document.getElementById('psySupSend').addEventListener('click', sendChat);
+    document.getElementById('psySupInput').addEventListener('keypress', function (e) { if (e.key === 'Enter') sendChat(); });
+  }
+
   function onReady() {
     fillPlaceholders();
     wireBurger();
     // showDevNotice(); — отключено: оверлей «сайт в разработке» мешает проверке эквайринга
     showConsentBanner();
+    buildSupportWidget();
     if (window.lucide && lucide.createIcons) lucide.createIcons();
     updateLoginCircle();
   }

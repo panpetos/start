@@ -76,6 +76,7 @@
 
         <div class="tabs" id="tabs">
             <button class="tab active" data-tab="overview" onclick="switchTab('overview')">Обзор</button>
+            <button class="tab" data-tab="support" onclick="switchTab('support')">💬 Поддержка / чаты</button>
             <button class="tab" data-tab="users" onclick="switchTab('users')">Пользователи</button>
             <button class="tab" data-tab="psychologists" onclick="switchTab('psychologists')">Психологи</button>
             <button class="tab" data-tab="tariffs" onclick="switchTab('tariffs')">Тарифы и цены</button>
@@ -137,7 +138,7 @@
             document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab===tab));
             const el = document.getElementById('content');
             el.innerHTML = '<div class="loading">Загрузка...</div>';
-            ({ overview:renderOverview, users:renderUsers, psychologists:renderPsych, tariffs:renderTariffs, appointments:renderAppointments, replacements:renderReplacements, calls:renderCalls, payments:renderPayments, subscribers:renderSubscribers, referrals:renderReferrals, activity:renderActivity }[tab])();
+            ({ overview:renderOverview, support:renderSupport, users:renderUsers, psychologists:renderPsych, tariffs:renderTariffs, appointments:renderAppointments, replacements:renderReplacements, calls:renderCalls, payments:renderPayments, subscribers:renderSubscribers, referrals:renderReferrals, activity:renderActivity }[tab])();
         }
 
         async function renderOverview(){
@@ -486,6 +487,70 @@
             } else {
                 if(msg){ msg.textContent = '⚠️ ' + ((res&&res.error)||'Не удалось сохранить'); msg.style.color='#DC2626'; }
             }
+        }
+
+        // ── Поддержка / входящие чаты (рег. и не зарег.) ──────────────────────────
+        let supportThreadId = null;
+        async function renderSupport(){
+            let res;
+            try { res = await (await fetch('/api/support.php?action=threads', { credentials:'include' })).json(); }
+            catch(e){ return fail(); }
+            if (!res || !res.ok) return fail();
+            const rows = res.data || [];
+            const roleBadge = (t) => {
+                const reg = t.registered ? '<span class="badge b-green">в системе</span>' : '<span class="badge b-amber">не зарегистрирован</span>';
+                const role = t.role ? `<span class="badge b-purple">${esc(t.role)}</span>` : '';
+                return role + ' ' + reg;
+            };
+            const list = rows.length ? rows.map(t => {
+                const contact = [t.email].filter(Boolean).map(esc).join(' · ') || '<span class="muted">email не указан</span>';
+                const unread = t.unread > 0 ? `<span class="badge b-red">${t.unread} новых</span>` : '';
+                return `<tr style="cursor:pointer;" onclick="openSupportThread('${esc(t.id)}')">
+                    <td><b>${esc(t.name || 'Гость')}</b><br><span class="muted" style="font-size:0.78rem;">${contact}</span></td>
+                    <td>${roleBadge(t)}</td>
+                    <td style="max-width:280px;white-space:normal;">${esc((t.last_sender==='admin'?'Вы: ':'') + (t.last_message||''))}</td>
+                    <td class="muted">${fmtDateTime(t.last_at)} ${unread}</td>
+                </tr>`;
+            }).join('') : '<tr><td colspan="4" class="muted" style="padding:1.5rem;text-align:center;">Обращений пока нет</td></tr>';
+            document.getElementById('content').innerHTML =
+                '<div class="note">💬 Здесь все обращения из чата поддержки на сайте — от зарегистрированных (контакты подставляются автоматически) и от гостей (указывают имя, email и роль). Нажмите на обращение, чтобы ответить.</div>' +
+                `<div class="panel"><div class="panel-head"><h2>Обращения (${rows.length})</h2><button class="btn-sm btn-outline" onclick="renderSupport()">↻ Обновить</button></div>
+                  <div class="tbl-wrap"><table><thead><tr><th>Контакт</th><th>Роль / статус</th><th>Последнее сообщение</th><th>Когда</th></tr></thead><tbody>${list}</tbody></table></div></div>` +
+                '<div id="supportThreadPanel" style="margin-top:1.25rem;"></div>';
+            if (supportThreadId) openSupportThread(supportThreadId);
+        }
+        async function openSupportThread(id){
+            supportThreadId = id;
+            const panel = document.getElementById('supportThreadPanel');
+            panel.innerHTML = '<div class="panel"><div class="loading">Загрузка переписки...</div></div>';
+            let res;
+            try { res = await (await fetch('/api/support.php?action=messages&thread_id=' + encodeURIComponent(id), { credentials:'include' })).json(); }
+            catch(e){ panel.innerHTML = '<div class="panel"><div class="empty">Не удалось загрузить</div></div>'; return; }
+            const t = res.thread || {};
+            const msgs = res.data || [];
+            const head = `${esc(t.name||'Гость')} · ${t.role?esc(t.role):'—'} · ${t.registered||t.user_id?'<span class="badge b-green">в системе</span>':'<span class="badge b-amber">гость</span>'}${t.email?(' · '+esc(t.email)):''}`;
+            const bubbles = msgs.length ? msgs.map(m => {
+                const admin = m.sender === 'admin';
+                return `<div style="align-self:${admin?'flex-end':'flex-start'};max-width:75%;background:${admin?'linear-gradient(135deg,#7C3AED,#9F67FA)':'#fff'};color:${admin?'#fff':'#1A1A1A'};border:${admin?'none':'1px solid #ECECEC'};border-radius:0.9rem;padding:0.5rem 0.8rem;font-size:0.875rem;line-height:1.45;">${esc(m.body)}<div style="font-size:0.68rem;opacity:0.7;margin-top:0.2rem;">${fmtDateTime(m.created_at)}</div></div>`;
+            }).join('') : '<div class="muted" style="text-align:center;padding:1rem;">Нет сообщений</div>';
+            panel.innerHTML = `<div class="panel">
+                <div class="panel-head"><h2 style="font-size:0.95rem;">${head}</h2></div>
+                <div style="display:flex;flex-direction:column;gap:0.5rem;padding:1rem;background:#F7F8FA;max-height:340px;overflow-y:auto;">${bubbles}</div>
+                <div style="display:flex;gap:0.5rem;padding:0.75rem;border-top:1px solid #eee;">
+                    <input id="supReplyInput" placeholder="Ответ клиенту..." style="flex:1;padding:0.6rem 0.85rem;border:1.5px solid #E5E7EB;border-radius:0.6rem;font-family:inherit;outline:none;" onkeypress="if(event.key==='Enter')sendSupportReply()">
+                    <button class="btn-sm btn-purple" style="padding:0.6rem 1.2rem;" onclick="sendSupportReply()">Ответить</button>
+                </div></div>`;
+            const box = panel.querySelector('div[style*="overflow-y"]'); if (box) box.scrollTop = box.scrollHeight;
+        }
+        async function sendSupportReply(){
+            const inp = document.getElementById('supReplyInput');
+            const msg = (inp.value||'').trim();
+            if (!msg || !supportThreadId) return;
+            inp.value = '';
+            try {
+                await fetch('/api/support.php?action=reply', { method:'POST', headers:{'Content-Type':'application/json'}, credentials:'include', body: JSON.stringify({ thread_id: supportThreadId, message: msg }) });
+                await openSupportThread(supportThreadId);
+            } catch(e){ alert('Не удалось отправить ответ'); inp.value = msg; }
         }
 
         // ── Заявки на замену психолога ───────────────────────────────────────────

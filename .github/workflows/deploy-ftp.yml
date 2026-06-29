@@ -64,6 +64,7 @@ jobs:
             put api/orders.php -o api/orders.php;
             put api/replace.php -o api/replace.php;
             put api/packages.php -o api/packages.php;
+            put api/support.php -o api/support.php;
             bye;
           "
           echo "Deployment complete"
