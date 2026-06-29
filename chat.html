@@ -765,6 +765,7 @@
         let headerRenderedFor = null; // чтобы не пересобирать шапку при каждом поллинге
         let ordersMap = {};       // id ордера -> объект (живое состояние для карточек в чате)
         let platformCommission = 40; // % комиссии сервиса (для предпросмотра выплаты психологу)
+        let bookPsychId = null;   // id профиля психолога (из ?pid=) — для кнопки «Записаться» у клиента
 
         function getDashboardUrl() {
             if (!currentUser) return '/login.html';
@@ -785,6 +786,10 @@
             const videoBtn = isPsy
                 ? `<button onclick="startVideoCall()" class="video-call-btn" title="Создать видеовстречу в Телемост">📹</button>`
                 : '';
+            // Клиент, открывший диалог с психологом, может записаться к нему ещё раз прямо отсюда
+            const bookBtn = (!isPsy && other.role === 'psychologist')
+                ? `<a href="${bookPsychId ? ('/book.html?id=' + encodeURIComponent(bookPsychId)) : '/search.html'}" class="session-btn" style="background:#16A34A;text-decoration:none;display:inline-flex;align-items:center;" title="Записаться к этому психологу">📅 Записаться</a>`
+                : '';
             const notesBtn = isPsy
                 ? `<button onclick="openNotes()" class="session-btn" style="background:#0EA5E9;" title="Приватные заметки по клиенту">📝 Заметки</button>`
                 : '';
@@ -801,6 +806,7 @@
                 ${sessionBtn}
                 ${orderBtn}
                 ${notesBtn}
+                ${bookBtn}
                 ${videoBtn}
                 <a href="${getDashboardUrl()}" class="dashboard-btn" title="Личный кабинет">
                     <i data-lucide="layout-grid" style="width: 20px; height: 20px;"></i>
@@ -955,6 +961,7 @@
             // Проверяем параметры URL
             const urlParams = new URLSearchParams(window.location.search);
             const userIdFromUrl = urlParams.get('user');
+            bookPsychId = urlParams.get('pid');
             isAdminMode = urlParams.get('admin') === '1' && currentUser.role === 'admin';
 
             // Комиссия сервиса — для предпросмотра выплаты психологу при выставлении счёта

@@ -300,7 +300,8 @@
                             </div>
                             <span class="appointment-status ${statusClass}">${statusText}</span>
                             <div class="appointment-actions">
-                                ${canChat ? `<a href="/chat.html?user=${a.psychologist_user_id || a.psychologist_id}" class="btn btn-small btn-outline" title="Написать психологу">💬</a>` : ''}
+                                ${a.psychologist_id ? `<a href="/book.html?id=${a.psychologist_id}" class="btn btn-small" title="Записаться к этому психологу ещё раз">📅 Записаться ещё</a>` : ''}
+                                ${canChat ? `<a href="/chat.html?user=${a.psychologist_user_id || a.psychologist_id}${a.psychologist_id ? '&pid=' + a.psychologist_id : ''}" class="btn btn-small btn-outline" title="Написать психологу">💬</a>` : ''}
                                 ${canCancel ? `<button class="btn btn-small btn-danger" onclick="cancelAppointment('${a.id}')">Отменить</button>` : ''}
                                 ${canReview ? `<button class="btn btn-small btn-outline" onclick="openReview('${a.psychologist_id}')">Отзыв</button>` : ''}
                                 ${canChat ? `<button class="btn btn-small btn-outline" onclick="openReplace('${a.psychologist_id}', '${psychName.replace(/'/g, "\\'")}')" title="Не подошёл — подберём другого бесплатно">🔄 Заменить</button>` : ''}
