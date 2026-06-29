@@ -132,6 +132,23 @@
             </div>
         </div>
 
+        <!-- Replacement request modal -->
+        <div id="replaceModal" style="display:none;position:fixed;inset:0;background:rgba(26,26,46,0.55);z-index:2000;align-items:center;justify-content:center;padding:1rem;">
+            <div style="background:#fff;border-radius:1.25rem;max-width:440px;width:100%;padding:2rem;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+                <div style="text-align:center;margin-bottom:1.1rem;">
+                    <div style="width:60px;height:60px;border-radius:50%;background:linear-gradient(135deg,#7C3AED,#9F67FA);display:flex;align-items:center;justify-content:center;margin:0 auto 0.7rem;font-size:1.8rem;">🔄</div>
+                    <h3 style="font-size:1.2rem;color:#1A1A1A;margin-bottom:0.25rem;">Заменить психолога</h3>
+                    <p style="font-size:0.875rem;color:#6B7280;line-height:1.5;">Если специалист не подошёл — поможем подобрать другого бесплатно. Расскажите, что было не так (по желанию) — учтём при подборе.</p>
+                </div>
+                <div id="replacePsychName" style="background:#F4F0FF;border:1px solid #E9D5FF;border-radius:0.6rem;padding:0.55rem 0.8rem;font-size:0.85rem;color:#5B21B6;margin-bottom:0.7rem;"></div>
+                <label style="display:block;font-size:0.8125rem;font-weight:600;color:#374151;margin-bottom:0.3rem;">Что не подошло? (необязательно)</label>
+                <textarea id="replaceReason" placeholder="Напр.: не сошлись по подходу, неудобное время, хочу другого специалиста..." style="width:100%;height:80px;padding:0.7rem 0.9rem;border:2px solid #E5E7EB;border-radius:0.7rem;font-size:0.9rem;outline:none;font-family:inherit;resize:vertical;margin-bottom:0.7rem;"></textarea>
+                <div id="replaceMsg" style="display:none;font-size:0.85rem;margin-bottom:0.6rem;"></div>
+                <button onclick="submitReplace()" id="replaceSubmit" style="width:100%;padding:0.85rem;background:linear-gradient(135deg,#7C3AED,#9F67FA);color:#fff;border:none;border-radius:0.75rem;font-weight:700;font-size:0.9375rem;cursor:pointer;font-family:inherit;margin-bottom:0.5rem;">Отправить заявку и подобрать</button>
+                <button onclick="closeReplace()" style="width:100%;padding:0.6rem;background:#F3F4F6;border:none;border-radius:0.75rem;color:#374151;font-weight:600;font-size:0.875rem;cursor:pointer;font-family:inherit;">Отмена</button>
+            </div>
+        </div>
+
         <script src="/js/api.js"></script>
         <script src="/js/auth.js"></script>
         <script src="/js/header.js"></script>
@@ -286,6 +303,7 @@
                                 ${canChat ? `<a href="/chat.html?user=${a.psychologist_user_id || a.psychologist_id}" class="btn btn-small btn-outline" title="Написать психологу">💬</a>` : ''}
                                 ${canCancel ? `<button class="btn btn-small btn-danger" onclick="cancelAppointment('${a.id}')">Отменить</button>` : ''}
                                 ${canReview ? `<button class="btn btn-small btn-outline" onclick="openReview('${a.psychologist_id}')">Отзыв</button>` : ''}
+                                ${canChat ? `<button class="btn btn-small btn-outline" onclick="openReplace('${a.psychologist_id}', '${psychName.replace(/'/g, "\\'")}')" title="Не подошёл — подберём другого бесплатно">🔄 Заменить</button>` : ''}
                             </div>
                         </div>
                     `;
@@ -327,6 +345,44 @@
                 // Отзыв оставляется на странице психолога
                 window.location.href = `/psychologist-profile.html?id=${psychologistId}`;
             }
+
+            // ── Замена психолога ──────────────────────────────────────────────
+            let replaceForPsychId = null;
+            function openReplace(psychId, psychName) {
+                replaceForPsychId = psychId || null;
+                document.getElementById('replacePsychName').textContent = 'Текущий психолог: ' + (psychName || '—');
+                document.getElementById('replaceReason').value = '';
+                const msg = document.getElementById('replaceMsg'); msg.style.display = 'none';
+                const btn = document.getElementById('replaceSubmit'); btn.disabled = false; btn.textContent = 'Отправить заявку и подобрать';
+                document.getElementById('replaceModal').style.display = 'flex';
+            }
+            function closeReplace() { document.getElementById('replaceModal').style.display = 'none'; }
+            window.openReplace = openReplace; window.closeReplace = closeReplace;
+
+            async function submitReplace() {
+                const reason = document.getElementById('replaceReason').value.trim();
+                const msg = document.getElementById('replaceMsg');
+                const btn = document.getElementById('replaceSubmit');
+                btn.disabled = true; btn.textContent = 'Отправляем...';
+                try {
+                    const r = await fetch('/api/replace.php?action=create', {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+                        body: JSON.stringify({ current_psychologist_id: replaceForPsychId, reason })
+                    });
+                    const d = await r.json();
+                    if (!d.ok) throw new Error(d.error || 'Ошибка');
+                    msg.style.display = 'block'; msg.style.color = '#16A34A';
+                    msg.innerHTML = '✅ Заявка принята! Подберите нового психолога сейчас или подождите — мы поможем.';
+                    btn.textContent = 'Перейти к подбору →';
+                    btn.disabled = false;
+                    btn.onclick = function () { window.location.href = '/search.html'; };
+                } catch (e) {
+                    msg.style.display = 'block'; msg.style.color = '#DC2626';
+                    msg.textContent = '⚠️ ' + (e.message || 'Не удалось отправить заявку');
+                    btn.disabled = false; btn.textContent = 'Попробовать ещё раз';
+                }
+            }
+            window.submitReplace = submitReplace;
 
             init();
         </script>

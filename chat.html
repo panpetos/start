@@ -708,6 +708,38 @@
         </div>
     </div>
 
+    <!-- Order / invoice modal (psychologist only) -->
+    <div id="orderModal" style="display:none;position:fixed;inset:0;background:rgba(26,26,46,0.6);z-index:1000;align-items:center;justify-content:center;padding:1rem;">
+        <div style="background:#fff;border-radius:1.25rem;max-width:440px;width:100%;padding:2rem;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+            <div style="text-align:center;margin-bottom:1.25rem;">
+                <div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#7C3AED,#9F67FA);display:flex;align-items:center;justify-content:center;margin:0 auto 0.75rem;font-size:2rem;">💳</div>
+                <h3 style="font-size:1.25rem;color:#1A1A1A;margin-bottom:0.25rem;">Выставить счёт клиенту</h3>
+                <p style="font-size:0.875rem;color:#6B7280;line-height:1.5;">Укажите формат и цену сами — видео, аудио или текстом (15 минут, день, неделя). Клиент увидит итоговую цену и сможет принять или отклонить.</p>
+            </div>
+            <label style="display:block;font-size:0.8125rem;font-weight:600;color:#374151;margin-bottom:0.3rem;">Что входит (название) *</label>
+            <input type="text" id="orderTitle" placeholder="Напр.: Переписка в течение недели"
+                style="width:100%;padding:0.7rem 0.9rem;border:2px solid #E5E7EB;border-radius:0.7rem;font-size:0.9rem;outline:none;margin-bottom:0.7rem;font-family:inherit;">
+            <div style="display:flex;gap:0.7rem;margin-bottom:0.7rem;">
+                <div style="flex:1;">
+                    <label style="display:block;font-size:0.8125rem;font-weight:600;color:#374151;margin-bottom:0.3rem;">Цена для клиента, ₽ *</label>
+                    <input type="number" id="orderAmount" min="0" step="50" placeholder="3000" oninput="updateOrderPayout()"
+                        style="width:100%;padding:0.7rem 0.9rem;border:2px solid #E5E7EB;border-radius:0.7rem;font-size:0.9rem;outline:none;font-family:inherit;">
+                </div>
+                <div style="flex:1;">
+                    <label style="display:block;font-size:0.8125rem;font-weight:600;color:#374151;margin-bottom:0.3rem;">Формат / срок</label>
+                    <input type="text" id="orderDuration" placeholder="Напр.: 1 неделя, текстом"
+                        style="width:100%;padding:0.7rem 0.9rem;border:2px solid #E5E7EB;border-radius:0.7rem;font-size:0.9rem;outline:none;font-family:inherit;">
+                </div>
+            </div>
+            <label style="display:block;font-size:0.8125rem;font-weight:600;color:#374151;margin-bottom:0.3rem;">Комментарий (необязательно)</label>
+            <textarea id="orderNote" placeholder="Детали договорённости..." style="width:100%;height:60px;padding:0.7rem 0.9rem;border:2px solid #E5E7EB;border-radius:0.7rem;font-size:0.9rem;outline:none;font-family:inherit;resize:vertical;margin-bottom:0.6rem;"></textarea>
+            <div id="orderPayout" style="display:none;background:#F0FDF4;border:1px solid #BBF7D0;border-radius:0.625rem;padding:0.5rem 0.75rem;font-size:0.82rem;color:#16A34A;margin-bottom:0.6rem;"></div>
+            <div id="orderError" style="display:none;color:#DC2626;font-size:0.8125rem;margin-bottom:0.5rem;"></div>
+            <button onclick="sendOrder()" style="width:100%;padding:0.875rem;background:linear-gradient(135deg,#7C3AED,#9F67FA);color:#fff;border:none;border-radius:0.75rem;font-weight:700;font-size:0.9375rem;cursor:pointer;font-family:inherit;margin-bottom:0.5rem;">Отправить счёт клиенту</button>
+            <button onclick="closeOrderModal()" style="width:100%;padding:0.625rem;background:#F3F4F6;border:none;border-radius:0.75rem;color:#374151;font-weight:600;font-size:0.875rem;cursor:pointer;font-family:inherit;">Отмена</button>
+        </div>
+    </div>
+
     <!-- Notes drawer (psychologist only) -->
     <div id="notesDrawer" style="display:none;position:fixed;top:0;right:0;bottom:0;width:380px;max-width:90vw;background:#fff;box-shadow:-8px 0 30px rgba(0,0,0,0.18);z-index:1100;flex-direction:column;">
         <div style="padding:1rem 1.25rem;background:linear-gradient(135deg,#0EA5E9,#0284C7);color:#fff;display:flex;align-items:center;justify-content:space-between;">
@@ -731,6 +763,8 @@
         let pollInterval = null;
         let isAdminMode = false;  // Режим отправки от имени техподдержки
         let headerRenderedFor = null; // чтобы не пересобирать шапку при каждом поллинге
+        let ordersMap = {};       // id ордера -> объект (живое состояние для карточек в чате)
+        let platformCommission = 40; // % комиссии сервиса (для предпросмотра выплаты психологу)
 
         function getDashboardUrl() {
             if (!currentUser) return '/login.html';
@@ -754,6 +788,9 @@
             const notesBtn = isPsy
                 ? `<button onclick="openNotes()" class="session-btn" style="background:#0EA5E9;" title="Приватные заметки по клиенту">📝 Заметки</button>`
                 : '';
+            const orderBtn = isPsy
+                ? `<button onclick="openOrderModal()" class="session-btn" style="background:#7C3AED;" title="Выставить счёт: своя цена и формат">💳 Счёт</button>`
+                : '';
             return `
                 <button class="chat-back-btn" onclick="goBackToList()" title="Назад к диалогам">←</button>
                 <div class="avatar">${other.avatar ? `<img src="${other.avatar}" alt="${name}">` : name.charAt(0)}</div>
@@ -762,6 +799,7 @@
                     <div class="role">${roleText}</div>
                 </div>
                 ${sessionBtn}
+                ${orderBtn}
                 ${notesBtn}
                 ${videoBtn}
                 <a href="${getDashboardUrl()}" class="dashboard-btn" title="Личный кабинет">
@@ -919,6 +957,13 @@
             const userIdFromUrl = urlParams.get('user');
             isAdminMode = urlParams.get('admin') === '1' && currentUser.role === 'admin';
 
+            // Комиссия сервиса — для предпросмотра выплаты психологу при выставлении счёта
+            try {
+                const sr = await fetch('/api/settings.php?action=public');
+                const s = await sr.json();
+                if (s && s.platform_commission) platformCommission = parseFloat(s.platform_commission) || 40;
+            } catch (e) {}
+
             await loadConversations();
 
             // Автоматически открыть чат если есть user в URL
@@ -986,7 +1031,8 @@
                 container.innerHTML = conversations.map(c => {
                     const name = `${c.first_name || ''} ${c.last_name || ''}`.trim() || 'Пользователь';
                     const initial = name.charAt(0).toUpperCase();
-                    const preview = c.is_mine ? `Вы: ${c.last_message}` : c.last_message;
+                    const lastMsg = (c.last_message || '').replace(/^\[ORDER#\d+\]\s*/, '');
+                    const preview = c.is_mine ? `Вы: ${lastMsg}` : lastMsg;
                     const time = formatTime(c.last_message_time);
 
                     return `
@@ -1062,6 +1108,9 @@
                 });
                 const messages = await response.json();
 
+                // Живое состояние счетов для интерактивных карточек
+                await loadOrders();
+
                 const container = document.getElementById('messagesContainer');
                 const wasScrolledToBottom = container.scrollHeight - container.scrollTop <= container.clientHeight + 50;
 
@@ -1104,6 +1153,20 @@
                                 </div>
                             `;
                         }
+                    }
+
+                    // Счёт/ордер → интерактивная карточка с живым статусом
+                    const orderMatch = (m.content || '').match(/^\[ORDER#(\d+)\]/);
+                    if (orderMatch) {
+                        const order = ordersMap[orderMatch[1]];
+                        if (order) {
+                            return `<div class="message ${isMine ? 'mine' : 'theirs'}" style="max-width:80%;">
+                                ${renderOrderCard(order, isMine)}
+                                <div class="message-time">${time}</div>
+                            </div>`;
+                        }
+                        // Если ордер не найден (нет доступа/удалён) — показываем текст без метки
+                        return `<div class="message ${isMine ? 'mine' : 'theirs'}"><div>${escapeHtml(m.content.replace(/^\[ORDER#\d+\]\s*/, ''))}</div><div class="message-time">${time}</div></div>`;
                     }
 
                     // Не показывать "[Файл: ...]" или "[Голосовое сообщение: ...]" если есть вложение
@@ -1498,6 +1561,128 @@
 
         function closeVideoModal() {
             document.getElementById('videoModal').style.display = 'none';
+        }
+
+        // === ИНДИВИДУАЛЬНЫЕ СЧЁТА / ОРДЕРА (гибкая цена и формат) ===
+        function openOrderModal() {
+            if (!selectedUserId) { alert('Выберите клиента'); return; }
+            document.getElementById('orderTitle').value = '';
+            document.getElementById('orderAmount').value = '';
+            document.getElementById('orderDuration').value = '';
+            document.getElementById('orderNote').value = '';
+            document.getElementById('orderError').style.display = 'none';
+            document.getElementById('orderPayout').style.display = 'none';
+            document.getElementById('orderModal').style.display = 'flex';
+            setTimeout(() => document.getElementById('orderTitle').focus(), 100);
+        }
+        function closeOrderModal() { document.getElementById('orderModal').style.display = 'none'; }
+
+        function updateOrderPayout() {
+            const amount = parseFloat(document.getElementById('orderAmount').value) || 0;
+            const box = document.getElementById('orderPayout');
+            if (amount > 0) {
+                const payout = Math.round(amount * (100 - platformCommission) / 100);
+                box.textContent = '💰 Вы получите ' + payout.toLocaleString('ru-RU') + ' ₽ · клиент видит только итог ' + amount.toLocaleString('ru-RU') + ' ₽ (комиссия сервиса ' + platformCommission + '%, клиенту не показывается)';
+                box.style.display = 'block';
+            } else {
+                box.style.display = 'none';
+            }
+        }
+
+        async function sendOrder() {
+            const title = document.getElementById('orderTitle').value.trim();
+            const amount = parseFloat(document.getElementById('orderAmount').value) || 0;
+            const duration = document.getElementById('orderDuration').value.trim();
+            const note = document.getElementById('orderNote').value.trim();
+            const err = document.getElementById('orderError');
+            if (!title) { err.textContent = 'Укажите, что входит в счёт'; err.style.display = 'block'; return; }
+            if (amount <= 0) { err.textContent = 'Укажите цену больше 0'; err.style.display = 'block'; return; }
+
+            try {
+                const r = await fetch('/api/orders.php?action=create', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+                    body: JSON.stringify({ client_user_id: selectedUserId, title, amount, duration, note })
+                });
+                const d = await r.json();
+                if (!d.ok) { err.textContent = d.error || 'Не удалось создать счёт'; err.style.display = 'block'; return; }
+                // Метка-сообщение в чате — даёт позицию в ленте; живое состояние берётся из ordersMap
+                await fetch('/api/messages.php?action=send', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+                    body: JSON.stringify({ receiver_id: selectedUserId, content: '[ORDER#' + d.id + '] 💳 Счёт: ' + title + ' — ' + amount.toLocaleString('ru-RU') + ' ₽' })
+                });
+                closeOrderModal();
+                await loadMessages();
+                const c = document.getElementById('messagesContainer'); c.scrollTop = c.scrollHeight;
+            } catch (e) {
+                err.textContent = 'Ошибка сети. Попробуйте ещё раз.'; err.style.display = 'block';
+            }
+        }
+
+        async function loadOrders() {
+            if (!selectedUserId) return;
+            try {
+                const r = await fetch('/api/orders.php?action=list&with=' + encodeURIComponent(selectedUserId), { credentials: 'include' });
+                const d = await r.json();
+                ordersMap = {};
+                (d.data || []).forEach(o => { ordersMap[String(o.id)] = o; });
+            } catch (e) { /* оставляем прошлую карту */ }
+        }
+
+        function renderOrderCard(order, isMine) {
+            const amount = (parseFloat(order.amount) || 0).toLocaleString('ru-RU');
+            const st = order.status;
+            const statusBadge = st === 'accepted'
+                ? '<span style="color:#16A34A;font-weight:700;">✅ Принят</span>'
+                : st === 'declined'
+                    ? '<span style="color:#DC2626;font-weight:700;">✕ Отклонён</span>'
+                    : '<span style="color:#92400E;font-weight:700;">⏳ Ожидает ответа</span>';
+            const dur = order.duration ? `<div style="font-size:0.82rem;opacity:0.85;">Формат: ${escapeHtml(order.duration)}</div>` : '';
+            const note = order.note ? `<div style="font-size:0.82rem;opacity:0.85;margin-top:0.2rem;">${escapeHtml(order.note)}</div>` : '';
+            // Психолог видит свою выплату; клиент — только итог
+            let extra = '';
+            if (isMine && order.psychologist_payout != null) {
+                extra = `<div style="font-size:0.78rem;color:#16A34A;margin-top:0.25rem;">Вы получите: ${(parseFloat(order.psychologist_payout)||0).toLocaleString('ru-RU')} ₽</div>`;
+            }
+            // Кнопки принять/отклонить — только клиенту и только пока pending
+            let actions = '';
+            if (!isMine && st === 'pending') {
+                actions = `<div style="display:flex;gap:0.5rem;margin-top:0.6rem;">
+                    <button onclick="respondOrder(${order.id},1)" style="flex:1;padding:0.55rem;background:#16A34A;color:#fff;border:none;border-radius:0.6rem;font-weight:700;cursor:pointer;font-family:inherit;">Принять</button>
+                    <button onclick="respondOrder(${order.id},0)" style="flex:1;padding:0.55rem;background:#fff;color:#DC2626;border:1.5px solid #FECACA;border-radius:0.6rem;font-weight:700;cursor:pointer;font-family:inherit;">Отклонить</button>
+                </div>`;
+            }
+            const accent = isMine ? 'rgba(255,255,255,0.95)' : '#1A1A1A';
+            const sub = isMine ? 'rgba(255,255,255,0.85)' : '#6B7280';
+            return `<div style="border-top:1px solid rgba(127,127,127,0.2);margin-top:0.3rem;padding-top:0.4rem;">
+                <div style="font-weight:700;color:${accent};">💳 Счёт на консультацию</div>
+                <div style="font-size:0.95rem;color:${accent};margin-top:0.15rem;">${escapeHtml(order.title)}</div>
+                <div style="font-size:1.15rem;font-weight:800;color:${accent};margin-top:0.2rem;">${amount} ₽</div>
+                <div style="color:${sub};">${dur}${note}</div>
+                <div style="margin-top:0.35rem;font-size:0.82rem;">${statusBadge}</div>
+                ${extra}
+                ${actions}
+            </div>`;
+        }
+
+        async function respondOrder(orderId, accept) {
+            try {
+                const r = await fetch('/api/orders.php?action=respond', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+                    body: JSON.stringify({ order_id: orderId, accept })
+                });
+                const d = await r.json();
+                if (!d.ok) { alert(d.error || 'Не удалось обработать счёт'); return; }
+                // Системное сообщение об ответе клиента
+                const order = ordersMap[String(orderId)];
+                const reply = accept
+                    ? '✅ Клиент принял счёт' + (order ? ': ' + order.title : '')
+                    : '✕ Клиент отклонил счёт' + (order ? ': ' + order.title : '');
+                await fetch('/api/messages.php?action=send', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+                    body: JSON.stringify({ receiver_id: selectedUserId, content: reply })
+                });
+                await loadMessages();
+            } catch (e) { alert('Ошибка сети'); }
         }
 
         async function sendTelemostLink() {

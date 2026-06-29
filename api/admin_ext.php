@@ -363,6 +363,22 @@ if ($action === 'activity') {
     exit;
 }
 
+if ($action === 'replacements') {
+    $rows = safeRows($pdo, 'replacement_requests', ['created_at', 'id'], 2000);
+    $um = usersMap($pdo); $pm = psychMap($pdo);
+    foreach ($rows as &$r) {
+        $cid = (string)pick($r, ['client_user_id', 'client_id'], '');
+        $r['client_name']  = $um[$cid]['name']  ?? '';
+        $r['client_email'] = $um[$cid]['email'] ?? '';
+        $pid = (string)pick($r, ['current_psychologist_id'], '');
+        // current_psychologist_id может быть как psychologists.id, так и user_id
+        $puid = $pm[$pid] ?? $pid;
+        $r['psychologist_name'] = $um[$puid]['name'] ?? ($pid ? ('ID ' . $pid) : '—');
+    }
+    echo json_encode(['ok' => true, 'data' => $rows]);
+    exit;
+}
+
 if ($action === 'get-settings') {
     list($table, $kc, $vc) = settingsCols($pdo);
     $out = [];
@@ -432,6 +448,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             } catch (Exception $e) { $errors[] = $key; }
         }
         echo json_encode(['ok' => true, 'saved' => $saved, 'errors' => $errors]);
+        exit;
+    }
+
+    if ($action === 'set-replacement-status') {
+        $rid = $body['id'] ?? null;
+        $status = (string)($body['status'] ?? '');
+        if (!$rid || !in_array($status, ['new', 'in_progress', 'done'], true)) {
+            http_response_code(400); echo json_encode(['error' => 'Нужны id и корректный статус']); exit;
+        }
+        try {
+            $st = $pdo->prepare("UPDATE replacement_requests SET status = ? WHERE id = ?");
+            $st->execute([$status, $rid]);
+            echo json_encode(['ok' => true]);
+        } catch (Exception $e) {
+            http_response_code(500); echo json_encode(['error' => 'Не удалось обновить статус']);
+        }
         exit;
     }
 

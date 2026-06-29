@@ -80,6 +80,7 @@
             <button class="tab" data-tab="psychologists" onclick="switchTab('psychologists')">Психологи</button>
             <button class="tab" data-tab="tariffs" onclick="switchTab('tariffs')">Тарифы и цены</button>
             <button class="tab" data-tab="appointments" onclick="switchTab('appointments')">Записи</button>
+            <button class="tab" data-tab="replacements" onclick="switchTab('replacements')">Замены психолога</button>
             <button class="tab" data-tab="calls" onclick="switchTab('calls')">Звонки / сессии</button>
             <button class="tab" data-tab="payments" onclick="switchTab('payments')">Оплаты</button>
             <button class="tab" data-tab="subscribers" onclick="switchTab('subscribers')">Подписки</button>
@@ -136,7 +137,7 @@
             document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab===tab));
             const el = document.getElementById('content');
             el.innerHTML = '<div class="loading">Загрузка...</div>';
-            ({ overview:renderOverview, users:renderUsers, psychologists:renderPsych, tariffs:renderTariffs, appointments:renderAppointments, calls:renderCalls, payments:renderPayments, subscribers:renderSubscribers, referrals:renderReferrals, activity:renderActivity }[tab])();
+            ({ overview:renderOverview, users:renderUsers, psychologists:renderPsych, tariffs:renderTariffs, appointments:renderAppointments, replacements:renderReplacements, calls:renderCalls, payments:renderPayments, subscribers:renderSubscribers, referrals:renderReferrals, activity:renderActivity }[tab])();
         }
 
         async function renderOverview(){
@@ -485,6 +486,34 @@
             } else {
                 if(msg){ msg.textContent = '⚠️ ' + ((res&&res.error)||'Не удалось сохранить'); msg.style.color='#DC2626'; }
             }
+        }
+
+        // ── Заявки на замену психолога ───────────────────────────────────────────
+        async function renderReplacements(){
+            const res = await apiGet('replacements');
+            if (!res.ok) return fail();
+            const rows = res.data || [];
+            if (!rows.length) return empty('Заявок на замену психолога пока нет');
+            rows.sort((a,b)=> (a.status==='new'?0:1) - (b.status==='new'?0:1));
+            const stMap = { new:['b-amber','новая'], in_progress:['b-purple','в работе'], done:['b-green','закрыта'] };
+            const body = `<table id="dataTable"><thead><tr>
+                <th>Дата</th><th>Клиент</th><th>Текущий психолог</th><th>Причина</th><th>Статус</th><th>Действия</th></tr></thead><tbody>` +
+                rows.map(r => {
+                    const s = stMap[r.status] || ['b-gray', r.status||'—'];
+                    const acts = r.status!=='done'
+                        ? `${r.status==='new'?`<button class="btn-sm btn-purple" onclick="setReplStatus('${esc(r.id)}','in_progress')">Взять в работу</button> `:''}<button class="btn-sm btn-outline" onclick="setReplStatus('${esc(r.id)}','done')">Закрыть</button>`
+                        : `<button class="btn-sm btn-outline" onclick="setReplStatus('${esc(r.id)}','new')">Вернуть</button>`;
+                    const client = esc(r.client_name||'—') + (r.client_email?`<br><span class="muted" style="font-size:0.78rem;">${esc(r.client_email)}</span>`:'');
+                    return `<tr><td class="muted">${fmtDateTime(r.created_at)}</td><td>${client}</td><td>${esc(r.psychologist_name||'—')}</td><td style="max-width:280px;white-space:normal;">${esc(r.reason||'—')}</td><td><span class="badge ${s[0]}">${esc(s[1])}</span></td><td style="white-space:nowrap;">${acts}</td></tr>`;
+                }).join('') + '</tbody></table>';
+            document.getElementById('content').innerHTML =
+                '<div class="note">🔄 Клиенты оставляют заявку «Заменить психолога» в личном кабинете. Возьмите в работу, помогите подобрать другого специалиста и закройте заявку.</div>' +
+                panel('Заявки на замену ('+rows.length+')','sRepl',body);
+        }
+        async function setReplStatus(id, status){
+            const res = await apiPost('set-replacement-status', { id, status });
+            if (res.error) return alert(res.error);
+            renderReplacements();
         }
 
         function fail(){ document.getElementById('content').innerHTML = '<div class="panel"><div class="empty">Не удалось загрузить данные. Проверьте, что вы вошли как администратор.</div></div>'; }

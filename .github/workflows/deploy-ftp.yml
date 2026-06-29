@@ -61,6 +61,8 @@ jobs:
             put api/schedule.php -o api/schedule.php;
             put api/reviews.php -o api/reviews.php;
             put api/payment_mock.php -o api/payment_mock.php;
+            put api/orders.php -o api/orders.php;
+            put api/replace.php -o api/replace.php;
             bye;
           "
           echo "Deployment complete"
