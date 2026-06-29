@@ -31,7 +31,7 @@
         <!-- Registration Form -->
         <form id="register-form">
           <!-- User Type Selection -->
-          <div class="form-group">
+          <div class="form-group" id="roleSelectGroup">
             <label class="form-label">Я хочу зарегистрироваться как:</label>
             <div class="flex gap-3 auth-buttons">
               <label class="flex-1" style="cursor: pointer;">
@@ -109,16 +109,21 @@
           <!-- Password -->
           <div class="form-group">
             <label class="form-label" for="password">Пароль</label>
-            <input 
-              type="password" 
-              id="password" 
-              name="password" 
-              class="form-input" 
-              required 
-              placeholder="Минимум 6 символов"
-              minlength="6"
-              data-testid="input-password"
-            />
+            <div style="position:relative;">
+              <input
+                type="password"
+                id="password"
+                name="password"
+                class="form-input"
+                required
+                placeholder="Минимум 6 символов"
+                minlength="6"
+                style="padding-right:2.75rem;"
+                data-testid="input-password"
+              />
+              <button type="button" aria-label="Показать пароль" onclick="togglePw('password', this)"
+                style="position:absolute;top:50%;right:0.5rem;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:1.15rem;line-height:1;padding:0.25rem;color:#9CA3AF;">👁</button>
+            </div>
           </div>
 
           <!-- How did you find us (statistics) -->
@@ -183,6 +188,25 @@
                 placeholder="ВУЗ, специальность, год выпуска, доп. обучение"
                 data-testid="input-education"
               ></textarea>
+            </div>
+
+            <!-- Дипломы и сертификаты -->
+            <div class="form-group">
+              <label class="form-label">Дипломы и сертификаты (фото или PDF)</label>
+              <input type="file" id="diplomaInput" accept="image/*,.pdf" multiple class="form-input" style="padding:0.5rem;" onchange="onDiplomaPick()" />
+              <span style="font-size: 0.75rem; color: #999;">Подтверждающие документы появятся в вашей карточке. Можно загрузить несколько файлов.</span>
+              <div id="diplomaList" style="margin-top:0.5rem;display:flex;flex-direction:column;gap:0.35rem;"></div>
+            </div>
+
+            <!-- ИНН и проверка статуса -->
+            <div class="form-group">
+              <label class="form-label" for="inn">ИНН (самозанятость или ИП)</label>
+              <div style="display:flex;gap:0.5rem;align-items:stretch;">
+                <input type="text" id="inn" name="inn" class="form-input" inputmode="numeric" maxlength="12" placeholder="10 или 12 цифр" style="flex:1;" />
+                <button type="button" id="innCheckBtn" onclick="checkInn()" style="background:#7C3AED;color:#fff;border:none;white-space:nowrap;padding:0 1.1rem;border-radius:0.5rem;font-weight:600;cursor:pointer;font-family:inherit;">Проверить</button>
+              </div>
+              <div id="innResult" style="display:none;margin-top:0.5rem;font-size:0.85rem;border-radius:0.5rem;padding:0.55rem 0.75rem;line-height:1.45;"></div>
+              <span style="font-size: 0.75rem; color: #999;">Проверим корректность ИНН и статус самозанятого через ФНС. Виден только администратору.</span>
             </div>
 
             <!-- Description -->
@@ -522,6 +546,11 @@
             } catch (e) {}
           }
 
+          // Дипломы/сертификаты + ИНН — сохраняем после регистрации
+          if (data.role === 'psychologist') {
+            try { await savePsychCredentials(); } catch (e) {}
+          }
+
           setTimeout(() => {
             if (data.role === 'psychologist') {
               window.location.href = '/psychologist-dashboard.html';
@@ -547,11 +576,89 @@
       }
     });
 
-    // Check for role in URL
+    // ── Дипломы/сертификаты: предпросмотр выбранных файлов ──
+    let innVerified = null; // результат проверки ИНН
+    function onDiplomaPick() {
+      const inp = document.getElementById('diplomaInput');
+      const list = document.getElementById('diplomaList');
+      const files = Array.from(inp.files || []);
+      list.innerHTML = files.map(f => `<div style="background:#F8F6FF;border:1px solid #EDE9FF;border-radius:0.5rem;padding:0.4rem 0.6rem;font-size:0.82rem;color:#374151;">📄 ${f.name} <span style="color:#9CA3AF;">(${Math.round(f.size/1024)} КБ)</span></div>`).join('');
+    }
+
+    // ── Проверка ИНН ──
+    async function checkInn() {
+      const inn = (document.getElementById('inn').value || '').replace(/\D+/g, '');
+      const box = document.getElementById('innResult');
+      const btn = document.getElementById('innCheckBtn');
+      if (!inn) { box.style.display='block'; box.style.background='#FEF2F2'; box.style.color='#DC2626'; box.textContent='Введите ИНН'; return; }
+      btn.disabled = true; const old = btn.textContent; btn.textContent = '...';
+      try {
+        const r = await fetch('/api/inn_check.php?action=check', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ inn }) });
+        const d = await r.json();
+        box.style.display = 'block';
+        if (!d.valid) { box.style.background='#FEF2F2'; box.style.color='#DC2626'; box.textContent = '✕ ' + (d.message || 'ИНН некорректен'); innVerified = null; }
+        else {
+          const ok = d.self_employed === true;
+          box.style.background = ok ? '#F0FDF4' : '#FFF8E7';
+          box.style.color = ok ? '#16A34A' : '#92400E';
+          box.textContent = (ok ? '✅ ' : 'ℹ️ ') + d.message + ' (' + (d.kind||'') + ')';
+          innVerified = { inn, self_employed: d.self_employed, kind: d.kind };
+        }
+      } catch(e) {
+        box.style.display='block'; box.style.background='#FFF8E7'; box.style.color='#92400E';
+        box.textContent = 'Не удалось проверить сейчас — попробуйте позже.';
+      } finally { btn.disabled = false; btn.textContent = old; }
+    }
+    window.checkInn = checkInn;
+
+    // ── Сохранение документов и ИНН после регистрации (best-effort, не блокирует) ──
+    async function savePsychCredentials() {
+      // Дипломы/сертификаты
+      try {
+        const files = Array.from((document.getElementById('diplomaInput') || {}).files || []);
+        for (const f of files) {
+          const fd = new FormData(); fd.append('file', f);
+          const up = await fetch('/api/upload.php', { method:'POST', credentials:'include', body: fd });
+          const ur = await up.json();
+          if (ur && ur.url) {
+            await fetch('/api/credentials.php?action=add', { method:'POST', headers:{'Content-Type':'application/json'}, credentials:'include',
+              body: JSON.stringify({ type:'diploma', url: ur.url, name: f.name }) });
+          }
+        }
+      } catch(e) {}
+      // ИНН
+      try {
+        const innVal = (document.getElementById('inn').value || '').replace(/\D+/g, '');
+        if (innVal) {
+          await fetch('/api/credentials.php?action=add', { method:'POST', headers:{'Content-Type':'application/json'}, credentials:'include',
+            body: JSON.stringify({ type:'inn', name: innVal, meta: innVerified || { inn: innVal } }) });
+        }
+      } catch(e) {}
+    }
+
+    // Password show/hide
+    function togglePw(id, btn) {
+      const inp = document.getElementById(id);
+      if (!inp) return;
+      const show = inp.type === 'password';
+      inp.type = show ? 'text' : 'password';
+      btn.textContent = show ? '🙈' : '👁';
+      btn.setAttribute('aria-label', show ? 'Скрыть пароль' : 'Показать пароль');
+    }
+    window.togglePw = togglePw;
+
+    // Check for role in URL — для специалиста сразу показываем форму психолога
     const urlParams = new URLSearchParams(window.location.search);
     const roleParam = urlParams.get('type');
     if (roleParam === 'psychologist') {
       document.querySelector('input[value="psychologist"]').click();
+      // Скрываем выбор роли — это выделенная регистрация специалиста
+      const roleGroup = document.getElementById('roleSelectGroup');
+      if (roleGroup) roleGroup.style.display = 'none';
+      const heading = document.querySelector('.text-center.mb-6 h1');
+      if (heading) heading.textContent = 'Регистрация специалиста';
+      const sub = document.querySelector('.text-center.mb-6 p');
+      if (sub) sub.textContent = 'Анкета психолога psytalk.pro';
     }
 
     // Initialize Lucide icons

@@ -362,6 +362,14 @@
                     <small>Максимальный размер: 5MB</small>
                 </div>
 
+                <div class="form-group">
+                    <label>Дипломы и сертификаты</label>
+                    <div id="credList" style="display:flex;flex-direction:column;gap:0.4rem;margin-bottom:0.5rem;"></div>
+                    <input type="file" id="credInput" accept="image/*,.pdf" multiple style="display:none;" />
+                    <button type="button" id="credUploadBtn" class="btn btn-outline">＋ Добавить документ</button>
+                    <small>Фото или PDF дипломов и сертификатов — показываются в вашей карточке.</small>
+                </div>
+
                 <button type="button" id="savePsychologistBtn" class="btn btn-primary">Сохранить изменения</button>
             </div>
         </div>
@@ -689,6 +697,55 @@
             if (typeof lucide !== 'undefined') {
                 lucide.createIcons();
             }
+        })();
+    </script>
+
+    <!-- Управление дипломами/сертификатами (независимый блок) -->
+    <script>
+        (function () {
+            const listEl = document.getElementById('credList');
+            const input = document.getElementById('credInput');
+            const btn = document.getElementById('credUploadBtn');
+            if (!listEl || !input || !btn) return;
+            function esc(s){ const d=document.createElement('div'); d.textContent=(s==null?'':String(s)); return d.innerHTML; }
+
+            async function load() {
+                let rows = [];
+                try { const r = await fetch('/api/credentials.php?action=mine', { credentials:'include' }); const d = await r.json(); rows = (d && d.data || []).filter(c => c.type === 'diploma' || c.type === 'cert'); } catch(e){}
+                if (!rows.length) { listEl.innerHTML = '<div style="color:#9CA3AF;font-size:0.85rem;">Документы пока не загружены.</div>'; return; }
+                listEl.innerHTML = rows.map(c => `<div style="display:flex;align-items:center;justify-content:space-between;gap:0.5rem;background:#F8F6FF;border:1px solid #EDE9FF;border-radius:0.5rem;padding:0.4rem 0.6rem;">
+                    <a href="${esc(c.url)}" target="_blank" rel="noopener" style="color:#7C3AED;text-decoration:none;font-size:0.85rem;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">📄 ${esc(c.name||'Документ')}</a>
+                    <button type="button" data-id="${esc(c.id)}" style="background:none;border:none;color:#EF4444;cursor:pointer;font-size:0.8rem;">Удалить</button>
+                </div>`).join('');
+                listEl.querySelectorAll('button[data-id]').forEach(b => b.addEventListener('click', async () => {
+                    if (!confirm('Удалить документ?')) return;
+                    try { await fetch('/api/credentials.php?action=delete', { method:'POST', headers:{'Content-Type':'application/json'}, credentials:'include', body: JSON.stringify({ id: b.dataset.id }) }); load(); } catch(e){}
+                }));
+            }
+
+            btn.addEventListener('click', () => input.click());
+            input.addEventListener('change', async () => {
+                const files = Array.from(input.files || []);
+                if (!files.length) return;
+                const old = btn.textContent; btn.disabled = true; btn.textContent = 'Загрузка...';
+                for (const f of files) {
+                    try {
+                        const fd = new FormData(); fd.append('file', f);
+                        const up = await (await fetch('/api/upload.php', { method:'POST', credentials:'include', body: fd })).json();
+                        if (up && up.url) await fetch('/api/credentials.php?action=add', { method:'POST', headers:{'Content-Type':'application/json'}, credentials:'include', body: JSON.stringify({ type:'diploma', url: up.url, name: f.name }) });
+                    } catch(e){}
+                }
+                input.value = ''; btn.disabled = false; btn.textContent = old; load();
+            });
+
+            // Показываем блок только для формы психолога
+            const obs = new MutationObserver(() => {
+                const form = document.getElementById('psychologistForm');
+                if (form && !form.classList.contains('hidden')) { load(); obs.disconnect(); }
+            });
+            obs.observe(document.getElementById('psychologistForm') || document.body, { attributes:true, attributeFilter:['class'] });
+            // на случай если форма уже видима
+            setTimeout(() => { const f = document.getElementById('psychologistForm'); if (f && !f.classList.contains('hidden')) load(); }, 1200);
         })();
     </script>
 </body>

@@ -126,12 +126,7 @@
                 </div>
                 <div class="selector-img" style="border-radius:1.5rem;min-height:340px;background:linear-gradient(135deg,#7C3AED 0%,#9F67FA 60%,#C4B5FD 100%);box-shadow:0 8px 40px rgba(124,58,237,0.18);padding:2.25rem;color:#fff;display:flex;flex-direction:column;justify-content:center;">
                     <div style="font-size:1.25rem;font-weight:800;margin-bottom:1.25rem;">Что входит в стоимость</div>
-                    <div style="display:flex;flex-direction:column;gap:0.9rem;">
-                        <div style="display:flex;gap:0.75rem;align-items:flex-start;"><span style="font-size:1.25rem;">⏱️</span><div><b>50 минут полноценной работы</b><div style="opacity:0.85;font-size:0.9rem;">наедине с вашим специалистом</div></div></div>
-                        <div style="display:flex;gap:0.75rem;align-items:flex-start;"><span style="font-size:1.25rem;">🎥</span><div><b>Видео, аудио или чат</b><div style="opacity:0.85;font-size:0.9rem;">формат выбираете вы при записи</div></div></div>
-                        <div style="display:flex;gap:0.75rem;align-items:flex-start;"><span style="font-size:1.25rem;">🔒</span><div><b>Защищённое соединение</b><div style="opacity:0.85;font-size:0.9rem;">данные карты не хранятся на сайте</div></div></div>
-                        <div style="display:flex;gap:0.75rem;align-items:flex-start;"><span style="font-size:1.25rem;">🔄</span><div><b>Перенос за 24 часа</b><div style="opacity:0.85;font-size:0.9rem;">без потери средств</div></div></div>
-                    </div>
+                    <div style="display:flex;flex-direction:column;gap:0.9rem;" id="selIncludes"></div>
                     <div style="margin-top:1.5rem;background:rgba(255,255,255,0.15);border-radius:0.875rem;padding:0.875rem 1rem;font-size:0.9rem;">⭐ Не подошёл психолог? Бесплатно подберём другого.</div>
                 </div>
             </div>
@@ -299,6 +294,27 @@
             couple: { name:'Для пары',     dur:'90 мин', desc:'Совместная сессия для пары — работа над отношениями и общими сложностями вместе со специалистом.' },
             teen:   { name:'Для подростка',dur:'50 мин', desc:'Бережная работа с подростком с учётом возраста, в безопасном и доверительном формате.' }
         };
+
+        // Первый пункт блока «Что входит» зависит от выбранного типа сессии
+        const INCLUDES_FIRST = {
+            self:   ['⏱️', '50 минут полноценной работы', 'наедине с вашим специалистом'],
+            couple: ['⏱️', '90 минут для пары', 'работа над отношениями вдвоём со специалистом'],
+            teen:   ['⏱️', '50 минут для подростка', 'бережно, с учётом возраста']
+        };
+        function incItem(emoji, title, sub) {
+            return '<div style="display:flex;gap:0.75rem;align-items:flex-start;"><span style="font-size:1.25rem;">' + emoji + '</span>'
+                + '<div><b>' + title + '</b><div style="opacity:0.85;font-size:0.9rem;">' + sub + '</div></div></div>';
+        }
+        function renderIncludes(t) {
+            const el = document.getElementById('selIncludes');
+            if (!el) return;
+            const first = INCLUDES_FIRST[t] || INCLUDES_FIRST.self;
+            el.innerHTML =
+                incItem(first[0], first[1], first[2]) +
+                incItem('🎥', 'Видео, аудио или чат', 'формат выбираете вы при записи') +
+                incItem('🔒', 'Защищённое соединение', 'данные карты не хранятся на сайте') +
+                incItem('🔄', 'Перенос за 24 часа', 'без потери средств');
+        }
         function selType(t) {
             const s = window._S; if (!s) return;
             document.querySelectorAll('.seg-btn').forEach(b => {
@@ -320,6 +336,7 @@
             const promoEl = document.getElementById('selPromo');
             if (promoOn) { promoEl.style.display = 'block'; promoEl.textContent = '🎁 ' + (s['promo_' + t + '_title'] || 'Акция') + ' · ' + dur; }
             else promoEl.style.display = 'none';
+            renderIncludes(t);
         }
 
         // ── Пакеты сессий (из базовой индивидуальной цены) ──

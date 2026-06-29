@@ -101,8 +101,31 @@
                     </div>
                     ${price>0 ? renderPackages(price) : ''}
                 </div>
+                <div class="card" id="credsCard" style="display:none;"></div>
                 <div class="card" id="reviewsCard"><div style="color:#9CA3AF;">Загрузка отзывов...</div></div>`;
+            loadCredentials();
             try { if (window.lucide) lucide.createIcons(); } catch(e){}
+        }
+
+        async function loadCredentials() {
+            const card = document.getElementById('credsCard');
+            if (!card) return;
+            let rows = [];
+            try { const r = await fetch('/api/credentials.php?action=list&psychologist_id=' + encodeURIComponent(id)); const d = await r.json(); rows = (d && d.data) || []; } catch(e){}
+            if (!rows.length) { card.style.display = 'none'; return; }
+            card.style.display = 'block';
+            const items = rows.map(c => {
+                const url = c.url || '';
+                const isImg = /\.(png|jpe?g|webp|gif)$/i.test(url);
+                if (isImg) {
+                    return `<a href="${esc(url)}" target="_blank" rel="noopener" style="display:block;border:1px solid #EDE9FF;border-radius:0.6rem;overflow:hidden;">
+                        <img src="${esc(url)}" alt="${esc(c.name||'Документ')}" style="width:100%;height:130px;object-fit:cover;display:block;"></a>`;
+                }
+                return `<a href="${esc(url)}" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:0.5rem;border:1px solid #EDE9FF;border-radius:0.6rem;padding:0.75rem;color:#7C3AED;text-decoration:none;font-size:0.85rem;font-weight:600;">📄 ${esc(c.name||'Документ')}</a>`;
+            }).join('');
+            card.innerHTML = `<h2 style="margin-top:0;">Дипломы и сертификаты</h2>
+                <p style="color:#6B7280;font-size:0.875rem;margin-bottom:0.9rem;">Подтверждающие документы специалиста.</p>
+                <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:0.75rem;">${items}</div>`;
         }
 
         // ── Абонементы (пакеты сессий) к этому психологу ──

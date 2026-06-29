@@ -67,6 +67,8 @@ jobs:
             put api/packages.php -o api/packages.php;
             put api/support.php -o api/support.php;
             put api/supervision.php -o api/supervision.php;
+            put api/credentials.php -o api/credentials.php;
+            put api/inn_check.php -o api/inn_check.php;
             bye;
           "
           echo "Deployment complete"
