@@ -108,6 +108,37 @@ function usersMap(PDO $pdo): array {
     return $map;
 }
 
+/** Определяет имена колонок ключ/значение в таблице settings (схема может отличаться). */
+function settingsCols(PDO $pdo): array {
+    foreach (['settings', 'site_settings', 'options', 'config'] as $table) {
+        try {
+            $cols = $pdo->query("SHOW COLUMNS FROM `$table`")->fetchAll(PDO::FETCH_COLUMN);
+        } catch (Exception $e) { continue; }
+        if (!$cols) continue;
+        $lc = array_map('strtolower', $cols);
+        $k = null; $v = null;
+        foreach (['setting_key', 'key', 'name', 'k', 'option_name', 'param', 'param_name', '`key`'] as $c) {
+            $i = array_search($c, $lc, true); if ($i !== false) { $k = $cols[$i]; break; }
+        }
+        foreach (['setting_value', 'value', 'val', 'v', 'option_value', 'data'] as $c) {
+            $i = array_search($c, $lc, true); if ($i !== false) { $v = $cols[$i]; break; }
+        }
+        if ($k && $v) return [$table, $k, $v];
+    }
+    return [null, null, null];
+}
+
+/** Ключи настроек, которые разрешено читать/писать из админки. */
+function allowedSettingKeys(): array {
+    $keys = ['price_self', 'price_couple', 'price_teen', 'platform_commission', 'acquiring_fee', 'tax_rate'];
+    foreach (['self', 'couple', 'teen'] as $t) {
+        foreach (['enabled', 'price', 'title', 'duration', 'deadline'] as $f) {
+            $keys[] = "promo_{$t}_{$f}";
+        }
+    }
+    return $keys;
+}
+
 /** Карта психологов: psychologists.id => user_id (для связи записи -> пользователь). */
 function psychMap(PDO $pdo): array {
     $map = [];
@@ -332,6 +363,20 @@ if ($action === 'activity') {
     exit;
 }
 
+if ($action === 'get-settings') {
+    list($table, $kc, $vc) = settingsCols($pdo);
+    $out = [];
+    if ($table) {
+        try {
+            foreach ($pdo->query("SELECT `$kc` AS k, `$vc` AS v FROM `$table`")->fetchAll(PDO::FETCH_ASSOC) as $r) {
+                $out[$r['k']] = $r['v'];
+            }
+        } catch (Exception $e) {}
+    }
+    echo json_encode(['ok' => true, 'data' => $out, 'store' => $table]);
+    exit;
+}
+
 // ── Действия (безопасные одиночные UPDATE) ────────────────────────────────────
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -362,6 +407,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } catch (Exception $e) {
             http_response_code(500); echo json_encode(['error' => 'Не удалось обновить цену']);
         }
+        exit;
+    }
+
+    if ($action === 'save-settings') {
+        $settings = isset($body['settings']) && is_array($body['settings']) ? $body['settings'] : $body;
+        list($table, $kc, $vc) = settingsCols($pdo);
+        if (!$table) { http_response_code(500); echo json_encode(['error' => 'Не найдена таблица настроек']); exit; }
+        $allowed = allowedSettingKeys();
+        $saved = 0; $errors = [];
+        foreach ($settings as $key => $val) {
+            if (!in_array($key, $allowed, true)) continue;
+            try {
+                $chk = $pdo->prepare("SELECT COUNT(*) FROM `$table` WHERE `$kc` = ?");
+                $chk->execute([$key]);
+                if ((int)$chk->fetchColumn() > 0) {
+                    $u = $pdo->prepare("UPDATE `$table` SET `$vc` = ? WHERE `$kc` = ?");
+                    $u->execute([(string)$val, $key]);
+                } else {
+                    $ins = $pdo->prepare("INSERT INTO `$table` (`$kc`, `$vc`) VALUES (?, ?)");
+                    $ins->execute([$key, (string)$val]);
+                }
+                $saved++;
+            } catch (Exception $e) { $errors[] = $key; }
+        }
+        echo json_encode(['ok' => true, 'saved' => $saved, 'errors' => $errors]);
         exit;
     }
 

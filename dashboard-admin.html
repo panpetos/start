@@ -60,6 +60,7 @@
         .tl-body { flex: 1; min-width: 0; }
         .tl-sum { font-size: 0.87rem; color: #1A1A1A; }
         .tl-ts { font-size: 0.74rem; color: #9CA3AF; margin-top: 0.1rem; }
+        @media (max-width: 820px) { #tariffGrid { grid-template-columns: 1fr !important; } }
     </style>
 </head>
 <body>
@@ -77,6 +78,7 @@
             <button class="tab active" data-tab="overview" onclick="switchTab('overview')">Обзор</button>
             <button class="tab" data-tab="users" onclick="switchTab('users')">Пользователи</button>
             <button class="tab" data-tab="psychologists" onclick="switchTab('psychologists')">Психологи</button>
+            <button class="tab" data-tab="tariffs" onclick="switchTab('tariffs')">Тарифы и цены</button>
             <button class="tab" data-tab="appointments" onclick="switchTab('appointments')">Записи</button>
             <button class="tab" data-tab="calls" onclick="switchTab('calls')">Звонки / сессии</button>
             <button class="tab" data-tab="payments" onclick="switchTab('payments')">Оплаты</button>
@@ -134,7 +136,7 @@
             document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab===tab));
             const el = document.getElementById('content');
             el.innerHTML = '<div class="loading">Загрузка...</div>';
-            ({ overview:renderOverview, users:renderUsers, psychologists:renderPsych, appointments:renderAppointments, calls:renderCalls, payments:renderPayments, subscribers:renderSubscribers, referrals:renderReferrals, activity:renderActivity }[tab])();
+            ({ overview:renderOverview, users:renderUsers, psychologists:renderPsych, tariffs:renderTariffs, appointments:renderAppointments, calls:renderCalls, payments:renderPayments, subscribers:renderSubscribers, referrals:renderReferrals, activity:renderActivity }[tab])();
         }
 
         async function renderOverview(){
@@ -342,6 +344,147 @@
             document.getElementById('content').innerHTML =
                 '<div class="note">🧾 Журнал собран из реальных событий системы (регистрации, записи, оплаты, звонки). Это аудит на основе данных. Для детального аудита (входы, изменения профилей, действия админа) нужны логирующие хуки в бэкенде — подключу при доступе к серверной части.</div>' +
                 `<div class="panel"><div class="timeline">${items}</div></div>`;
+        }
+
+        // ── Тарифы и цены ──────────────────────────────────────────────────────
+        const TARIFFS = [
+            { key:'self',   label:'Для себя',      hint:'индивидуальная сессия' },
+            { key:'couple', label:'Для пары',      hint:'парная сессия' },
+            { key:'teen',   label:'Для подростка', hint:'сессия для подростка' }
+        ];
+        let SETTINGS = {};
+
+        function sGet(k, def){ const v = SETTINGS[k]; return (v===undefined||v===null||v==='') ? def : v; }
+        function num(id){ const el=document.getElementById(id); return el ? (parseFloat(el.value)||0) : 0; }
+
+        async function renderTariffs(){
+            // Читаем из БД (admin), при пустом — из публичного эндпоинта.
+            let s = {};
+            try { const r = await apiGet('get-settings'); if (r.ok && r.data) s = r.data; } catch(e){}
+            if (!s || !Object.keys(s).length) {
+                try { const r2 = await fetch('/api/settings.php?action=public'); s = await r2.json(); } catch(e){}
+            }
+            SETTINGS = s || {};
+
+            const fld = (id, label, val, suffix) =>
+                `<label style="display:block;margin-bottom:0.9rem;">
+                    <span style="display:block;font-size:0.82rem;color:#6B7280;margin-bottom:0.3rem;font-weight:600;">${label}</span>
+                    <span style="display:inline-flex;align-items:center;gap:0.4rem;">
+                      <input id="${id}" type="number" min="0" step="${id.startsWith('commission')||id.includes('fee')||id.includes('tax')?'0.1':'50'}" value="${esc(val)}"
+                        oninput="recalcIncome()" style="width:140px;padding:0.55rem 0.7rem;border:1.5px solid #E5E7EB;border-radius:0.6rem;font-size:0.95rem;font-family:inherit;outline:none;">
+                      <span style="color:#9CA3AF;font-size:0.85rem;">${suffix||''}</span>
+                    </span>
+                </label>`;
+
+            const baseInputs = TARIFFS.map(t =>
+                fld('price_'+t.key, t.label + ' <span style="color:#9CA3AF;font-weight:400;">('+t.hint+')</span>', sGet('price_'+t.key, ''), '₽')
+            ).join('');
+
+            const commission = sGet('platform_commission', '40');
+            const acquiring  = sGet('acquiring_fee', '3');
+            const tax        = sGet('tax_rate', '6');
+
+            // Блок акций «первая сессия»
+            const promoBlocks = TARIFFS.map(t => {
+                const k = t.key;
+                const en = String(sGet('promo_'+k+'_enabled','0'))==='1';
+                return `<div style="border:1px solid #EDE9FF;border-radius:0.8rem;padding:1rem 1.1rem;margin-bottom:0.8rem;">
+                  <label style="display:flex;align-items:center;gap:0.5rem;font-weight:700;margin-bottom:0.7rem;cursor:pointer;">
+                    <input type="checkbox" id="promo_${k}_enabled" ${en?'checked':''} style="width:18px;height:18px;accent-color:#7C3AED;cursor:pointer;">
+                    Акция «первая сессия» — ${t.label}
+                  </label>
+                  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:0.7rem;">
+                    <label style="font-size:0.8rem;color:#6B7280;">Цена акции, ₽<br>
+                      <input id="promo_${k}_price" type="number" min="0" step="50" value="${esc(sGet('promo_'+k+'_price',''))}" style="width:100%;margin-top:0.25rem;padding:0.45rem 0.6rem;border:1.5px solid #E5E7EB;border-radius:0.5rem;font-family:inherit;"></label>
+                    <label style="font-size:0.8rem;color:#6B7280;">Заголовок<br>
+                      <input id="promo_${k}_title" type="text" value="${esc(sGet('promo_'+k+'_title',''))}" placeholder="Сессия-знакомство" style="width:100%;margin-top:0.25rem;padding:0.45rem 0.6rem;border:1.5px solid #E5E7EB;border-radius:0.5rem;font-family:inherit;"></label>
+                    <label style="font-size:0.8rem;color:#6B7280;">Длительность<br>
+                      <input id="promo_${k}_duration" type="text" value="${esc(sGet('promo_'+k+'_duration',''))}" placeholder="30 мин" style="width:100%;margin-top:0.25rem;padding:0.45rem 0.6rem;border:1.5px solid #E5E7EB;border-radius:0.5rem;font-family:inherit;"></label>
+                    <label style="font-size:0.8rem;color:#6B7280;">Действует до<br>
+                      <input id="promo_${k}_deadline" type="datetime-local" value="${esc(sGet('promo_'+k+'_deadline',''))}" style="width:100%;margin-top:0.25rem;padding:0.45rem 0.6rem;border:1.5px solid #E5E7EB;border-radius:0.5rem;font-family:inherit;"></label>
+                  </div>
+                </div>`;
+            }).join('');
+
+            document.getElementById('content').innerHTML = `
+              <div class="note">💡 Базовые цены тарифов видны клиентам на страницах «Пакеты и цены» и в подборе. Комиссия и налоги используются только для расчёта дохода — клиенту проценты не показываются.</div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;align-items:start;" id="tariffGrid">
+                <div class="panel">
+                  <div class="panel-head"><h2>Базовые цены тарифов</h2></div>
+                  <div style="padding:1.25rem;">${baseInputs}</div>
+                </div>
+                <div class="panel">
+                  <div class="panel-head"><h2>Комиссия и доход (агентская модель)</h2></div>
+                  <div style="padding:1.25rem;">
+                    ${fld('commission_platform','Комиссия платформы', commission, '%')}
+                    ${fld('fee_acquiring','Эквайринг / Robokassa', acquiring, '%')}
+                    ${fld('tax_rate','Налог УСН (с комиссии)', tax, '%')}
+                    <div id="incomeTable" style="margin-top:1rem;"></div>
+                  </div>
+                </div>
+              </div>
+              <div class="panel" style="margin-top:1.25rem;">
+                <div class="panel-head"><h2>Акции на первую сессию</h2></div>
+                <div style="padding:1.25rem;">${promoBlocks}</div>
+              </div>
+              <div style="margin-top:1.25rem;display:flex;gap:0.75rem;align-items:center;">
+                <button class="btn-sm btn-purple" style="padding:0.7rem 1.6rem;font-size:0.95rem;" onclick="saveTariffs(this)">💾 Сохранить</button>
+                <span id="saveMsg" style="font-size:0.88rem;"></span>
+              </div>`;
+            recalcIncome();
+        }
+
+        function recalcIncome(){
+            const c = num('commission_platform'), a = num('fee_acquiring'), t = num('tax_rate');
+            const rows = TARIFFS.map(tr => {
+                const P = num('price_'+tr.key);
+                const comm = P*c/100;
+                const psy = P - comm;
+                const acq = P*a/100;
+                const tax = comm*t/100;
+                const net = comm - acq - tax;
+                const f = n => Math.round(n).toLocaleString('ru-RU');
+                return `<tr>
+                  <td><b>${esc(tr.label)}</b></td>
+                  <td>${f(P)} ₽</td>
+                  <td>${f(psy)} ₽</td>
+                  <td>${f(comm)} ₽</td>
+                  <td class="muted">−${f(acq)} ₽</td>
+                  <td class="muted">−${f(tax)} ₽</td>
+                  <td style="color:#16A34A;font-weight:700;">${f(net)} ₽</td>
+                </tr>`;
+            }).join('');
+            const el = document.getElementById('incomeTable');
+            if (el) el.innerHTML = `
+              <table style="font-size:0.78rem;"><thead><tr>
+                <th>Тариф</th><th>Клиент платит</th><th>Психолог</th><th>Комиссия</th><th>Эквайринг</th><th>Налог</th><th>Чистыми</th>
+              </tr></thead><tbody>${rows}</tbody></table>
+              <p style="font-size:0.74rem;color:#9CA3AF;margin-top:0.6rem;line-height:1.5;">«Психолог» — выплата специалисту (цена минус комиссия). «Чистыми» — доход платформы после эквайринга и налога. Клиент видит только итоговую цену.</p>`;
+        }
+
+        async function saveTariffs(btn){
+            const payload = {};
+            TARIFFS.forEach(t => { payload['price_'+t.key] = num('price_'+t.key); });
+            payload.platform_commission = num('commission_platform');
+            payload.acquiring_fee = num('fee_acquiring');
+            payload.tax_rate = num('tax_rate');
+            TARIFFS.forEach(t => {
+                const k = t.key;
+                payload['promo_'+k+'_enabled']  = document.getElementById('promo_'+k+'_enabled').checked ? '1' : '0';
+                payload['promo_'+k+'_price']    = document.getElementById('promo_'+k+'_price').value.trim();
+                payload['promo_'+k+'_title']    = document.getElementById('promo_'+k+'_title').value.trim();
+                payload['promo_'+k+'_duration'] = document.getElementById('promo_'+k+'_duration').value.trim();
+                payload['promo_'+k+'_deadline'] = document.getElementById('promo_'+k+'_deadline').value.trim();
+            });
+            const msg = document.getElementById('saveMsg');
+            btn.disabled = true; if(msg){ msg.textContent='Сохраняем...'; msg.style.color='#6B7280'; }
+            const res = await apiPost('save-settings', { settings: payload });
+            btn.disabled = false;
+            if (res && res.ok) {
+                if(msg){ msg.textContent = '✅ Сохранено (обновлено полей: '+(res.saved||0)+')'; msg.style.color='#16A34A'; }
+            } else {
+                if(msg){ msg.textContent = '⚠️ ' + ((res&&res.error)||'Не удалось сохранить'); msg.style.color='#DC2626'; }
+            }
         }
 
         function fail(){ document.getElementById('content').innerHTML = '<div class="panel"><div class="empty">Не удалось загрузить данные. Проверьте, что вы вошли как администратор.</div></div>'; }
