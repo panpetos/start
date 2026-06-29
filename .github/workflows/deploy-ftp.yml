@@ -44,6 +44,7 @@ jobs:
             put payment-info.html;
             put quiz.html;
             put schedule.html;
+            put supervision.html;
             put psychologist-profile.html;
             put dashboard-admin.html;
             put consultation.html;
@@ -65,6 +66,7 @@ jobs:
             put api/replace.php -o api/replace.php;
             put api/packages.php -o api/packages.php;
             put api/support.php -o api/support.php;
+            put api/supervision.php -o api/supervision.php;
             bye;
           "
           echo "Deployment complete"

@@ -82,6 +82,7 @@
             <button class="tab" data-tab="tariffs" onclick="switchTab('tariffs')">Тарифы и цены</button>
             <button class="tab" data-tab="appointments" onclick="switchTab('appointments')">Записи</button>
             <button class="tab" data-tab="replacements" onclick="switchTab('replacements')">Замены психолога</button>
+            <button class="tab" data-tab="supervision" onclick="switchTab('supervision')">Супервизия</button>
             <button class="tab" data-tab="calls" onclick="switchTab('calls')">Звонки / сессии</button>
             <button class="tab" data-tab="payments" onclick="switchTab('payments')">Оплаты</button>
             <button class="tab" data-tab="subscribers" onclick="switchTab('subscribers')">Подписки</button>
@@ -138,7 +139,7 @@
             document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab===tab));
             const el = document.getElementById('content');
             el.innerHTML = '<div class="loading">Загрузка...</div>';
-            ({ overview:renderOverview, support:renderSupport, users:renderUsers, psychologists:renderPsych, tariffs:renderTariffs, appointments:renderAppointments, replacements:renderReplacements, calls:renderCalls, payments:renderPayments, subscribers:renderSubscribers, referrals:renderReferrals, activity:renderActivity }[tab])();
+            ({ overview:renderOverview, support:renderSupport, users:renderUsers, psychologists:renderPsych, tariffs:renderTariffs, appointments:renderAppointments, replacements:renderReplacements, supervision:renderSupervision, calls:renderCalls, payments:renderPayments, subscribers:renderSubscribers, referrals:renderReferrals, activity:renderActivity }[tab])();
         }
 
         async function renderOverview(){
@@ -551,6 +552,28 @@
                 await fetch('/api/support.php?action=reply', { method:'POST', headers:{'Content-Type':'application/json'}, credentials:'include', body: JSON.stringify({ thread_id: supportThreadId, message: msg }) });
                 await openSupportThread(supportThreadId);
             } catch(e){ alert('Не удалось отправить ответ'); inp.value = msg; }
+        }
+
+        // ── Супервизия (группы + индивидуальные запросы) ──────────────────────────
+        async function renderSupervision(){
+            let res;
+            try { res = await (await fetch('/api/supervision.php?action=admin-overview', { credentials:'include' })).json(); }
+            catch(e){ return fail(); }
+            if (!res || !res.ok) return fail();
+            const sessions = res.sessions || [];
+            const requests = res.requests || [];
+            const durLbl = d => d==120?'2 ч':'1,5 ч';
+            const sTable = sessions.length ? `<table id="dataTable"><thead><tr><th>Тема</th><th>Супервизор</th><th>Когда</th><th>Длит.</th><th>Цена</th><th>Участники</th></tr></thead><tbody>` +
+                sessions.map(s=>`<tr><td><b>${esc(s.title)}</b></td><td>${esc(s.supervisor_name)}</td><td class="muted">${fmtDateTime(s.datetime)}</td><td>${durLbl(s.duration_min)}</td><td>${fmtMoney(s.price)} ₽</td><td>${esc(s.taken)} / ${esc(s.capacity)}</td></tr>`).join('') + '</tbody></table>'
+                : '<div class="empty">Групповых супервизий пока нет</div>';
+            const stMap = { new:['b-amber','новый'], priced:['b-purple','названа цена'], accepted:['b-green','принят'], declined:['b-gray','отклонён'] };
+            const rTable = requests.length ? `<table id="dataTable2"><thead><tr><th>Психолог</th><th>Супервизор</th><th>Тема</th><th>Цена</th><th>Статус</th></tr></thead><tbody>` +
+                requests.map(r=>{ const st=stMap[r.status]||['b-gray',r.status]; return `<tr><td>${esc(r.requester_name)}</td><td>${esc(r.supervisor_name||'—')}</td><td style="max-width:260px;white-space:normal;">${esc(r.topic||'')}</td><td>${r.price?fmtMoney(r.price)+' ₽':'—'}</td><td><span class="badge ${st[0]}">${st[1]}</span></td></tr>`; }).join('') + '</tbody></table>'
+                : '<div class="empty">Индивидуальных запросов пока нет</div>';
+            document.getElementById('content').innerHTML =
+                '<div class="note">🎓 Групповая супервизия (опытный психолог ведёт группу младших, до 1500 ₽ за участника) и индивидуальная по запросу. Платформа удерживает комиссию, остальное — супервизору.</div>' +
+                `<div class="panel" style="margin-bottom:1.25rem;"><div class="panel-head"><h2>Групповые супервизии (${sessions.length})</h2></div><div class="tbl-wrap">${sTable}</div></div>` +
+                `<div class="panel"><div class="panel-head"><h2>Индивидуальные запросы (${requests.length})</h2></div><div class="tbl-wrap">${rTable}</div></div>`;
         }
 
         // ── Заявки на замену психолога ───────────────────────────────────────────
