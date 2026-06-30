@@ -651,7 +651,11 @@
     const urlParams = new URLSearchParams(window.location.search);
     const roleParam = urlParams.get('type');
     if (roleParam === 'psychologist') {
-      document.querySelector('input[value="psychologist"]').click();
+      // Отмечаем роль и СРАЗУ показываем проф. поля (карточка выбора скрыта,
+      // поэтому полагаться на её клик нельзя — иначе поля «О себе», специализация и т.д. не появятся).
+      const psychInput = document.querySelector('input[value="psychologist"]');
+      if (psychInput) psychInput.checked = true;
+      togglePsychFields('psychologist');
       // Скрываем выбор роли — это выделенная регистрация специалиста
       const roleGroup = document.getElementById('roleSelectGroup');
       if (roleGroup) roleGroup.style.display = 'none';
