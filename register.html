@@ -367,8 +367,28 @@
     </div>
   </div>
 
+  <!-- Registration error popup -->
+  <div id="regErrorModal" style="display:none; position:fixed; inset:0; background:rgba(26,26,46,0.6); z-index:1100; align-items:center; justify-content:center; padding:1rem;">
+    <div style="background:#fff; border-radius:1rem; max-width:420px; width:100%; padding:2rem; text-align:center; box-shadow:0 20px 60px rgba(0,0,0,0.25);">
+      <div style="width:4rem; height:4rem; margin:0 auto 1rem; border-radius:50%; background:#FEF2F2; display:flex; align-items:center; justify-content:center; font-size:2rem;">⚠️</div>
+      <h3 style="font-size:1.25rem; font-weight:700; color:#1A1A1A; margin-bottom:0.75rem;">Не удалось зарегистрироваться</h3>
+      <p id="regErrorText" style="color:#4B5563; font-size:0.95rem; line-height:1.6; margin-bottom:1.5rem;"></p>
+      <button type="button" onclick="document.getElementById('regErrorModal').style.display='none'"
+        style="background:#7C3AED; color:#fff; border:none; font-weight:600; padding:0.75rem 2rem; border-radius:0.5rem; cursor:pointer; width:100%;">
+        Понятно
+      </button>
+    </div>
+  </div>
+
   <script src="/js/api.js"></script>
   <script>
+    // Всплывающее окно с ошибкой регистрации
+    function showRegError(msg) {
+      document.getElementById('regErrorText').textContent = msg || 'Проверьте заполнение полей и попробуйте ещё раз.';
+      document.getElementById('regErrorModal').style.display = 'flex';
+    }
+    window.showRegError = showRegError;
+
     // Psychologist fields: required text/number inputs (formats handled separately)
     const psychRequiredFields = ['specialization', 'experience', 'education', 'description', 'notWorkingWith'];
 
@@ -462,9 +482,7 @@
       const termsOk = document.getElementById('terms').checked;
       const consentOk = document.getElementById('consent').checked;
       if (!termsOk || !consentOk) {
-        alert.className = 'alert alert-error';
-        alert.textContent = 'Отметьте обе галочки согласия с документами';
-        alert.style.display = 'block';
+        showRegError('Отметьте обе галочки согласия с документами.');
         return;
       }
       data.acceptedTerms = termsOk;
@@ -474,16 +492,12 @@
       if (role === 'psychologist') {
         const formats = formData.getAll('formats');
         if (formats.length === 0) {
-          alert.className = 'alert alert-error';
-          alert.textContent = 'Выберите хотя бы один формат работы';
-          alert.style.display = 'block';
+          showRegError('Выберите хотя бы один формат работы (видео, аудио или чат).');
           return;
         }
         // Минимальный стаж — 3 года
         if (parseInt(formData.get('experience'), 10) < 3 || isNaN(parseInt(formData.get('experience'), 10))) {
-          alert.className = 'alert alert-error';
-          alert.textContent = 'На платформу принимаются специалисты с опытом работы от 3 лет.';
-          alert.style.display = 'block';
+          showRegError('На платформу принимаются специалисты с опытом работы от 3 лет.');
           return;
         }
         data.specialization = (formData.get('specialization') || '').trim();
@@ -495,9 +509,7 @@
         data.formats = formats;
         // Контакты для связи (видит только администратор)
         if (!data.phone) {
-          alert.className = 'alert alert-error';
-          alert.textContent = 'Укажите телефон для связи — он нужен администратору для проверки.';
-          alert.style.display = 'block';
+          showRegError('Укажите телефон для связи — он нужен администратору для проверки.');
           return;
         }
       }
@@ -559,30 +571,49 @@
             }
           }, 1500);
         } else {
-          const error = await response.json();
-          alert.className = 'alert alert-error';
-          alert.textContent = error.message || 'Ошибка регистрации';
-          alert.style.display = 'block';
+          let raw = {};
+          try { raw = await response.json(); } catch (e) {}
+          // Бэкенд отдаёт причину в поле error (иногда message). Показываем настоящую причину.
+          let reason = raw.error || raw.message || 'Не удалось зарегистрироваться. Попробуйте ещё раз.';
+          // Понятная подсказка при уже занятом email
+          if (/exist|already|занят|зарегистрир|duplicate|уже есть/i.test(reason)) {
+            reason = 'Похоже, этот email уже зарегистрирован. Попробуйте войти или используйте другую почту.';
+          }
+          showRegError(reason);
           submitBtn.disabled = false;
           submitBtn.textContent = 'Зарегистрироваться';
         }
       } catch (error) {
         console.error('Registration error:', error);
-        alert.className = 'alert alert-error';
-        alert.textContent = 'Сервер временно недоступен. Попробуйте позже.';
-        alert.style.display = 'block';
+        showRegError('Сервер временно недоступен. Проверьте соединение и попробуйте позже.');
         submitBtn.disabled = false;
         submitBtn.textContent = 'Зарегистрироваться';
       }
     });
 
-    // ── Дипломы/сертификаты: предпросмотр выбранных файлов ──
-    let innVerified = null; // результат проверки ИНН
+    // ── Дипломы/сертификаты: мультизагрузка с накоплением файлов ──
+    let innVerified = null;      // результат проверки ИНН
+    let diplomaFiles = [];       // накопленные файлы (можно добавлять по одному/несколько раз)
     function onDiplomaPick() {
       const inp = document.getElementById('diplomaInput');
+      const picked = Array.from(inp.files || []);
+      picked.forEach(f => {
+        // избегаем дублей по имени+размеру
+        if (!diplomaFiles.some(x => x.name === f.name && x.size === f.size)) diplomaFiles.push(f);
+      });
+      inp.value = ''; // сбрасываем, чтобы можно было добавить ещё файлы (в т.ч. те же)
+      renderDiplomaList();
+    }
+    function removeDiploma(i) { diplomaFiles.splice(i, 1); renderDiplomaList(); }
+    window.removeDiploma = removeDiploma;
+    function renderDiplomaList() {
       const list = document.getElementById('diplomaList');
-      const files = Array.from(inp.files || []);
-      list.innerHTML = files.map(f => `<div style="background:#F8F6FF;border:1px solid #EDE9FF;border-radius:0.5rem;padding:0.4rem 0.6rem;font-size:0.82rem;color:#374151;">📄 ${f.name} <span style="color:#9CA3AF;">(${Math.round(f.size/1024)} КБ)</span></div>`).join('');
+      if (!diplomaFiles.length) { list.innerHTML = ''; return; }
+      list.innerHTML = diplomaFiles.map((f, i) =>
+        `<div style="display:flex;align-items:center;justify-content:space-between;gap:0.5rem;background:#F8F6FF;border:1px solid #EDE9FF;border-radius:0.5rem;padding:0.4rem 0.6rem;font-size:0.82rem;color:#374151;">
+          <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">📄 ${f.name} <span style="color:#9CA3AF;">(${Math.round(f.size/1024)} КБ)</span></span>
+          <button type="button" onclick="removeDiploma(${i})" style="background:none;border:none;color:#EF4444;cursor:pointer;font-size:0.8rem;flex-shrink:0;">✕</button>
+        </div>`).join('');
     }
 
     // ── Проверка ИНН ──
@@ -615,7 +646,7 @@
     async function savePsychCredentials() {
       // Дипломы/сертификаты
       try {
-        const files = Array.from((document.getElementById('diplomaInput') || {}).files || []);
+        const files = diplomaFiles;
         for (const f of files) {
           const fd = new FormData(); fd.append('file', f);
           const up = await fetch('/api/upload.php', { method:'POST', credentials:'include', body: fd });

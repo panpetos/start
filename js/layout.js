@@ -60,7 +60,7 @@
     '<footer class="site-footer">' +
       '<p>&copy; ' + new Date().getFullYear() + ' psytalk.pro. Все права защищены.</p>' +
       '<p style="margin-top:4px;font-size:0.8rem;color:#aaa;">ИП Вакульский Петр Валерьевич &nbsp;|&nbsp; ИНН: 230107911410 &nbsp;|&nbsp; ОГРНИП: 326470400081272</p>' +
-      '<p style="margin-top:2px;font-size:0.8rem;color:#aaa;">Ленинградская обл., Всеволожский р-н, д. Новосаратовка &nbsp;|&nbsp; <a href="tel:+79119404073" style="color:#aaa;">+7 (911) 940-40-73</a> &nbsp;|&nbsp; <a href="mailto:support@psytalk.pro" style="color:#aaa;">support@psytalk.pro</a></p>' +
+      '<p style="margin-top:2px;font-size:0.8rem;color:#aaa;">Ленинградская обл., Всеволожский р-н, д. Новосаратовка &nbsp;|&nbsp; <a href="tel:+79626815320" style="color:#aaa;">+7 (962) 681-53-20</a> &nbsp;|&nbsp; <a href="mailto:support@psytalk.pro" style="color:#aaa;">support@psytalk.pro</a></p>' +
       '<p style="margin-top:8px;">' +
         '<a href="/offer.html">Публичная оферта</a>' +
         '<a href="/privacy.html">Конфиденциальность</a>' +
