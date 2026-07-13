@@ -63,6 +63,7 @@
       '<p style="margin-top:2px;font-size:0.8rem;color:#aaa;">Ленинградская обл., Всеволожский р-н, д. Новосаратовка &nbsp;|&nbsp; <a href="tel:+79626815320" style="color:#aaa;">+7 (962) 681-53-20</a> &nbsp;|&nbsp; <a href="mailto:support@psytalk.pro" style="color:#aaa;">support@psytalk.pro</a></p>' +
       '<p style="margin-top:8px;">' +
         '<a href="/offer.html">Публичная оферта</a>' +
+        '<a href="/agent-offer.html">Агентский договор</a>' +
         '<a href="/privacy.html">Конфиденциальность</a>' +
         '<a href="/refund.html">Возврат средств</a>' +
         '<a href="/payment-info.html">Оплата и безопасность</a>' +

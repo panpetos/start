@@ -50,6 +50,7 @@ jobs:
             put consultation.html;
             put consent.html;
             put offer.html;
+            put agent-offer.html;
             put privacy.html;
             put refund.html;
             put js/layout.js -o js/layout.js;
