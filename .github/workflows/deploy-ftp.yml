@@ -49,6 +49,7 @@ jobs:
             put dashboard-admin.html;
             put consultation.html;
             put consent.html;
+            put consent-health.html;
             put offer.html;
             put agent-offer.html;
             put privacy.html;
@@ -70,6 +71,7 @@ jobs:
             put api/supervision.php -o api/supervision.php;
             put api/credentials.php -o api/credentials.php;
             put api/inn_check.php -o api/inn_check.php;
+            put api/consent.php -o api/consent.php;
             bye;
           "
           echo "Deployment complete"

@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Согласие на обработку данных о состоянии здоровья — psytalk.pro</title>
+  <meta name="description" content="Согласие на обработку специальных категорий персональных данных (данных о состоянии здоровья) на платформе psytalk.pro">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --purple: #7C3AED; --purple-light: #8B5CF6; --purple-bg: #F5F3FF;
+      --dark: #1A1A1A; --gray-900: #111827; --gray-700: #374151;
+      --gray-500: #6B7280; --gray-300: #D1D5DB; --gray-100: #F3F4F6; --white: #ffffff;
+    }
+    body { font-family: 'Inter', sans-serif; background: #FAFAFA; color: var(--gray-900); line-height: 1.7; }
+    header { background: var(--white); border-bottom: 1px solid var(--gray-300); padding: 1rem 0; position: sticky; top: 0; z-index: 100; box-shadow: 0 1px 8px rgba(0,0,0,0.06); }
+    .header-inner { max-width: 900px; margin: 0 auto; padding: 0 1.5rem; display: flex; align-items: center; gap: 1rem; }
+    .logo { font-size: 1.25rem; font-weight: 700; text-decoration: none; }
+    .logo span:first-child { color: var(--dark); }
+    .logo span:last-child { color: var(--purple); font-style: italic; }
+    .back-btn { margin-left: auto; display: inline-flex; align-items: center; gap: 0.4rem; color: var(--purple); text-decoration: none; font-size: 0.875rem; font-weight: 500; padding: 0.4rem 0.9rem; border: 1.5px solid var(--purple); border-radius: 8px; transition: all 0.2s; }
+    .back-btn:hover { background: var(--purple); color: white; }
+    .hero { background: linear-gradient(135deg, #7C3AED 0%, #4F46E5 100%); color: white; padding: 3.5rem 1.5rem 3rem; text-align: center; }
+    .hero-badge { display: inline-block; background: rgba(255,255,255,0.18); border: 1px solid rgba(255,255,255,0.3); border-radius: 100px; padding: 0.3rem 1rem; font-size: 0.8rem; letter-spacing: 0.05em; text-transform: uppercase; font-weight: 600; margin-bottom: 1.2rem; }
+    .hero h1 { font-size: clamp(1.6rem, 4vw, 2.4rem); font-weight: 700; line-height: 1.25; margin-bottom: 0.75rem; }
+    .hero p { opacity: 0.85; font-size: 1rem; max-width: 560px; margin: 0 auto; }
+    main { max-width: 900px; margin: 0 auto; padding: 2.5rem 1.5rem 4rem; }
+    .toc { background: var(--white); border: 1px solid var(--gray-300); border-radius: 16px; padding: 1.75rem 2rem; margin-bottom: 2.5rem; box-shadow: 0 2px 12px rgba(0,0,0,0.05); }
+    .toc h2 { font-size: 0.95rem; font-weight: 600; color: var(--gray-500); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 1rem; }
+    .toc ol { padding-left: 1.25rem; display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 0.35rem 2rem; }
+    .toc li { font-size: 0.9rem; }
+    .toc a { color: var(--purple); text-decoration: none; font-weight: 500; }
+    .toc a:hover { text-decoration: underline; }
+    .section { background: var(--white); border-radius: 16px; padding: 2rem 2.25rem; margin-bottom: 1.5rem; border: 1px solid var(--gray-300); box-shadow: 0 2px 12px rgba(0,0,0,0.04); scroll-margin-top: 90px; }
+    .section-header { display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 2px solid var(--purple-bg); }
+    .section-num { flex-shrink: 0; width: 2.25rem; height: 2.25rem; border-radius: 50%; background: linear-gradient(135deg, var(--purple), #4F46E5); color: white; font-weight: 700; font-size: 0.9rem; display: flex; align-items: center; justify-content: center; }
+    .section h2 { font-size: 1.15rem; font-weight: 700; color: var(--gray-900); }
+    .clause { display: flex; gap: 0.75rem; margin-bottom: 0.9rem; }
+    .clause-num { flex-shrink: 0; font-weight: 600; color: var(--purple); font-size: 0.9rem; min-width: 2.5rem; padding-top: 0.05rem; }
+    .clause-text { font-size: 0.95rem; color: var(--gray-700); }
+    .clause-text ul { margin-top: 0.5rem; padding-left: 1.2rem; }
+    .clause-text ul li { margin-bottom: 0.35rem; }
+    p.intro-text { font-size: 0.95rem; color: var(--gray-700); margin-bottom: 1rem; line-height: 1.75; }
+    .terms-block { background: var(--purple-bg); border-left: 3px solid var(--purple); border-radius: 0 10px 10px 0; padding: 1rem 1.25rem; margin-bottom: 1.25rem; }
+    .terms-block h3 { font-size: 0.85rem; font-weight: 700; color: var(--purple); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.6rem; }
+    .warn-block { background: #FEF3F2; border-left: 3px solid #E53935; border-radius: 0 10px 10px 0; padding: 1rem 1.25rem; margin: 0.5rem 0 1.25rem; }
+    .warn-block strong { color: #B42318; }
+    .req-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 1rem; }
+    .req-item { background: var(--gray-100); border-radius: 10px; padding: 0.9rem 1rem; }
+    .req-label { font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--gray-500); margin-bottom: 0.3rem; }
+    .req-value { font-size: 0.95rem; font-weight: 600; color: var(--gray-900); }
+    footer { background: var(--dark); color: white; padding: 2rem 1.5rem; text-align: center; }
+    @media (max-width: 640px) { .section { padding: 1.5rem 1.25rem; } .toc ol { grid-template-columns: 1fr; } }
+    .site-footer { border-top: 1px solid #e8e8e8; padding: 24px; text-align: center; font-size: 13px; color: #888; }
+    .site-footer a { color: #888; margin: 0 8px; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="header-inner">
+      <a href="/" class="logo"><span>psy</span><span>talk.pro</span></a>
+      <a href="/" class="back-btn">← На главную</a>
+    </div>
+  </header>
+
+  <div class="hero">
+    <div class="hero-badge">Специальная категория ПДн · ст. 9 152-ФЗ</div>
+    <h1>Согласие на обработку данных о состоянии здоровья</h1>
+    <p>Обработка специальных категорий персональных данных, которые вы добровольно сообщаете психологу в чате</p>
+  </div>
+
+  <main>
+    <!-- Operator info block -->
+    <div class="section" style="margin-bottom: 2.5rem;">
+      <div class="terms-block">
+        <h3>Оператор персональных данных</h3>
+        <p class="intro-text" style="margin-bottom: 0;">Платформа <strong>psytalk.pro</strong> выступает информационным посредником (агентом), организующим доступ к психологической помощи, которую оказывают привлечённые психологи-партнёры.</p>
+      </div>
+      <div class="req-grid">
+        <div class="req-item"><div class="req-label">Оператор</div><div class="req-value">ИП Вакульский Петр Валерьевич</div></div>
+        <div class="req-item"><div class="req-label">ИНН</div><div class="req-value">230107911410</div></div>
+        <div class="req-item"><div class="req-label">ОГРНИП</div><div class="req-value">326470400081272</div></div>
+        <div class="req-item"><div class="req-label">E-mail</div><div class="req-value">support@psytalk.pro</div></div>
+        <div class="req-item"><div class="req-label">Сайт</div><div class="req-value">psytalk.pro</div></div>
+      </div>
+      <p class="intro-text" style="margin-top: 1rem;"><strong>Дата публикации:</strong> 15 июля 2026 года. <strong>Версия документа:</strong> 1.0.</p>
+    </div>
+
+    <!-- TOC -->
+    <nav class="toc">
+      <h2>Содержание</h2>
+      <ol>
+        <li><a href="#section-1">Общие положения и правовое основание</a></li>
+        <li><a href="#section-2">Перечень данных специальной категории</a></li>
+        <li><a href="#section-3">Цели обработки</a></li>
+        <li><a href="#section-4">Оператор-агент и психолог-партнёр</a></li>
+        <li><a href="#section-5">Способы обработки</a></li>
+        <li><a href="#section-6">Сроки хранения переписки</a></li>
+        <li><a href="#section-7">Порядок отзыва согласия</a></li>
+        <li><a href="#section-8">Защита данных</a></li>
+        <li><a href="#section-9">Способ и подтверждение согласия</a></li>
+      </ol>
+    </nav>
+
+    <!-- 1 -->
+    <div class="section" id="section-1">
+      <div class="section-header"><div class="section-num">1</div><h2>Общие положения и правовое основание</h2></div>
+      <div class="clause"><div class="clause-num">1.1</div><div class="clause-text">Настоящее Согласие регулирует обработку <strong>специальной категории персональных данных — данных о состоянии здоровья</strong> Пользователя (далее — «Субъект», «Клиент»), а именно сведений о его психологическом, эмоциональном и ментальном состоянии, которые Клиент добровольно сообщает в ходе переписки (чата) и консультаций с психологом на платформе psytalk.pro.</div></div>
+      <div class="clause"><div class="clause-num">1.2</div><div class="clause-text">Оператором является Индивидуальный предприниматель Вакульский Петр Валерьевич, ИНН 230107911410, ОГРНИП 326470400081272 (далее — «Оператор»), действующий как агент, организующий оказание психологической помощи привлечёнными психологами-партнёрами.</div></div>
+      <div class="clause"><div class="clause-num">1.3</div><div class="clause-text"><strong>Правовое основание.</strong> Обработка данных специальной категории (данных о состоянии здоровья) осуществляется на основании <strong>части 2 статьи 10 и статьи 9 Федерального закона от 27.07.2006 № 152-ФЗ «О персональных данных»</strong>, которые допускают обработку специальных категорий персональных данных при наличии согласия субъекта персональных данных, выраженного в письменной форме или в форме электронного документа (в том числе путём проставления отметки в электронной форме на Сайте).</div></div>
+      <div class="clause"><div class="clause-num">1.4</div><div class="clause-text">Настоящее Согласие является отдельным и самостоятельным по отношению к <a href="/consent.html" style="color: var(--purple); font-weight: 500;">Согласию на обработку персональных данных</a> и <a href="/privacy.html" style="color: var(--purple); font-weight: 500;">Политике конфиденциальности</a>. Оно предоставляется дополнительно, поскольку данные о состоянии здоровья относятся к специальной категории и требуют отдельного согласия субъекта.</div></div>
+      <div class="clause"><div class="clause-num">1.5</div><div class="clause-text">Предоставляя настоящее Согласие, Клиент подтверждает, что действует свободно, своей волей и в своём интересе, является дееспособным лицом, достигшим возраста, с которого вправе самостоятельно давать такое согласие, либо действует с согласия законного представителя.</div></div>
+    </div>
+
+    <!-- 2 -->
+    <div class="section" id="section-2">
+      <div class="section-header"><div class="section-num">2</div><h2>Перечень данных специальной категории</h2></div>
+      <p class="intro-text">Оператор и привлечённый психолог-партнёр обрабатывают следующие данные специальной категории, которые Клиент сообщает добровольно:</p>
+      <div class="clause"><div class="clause-num">2.1</div><div class="clause-text">Сведения о психологическом, эмоциональном и ментальном состоянии Клиента (жалобы, переживания, симптомы, самочувствие, настроение).</div></div>
+      <div class="clause"><div class="clause-num">2.2</div><div class="clause-text">Сведения о жизненных обстоятельствах и запросе, с которым Клиент обращается за психологической помощью (стресс, тревога, выгорание, отношения, кризисные состояния и иные темы, раскрываемые Клиентом по своему усмотрению).</div></div>
+      <div class="clause"><div class="clause-num">2.3</div><div class="clause-text">Иные сведения о здоровье, которые Клиент по собственной инициативе сообщает психологу в тексте сообщений, голосовых сообщениях, при видео- или аудиоконсультации.</div></div>
+      <div class="warn-block"><strong>Важно.</strong> Оператор не запрашивает и не требует от Клиента сообщать данные о состоянии здоровья. Такие данные передаются Клиентом <strong>исключительно добровольно</strong> и в объёме, который он считает необходимым для получения психологической помощи.</div>
+    </div>
+
+    <!-- 3 -->
+    <div class="section" id="section-3">
+      <div class="section-header"><div class="section-num">3</div><h2>Цели обработки</h2></div>
+      <div class="clause"><div class="clause-num">3.1</div><div class="clause-text"><strong>Обеспечение психологической помощи.</strong> Основная и единственная цель обработки данных специальной категории — обеспечение оказания Клиенту психологической помощи привлечённым психологом-партнёром, включая понимание запроса Клиента, ведение консультаций и переписки, преемственность работы специалиста с Клиентом.</div></div>
+      <div class="clause"><div class="clause-num">3.2</div><div class="clause-text">Данные специальной категории <strong>не используются</strong> для рекламы, маркетинга, профилирования, передачи третьим лицам в коммерческих целях или иных целях, не связанных с оказанием психологической помощи.</div></div>
+    </div>
+
+    <!-- 4 -->
+    <div class="section" id="section-4">
+      <div class="section-header"><div class="section-num">4</div><h2>Оператор-агент и психолог-партнёр</h2></div>
+      <div class="clause"><div class="clause-num">4.1</div><div class="clause-text">Оператор выступает <strong>информационным посредником (агентом)</strong> и предоставляет техническую инфраструктуру Платформы. Непосредственно психологическую услугу оказывает <strong>привлечённый психолог-партнёр</strong> — самостоятельное лицо (самозанятый или индивидуальный предприниматель), зарегистрированное на Платформе.</div></div>
+      <div class="clause"><div class="clause-num">4.2</div><div class="clause-text"><strong>Передача данных психологу-партнёру.</strong> Клиент даёт согласие на передачу сообщаемых им данных о состоянии здоровья тому психологу-партнёру, которого Клиент выбрал для получения консультации. Такая передача необходима для оказания психологической помощи и осуществляется в защищённой среде Платформы.</div></div>
+      <div class="clause"><div class="clause-num">4.3</div><div class="clause-text">Психолог-партнёр обязан соблюдать конфиденциальность и профессиональную этику, обрабатывать данные Клиента исключительно в целях оказания психологической помощи и не разглашать их третьим лицам, за исключением случаев, прямо предусмотренных законодательством Российской Федерации.</div></div>
+      <div class="clause"><div class="clause-num">4.4</div><div class="clause-text">Психолог-партнёр имеет доступ только к переписке и данным <strong>своих</strong> Клиентов (тех, кто выбрал данного специалиста). Доступ к переписке других специалистов технически ограничен.</div></div>
+    </div>
+
+    <!-- 5 -->
+    <div class="section" id="section-5">
+      <div class="section-header"><div class="section-num">5</div><h2>Способы обработки</h2></div>
+      <div class="clause"><div class="clause-num">5.1</div><div class="clause-text">Обработка данных специальной категории осуществляется с использованием средств автоматизации (в информационной системе Платформы) и включает: сбор, запись, систематизацию, хранение, использование, передачу выбранному психологу-партнёру, блокирование, удаление и уничтожение.</div></div>
+      <div class="clause"><div class="clause-num">5.2</div><div class="clause-text">Переписка (чат) между Клиентом и психологом-партнёром хранится в защищённой информационной системе Платформы и доступна только сторонам соответствующего диалога и уполномоченным лицам Оператора в объёме, необходимом для технической поддержки и обеспечения безопасности.</div></div>
+      <div class="clause"><div class="clause-num">5.3</div><div class="clause-text">Оператор ведёт журнал учёта фактов предоставления согласий и журнал аудита действий с данными (дата, время, идентификатор пользователя, IP-адрес) в целях обеспечения безопасности данных специальной категории и подтверждения правомерности их обработки.</div></div>
+    </div>
+
+    <!-- 6 -->
+    <div class="section" id="section-6">
+      <div class="section-header"><div class="section-num">6</div><h2>Сроки хранения переписки</h2></div>
+      <div class="clause"><div class="clause-num">6.1</div><div class="clause-text">Переписка и иные данные специальной категории хранятся в течение всего периода использования Клиентом сервисов Платформы и до момента отзыва настоящего Согласия.</div></div>
+      <div class="clause"><div class="clause-num">6.2</div><div class="clause-text">После отзыва Согласия либо удаления учётной записи переписка, содержащая данные о состоянии здоровья, блокируется и удаляется (либо обезличивается) в срок, не превышающий 30 (тридцати) рабочих дней, за исключением сведений, хранение которых обязательно в силу закона.</div></div>
+      <div class="clause"><div class="clause-num">6.3</div><div class="clause-text">Клиент вправе в любой момент запросить удаление конкретной переписки, направив обращение на адрес <strong>support@psytalk.pro</strong>.</div></div>
+    </div>
+
+    <!-- 7 -->
+    <div class="section" id="section-7">
+      <div class="section-header"><div class="section-num">7</div><h2>Порядок отзыва согласия</h2></div>
+      <div class="clause"><div class="clause-num">7.1</div><div class="clause-text">Клиент вправе <strong>в любой момент</strong> отозвать настоящее Согласие, направив письменное заявление в свободной форме на адрес электронной почты <strong>support@psytalk.pro</strong> с указанием имени и адреса электронной почты, использованного при регистрации.</div></div>
+      <div class="clause"><div class="clause-num">7.2</div><div class="clause-text">С момента получения отзыва Оператор прекращает обработку данных специальной категории и обеспечивает их блокирование, а затем удаление (или обезличивание) переписки в срок, не превышающий 30 (тридцати) рабочих дней.</div></div>
+      <div class="clause"><div class="clause-num">7.3</div><div class="clause-text"><strong>Последствия отзыва.</strong> Поскольку данные о состоянии здоровья необходимы для оказания психологической помощи, отзыв настоящего Согласия делает невозможным дальнейшее использование чата и консультаций с психологом. Ранее оказанные услуги и связанные с ними обязательные к хранению документы (например, сведения об оплате) сохраняются в объёме, требуемом законодательством.</div></div>
+    </div>
+
+    <!-- 8 -->
+    <div class="section" id="section-8">
+      <div class="section-header"><div class="section-num">8</div><h2>Защита данных</h2></div>
+      <div class="clause"><div class="clause-num">8.1</div><div class="clause-text">Передача данных между устройством Клиента и сервером Платформы осуществляется по защищённому протоколу HTTPS (TLS-шифрование).</div></div>
+      <div class="clause"><div class="clause-num">8.2</div><div class="clause-text">Доступ к переписке разграничен: психолог-партнёр видит переписку только своих Клиентов; доступ к чужим диалогам технически запрещён. Пароли учётных записей хранятся в хешированном виде.</div></div>
+      <div class="clause"><div class="clause-num">8.3</div><div class="clause-text">Оператор ведёт журнал аудита действий и предпринимает организационные и технические меры защиты, включая ограничение административного доступа, резервное копирование и мониторинг информационных систем.</div></div>
+    </div>
+
+    <!-- 9 -->
+    <div class="section" id="section-9">
+      <div class="section-header"><div class="section-num">9</div><h2>Способ и подтверждение согласия</h2></div>
+      <div class="clause"><div class="clause-num">9.1</div><div class="clause-text">Настоящее Согласие предоставляется Клиентом <strong>путём проставления отдельной отметки (чекбокса)</strong> «Я даю согласие на обработку данных о состоянии здоровья» <strong>перед началом использования чата с психологом</strong>. Проставление отметки является выражением согласия в форме электронного документа в соответствии со ст. 9 152-ФЗ.</div></div>
+      <div class="clause"><div class="clause-num">9.2</div><div class="clause-text">Факт предоставления Согласия (идентификатор пользователя, версия документа, дата и время, IP-адрес) фиксируется Оператором и является подтверждением получения согласия субъекта персональных данных.</div></div>
+      <div class="clause"><div class="clause-num">9.3</div><div class="clause-text">Клиент подтверждает, что настоящее Согласие является <strong>добровольным, информированным и осознанным</strong>, что он ознакомлен с его содержанием и вправе отозвать его в любой момент в порядке, установленном разделом 7.</div></div>
+      <div class="clause"><div class="clause-num">9.4</div><div class="clause-text">Актуальная редакция документа размещается по адресу <strong>https://psytalk.pro/consent-health.html</strong>. По всем вопросам обработки данных специальной категории Клиент может обратиться по адресу <strong>support@psytalk.pro</strong>.</div></div>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <p>&copy; 2026 psytalk.pro. Все права защищены.</p>
+    <p style="margin-top:8px;">
+      <a href="https://psytalk.pro/consent.html">Согласие на обработку ПД</a>
+      <a href="https://psytalk.pro/privacy.html">Конфиденциальность</a>
+      <a href="https://psytalk.pro/offer.html">Публичная оферта</a>
+      <a href="https://psytalk.pro/">Главная</a>
+    </p>
+  </footer>
+</body>
+</html>

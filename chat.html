@@ -754,11 +754,27 @@
         <div style="padding:0.5rem 1rem;font-size:0.72rem;color:#9CA3AF;border-top:1px solid #eee;">🔒 Заметки приватны — клиент их не видит.</div>
     </div>
 
+    <!-- Health-data (special category) consent gate for clients -->
+    <div id="healthConsentModal" style="display:none;position:fixed;inset:0;background:rgba(26,26,46,0.6);z-index:1200;align-items:center;justify-content:center;padding:1rem;">
+        <div style="background:#fff;border-radius:1rem;max-width:460px;width:100%;padding:2rem;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+            <div style="width:60px;height:60px;border-radius:50%;background:#F3E8FF;display:flex;align-items:center;justify-content:center;margin:0 auto 0.9rem;font-size:1.8rem;">🔐</div>
+            <h3 style="text-align:center;font-size:1.2rem;margin-bottom:0.6rem;color:#1A1A1A;">Перед началом переписки</h3>
+            <p style="color:#4B5563;font-size:0.9rem;line-height:1.6;margin-bottom:1rem;">В чате вы можете сообщать психологу сведения о своём состоянии — это специальная категория персональных данных (данные о здоровье). Для их обработки нужно ваше отдельное согласие.</p>
+            <label style="display:flex;gap:0.6rem;align-items:flex-start;cursor:pointer;margin-bottom:1rem;font-size:0.9rem;color:#374151;">
+                <input type="checkbox" id="healthConsentCheck" style="margin-top:0.2rem;width:18px;height:18px;accent-color:#7C3AED;flex-shrink:0;">
+                <span>Я даю <a href="/consent-health.html" target="_blank" style="color:#7C3AED;font-weight:600;">согласие на обработку данных о состоянии здоровья</a> и подтверждаю его добровольность и информированность.</span>
+            </label>
+            <div id="healthConsentErr" style="display:none;color:#DC2626;font-size:0.82rem;margin-bottom:0.6rem;"></div>
+            <button onclick="acceptHealthConsent()" style="width:100%;padding:0.8rem;background:linear-gradient(135deg,#7C3AED,#9F67FA);color:#fff;border:none;border-radius:0.7rem;font-weight:700;cursor:pointer;font-family:inherit;">Продолжить</button>
+        </div>
+    </div>
+
     <script src="/js/api.js"></script>
     <script src="/js/auth.js"></script>
     <script src="/js/header.js"></script>
     <script>
         let currentUser = null;
+        let healthConsentGranted = true; // клиенты — до подтверждения false
         let selectedUserId = null;
         let pollInterval = null;
         let isAdminMode = false;  // Режим отправки от имени техподдержки
@@ -968,6 +984,15 @@
                 const s = await sr.json();
                 if (s && s.platform_commission) platformCommission = parseFloat(s.platform_commission) || 40;
             } catch (e) {}
+
+            // Согласие на обработку данных о здоровье (спецкатегория) — требуется клиенту
+            if (currentUser.role !== 'psychologist' && currentUser.role !== 'admin') {
+                try {
+                    const cr = await fetch('/api/consent.php?action=status&type=health_special', { credentials: 'include' });
+                    const cd = await cr.json();
+                    healthConsentGranted = !!(cd && cd.granted);
+                } catch (e) { healthConsentGranted = false; }
+            }
 
             await loadConversations();
 
@@ -1210,11 +1235,43 @@
             }
         }
 
+        // ── Гейт согласия на обработку данных о здоровье (спецкатегория, ст. 9 152-ФЗ) ──
+        function requireHealthConsent() {
+            if (healthConsentGranted) return true;
+            const m = document.getElementById('healthConsentModal');
+            const err = document.getElementById('healthConsentErr');
+            const chk = document.getElementById('healthConsentCheck');
+            if (err) err.style.display = 'none';
+            if (chk) chk.checked = false;
+            if (m) m.style.display = 'flex';
+            return false;
+        }
+        async function acceptHealthConsent() {
+            const chk = document.getElementById('healthConsentCheck');
+            const err = document.getElementById('healthConsentErr');
+            if (!chk || !chk.checked) { if (err) { err.textContent = 'Поставьте отметку, чтобы продолжить.'; err.style.display = 'block'; } return; }
+            try {
+                const r = await fetch('/api/consent.php?action=record', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+                    body: JSON.stringify({ type: 'health_special', version: '1.0' })
+                });
+                const d = await r.json();
+                if (!d.ok) throw new Error(d.error || 'Ошибка');
+                healthConsentGranted = true;
+                document.getElementById('healthConsentModal').style.display = 'none';
+                const inp = document.getElementById('messageInput'); if (inp) inp.focus();
+            } catch (e) {
+                if (err) { err.textContent = 'Не удалось сохранить согласие. Попробуйте ещё раз.'; err.style.display = 'block'; }
+            }
+        }
+        window.acceptHealthConsent = acceptHealthConsent;
+
         async function sendMessage() {
             const input = document.getElementById('messageInput');
             const content = input.value.trim();
 
             if (!content || !selectedUserId) return;
+            if (!requireHealthConsent()) return;
 
             input.value = '';
 
@@ -1301,6 +1358,7 @@
                 mediaRecorder.stop();
                 return;
             }
+            if (!requireHealthConsent()) return;
 
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -1485,6 +1543,7 @@
         async function handleFileSelect(event) {
             const file = event.target.files[0];
             if (!file) return;
+            if (!requireHealthConsent()) { event.target.value = ''; return; }
 
             // Проверка размера (5MB max)
             if (file.size > 5 * 1024 * 1024) {

@@ -68,6 +68,7 @@
         '<a href="/refund.html">Возврат средств</a>' +
         '<a href="/payment-info.html">Оплата и безопасность</a>' +
         '<a href="/consent.html">Согласие на обработку ПД</a>' +
+        '<a href="/consent-health.html">Согласие на данные о здоровье</a>' +
         '<a href="/">Главная</a>' +
       '</p>' +
       '<p style="margin-top:10px;display:flex;gap:8px;justify-content:center;align-items:center;flex-wrap:wrap;">' +
