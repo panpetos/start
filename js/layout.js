@@ -149,6 +149,18 @@
     circle.href = dashUrlFor(user);
     circle.title = (user.first_name || 'Кабинет');
     circle.style.background = 'linear-gradient(135deg,#7C3AED,#9F67FA)';
+    circle.style.overflow = 'hidden';
+    var avatar = user.avatar || user.avatar_url || user.photo || '';
+    if (avatar) {
+      // Показываем фото пользователя в кружке ЛК (на всех страницах одинаково)
+      circle.innerHTML = '<img src="' + avatar + '" alt="" ' +
+        'style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block;" ' +
+        'onerror="this.remove()">';
+    } else {
+      // Нет фото — инициал имени в кружке
+      var initial = (user.first_name || user.email || '?').charAt(0).toUpperCase();
+      circle.innerHTML = '<span style="color:#fff;font-weight:700;font-size:1rem;">' + initial + '</span>';
+    }
   }
 
   function updateLoginCircle() {

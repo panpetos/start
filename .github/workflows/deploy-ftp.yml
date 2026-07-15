@@ -47,6 +47,7 @@ jobs:
             put supervision.html;
             put psychologist-profile.html;
             put dashboard-admin.html;
+            put admin.html;
             put consultation.html;
             put consent.html;
             put consent-health.html;
@@ -57,6 +58,7 @@ jobs:
             put js/layout.js -o js/layout.js;
             put js/auth.js -o js/auth.js;
             put js/articles.js -o js/articles.js;
+            put js/header-init.js -o js/header-init.js;
             put api/admin_ext.php -o api/admin_ext.php;
             put api/subscribe.php -o api/subscribe.php;
             put api/my_profile.php -o api/my_profile.php;

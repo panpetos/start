@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Админ-панель — psytalk.pro</title>
+  <meta name="robots" content="noindex">
+  <script>
+    // Единая админ-панель находится на /dashboard-admin.html.
+    // Старый адрес /admin.html оставлен только как перенаправление,
+    // чтобы не было «раздвоенной» админки.
+    location.replace('/dashboard-admin.html' + location.search + location.hash);
+  </script>
+  <meta http-equiv="refresh" content="0; url=/dashboard-admin.html">
+  <style>
+    body { font-family: -apple-system, Segoe UI, Roboto, sans-serif; background: #F4F0FF; color: #1A1A1A;
+      display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
+    a { color: #7C3AED; font-weight: 600; }
+  </style>
+</head>
+<body>
+  <p>Открываем админ-панель… Если не открылось автоматически — <a href="/dashboard-admin.html">перейти вручную</a>.</p>
+</body>
+</html>
