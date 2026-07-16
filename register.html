@@ -319,6 +319,18 @@
             </label>
           </div>
 
+          <!-- Health special-category consent (для клиентов, использующих чат) -->
+          <div class="form-group" id="healthConsentGroup">
+            <label class="flex items-start gap-2" style="cursor: pointer; background:#FBF7EC; border:1px solid #E7D9AE; border-radius:0.6rem; padding:0.7rem 0.85rem;">
+              <input type="checkbox" id="healthConsent" style="margin-top: 0.25rem;" />
+              <span style="font-size: 0.85rem; color: #6B5A2E; line-height:1.5;">
+                <b style="display:inline-block;background:#6B5A2E;color:#fff;font-size:0.65rem;padding:1px 6px;border-radius:4px;text-transform:uppercase;letter-spacing:0.03em;margin-right:4px;">Особые данные</b>
+                Я понимаю, что в переписке с психологом могу сообщать сведения о своём психологическом и эмоциональном состоянии (данные о здоровье), и даю отдельное согласие на их обработку в соответствии со ст. 9 152-ФЗ —
+                <a href="/consent-health.html" target="_blank" style="color:#6B5A2E;font-weight:600;text-decoration:underline;">подробнее</a>.
+              </span>
+            </label>
+          </div>
+
           <!-- Submit Button -->
           <button 
             type="submit" 
@@ -403,6 +415,9 @@
         const el = document.getElementById(id);
         if (el) el.required = isPsych;
       });
+      // Согласие на данные о здоровье — только для клиентов (они пишут в чат как субъект)
+      const hg = document.getElementById('healthConsentGroup');
+      if (hg) hg.style.display = isPsych ? 'none' : 'block';
     }
 
     // Role selection
@@ -488,6 +503,14 @@
         showRegError('Отметьте обе галочки согласия с документами.');
         return;
       }
+      // Клиент обязан дать согласие на обработку данных о состоянии здоровья (для чата)
+      if (role !== 'psychologist') {
+        const hc = document.getElementById('healthConsent');
+        if (!hc || !hc.checked) {
+          showRegError('Поставьте отметку о согласии на обработку данных о состоянии здоровья — без неё нельзя пользоваться чатом с психологом.');
+          return;
+        }
+      }
       data.acceptedTerms = termsOk;
       data.acceptedConsent = consentOk;
 
@@ -560,6 +583,9 @@
               });
             } catch (e) {}
           }
+
+          // Фиксируем факт согласий (152-ФЗ): общее + спецкатегория (для клиента)
+          try { await recordConsents(data.role); } catch (e) {}
 
           // Дипломы/сертификаты + ИНН — сохраняем после регистрации
           if (data.role === 'psychologist') {
@@ -668,6 +694,16 @@
             body: JSON.stringify({ type:'inn', name: innVal, meta: innVerified || { inn: innVal } }) });
         }
       } catch(e) {}
+    }
+
+    // Фиксация факта согласий на сервере (user_id, тип, версия, дата-время, IP — берёт сервер)
+    async function recordConsents(role) {
+      const rec = (type) => fetch('/api/consent.php?action=record', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+        body: JSON.stringify({ type, version: '1.0' })
+      });
+      try { await rec('general'); } catch (e) {}
+      if (role !== 'psychologist') { try { await rec('health_special'); } catch (e) {} }
     }
 
     // Password show/hide

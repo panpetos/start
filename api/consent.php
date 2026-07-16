@@ -77,6 +77,30 @@ function clientIp(): string {
 }
 function ua(): string { return substr($_SERVER['HTTP_USER_AGENT'] ?? '', 0, 500); }
 
+/** Удаление/обезличивание переписки пользователя при отзыве согласия на спецкатегорию.
+ *  Защитно определяет таблицу и колонки сообщений; удаляет все диалоги, где пользователь —
+ *  отправитель или получатель. Возвращает число удалённых строк или null, если таблицы нет. */
+function eraseUserChat(PDO $pdo, $userId) {
+    foreach (['messages', 'chat_messages', 'dialog_messages'] as $table) {
+        try { $cols = $pdo->query("SHOW COLUMNS FROM `$table`")->fetchAll(PDO::FETCH_COLUMN); }
+        catch (Exception $e) { continue; }
+        if (!$cols) continue;
+        $lc = array_map('strtolower', $cols);
+        $sender = null; $receiver = null;
+        foreach (['sender_id', 'from_user_id', 'from_id', 'user_id', 'author_id'] as $c) { $i = array_search($c, $lc, true); if ($i !== false) { $sender = $cols[$i]; break; } }
+        foreach (['receiver_id', 'to_user_id', 'to_id', 'recipient_id'] as $c) { $i = array_search($c, $lc, true); if ($i !== false) { $receiver = $cols[$i]; break; } }
+        if (!$sender) continue;
+        try {
+            $where = $receiver ? "`$sender` = ? OR `$receiver` = ?" : "`$sender` = ?";
+            $args = $receiver ? [$userId, $userId] : [$userId];
+            $st = $pdo->prepare("DELETE FROM `$table` WHERE $where");
+            $st->execute($args);
+            return $st->rowCount();
+        } catch (Exception $e) { return null; }
+    }
+    return null;
+}
+
 /** Запись события в журнал аудита. */
 function audit(PDO $pdo, $userId, string $action, $meta = null): void {
     try {
@@ -132,7 +156,13 @@ if ($action === 'revoke') {
     try {
         $pdo->prepare("UPDATE consents SET status='revoked', revoked_at=NOW() WHERE user_id=? AND consent_type=? AND status='active'")->execute([$userId, $type]);
         audit($pdo, $userId, 'consent_revoked', ['type' => $type]);
-        echo json_encode(['ok' => true]);
+        // Отзыв согласия на спецкатегорию → удаляем/обезличиваем переписку пользователя
+        $erased = null;
+        if ($type === 'health_special') {
+            $erased = eraseUserChat($pdo, $userId);
+            audit($pdo, $userId, 'chat_erased_on_revoke', ['erased' => $erased]);
+        }
+        echo json_encode(['ok' => true, 'chat_erased' => $erased]);
     } catch (Exception $e) { http_response_code(500); echo json_encode(['error' => 'Не удалось отозвать согласие']); }
     exit;
 }
