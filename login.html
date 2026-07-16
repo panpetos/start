@@ -84,6 +84,14 @@
             padding: 0.25rem; color: #9CA3AF; opacity: 0.85;
         }
         .pw-eye:hover { opacity: 1; }
+        .consent { display: flex; gap: 10px; align-items: flex-start; padding: 11px 12px; margin-bottom: 9px; background: #F5F3FF; border: 1px solid #E6E3F0; border-radius: 10px; font-size: 0.82rem; color: #4B5563; cursor: pointer; line-height: 1.45; }
+        .consent.special { background: #FFF8EC; border-color: #F0D9A8; color: #8A6D1F; }
+        .consent input[type=checkbox] { flex: 0 0 auto; width: 18px; height: 18px; margin-top: 1px; accent-color: #7C3AED; cursor: pointer; }
+        .consent.special input[type=checkbox] { accent-color: #8A6D1F; }
+        .consent a { color: #6D28D9; font-weight: 600; text-decoration: underline; }
+        .consent.special a { color: #8A6D1F; }
+        .consent .tag { display: inline-block; font-size: 0.62rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; background: #8A6D1F; color: #fff; padding: 1px 5px; border-radius: 4px; margin-right: 4px; }
+        .reg-note { font-size: 0.75rem; color: #9CA3AF; margin: 2px 2px 12px; }
     </style>
 </head>
 <body>
@@ -139,7 +147,19 @@
                             <button type="button" class="pw-eye" aria-label="Показать пароль" onclick="togglePw('regPassword', this)">👁</button>
                         </div>
                     </div>
-                    <button type="submit" class="btn-submit" id="regBtn">Зарегистрироваться</button>
+
+                    <!-- Согласия клиента (обязательные) -->
+                    <label class="consent">
+                        <input type="checkbox" id="c_general" onchange="syncRegBtn()">
+                        <span>Я принимаю <a href="/offer.html" target="_blank" rel="noopener">Публичную оферту</a>, <a href="/privacy.html" target="_blank" rel="noopener">Политику конфиденциальности</a>, <a href="/refund.html" target="_blank" rel="noopener">Условия возврата</a> и даю <a href="/consent.html" target="_blank" rel="noopener">согласие на обработку персональных данных</a>.</span>
+                    </label>
+                    <label class="consent special">
+                        <input type="checkbox" id="c_health" onchange="syncRegBtn()">
+                        <span><b class="tag">Особые данные</b> Я понимаю, что в общении с психологом могу сообщать сведения о своём психологическом и эмоциональном состоянии (данные о здоровье), и даю отдельное согласие на их обработку по ст. 9 152-ФЗ — <a href="/consent-health.html" target="_blank" rel="noopener">подробнее</a>.</span>
+                    </label>
+                    <p class="reg-note">Отметки не проставлены заранее — согласие вы даёте самостоятельно.</p>
+
+                    <button type="submit" class="btn-submit" id="regBtn" disabled>Зарегистрироваться</button>
                 </form>
                 <p class="psy-register-note">
                     Вы психолог? <a href="/register.html?type=psychologist">Регистрация как специалист →</a>
@@ -158,6 +178,25 @@
                 } catch(e) {}
             }
         })();
+
+        // Кнопка регистрации активна только когда отмечены оба обязательных согласия
+        function syncRegBtn() {
+            const g = document.getElementById('c_general');
+            const h = document.getElementById('c_health');
+            const b = document.getElementById('regBtn');
+            if (g && h && b) b.disabled = !(g.checked && h.checked);
+        }
+        window.syncRegBtn = syncRegBtn;
+
+        // Фиксация фактов согласий на сервере (IP берёт сервер)
+        async function recordClientConsents() {
+            const rec = (type) => fetch('/api/consent.php?action=record', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+                body: JSON.stringify({ type, version: '1.0' })
+            });
+            try { await rec('general'); } catch (e) {}
+            try { await rec('health_special'); } catch (e) {}
+        }
 
         function togglePw(id, btn) {
             const inp = document.getElementById(id);
@@ -228,6 +267,12 @@
         async function handleRegister(e) {
             e.preventDefault();
             hideError('regError');
+            const gOk = document.getElementById('c_general').checked;
+            const hOk = document.getElementById('c_health').checked;
+            if (!gOk || !hOk) {
+                showError('regError', 'Отметьте оба обязательных согласия (общее и о данных о здоровье), чтобы зарегистрироваться.');
+                return;
+            }
             const name = document.getElementById('regName').value.trim();
             const email = document.getElementById('regEmail').value.trim();
             const password = document.getElementById('regPassword').value;
@@ -243,6 +288,7 @@
                 // window.Auth.register → POST /api/auth.php?action=register (реальный бэкенд)
                 const user = await window.Auth.register({ first_name, last_name, email, password });
                 if (user) {
+                    await recordClientConsents();
                     document.getElementById('regSuccess').style.display = 'block';
                     setTimeout(() => redirectAfterLogin(user), 800);
                     return;
