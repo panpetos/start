@@ -147,7 +147,7 @@
               <h3 style="font-size: 1rem; font-weight: 600; color: #1A1A1A; margin-bottom: 0.25rem;">Профессиональная анкета</h3>
               <p style="font-size: 0.8125rem; color: #999; margin-bottom: 0.75rem;">Эти данные видит модератор при одобрении. Все поля обязательны.</p>
               <div style="background:#EFF6FF;border:1px solid #BFDBFE;border-radius:0.6rem;padding:0.7rem 0.9rem;font-size:0.8125rem;color:#1D4ED8;line-height:1.5;margin-bottom:1rem;">
-                🤝 Регистрируясь как специалист, вы присоединяетесь к <a href="/agent-offer.html" target="_blank" style="color:#1D4ED8;text-decoration:underline;font-weight:600;">агентскому договору-оферте</a>: платформа принимает оплату клиентов и распределяет её (60% — вам как специалисту, 40% — сервисный сбор платформы). Доли распределяются платёжным сервисом при оплате, каждый платит налоги со своего дохода.
+                🤝 Регистрируясь как специалист, вы присоединяетесь к <a href="/agent-offer.html" target="_blank" style="color:#1D4ED8;text-decoration:underline;font-weight:600;">агентскому договору-оферте</a>: платформа принимает оплату клиентов и распределяет её (<span id="agencySplitText">вам как специалисту, за вычетом сервисного сбора платформы</span>). Доли распределяются платёжным сервисом при оплате, каждый платит налоги со своего дохода.
               </div>
             </div>
 
@@ -705,6 +705,18 @@
       try { await rec('general'); } catch (e) {}
       if (role !== 'psychologist') { try { await rec('health_special'); } catch (e) {} }
     }
+
+    // Доля/комиссия — из единого источника (настройки платформы), не хардкодим в тексте
+    (async function loadAgencySplit() {
+      try {
+        const s = await (await fetch('/api/settings.php?action=public')).json();
+        const c = parseFloat(s && s.platform_commission);
+        if (!isNaN(c) && c >= 0 && c < 100) {
+          const el = document.getElementById('agencySplitText');
+          if (el) el.textContent = (100 - c) + '% — вам как специалисту, ' + c + '% — сервисный сбор платформы';
+        }
+      } catch (e) { /* оставляем нейтральный текст */ }
+    })();
 
     // Password show/hide
     function togglePw(id, btn) {
