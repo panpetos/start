@@ -332,8 +332,29 @@
     document.getElementById('psySupInput').addEventListener('keypress', function (e) { if (e.key === 'Enter') sendChat(); });
   }
 
+  // Подстановка актуальной цены из настроек (единый источник) в любые элементы
+  // с классом .psy-first-price (первая/ознакомительная сессия) и .psy-base-price.
+  function fillDynamicPrices() {
+    var els = document.querySelectorAll('.psy-first-price, .psy-base-price');
+    if (!els.length) return;
+    fetch('/api/settings.php?action=public').then(function (r) { return r.json(); }).then(function (s) {
+      if (!s) return;
+      var rub = function (n) { var v = parseInt(n, 10); return isNaN(v) ? null : v.toLocaleString('ru-RU') + ' ₽'; };
+      var enabled = String(s.promo_self_enabled || '0') === '1';
+      var raw = (s.promo_self_deadline || '').trim();
+      var iso = raw && raw.length <= 16 ? raw + ':00+03:00' : raw;
+      var dl = raw ? new Date(iso) : null;
+      var valid = dl && !isNaN(dl.getTime()) && dl > new Date();
+      var first = (enabled && valid && s.promo_self_price) ? rub(s.promo_self_price) : rub(s.price_self);
+      var base = rub(s.price_self);
+      if (first) document.querySelectorAll('.psy-first-price').forEach(function (e) { e.textContent = first; });
+      if (base) document.querySelectorAll('.psy-base-price').forEach(function (e) { e.textContent = base; });
+    }).catch(function () { /* оставляем статическое значение */ });
+  }
+
   function onReady() {
     fillPlaceholders();
+    fillDynamicPrices();
     wireBurger();
     // showDevNotice(); — отключено: оверлей «сайт в разработке» мешает проверке эквайринга
     showConsentBanner();
