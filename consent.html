@@ -50,7 +50,7 @@
     .req-item { background: var(--gray-100); border-radius: 10px; padding: 0.9rem 1rem; }
     .req-label { font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--gray-500); margin-bottom: 0.3rem; }
     .req-value { font-size: 0.95rem; font-weight: 600; color: var(--gray-900); }
-    footer { background: var(--dark); color: white; padding: 2rem 1.5rem; text-align: center; }
+    footer { padding: 2rem 1.5rem; text-align: center; }  /* цвет/фон подвала задаёт .site-footer (единый футер) */
     footer .footer-logo { margin-bottom: 0.5rem; font-size: 1.1rem; font-weight: 700; }
     footer .footer-logo span:last-child { color: var(--purple); font-style: italic; }
     footer p { color: #999; font-size: 0.85rem; }
@@ -61,6 +61,7 @@
     .site-footer { border-top: 1px solid #e8e8e8; padding: 24px; text-align: center; font-size: 13px; color: #888; }
     .site-footer a { color: #888; margin: 0 8px; }
   </style>
+  <script src="/js/layout.js"></script>
 </head>
 <body>
   <header>
@@ -471,14 +472,6 @@
     </div>
   </main>
 
-  <footer class="site-footer">
-  <p>&copy; 2025 psytalk.pro. Все права защищены.</p>
-  <p style="margin-top:8px;">
-    <a href="https://psytalk.pro/offer.html">Публичная оферта</a>
-    <a href="https://psytalk.pro/privacy.html">Конфиденциальность</a>
-    <a href="https://psytalk.pro/refund.html">Возврат средств</a>
-    <a href="https://psytalk.pro/">Главная</a>
-  </p>
-</footer>
+  <script>psyWriteFooter();</script>
 </body>
 </html>
