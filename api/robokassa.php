@@ -100,6 +100,52 @@ if ($action === 'diag') {
     ]);
 }
 
+// ── Запись конфига из админки (только admin) — чтобы не редактировать PHP руками ──
+if ($action === 'save-config' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (session_status() === PHP_SESSION_NONE) session_start();
+    $uid = $_SESSION['user_id'] ?? null;
+    $role = '';
+    if ($uid) {
+        try { $st = $pdo->prepare("SELECT role FROM users WHERE id = ? LIMIT 1"); $st->execute([$uid]); $role = (string)$st->fetchColumn(); } catch (Exception $e) {}
+    }
+    if ($role !== 'admin') jsonOut(['error' => 'Только для администратора'], 403);
+
+    $b = json_decode(file_get_contents('php://input'), true) ?: [];
+    // Текущие значения (если файл был корректным) — чтобы пустые поля не затирали пароли
+    $cur = is_array($cfg) ? $cfg : [];
+    $pick = function ($new, $old) { $new = trim((string)$new); return $new !== '' ? $new : (string)$old; };
+
+    $arr = [
+        'MerchantLogin' => $pick($b['merchant_login'] ?? '', $cur['MerchantLogin'] ?? 'psytalk.pro'),
+        'IsTest' => (int)($b['is_test'] ?? ($cur['IsTest'] ?? 1)) ? 1 : 0,
+        'test' => [
+            'password1' => $pick($b['test_password1'] ?? '', $cur['test']['password1'] ?? ''),
+            'password2' => $pick($b['test_password2'] ?? '', $cur['test']['password2'] ?? ''),
+        ],
+        'prod' => [
+            'password1' => $pick($b['prod_password1'] ?? '', $cur['prod']['password1'] ?? ''),
+            'password2' => $pick($b['prod_password2'] ?? '', $cur['prod']['password2'] ?? ''),
+        ],
+        'receipt' => [
+            'enabled'        => !empty($b['receipt_enabled']),
+            'sno'            => $cur['receipt']['sno'] ?? 'usn_income',
+            'payment_method' => $cur['receipt']['payment_method'] ?? 'full_payment',
+            'payment_object' => $cur['receipt']['payment_object'] ?? 'service',
+            'tax'            => $cur['receipt']['tax'] ?? 'none',
+        ],
+    ];
+
+    $php = "<?php\n// Сгенерировано из админ-панели. Секретный файл — не в git.\nreturn " . var_export($arr, true) . ";\n";
+    $ok = @file_put_contents($cfgFile, $php);
+    if ($ok === false) {
+        jsonOut(['error' => 'Не удалось записать файл robokassa_config.php. Проверьте права на папку /api (нужно разрешить запись веб-серверу) или удалите старый файл.', 'writable' => is_writable(__DIR__)], 500);
+    }
+    @chmod($cfgFile, 0640);
+    jsonOut(['ok' => true, 'saved' => true, 'is_test' => $arr['IsTest'],
+        'test_password1_set' => $arr['test']['password1'] !== '', 'test_password2_set' => $arr['test']['password2'] !== '',
+        'prod_password1_set' => $arr['prod']['password1'] !== '', 'prod_password2_set' => $arr['prod']['password2'] !== '']);
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // INIT — создать заказ и вернуть ссылку на оплату
 // ─────────────────────────────────────────────────────────────────────────────

@@ -80,6 +80,7 @@
             <button class="tab" data-tab="users" onclick="switchTab('users')">Пользователи</button>
             <button class="tab" data-tab="psychologists" onclick="switchTab('psychologists')">Психологи</button>
             <button class="tab" data-tab="tariffs" onclick="switchTab('tariffs')">Тарифы и цены</button>
+            <button class="tab" data-tab="robokassa" onclick="switchTab('robokassa')">Робокасса</button>
             <button class="tab" data-tab="appointments" onclick="switchTab('appointments')">Записи</button>
             <button class="tab" data-tab="replacements" onclick="switchTab('replacements')">Замены психолога</button>
             <button class="tab" data-tab="supervision" onclick="switchTab('supervision')">Супервизия</button>
@@ -139,7 +140,7 @@
             document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab===tab));
             const el = document.getElementById('content');
             el.innerHTML = '<div class="loading">Загрузка...</div>';
-            ({ overview:renderOverview, support:renderSupport, users:renderUsers, psychologists:renderPsych, tariffs:renderTariffs, appointments:renderAppointments, replacements:renderReplacements, supervision:renderSupervision, calls:renderCalls, payments:renderPayments, subscribers:renderSubscribers, referrals:renderReferrals, activity:renderActivity }[tab])();
+            ({ overview:renderOverview, support:renderSupport, users:renderUsers, psychologists:renderPsych, tariffs:renderTariffs, robokassa:renderRobokassa, appointments:renderAppointments, replacements:renderReplacements, supervision:renderSupervision, calls:renderCalls, payments:renderPayments, subscribers:renderSubscribers, referrals:renderReferrals, activity:renderActivity }[tab])();
         }
 
         async function renderOverview(){
@@ -552,6 +553,61 @@
                 await fetch('/api/support.php?action=reply', { method:'POST', headers:{'Content-Type':'application/json'}, credentials:'include', body: JSON.stringify({ thread_id: supportThreadId, message: msg }) });
                 await openSupportThread(supportThreadId);
             } catch(e){ alert('Не удалось отправить ответ'); inp.value = msg; }
+        }
+
+        // ── Робокасса: настройка ключей (пишет robokassa_config.php на сервере) ────
+        async function renderRobokassa(){
+            let diag = {};
+            try { diag = await (await fetch('/api/robokassa.php?action=diag', { credentials:'include' })).json(); } catch(e){}
+            const yn = (v) => v ? '<span class="badge b-green">задан</span>' : '<span class="badge b-red">пусто</span>';
+            const status = `
+                <div class="stats-grid" style="margin-bottom:1rem;">
+                    <div class="stat"><div class="v" style="font-size:1rem;">${diag.config_is_array ? '✅' : '⚠️'}</div><div class="l">Файл конфигурации ${diag.config_file_present ? 'есть' : 'отсутствует'}${diag.config_is_array ? '' : ' (некорректен)'}</div></div>
+                    <div class="stat"><div class="v" style="font-size:1rem;">${diag.is_test ? 'ТЕСТ' : 'БОЕВОЙ'}</div><div class="l">Режим (IsTest=${diag.is_test})</div></div>
+                    <div class="stat"><div class="v" style="font-size:1rem;">${diag.active_configured ? '✅ готово' : '— не готово'}</div><div class="l">Приём платежей</div></div>
+                </div>
+                <table style="font-size:0.85rem;margin-bottom:1rem;"><tbody>
+                    <tr><td>MerchantLogin</td><td><b>${esc(diag.merchant_login||'—')}</b></td></tr>
+                    <tr><td>TEST Password#1 / #2</td><td>${yn(diag.test_password1_set)} ${yn(diag.test_password2_set)}</td></tr>
+                    <tr><td>PROD Password#1 / #2</td><td>${yn(diag.prod_password1_set)} ${yn(diag.prod_password2_set)}</td></tr>
+                </tbody></table>`;
+            const fld = (id,label,type,ph) => `<label style="display:block;margin-bottom:0.7rem;"><span style="display:block;font-size:0.82rem;color:#6B7280;margin-bottom:0.25rem;font-weight:600;">${label}</span><input id="${id}" type="${type}" placeholder="${ph||''}" autocomplete="off" style="width:100%;max-width:420px;padding:0.55rem 0.7rem;border:1.5px solid #E5E7EB;border-radius:0.6rem;font-family:inherit;font-size:0.9rem;"></label>`;
+            document.getElementById('content').innerHTML =
+                '<div class="note">🔐 Ключи Робокассы хранятся в файле <b>api/robokassa_config.php</b> на сервере (не в git). Здесь можно записать их безопасно — поля с паролями не показывают текущее значение; пустое поле = «не менять». После сохранения проверьте статус «Приём платежей: готово».</div>' +
+                '<div class="panel"><div class="panel-head"><h2>Ключи и режим Робокассы</h2><button class="btn-sm btn-outline" onclick="renderRobokassa()">↻ Обновить статус</button></div>' +
+                '<div style="padding:1.25rem;">' + status +
+                    fld('rkMerchant','MerchantLogin (идентификатор магазина)','text','psytalk.pro') +
+                    `<label style="display:block;margin-bottom:0.7rem;"><span style="display:block;font-size:0.82rem;color:#6B7280;margin-bottom:0.25rem;font-weight:600;">Режим</span>
+                     <select id="rkIsTest" style="padding:0.55rem 0.7rem;border:1.5px solid #E5E7EB;border-radius:0.6rem;font-family:inherit;"><option value="1"${diag.is_test?' selected':''}>ТЕСТ (IsTest=1)</option><option value="0"${!diag.is_test?' selected':''}>БОЕВОЙ (IsTest=0)</option></select></label>` +
+                    '<div style="font-weight:700;margin:0.6rem 0 0.4rem;">Тестовые пароли</div>' +
+                    fld('rkTest1','TEST Password #1','password','оставьте пустым — не менять') +
+                    fld('rkTest2','TEST Password #2','password','оставьте пустым — не менять') +
+                    '<div style="font-weight:700;margin:0.6rem 0 0.4rem;">Боевые пароли</div>' +
+                    fld('rkProd1','PROD Password #1','password','оставьте пустым — не менять') +
+                    fld('rkProd2','PROD Password #2','password','оставьте пустым — не менять') +
+                    `<label style="display:flex;align-items:center;gap:0.5rem;margin:0.5rem 0 1rem;cursor:pointer;"><input type="checkbox" id="rkReceipt" ${diag.receipt_enabled?'checked':''} style="width:18px;height:18px;accent-color:#7C3AED;"> Фискализация чеков (Receipt, УСН доход)</label>` +
+                    '<button class="btn-sm btn-purple" style="padding:0.7rem 1.6rem;" onclick="saveRobokassa(this)">💾 Сохранить ключи</button> <span id="rkMsg" style="font-size:0.88rem;margin-left:0.5rem;"></span>' +
+                '</div></div>';
+        }
+        async function saveRobokassa(btn){
+            const payload = {
+                merchant_login: document.getElementById('rkMerchant').value.trim(),
+                is_test: document.getElementById('rkIsTest').value,
+                test_password1: document.getElementById('rkTest1').value,
+                test_password2: document.getElementById('rkTest2').value,
+                prod_password1: document.getElementById('rkProd1').value,
+                prod_password2: document.getElementById('rkProd2').value,
+                receipt_enabled: document.getElementById('rkReceipt').checked
+            };
+            const msg = document.getElementById('rkMsg');
+            btn.disabled = true; msg.textContent = 'Сохраняем...'; msg.style.color = '#6B7280';
+            try {
+                const r = await fetch('/api/robokassa.php?action=save-config', { method:'POST', headers:{'Content-Type':'application/json'}, credentials:'include', body: JSON.stringify(payload) });
+                const d = await r.json();
+                btn.disabled = false;
+                if (d.ok) { msg.textContent = '✅ Сохранено. Обновляю статус...'; msg.style.color = '#16A34A'; setTimeout(renderRobokassa, 800); }
+                else { msg.textContent = '⚠️ ' + (d.error || 'Не удалось сохранить'); msg.style.color = '#DC2626'; }
+            } catch(e){ btn.disabled = false; msg.textContent = '⚠️ Ошибка сети'; msg.style.color = '#DC2626'; }
         }
 
         // ── Супервизия (группы + индивидуальные запросы) ──────────────────────────
