@@ -79,6 +79,27 @@ ensureSchema($pdo);
 
 $base = 'https://auth.robokassa.ru/Merchant/Index.aspx';
 
+// ── Диагностика (без раскрытия секретов — только да/нет) ────────────────────────
+if ($action === 'diag') {
+    $realExists = file_exists($cfgFile);
+    $isSet = function ($v) { return ($v !== '' && $v !== null && strpos((string)$v, 'ВПИШИТЕ') === false); };
+    jsonOut([
+        'ok' => true,
+        'config_file_present'  => $realExists,                    // существует ли api/robokassa_config.php
+        'loaded_source'        => $realExists ? 'robokassa_config.php' : 'sample (реальный файл не найден!)',
+        'config_is_array'      => is_array($cfg),                 // корректно ли файл возвращает массив
+        'merchant_login'       => $login,                         // публичный идентификатор, не секрет
+        'is_test'              => $isTest,
+        'test_password1_set'   => $isSet($cfg['test']['password1'] ?? ''),
+        'test_password2_set'   => $isSet($cfg['test']['password2'] ?? ''),
+        'prod_password1_set'   => $isSet($cfg['prod']['password1'] ?? ''),
+        'prod_password2_set'   => $isSet($cfg['prod']['password2'] ?? ''),
+        'active_creds_used'    => $isTest ? 'test' : 'prod',
+        'active_configured'    => robokassaConfigured($password1, $password2),
+        'receipt_enabled'      => !empty($receiptCfg['enabled']),
+    ]);
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // INIT — создать заказ и вернуть ссылку на оплату
 // ─────────────────────────────────────────────────────────────────────────────
