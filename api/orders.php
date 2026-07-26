@@ -74,7 +74,7 @@ function platformCommission(PDO $pdo): float {
         if (!$cols) continue;
         $lc = array_map('strtolower', $cols);
         $kc = null; $vc = null;
-        foreach (['setting_key', 'key', 'name', 'k', 'option_name'] as $c) { $i = array_search($c, $lc, true); if ($i !== false) { $kc = $cols[$i]; break; } }
+        foreach (['setting_key', 'key_name', 'key', 'name', 'k', 'option_name'] as $c) { $i = array_search($c, $lc, true); if ($i !== false) { $kc = $cols[$i]; break; } }
         foreach (['setting_value', 'value', 'val', 'v', 'option_value'] as $c) { $i = array_search($c, $lc, true); if ($i !== false) { $vc = $cols[$i]; break; } }
         if (!$kc || !$vc) continue;
         try {

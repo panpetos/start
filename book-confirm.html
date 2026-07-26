@@ -310,7 +310,7 @@
             btn.innerHTML = '<i data-lucide="loader" style="width: 20px; height: 20px;"></i> Создание платежа...';
 
             try {
-                const response = await fetch('/api/payment.php?action=init', {
+                const response = await fetch('/api/robokassa.php?action=init', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     credentials: 'include',

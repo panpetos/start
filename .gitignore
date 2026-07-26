@@ -1,0 +1,8 @@
+# Секреты Робокассы — только на сервере, НЕ в git
+api/robokassa_config.php
+
+# Прочие локальные секреты/конфиги вне репозитория
+api/config.php
+api/db.php
+*.env
+.env

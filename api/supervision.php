@@ -92,7 +92,7 @@ function platformCommissionPct(PDO $pdo): float {
         try { $cols = $pdo->query("SHOW COLUMNS FROM `$table`")->fetchAll(PDO::FETCH_COLUMN); } catch (Exception $e) { continue; }
         if (!$cols) continue;
         $lc = array_map('strtolower', $cols); $kc = null; $vc = null;
-        foreach (['setting_key','key','name','k'] as $c){ $i=array_search($c,$lc,true); if($i!==false){$kc=$cols[$i];break;} }
+        foreach (['setting_key','key_name','key','name','k'] as $c){ $i=array_search($c,$lc,true); if($i!==false){$kc=$cols[$i];break;} }
         foreach (['setting_value','value','val','v'] as $c){ $i=array_search($c,$lc,true); if($i!==false){$vc=$cols[$i];break;} }
         if (!$kc || !$vc) continue;
         try { $st=$pdo->prepare("SELECT `$vc` FROM `$table` WHERE `$kc`='platform_commission' LIMIT 1"); $st->execute(); $v=$st->fetchColumn();

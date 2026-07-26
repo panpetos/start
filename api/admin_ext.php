@@ -117,7 +117,7 @@ function settingsCols(PDO $pdo): array {
         if (!$cols) continue;
         $lc = array_map('strtolower', $cols);
         $k = null; $v = null;
-        foreach (['setting_key', 'key', 'name', 'k', 'option_name', 'param', 'param_name', '`key`'] as $c) {
+        foreach (['setting_key', 'key_name', 'key', 'name', 'k', 'option_name', 'param', 'param_name', '`key`'] as $c) {
             $i = array_search($c, $lc, true); if ($i !== false) { $k = $cols[$i]; break; }
         }
         foreach (['setting_value', 'value', 'val', 'v', 'option_value', 'data'] as $c) {
