@@ -47,13 +47,15 @@ try {
         author VARCHAR(20) NOT NULL DEFAULT 'admin',    -- admin | claude
         claude_comment MEDIUMTEXT NULL,
         admin_comment MEDIUMTEXT NULL,
-        attachments TEXT NULL,                          -- JSON-массив ссылок на прикреплённые картинки
+        attachments TEXT NULL,                          -- JSON-массив ссылок на картинки к задаче (от админа)
+        admin_attachments TEXT NULL,                    -- JSON-массив ссылок на картинки к доработке (от админа)
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         INDEX idx_status (status)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
-    // Для уже существующей таблицы — добавить колонку, если её нет
+    // Для уже существующей таблицы — добавить колонки, если их нет
     try { $pdo->exec("ALTER TABLE dev_tasks ADD COLUMN attachments TEXT NULL"); } catch (Exception $e) {}
+    try { $pdo->exec("ALTER TABLE dev_tasks ADD COLUMN admin_attachments TEXT NULL"); } catch (Exception $e) {}
     $pdo->exec("CREATE TABLE IF NOT EXISTS dev_task_runs (
         id INT AUTO_INCREMENT PRIMARY KEY,
         state VARCHAR(20) NOT NULL DEFAULT 'idle',      -- running | idle | limited | error
@@ -141,10 +143,17 @@ if ($action === 'set-status') {
     if (!$isAdmin) out(['error' => 'Только для администратора'], 403);
     $id = $body['id'] ?? null;
     $status = (string)($body['status'] ?? '');
-    if (!$id || !in_array($status, ['new', 'in_progress', 'done', 'rework'], true)) out(['error' => 'Нужны id и корректный статус'], 400);
+    if (!$id || !in_array($status, ['new', 'in_progress', 'done', 'rework', 'closed'], true)) out(['error' => 'Нужны id и корректный статус'], 400);
+    // Строим UPDATE динамически: admin_comment/admin_attachments трогаем только если переданы
+    $fields = ['status=?']; $params = [$status];
+    if (array_key_exists('admin_comment', $body)) { $fields[] = 'admin_comment=?'; $params[] = trim((string)$body['admin_comment']); }
+    $atts = $body['admin_attachments'] ?? null;
+    if (is_array($atts) && $atts) { $fields[] = 'admin_attachments=?'; $params[] = json_encode(array_values($atts), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE); }
+    $fields[] = 'updated_at=NOW()';
+    $params[] = $id;
     try {
-        $st = $pdo->prepare("UPDATE dev_tasks SET status=?, admin_comment=?, updated_at=NOW() WHERE id=?");
-        $st->execute([$status, trim((string)($body['admin_comment'] ?? '')), $id]);
+        $st = $pdo->prepare("UPDATE dev_tasks SET " . implode(', ', $fields) . " WHERE id=?");
+        $st->execute($params);
         out(['ok' => true]);
     } catch (Exception $e) { out(['error' => 'Не удалось обновить'], 500); }
 }

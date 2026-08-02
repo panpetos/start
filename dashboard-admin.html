@@ -597,62 +597,93 @@
 
         // ── Задачи Клоду (очередь доработок сайта) ────────────────────────────────
         const DEV_API = '/api/dev_tasks.php';
-        async function renderDevTasks(){
+        let devPollTimer = null;
+        let devNewFiles = [];      // прикреплённые фото к новой задаче
+        let devReworkFiles = [];   // прикреплённые фото к доработке (в модалке)
+        const DEV_STMAP = { new:['b-amber','новая'], in_progress:['b-purple','в работе у Клода'], done:['b-green','готово — проверьте'], rework:['b-red','на доработку'], closed:['b-gray','закрыто ✓'] };
+
+        function devImgs(json, label){
+            let arr = []; try { arr = json ? JSON.parse(json) : []; } catch(e){}
+            if (!arr || !arr.length) return '';
+            return `<div style="margin-top:0.5rem;">${label ? `<div class="muted" style="font-size:0.75rem;margin-bottom:0.25rem;">${label}</div>` : ''}<div style="display:flex;gap:0.4rem;flex-wrap:wrap;">`
+                + arr.map(u=>`<a href="${esc(u)}" target="_blank" rel="noopener"><img src="${esc(u)}" alt="скрин" style="height:70px;border-radius:0.4rem;border:1px solid #E5E7EB;object-fit:cover;"></a>`).join('')
+                + `</div></div>`;
+        }
+        function devTaskRow(t){
+            const s = DEV_STMAP[t.status] || ['b-gray', t.status];
+            const cc = t.claude_comment ? `<div style="margin-top:0.4rem;background:#F3E8FF;border-radius:0.5rem;padding:0.5rem 0.7rem;font-size:0.82rem;"><b>🤖 Клод:</b> ${esc(t.claude_comment)}</div>` : '';
+            const ac = t.admin_comment ? `<div style="margin-top:0.3rem;color:#6B7280;font-size:0.8rem;">✍️ Ваш комментарий: ${esc(t.admin_comment)}</div>` : '';
+            const closed = t.status === 'closed';
+            const btns = closed
+                ? `<button class="btn-sm btn-outline" onclick="devSet(${t.id},'new')">↩ Вернуть в работу</button>`
+                : `<button class="btn-sm btn-outline" onclick="devSet(${t.id},'closed')">✓ Закрыть</button>
+                   <button class="btn-sm btn-red" onclick="devOpenRework(${t.id})">↩ На доработку</button>`;
+            return `<div class="panel" style="margin-bottom:0.75rem;${closed ? 'opacity:0.65;' : ''}"><div style="padding:0.9rem 1.1rem;">
+                <div style="display:flex;justify-content:space-between;gap:0.75rem;align-items:center;flex-wrap:wrap;">
+                    <b>${esc(t.title || ('Задача #' + t.id))}</b>
+                    <span class="badge ${s[0]}">${s[1]}</span>
+                </div>
+                <div style="white-space:pre-wrap;color:#374151;font-size:0.9rem;margin-top:0.4rem;">${esc(t.body)}</div>
+                ${devImgs(t.attachments, '')}${cc}${ac}${devImgs(t.admin_attachments, '📎 к доработке:')}
+                <div style="margin-top:0.6rem;display:flex;gap:0.4rem;flex-wrap:wrap;align-items:center;">
+                    ${btns}
+                    <span class="muted" style="font-size:0.75rem;align-self:center;">обновлено ${fmtDateTime(t.updated_at)}</span>
+                </div>
+            </div></div>`;
+        }
+        // Обновляет только счётчики и список задач — форму ввода не трогает (для авто-опроса)
+        async function devRefresh(){
             let list = [], st = {};
             try { list = (await (await fetch(DEV_API + '?action=list', { credentials:'include' })).json()).data || []; } catch(e){}
             try { st = await (await fetch(DEV_API + '?action=status', { credentials:'include' })).json(); } catch(e){}
-            const lr = st.last_run;
-            const stateLbl = lr ? ({running:'🟢 Клод сейчас работает', idle:'⚪ Ждёт следующего запуска', limited:'🟠 Достигнут лимит — повторит позже', error:'🔴 Ошибка в прошлом запуске'}[lr.state] || lr.state) : 'запусков ещё не было';
-            const c = st.counts || {};
-            const stMap = { new:['b-amber','новая'], in_progress:['b-purple','в работе у Клода'], done:['b-green','сделано Клодом'], rework:['b-red','на доработку'] };
-            const rows = list.length ? list.map(t => {
-                const s = stMap[t.status] || ['b-gray', t.status];
-                const cc = t.claude_comment ? `<div style="margin-top:0.4rem;background:#F3E8FF;border-radius:0.5rem;padding:0.5rem 0.7rem;font-size:0.82rem;"><b>🤖 Клод:</b> ${esc(t.claude_comment)}</div>` : '';
-                const ac = t.admin_comment ? `<div style="margin-top:0.3rem;color:#6B7280;font-size:0.8rem;">✍️ Ваш комментарий: ${esc(t.admin_comment)}</div>` : '';
-                let atts = []; try { atts = t.attachments ? JSON.parse(t.attachments) : []; } catch(e){}
-                const attHtml = (atts && atts.length) ? `<div style="display:flex;gap:0.4rem;flex-wrap:wrap;margin-top:0.5rem;">` + atts.map(u=>`<a href="${esc(u)}" target="_blank" rel="noopener"><img src="${esc(u)}" alt="скрин" style="height:70px;border-radius:0.4rem;border:1px solid #E5E7EB;object-fit:cover;"></a>`).join('') + `</div>` : '';
-                return `<div class="panel" style="margin-bottom:0.75rem;"><div style="padding:0.9rem 1.1rem;">
-                    <div style="display:flex;justify-content:space-between;gap:0.75rem;align-items:center;flex-wrap:wrap;">
-                        <b>${esc(t.title || ('Задача #' + t.id))}</b>
-                        <span class="badge ${s[0]}">${s[1]}</span>
-                    </div>
-                    <div style="white-space:pre-wrap;color:#374151;font-size:0.9rem;margin-top:0.4rem;">${esc(t.body)}</div>
-                    ${attHtml}${cc}${ac}
-                    <div style="margin-top:0.6rem;display:flex;gap:0.4rem;flex-wrap:wrap;">
-                        <button class="btn-sm btn-outline" onclick="devSet(${t.id},'done')">✓ Закрыто</button>
-                        <button class="btn-sm btn-red" onclick="devRework(${t.id})">↩ На доработку</button>
-                        <span class="muted" style="font-size:0.75rem;align-self:center;">обновлено ${fmtDateTime(t.updated_at)}</span>
-                    </div>
-                </div></div>`;
-            }).join('') : '<div class="empty">Задач пока нет — добавьте первую ниже.</div>';
-
+            const statsEl = document.getElementById('devStats');
+            if (statsEl){
+                const lr = st.last_run;
+                const stateLbl = lr ? ({running:'🟢 Клод сейчас работает', idle:'⚪ Ждёт следующего запуска', requested:'🟡 Запрошен прогон', limited:'🟠 Достигнут лимит — повторит позже', error:'🔴 Ошибка в прошлом запуске'}[lr.state] || lr.state) : 'запусков ещё не было';
+                const c = st.counts || {};
+                statsEl.innerHTML =
+                    `<div class="stat"><div class="v">${(c.new||0)+(c.rework||0)}</div><div class="l">В очереди</div></div>
+                     <div class="stat"><div class="v">${c.in_progress||0}</div><div class="l">В работе</div></div>
+                     <div class="stat"><div class="v">${c.done||0}</div><div class="l">Готово к проверке</div></div>
+                     <div class="stat"><div class="v" style="font-size:0.95rem;">${stateLbl}</div><div class="l">Статус Клода${lr?(' · '+fmtDateTime(lr.created_at)):''}</div></div>`;
+            }
+            const listEl = document.getElementById('devTaskList');
+            if (listEl){
+                const wasOpen = !!(listEl.querySelector('details') && listEl.querySelector('details').open);
+                const active = list.filter(t => t.status !== 'closed');
+                const closed = list.filter(t => t.status === 'closed');
+                listEl.innerHTML =
+                    (active.length ? active.map(devTaskRow).join('') : '<div class="empty">Активных задач нет — добавьте новую выше.</div>')
+                    + (closed.length ? `<details ${wasOpen?'open':''} style="margin-top:1rem;"><summary style="cursor:pointer;color:#6B7280;font-size:0.9rem;">Архив закрытых (${closed.length})</summary><div style="margin-top:0.75rem;">${closed.map(devTaskRow).join('')}</div></details>` : '');
+            }
+        }
+        async function renderDevTasks(){
+            if (devPollTimer){ clearInterval(devPollTimer); devPollTimer = null; }
+            devNewFiles = [];
+            let tokenConfigured = true;
+            try { tokenConfigured = (await (await fetch(DEV_API + '?action=status', { credentials:'include' })).json()).token_configured; } catch(e){}
             document.getElementById('content').innerHTML =
-                '<div class="note">🤖 Пишите сюда задачи на доработку сайта. Клод по расписанию (Routine в облаке) забирает «новые» и «на доработку», выполняет, деплоит и возвращает статус со своим комментарием. Вы отмечаете «Закрыто» или «На доработку».</div>' +
-                `<div class="stats-grid" style="margin-bottom:1rem;">
-                    <div class="stat"><div class="v">${(c.new||0)+(c.rework||0)}</div><div class="l">В очереди</div></div>
-                    <div class="stat"><div class="v">${c.in_progress||0}</div><div class="l">В работе</div></div>
-                    <div class="stat"><div class="v">${c.done||0}</div><div class="l">Сделано</div></div>
-                    <div class="stat"><div class="v" style="font-size:0.95rem;">${stateLbl}</div><div class="l">Статус Клода${lr?(' · '+fmtDateTime(lr.created_at)):''}</div></div>
-                </div>` +
+                '<div class="note">🤖 Пишите сюда задачи на доработку сайта. Клод по расписанию (Routine в облаке) забирает «новые» и «на доработку», выполняет, деплоит и возвращает статус со своим комментарием. Статусы обновляются автоматически, страницу перезагружать не нужно.</div>' +
+                `<div id="devStats" class="stats-grid" style="margin-bottom:1rem;"></div>` +
                 `<div style="margin-bottom:1rem;display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;">
                     <button class="btn-sm btn-purple" style="padding:0.6rem 1.3rem;" onclick="devRunNow(this)">▶ Запустить сейчас</button>
-                    <button class="btn-sm btn-outline" onclick="renderDevTasks()">↻ Обновить</button>
+                    <button class="btn-sm btn-outline" onclick="devRefresh()">↻ Обновить</button>
                     <span id="devRunMsg" class="muted" style="font-size:0.83rem;"></span>
                  </div>` +
                 `<div class="panel" style="margin-bottom:1rem;"><div class="panel-head"><h2>Новая задача</h2></div><div style="padding:1.1rem;">
                     <input id="devTitle" placeholder="Коротко: что улучшить" style="width:100%;padding:0.6rem 0.8rem;border:1.5px solid #E5E7EB;border-radius:0.6rem;font-family:inherit;margin-bottom:0.6rem;">
                     <textarea id="devBody" rows="6" placeholder="Подробно опишите доработку/недоработку (можно длинный текст, список пунктов)..." style="width:100%;padding:0.7rem 0.9rem;border:1.5px solid #E5E7EB;border-radius:0.6rem;font-family:inherit;font-size:0.92rem;resize:vertical;"></textarea>
-                    <div style="margin-top:0.7rem;">
-                        <label class="btn-sm btn-outline" style="cursor:pointer;display:inline-block;">📎 Прикрепить фото/скрины
-                            <input id="devFiles" type="file" accept="image/*" multiple style="display:none;" onchange="devFilePreview()">
-                        </label>
-                        <div class="muted" style="font-size:0.78rem;margin-top:0.3rem;">jpg, png, gif, webp — до 8 МБ каждое. Клод увидит их при выполнении задачи.</div>
-                        <div id="devFilePrev" style="display:flex;gap:0.4rem;flex-wrap:wrap;margin-top:0.5rem;"></div>
+                    <div id="devDrop" style="margin-top:0.7rem;border:2px dashed #C4B5FD;border-radius:0.7rem;padding:1.1rem;text-align:center;cursor:pointer;background:#FAF8FF;transition:background .15s,border-color .15s;">
+                        <div style="font-size:1.6rem;line-height:1;">🖼️</div>
+                        <div style="font-size:0.9rem;color:#6D28D9;margin-top:0.3rem;"><b>Перетащите фото/скрины сюда</b> или нажмите, чтобы выбрать</div>
+                        <div class="muted" style="font-size:0.76rem;margin-top:0.2rem;">jpg, png, gif, webp — до 8 МБ каждое. Клод увидит их при выполнении задачи.</div>
+                        <input id="devFiles" type="file" accept="image/*" multiple style="display:none;">
                     </div>
+                    <div id="devFilePrev" style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-top:0.6rem;"></div>
                     <button class="btn-sm btn-purple" style="margin-top:0.7rem;padding:0.65rem 1.4rem;" onclick="devAdd(this)">Добавить задачу</button>
                     <span id="devMsg" style="font-size:0.85rem;margin-left:0.5rem;"></span>
                 </div></div>` +
-                (st.token_configured ? '' :
+                (tokenConfigured ? '' :
                     `<div class="panel" style="margin-bottom:1rem;border-color:#FCD34D;"><div class="panel-head"><h2>⚙️ Токен автоматизации (один раз)</h2></div><div style="padding:1.1rem;">
                         <p class="muted" style="font-size:0.85rem;margin-bottom:0.6rem;">Чтобы Клод мог забирать задачи по расписанию, задайте секретный токен. Сгенерируйте случайный и сохраните — он понадобится при настройке расписания.</p>
                         <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
@@ -662,40 +693,67 @@
                         </div>
                         <span id="devTokMsg" style="font-size:0.85rem;"></span>
                     </div></div>`) +
-                '<h3 style="margin:0.5rem 0;font-size:1rem;">Задачи</h3>' + rows;
+                '<h3 style="margin:0.5rem 0;font-size:1rem;">Задачи</h3><div id="devTaskList"><div class="loading">Загрузка...</div></div>';
+            devSetupDropzone(document.getElementById('devDrop'), document.getElementById('devFiles'), 'new');
+            await devRefresh();
+            devPollTimer = setInterval(() => {
+                if (document.getElementById('devTaskList')) devRefresh();
+                else { clearInterval(devPollTimer); devPollTimer = null; }
+            }, 15000);
         }
-        function devFilePreview(){
-            const files = document.getElementById('devFiles').files;
-            const box = document.getElementById('devFilePrev');
-            box.innerHTML = '';
-            for (let i=0; i<files.length; i++){
-                const img = document.createElement('img');
-                img.src = URL.createObjectURL(files[i]);
-                img.style.cssText = 'height:64px;border-radius:0.4rem;border:1px solid #E5E7EB;object-fit:cover;';
-                box.appendChild(img);
+        // ── Drag-and-drop + клик для загрузки фото ────────────────────────────────
+        function devSetupDropzone(zone, input, kind){
+            if (!zone || !input) return;
+            zone.onclick = () => input.click();
+            input.onchange = () => { devAddFiles([...input.files], kind); input.value = ''; };
+            ['dragenter','dragover'].forEach(ev => zone.addEventListener(ev, e => { e.preventDefault(); zone.style.background = '#F3E8FF'; zone.style.borderColor = '#7C3AED'; }));
+            ['dragleave','drop'].forEach(ev => zone.addEventListener(ev, e => { e.preventDefault(); zone.style.background = '#FAF8FF'; zone.style.borderColor = '#C4B5FD'; }));
+            zone.addEventListener('drop', e => { devAddFiles([...((e.dataTransfer && e.dataTransfer.files) || [])], kind); });
+        }
+        function devAddFiles(files, kind){
+            const arr = kind === 'new' ? devNewFiles : devReworkFiles;
+            files.forEach(f => { if (f && f.type && f.type.indexOf('image/') === 0) arr.push(f); });
+            devRenderPrev(kind);
+        }
+        function devRemoveFile(i, kind){
+            (kind === 'new' ? devNewFiles : devReworkFiles).splice(i, 1);
+            devRenderPrev(kind);
+        }
+        function devRenderPrev(kind){
+            const arr = kind === 'new' ? devNewFiles : devReworkFiles;
+            const box = document.getElementById(kind === 'new' ? 'devFilePrev' : 'devRwPrev');
+            if (!box) return;
+            box.innerHTML = arr.map((f, i) => `<div style="position:relative;">
+                <img src="${URL.createObjectURL(f)}" style="height:64px;border-radius:0.4rem;border:1px solid #E5E7EB;object-fit:cover;display:block;">
+                <button onclick="devRemoveFile(${i},'${kind}')" title="убрать" style="position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;border:none;background:#DC2626;color:#fff;font-size:12px;line-height:1;cursor:pointer;">×</button>
+            </div>`).join('');
+        }
+        // Загружает массив File на сервер, возвращает массив URL (или null при ошибке)
+        async function devUpload(files, msgEl){
+            const urls = [];
+            for (let i = 0; i < files.length; i++){
+                if (msgEl){ msgEl.textContent = ' загружаю фото ' + (i+1) + '/' + files.length + '...'; msgEl.style.color = '#6B7280'; }
+                const fd = new FormData(); fd.append('file', files[i]);
+                let r;
+                try { r = await (await fetch(DEV_API + '?action=upload', { method:'POST', credentials:'include', body: fd })).json(); }
+                catch(e){ if (msgEl){ msgEl.textContent = ' ошибка сети при загрузке фото'; msgEl.style.color = '#DC2626'; } return null; }
+                if (r.ok && r.url) urls.push(r.url);
+                else { if (msgEl){ msgEl.textContent = ' фото ' + (i+1) + ': ' + (r.error || 'ошибка загрузки'); msgEl.style.color = '#DC2626'; } return null; }
             }
+            return urls;
         }
         async function devAdd(btn){
             const title = document.getElementById('devTitle').value.trim();
             const body = document.getElementById('devBody').value.trim();
             const msg = document.getElementById('devMsg');
-            if (!body){ msg.textContent='Введите текст'; msg.style.color='#DC2626'; return; }
+            if (!body){ msg.textContent = 'Введите текст'; msg.style.color = '#DC2626'; return; }
             btn.disabled = true;
-            // сначала загрузим прикреплённые фото на сервер, получим ссылки
-            const files = document.getElementById('devFiles').files;
-            const attachments = [];
-            for (let i=0; i<files.length; i++){
-                msg.textContent = ' загружаю фото '+(i+1)+'/'+files.length+'...'; msg.style.color='#6B7280';
-                const fd = new FormData(); fd.append('file', files[i]);
-                try {
-                    const r = await (await fetch(DEV_API+'?action=upload', { method:'POST', credentials:'include', body: fd })).json();
-                    if (r.ok && r.url) attachments.push(r.url);
-                    else { msg.textContent = ' фото '+(i+1)+': '+(r.error||'ошибка загрузки'); msg.style.color='#DC2626'; btn.disabled=false; return; }
-                } catch(e){ msg.textContent = ' ошибка сети при загрузке фото'; msg.style.color='#DC2626'; btn.disabled=false; return; }
-            }
+            const attachments = await devUpload(devNewFiles, msg);
+            if (attachments === null){ btn.disabled = false; return; }
             const r = await apiPostTo(DEV_API, 'add', { title, body, attachments });
             btn.disabled = false;
-            if (r.ok) renderDevTasks(); else { msg.textContent = r.error||'Ошибка'; msg.style.color='#DC2626'; }
+            if (r.ok){ devNewFiles = []; renderDevTasks(); }
+            else { msg.textContent = r.error || 'Ошибка'; msg.style.color = '#DC2626'; }
         }
         async function devRunNow(btn){
             const m = document.getElementById('devRunMsg');
@@ -705,8 +763,49 @@
             if (r.ok) { m.textContent = ' ✅ Запрос поставлен. Клод обработает при ближайшем прогоне (по расписанию — раз в 3 дня в 04:00 МСК; вручную — из Claude Code).'; m.style.color = '#16A34A'; }
             else { m.textContent = ' ⚠️ ' + (r.error || 'ошибка'); m.style.color = '#DC2626'; }
         }
-        async function devSet(id, status){ const r = await apiPostTo(DEV_API,'set-status',{id,status}); if(r.ok) renderDevTasks(); else alert(r.error||'Ошибка'); }
-        async function devRework(id){ const c = prompt('Что доработать? (комментарий Клоду)'); if(c===null) return; const r = await apiPostTo(DEV_API,'set-status',{id,status:'rework',admin_comment:c}); if(r.ok) renderDevTasks(); else alert(r.error||'Ошибка'); }
+        async function devSet(id, status){ const r = await apiPostTo(DEV_API,'set-status',{id,status}); if(r.ok) devRefresh(); else alert(r.error||'Ошибка'); }
+        // ── Доработка: модалка с комментарием + фото ──────────────────────────────
+        function devOpenRework(id){
+            devReworkFiles = [];
+            const ov = document.createElement('div');
+            ov.id = 'devModal';
+            ov.style.cssText = 'position:fixed;inset:0;background:rgba(17,24,39,0.5);display:flex;align-items:center;justify-content:center;z-index:9999;padding:1rem;';
+            ov.innerHTML = `<div style="background:#fff;border-radius:0.9rem;max-width:520px;width:100%;max-height:90vh;overflow:auto;padding:1.3rem;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.7rem;">
+                    <h2 style="font-size:1.05rem;margin:0;">↩ Отправить на доработку</h2>
+                    <button onclick="devCloseModal()" style="border:none;background:none;font-size:1.5rem;cursor:pointer;color:#9CA3AF;line-height:1;">×</button>
+                </div>
+                <p class="muted" style="font-size:0.85rem;margin-bottom:0.6rem;">Опишите, что не так и что нужно поправить. Можно приложить скрины — Клод их увидит при доработке.</p>
+                <textarea id="devRwText" rows="5" placeholder="Что доработать..." style="width:100%;padding:0.7rem 0.9rem;border:1.5px solid #E5E7EB;border-radius:0.6rem;font-family:inherit;font-size:0.92rem;resize:vertical;"></textarea>
+                <div id="devRwDrop" style="margin-top:0.7rem;border:2px dashed #C4B5FD;border-radius:0.7rem;padding:1rem;text-align:center;cursor:pointer;background:#FAF8FF;transition:background .15s,border-color .15s;">
+                    <div style="font-size:1.4rem;line-height:1;">🖼️</div>
+                    <div style="font-size:0.88rem;color:#6D28D9;margin-top:0.3rem;"><b>Перетащите фото сюда</b> или нажмите</div>
+                    <input id="devRwFiles" type="file" accept="image/*" multiple style="display:none;">
+                </div>
+                <div id="devRwPrev" style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-top:0.6rem;"></div>
+                <div style="display:flex;gap:0.5rem;justify-content:flex-end;margin-top:1rem;align-items:center;">
+                    <span id="devRwMsg" style="font-size:0.85rem;margin-right:auto;"></span>
+                    <button class="btn-sm btn-outline" onclick="devCloseModal()">Отмена</button>
+                    <button class="btn-sm btn-red" onclick="devReworkSubmit(${id},this)">Отправить на доработку</button>
+                </div>
+            </div>`;
+            document.body.appendChild(ov);
+            ov.addEventListener('click', e => { if (e.target === ov) devCloseModal(); });
+            devSetupDropzone(document.getElementById('devRwDrop'), document.getElementById('devRwFiles'), 'rework');
+        }
+        function devCloseModal(){ const m = document.getElementById('devModal'); if (m) m.remove(); devReworkFiles = []; }
+        async function devReworkSubmit(id, btn){
+            const text = document.getElementById('devRwText').value.trim();
+            const msg = document.getElementById('devRwMsg');
+            if (!text){ msg.textContent = 'Напишите, что доработать'; msg.style.color = '#DC2626'; return; }
+            btn.disabled = true;
+            const admin_attachments = await devUpload(devReworkFiles, msg);
+            if (admin_attachments === null){ btn.disabled = false; return; }
+            const r = await apiPostTo(DEV_API, 'set-status', { id, status:'rework', admin_comment:text, admin_attachments });
+            btn.disabled = false;
+            if (r.ok){ devCloseModal(); devRefresh(); }
+            else { msg.textContent = ' ' + (r.error || 'ошибка'); msg.style.color = '#DC2626'; }
+        }
         async function devSaveToken(btn){ const t=document.getElementById('devToken').value.trim(); const m=document.getElementById('devTokMsg'); if(t.length<16){m.textContent=' минимум 16 символов';m.style.color='#DC2626';return;} btn.disabled=true; const r=await apiPostTo(DEV_API,'save-token',{token:t}); btn.disabled=false; if(r.ok){ m.textContent=' ✅ сохранён'; m.style.color='#16A34A'; alert('Токен сохранён. Передайте его Клоду в чате для настройки расписания:\n\n'+t);} else { m.textContent=' '+(r.error||'ошибка'); m.style.color='#DC2626'; } }
         async function apiPostTo(url, action, body){
             try { const r = await fetch(url+'?action='+action, { method:'POST', headers:{'Content-Type':'application/json'}, credentials:'include', body: JSON.stringify(body) }); return await r.json(); }
