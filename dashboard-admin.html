@@ -18,10 +18,15 @@
         .page-head h1 { font-size: 1.6rem; letter-spacing: -0.02em; }
         .page-head p { color: #6B7280; font-size: 0.9rem; }
 
-        .tabs { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-bottom: 1.25rem; }
-        .tab { padding: 0.55rem 1rem; border-radius: 0.7rem; border: 1px solid #E5E0F5; background: #fff; color: #4B5563; font-weight: 600; font-size: 0.875rem; cursor: pointer; font-family: inherit; transition: all 0.15s; }
+        .tabs { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1.25rem; align-items: stretch; }
+        .tab-group { display: flex; flex-direction: column; gap: 0.3rem; }
+        .tab-group-label { font-size: 0.68rem; font-weight: 700; color: #9CA3AF; text-transform: uppercase; letter-spacing: 0.05em; padding-left: 0.3rem; }
+        .tab-group-btns { display: flex; gap: 0.3rem; flex-wrap: wrap; }
+        .tab-divider { width: 1px; background: #E5E0F5; margin: 0.3rem 0.15rem; align-self: stretch; min-height: 100%; }
+        .tab { padding: 0.45rem 0.75rem; border-radius: 0.6rem; border: 1px solid #E5E0F5; background: #fff; color: #4B5563; font-weight: 600; font-size: 0.8rem; cursor: pointer; font-family: inherit; transition: all 0.15s; white-space: nowrap; }
         .tab:hover { border-color: #C4B5FD; }
         .tab.active { background: linear-gradient(135deg,#7C3AED,#9F67FA); color: #fff; border-color: transparent; box-shadow: 0 3px 10px rgba(124,58,237,0.3); }
+        @media (max-width: 640px) { .tab-divider { display: none; } .tabs { gap: 0.6rem; } .tab-group { width: 100%; } .tab-group-btns { width: 100%; } }
 
         .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px,1fr)); gap: 1rem; margin-bottom: 1.5rem; }
         .stat { background: #fff; border-radius: 1rem; padding: 1.25rem; border: 1px solid #EDE9FF; box-shadow: 0 2px 10px rgba(124,58,237,0.06); }
@@ -75,21 +80,55 @@
         </div>
 
         <div class="tabs" id="tabs">
-            <button class="tab active" data-tab="overview" onclick="switchTab('overview')">Обзор</button>
-            <button class="tab" data-tab="support" onclick="switchTab('support')">💬 Поддержка / чаты</button>
-            <button class="tab" data-tab="users" onclick="switchTab('users')">Пользователи</button>
-            <button class="tab" data-tab="psychologists" onclick="switchTab('psychologists')">Психологи</button>
-            <button class="tab" data-tab="tariffs" onclick="switchTab('tariffs')">Тарифы и цены</button>
-            <button class="tab" data-tab="robokassa" onclick="switchTab('robokassa')">Робокасса</button>
-            <button class="tab" data-tab="devtasks" onclick="switchTab('devtasks')">🤖 Задачи Клоду</button>
-            <button class="tab" data-tab="appointments" onclick="switchTab('appointments')">Записи</button>
-            <button class="tab" data-tab="replacements" onclick="switchTab('replacements')">Замены психолога</button>
-            <button class="tab" data-tab="supervision" onclick="switchTab('supervision')">Супервизия</button>
-            <button class="tab" data-tab="calls" onclick="switchTab('calls')">Звонки / сессии</button>
-            <button class="tab" data-tab="payments" onclick="switchTab('payments')">Оплаты</button>
-            <button class="tab" data-tab="subscribers" onclick="switchTab('subscribers')">Подписки</button>
-            <button class="tab" data-tab="referrals" onclick="switchTab('referrals')">Источники</button>
-            <button class="tab" data-tab="activity" onclick="switchTab('activity')">Журнал активности</button>
+            <div class="tab-group">
+                <div class="tab-group-btns">
+                    <button class="tab active" data-tab="overview" onclick="switchTab('overview')">📊 Обзор</button>
+                </div>
+            </div>
+            <div class="tab-divider"></div>
+            <div class="tab-group">
+                <div class="tab-group-label">Люди</div>
+                <div class="tab-group-btns">
+                    <button class="tab" data-tab="users" onclick="switchTab('users')">Пользователи</button>
+                    <button class="tab" data-tab="psychologists" onclick="switchTab('psychologists')">Психологи</button>
+                </div>
+            </div>
+            <div class="tab-divider"></div>
+            <div class="tab-group">
+                <div class="tab-group-label">Услуги</div>
+                <div class="tab-group-btns">
+                    <button class="tab" data-tab="appointments" onclick="switchTab('appointments')">Записи</button>
+                    <button class="tab" data-tab="calls" onclick="switchTab('calls')">Звонки</button>
+                    <button class="tab" data-tab="replacements" onclick="switchTab('replacements')">Замены</button>
+                    <button class="tab" data-tab="supervision" onclick="switchTab('supervision')">Супервизия</button>
+                </div>
+            </div>
+            <div class="tab-divider"></div>
+            <div class="tab-group">
+                <div class="tab-group-label">Финансы</div>
+                <div class="tab-group-btns">
+                    <button class="tab" data-tab="payments" onclick="switchTab('payments')">Оплаты</button>
+                    <button class="tab" data-tab="tariffs" onclick="switchTab('tariffs')">Тарифы</button>
+                    <button class="tab" data-tab="robokassa" onclick="switchTab('robokassa')">Робокасса</button>
+                </div>
+            </div>
+            <div class="tab-divider"></div>
+            <div class="tab-group">
+                <div class="tab-group-label">Аналитика</div>
+                <div class="tab-group-btns">
+                    <button class="tab" data-tab="subscribers" onclick="switchTab('subscribers')">Подписки</button>
+                    <button class="tab" data-tab="referrals" onclick="switchTab('referrals')">Источники</button>
+                    <button class="tab" data-tab="activity" onclick="switchTab('activity')">Журнал</button>
+                </div>
+            </div>
+            <div class="tab-divider"></div>
+            <div class="tab-group">
+                <div class="tab-group-label">Система</div>
+                <div class="tab-group-btns">
+                    <button class="tab" data-tab="support" onclick="switchTab('support')">💬 Поддержка</button>
+                    <button class="tab" data-tab="devtasks" onclick="switchTab('devtasks')">🤖 Задачи Клоду</button>
+                </div>
+            </div>
         </div>
 
         <div id="content"><div class="loading">Загрузка...</div></div>
