@@ -609,13 +609,15 @@
                 const s = stMap[t.status] || ['b-gray', t.status];
                 const cc = t.claude_comment ? `<div style="margin-top:0.4rem;background:#F3E8FF;border-radius:0.5rem;padding:0.5rem 0.7rem;font-size:0.82rem;"><b>🤖 Клод:</b> ${esc(t.claude_comment)}</div>` : '';
                 const ac = t.admin_comment ? `<div style="margin-top:0.3rem;color:#6B7280;font-size:0.8rem;">✍️ Ваш комментарий: ${esc(t.admin_comment)}</div>` : '';
+                let atts = []; try { atts = t.attachments ? JSON.parse(t.attachments) : []; } catch(e){}
+                const attHtml = (atts && atts.length) ? `<div style="display:flex;gap:0.4rem;flex-wrap:wrap;margin-top:0.5rem;">` + atts.map(u=>`<a href="${esc(u)}" target="_blank" rel="noopener"><img src="${esc(u)}" alt="скрин" style="height:70px;border-radius:0.4rem;border:1px solid #E5E7EB;object-fit:cover;"></a>`).join('') + `</div>` : '';
                 return `<div class="panel" style="margin-bottom:0.75rem;"><div style="padding:0.9rem 1.1rem;">
                     <div style="display:flex;justify-content:space-between;gap:0.75rem;align-items:center;flex-wrap:wrap;">
                         <b>${esc(t.title || ('Задача #' + t.id))}</b>
                         <span class="badge ${s[0]}">${s[1]}</span>
                     </div>
                     <div style="white-space:pre-wrap;color:#374151;font-size:0.9rem;margin-top:0.4rem;">${esc(t.body)}</div>
-                    ${cc}${ac}
+                    ${attHtml}${cc}${ac}
                     <div style="margin-top:0.6rem;display:flex;gap:0.4rem;flex-wrap:wrap;">
                         <button class="btn-sm btn-outline" onclick="devSet(${t.id},'done')">✓ Закрыто</button>
                         <button class="btn-sm btn-red" onclick="devRework(${t.id})">↩ На доработку</button>
@@ -640,7 +642,14 @@
                 `<div class="panel" style="margin-bottom:1rem;"><div class="panel-head"><h2>Новая задача</h2></div><div style="padding:1.1rem;">
                     <input id="devTitle" placeholder="Коротко: что улучшить" style="width:100%;padding:0.6rem 0.8rem;border:1.5px solid #E5E7EB;border-radius:0.6rem;font-family:inherit;margin-bottom:0.6rem;">
                     <textarea id="devBody" rows="6" placeholder="Подробно опишите доработку/недоработку (можно длинный текст, список пунктов)..." style="width:100%;padding:0.7rem 0.9rem;border:1.5px solid #E5E7EB;border-radius:0.6rem;font-family:inherit;font-size:0.92rem;resize:vertical;"></textarea>
-                    <button class="btn-sm btn-purple" style="margin-top:0.6rem;padding:0.65rem 1.4rem;" onclick="devAdd(this)">Добавить задачу</button>
+                    <div style="margin-top:0.7rem;">
+                        <label class="btn-sm btn-outline" style="cursor:pointer;display:inline-block;">📎 Прикрепить фото/скрины
+                            <input id="devFiles" type="file" accept="image/*" multiple style="display:none;" onchange="devFilePreview()">
+                        </label>
+                        <div class="muted" style="font-size:0.78rem;margin-top:0.3rem;">jpg, png, gif, webp — до 8 МБ каждое. Клод увидит их при выполнении задачи.</div>
+                        <div id="devFilePrev" style="display:flex;gap:0.4rem;flex-wrap:wrap;margin-top:0.5rem;"></div>
+                    </div>
+                    <button class="btn-sm btn-purple" style="margin-top:0.7rem;padding:0.65rem 1.4rem;" onclick="devAdd(this)">Добавить задачу</button>
                     <span id="devMsg" style="font-size:0.85rem;margin-left:0.5rem;"></span>
                 </div></div>` +
                 (st.token_configured ? '' :
@@ -655,13 +664,36 @@
                     </div></div>`) +
                 '<h3 style="margin:0.5rem 0;font-size:1rem;">Задачи</h3>' + rows;
         }
+        function devFilePreview(){
+            const files = document.getElementById('devFiles').files;
+            const box = document.getElementById('devFilePrev');
+            box.innerHTML = '';
+            for (let i=0; i<files.length; i++){
+                const img = document.createElement('img');
+                img.src = URL.createObjectURL(files[i]);
+                img.style.cssText = 'height:64px;border-radius:0.4rem;border:1px solid #E5E7EB;object-fit:cover;';
+                box.appendChild(img);
+            }
+        }
         async function devAdd(btn){
             const title = document.getElementById('devTitle').value.trim();
             const body = document.getElementById('devBody').value.trim();
             const msg = document.getElementById('devMsg');
             if (!body){ msg.textContent='Введите текст'; msg.style.color='#DC2626'; return; }
             btn.disabled = true;
-            const r = await apiPostTo(DEV_API, 'add', { title, body });
+            // сначала загрузим прикреплённые фото на сервер, получим ссылки
+            const files = document.getElementById('devFiles').files;
+            const attachments = [];
+            for (let i=0; i<files.length; i++){
+                msg.textContent = ' загружаю фото '+(i+1)+'/'+files.length+'...'; msg.style.color='#6B7280';
+                const fd = new FormData(); fd.append('file', files[i]);
+                try {
+                    const r = await (await fetch(DEV_API+'?action=upload', { method:'POST', credentials:'include', body: fd })).json();
+                    if (r.ok && r.url) attachments.push(r.url);
+                    else { msg.textContent = ' фото '+(i+1)+': '+(r.error||'ошибка загрузки'); msg.style.color='#DC2626'; btn.disabled=false; return; }
+                } catch(e){ msg.textContent = ' ошибка сети при загрузке фото'; msg.style.color='#DC2626'; btn.disabled=false; return; }
+            }
+            const r = await apiPostTo(DEV_API, 'add', { title, body, attachments });
             btn.disabled = false;
             if (r.ok) renderDevTasks(); else { msg.textContent = r.error||'Ошибка'; msg.style.color='#DC2626'; }
         }

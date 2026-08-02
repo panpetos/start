@@ -47,10 +47,13 @@ try {
         author VARCHAR(20) NOT NULL DEFAULT 'admin',    -- admin | claude
         claude_comment MEDIUMTEXT NULL,
         admin_comment MEDIUMTEXT NULL,
+        attachments TEXT NULL,                          -- JSON-массив ссылок на прикреплённые картинки
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         INDEX idx_status (status)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+    // Для уже существующей таблицы — добавить колонку, если её нет
+    try { $pdo->exec("ALTER TABLE dev_tasks ADD COLUMN attachments TEXT NULL"); } catch (Exception $e) {}
     $pdo->exec("CREATE TABLE IF NOT EXISTS dev_task_runs (
         id INT AUTO_INCREMENT PRIMARY KEY,
         state VARCHAR(20) NOT NULL DEFAULT 'idle',      -- running | idle | limited | error
@@ -107,11 +110,31 @@ if ($action === 'add') {
     $title = trim((string)($body['title'] ?? ''));
     $text = trim((string)($body['body'] ?? ''));
     if ($text === '') out(['error' => 'Введите текст задачи'], 400);
+    $atts = $body['attachments'] ?? [];
+    $attJson = (is_array($atts) && $atts) ? json_encode(array_values($atts), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) : null;
     try {
-        $st = $pdo->prepare("INSERT INTO dev_tasks (title, body, status, author) VALUES (?, ?, 'new', 'admin')");
-        $st->execute([$title, $text]);
+        $st = $pdo->prepare("INSERT INTO dev_tasks (title, body, attachments, status, author) VALUES (?, ?, ?, 'new', 'admin')");
+        $st->execute([$title, $text, $attJson]);
         out(['ok' => true, 'id' => (int)$pdo->lastInsertId()]);
     } catch (Exception $e) { out(['error' => 'Не удалось сохранить'], 500); }
+}
+
+// ── Загрузка картинки к задаче (multipart, только админ) ──────────────────────────
+if ($action === 'upload') {
+    if (!$isAdmin) out(['error' => 'Только для администратора'], 403);
+    if (empty($_FILES['file']) || !is_array($_FILES['file'])) out(['error' => 'Файл не передан'], 400);
+    $f = $_FILES['file'];
+    if (($f['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) out(['error' => 'Ошибка загрузки файла'], 400);
+    if (($f['size'] ?? 0) > 8 * 1024 * 1024) out(['error' => 'Файл больше 8 МБ'], 400);
+    $allowed = ['image/jpeg' => 'jpg', 'image/png' => 'png', 'image/gif' => 'gif', 'image/webp' => 'webp'];
+    $mime = function_exists('mime_content_type') ? (@mime_content_type($f['tmp_name']) ?: '') : '';
+    if (!isset($allowed[$mime])) out(['error' => 'Только изображения (jpg, png, gif, webp)'], 400);
+    $dir = __DIR__ . '/../uploads/dev_tasks';
+    if (!is_dir($dir)) @mkdir($dir, 0755, true);
+    $name = bin2hex(random_bytes(16)) . '.' . $allowed[$mime];
+    if (!@move_uploaded_file($f['tmp_name'], $dir . '/' . $name)) out(['error' => 'Не удалось сохранить файл (проверьте права на /uploads)'], 500);
+    @chmod($dir . '/' . $name, 0644);
+    out(['ok' => true, 'url' => '/uploads/dev_tasks/' . $name]);
 }
 
 if ($action === 'set-status') {

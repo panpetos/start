@@ -29,6 +29,7 @@
 Алгоритм прогона (токен передаётся в промте расписания, НЕ хранить в репозитории):
 1. `heartbeat` state=running.
 2. Забрать задачи: `GET /api/dev_tasks.php?action=list&status=pending&token=<TOKEN>`.
+   - У задачи может быть поле `attachments` — JSON-массив ссылок на картинки (скрины). ОБЯЗАТЕЛЬНО скачай каждую (`curl -s -o <файл> "https://psytalk.pro<url>?x=$RANDOM"`) и посмотри через Read перед реализацией — часто суть задачи именно на скрине.
 3. По каждой: реализовать в ветке, добавить новые файлы в `deploy-ftp.yml`, закоммитить+запушить, проверить на бою.
 4. Вернуть статус: `POST action=claude-update {id, status:'done'|'in_progress', claude_comment}`. Если задача рискованная/непонятная — НЕ гадать: `in_progress` + комментарий-вопрос.
 5. В конце — `heartbeat` state=idle (или `limited`, если упёрлись в лимит), с note и processed.
