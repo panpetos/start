@@ -11,127 +11,299 @@
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+        /* ── Theme variables ─────────────────────────────────────── */
+        :root {
+            --a-bg: #F4F0FF;
+            --a-sidebar: #FFFFFF;
+            --a-sidebar-hover: #F3E8FF;
+            --a-sidebar-active-bg: #EDE9FF;
+            --a-sidebar-active-text: #7C3AED;
+            --a-sidebar-border: #EDE9FF;
+            --a-sidebar-group: #9CA3AF;
+            --a-panel: #FFFFFF;
+            --a-panel-border: #EDE9FF;
+            --a-panel-head-border: #F0ECF8;
+            --a-text: #1A1A1A;
+            --a-text-sec: #6B7280;
+            --a-text-muted: #9CA3AF;
+            --a-input-bg: #FFFFFF;
+            --a-input-border: #E5E7EB;
+            --a-th-bg: #FAFAFA;
+            --a-td-border: #F5F5F5;
+            --a-tr-hover: #FBFAFF;
+            --a-note-bg: #FFF8E7;
+            --a-note-border: #FCD34D;
+            --a-note-color: #92400E;
+            --a-stat-shadow: rgba(124,58,237,0.06);
+            --a-drop-bg: #FAF8FF;
+            --a-drop-border: #C4B5FD;
+        }
+        body.dark {
+            --a-bg: #191919;
+            --a-sidebar: #202020;
+            --a-sidebar-hover: #2D2D2D;
+            --a-sidebar-active-bg: #37254A;
+            --a-sidebar-active-text: #B794F4;
+            --a-sidebar-border: #333;
+            --a-sidebar-group: #707070;
+            --a-panel: #252525;
+            --a-panel-border: #333;
+            --a-panel-head-border: #333;
+            --a-text: #E6E6E6;
+            --a-text-sec: #A0A0A0;
+            --a-text-muted: #707070;
+            --a-input-bg: #2A2A2A;
+            --a-input-border: #444;
+            --a-th-bg: #2A2A2A;
+            --a-td-border: #333;
+            --a-tr-hover: #2D2D2D;
+            --a-note-bg: #2D2A1E;
+            --a-note-border: #5C4B1A;
+            --a-note-color: #D4A944;
+            --a-stat-shadow: rgba(0,0,0,0.2);
+            --a-drop-bg: #2A2235;
+            --a-drop-border: #5B3D8F;
+        }
+
+        /* ── Reset ───────────────────────────────────────────────── */
         *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Inter', -apple-system, sans-serif; background: #F4F0FF; min-height: 100vh; color: #1A1A1A; padding-top: 84px; }
-        .container { max-width: 1280px; margin: 0 auto; padding: 1.5rem; }
-        .page-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; flex-wrap: wrap; gap: 0.75rem; }
-        .page-head h1 { font-size: 1.6rem; letter-spacing: -0.02em; }
-        .page-head p { color: #6B7280; font-size: 0.9rem; }
+        body { font-family: 'Inter', -apple-system, sans-serif; background: var(--a-bg); min-height: 100vh; color: var(--a-text); padding-top: 84px; transition: background 0.2s, color 0.2s; }
 
-        .tabs { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1.25rem; align-items: stretch; }
-        .tab-group { display: flex; flex-direction: column; gap: 0.3rem; }
-        .tab-group-label { font-size: 0.68rem; font-weight: 700; color: #9CA3AF; text-transform: uppercase; letter-spacing: 0.05em; padding-left: 0.3rem; }
-        .tab-group-btns { display: flex; gap: 0.3rem; flex-wrap: wrap; }
-        .tab-divider { width: 1px; background: #E5E0F5; margin: 0.3rem 0.15rem; align-self: stretch; min-height: 100%; }
-        .tab { padding: 0.45rem 0.75rem; border-radius: 0.6rem; border: 1px solid #E5E0F5; background: #fff; color: #4B5563; font-weight: 600; font-size: 0.8rem; cursor: pointer; font-family: inherit; transition: all 0.15s; white-space: nowrap; }
-        .tab:hover { border-color: #C4B5FD; }
-        .tab.active { background: linear-gradient(135deg,#7C3AED,#9F67FA); color: #fff; border-color: transparent; box-shadow: 0 3px 10px rgba(124,58,237,0.3); }
-        @media (max-width: 640px) { .tab-divider { display: none; } .tabs { gap: 0.6rem; } .tab-group { width: 100%; } .tab-group-btns { width: 100%; } }
+        /* ── Dark header override ────────────────────────────────── */
+        body.dark .nav { background: #1E1E1E !important; border-color: #333 !important; }
+        body.dark .nav-brand span:first-child { color: #E6E6E6 !important; }
+        body.dark .nav a.nav-link { color: #A0A0A0 !important; }
+        body.dark .nav a.nav-link:hover { color: #E6E6E6 !important; }
 
+        /* ── Layout ──────────────────────────────────────────────── */
+        .admin-layout { display: flex; min-height: calc(100vh - 84px); }
+
+        /* ── Sidebar ─────────────────────────────────────────────── */
+        .sidebar { width: 260px; background: var(--a-sidebar); border-right: 1px solid var(--a-sidebar-border); display: flex; flex-direction: column; position: sticky; top: 84px; height: calc(100vh - 84px); flex-shrink: 0; transition: background 0.2s, border-color 0.2s; z-index: 10; }
+        .sidebar-header { padding: 1.25rem 1rem 0.75rem; border-bottom: 1px solid var(--a-sidebar-border); }
+        .sidebar-brand { font-size: 1.15rem; font-weight: 700; letter-spacing: -0.02em; }
+        .sidebar-sub { font-size: 0.78rem; color: var(--a-text-muted); margin-top: 0.15rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .sidebar-nav { flex: 1; padding: 0.5rem 0; overflow-y: auto; }
+        .sidebar-group { padding: 0.6rem 0 0.15rem; }
+        .sidebar-group-label { padding: 0.25rem 1rem 0.35rem; font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--a-sidebar-group); user-select: none; }
+        .sidebar-item { display: flex; align-items: center; gap: 0.55rem; padding: 0.42rem 0.75rem; margin: 0.08rem 0.5rem; border-radius: 0.45rem; font-size: 0.88rem; color: var(--a-text-sec); cursor: pointer; transition: background 0.12s, color 0.12s; font-weight: 500; text-decoration: none; border: none; background: none; width: calc(100% - 1rem); text-align: left; font-family: inherit; line-height: 1.4; }
+        .sidebar-item:hover { background: var(--a-sidebar-hover); color: var(--a-text); }
+        .sidebar-item.active { background: var(--a-sidebar-active-bg); color: var(--a-sidebar-active-text); font-weight: 600; }
+        .sidebar-item-icon { font-size: 1rem; width: 1.35rem; text-align: center; flex-shrink: 0; }
+        .sidebar-footer { padding: 0.6rem 0.5rem; border-top: 1px solid var(--a-sidebar-border); display: flex; flex-direction: column; gap: 0.15rem; }
+        .sidebar-footer-btn { display: flex; align-items: center; gap: 0.55rem; padding: 0.42rem 0.55rem; border-radius: 0.45rem; font-size: 0.85rem; color: var(--a-text-sec); cursor: pointer; background: none; border: none; width: 100%; font-family: inherit; font-weight: 500; text-align: left; transition: background 0.12s, color 0.12s; }
+        .sidebar-footer-btn:hover { background: var(--a-sidebar-hover); color: var(--a-text); }
+
+        /* Mobile sidebar */
+        .sidebar-toggle { display: none; position: fixed; top: 92px; left: 0.75rem; z-index: 1001; width: 38px; height: 38px; border-radius: 0.5rem; border: 1px solid var(--a-input-border); background: var(--a-panel); color: var(--a-text); font-size: 1.2rem; cursor: pointer; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+        .sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.35); z-index: 999; }
+        .sidebar-overlay.open { display: block; }
+
+        @media (max-width: 768px) {
+            .sidebar { position: fixed; top: 0; left: -290px; bottom: 0; z-index: 1000; width: 280px; transition: left 0.25s ease; padding-top: 84px; height: 100vh; }
+            .sidebar.open { left: 0; }
+            .sidebar-toggle { display: flex; }
+            .admin-layout { display: block; }
+        }
+
+        /* ── Main content ────────────────────────────────────────── */
+        .main-content { flex: 1; min-width: 0; padding: 1.5rem; }
+        .container { max-width: 1100px; margin: 0 auto; }
+
+        /* ── Stats ───────────────────────────────────────────────── */
         .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px,1fr)); gap: 1rem; margin-bottom: 1.5rem; }
-        .stat { background: #fff; border-radius: 1rem; padding: 1.25rem; border: 1px solid #EDE9FF; box-shadow: 0 2px 10px rgba(124,58,237,0.06); }
+        .stat { background: var(--a-panel); border-radius: 1rem; padding: 1.25rem; border: 1px solid var(--a-panel-border); box-shadow: 0 2px 10px var(--a-stat-shadow); transition: background 0.2s, border-color 0.2s; }
         .stat .v { font-size: 1.75rem; font-weight: 800; color: #7C3AED; letter-spacing: -0.02em; }
-        .stat .l { font-size: 0.8rem; color: #6B7280; margin-top: 0.2rem; }
+        body.dark .stat .v { color: #B794F4; }
+        .stat .l { font-size: 0.8rem; color: var(--a-text-sec); margin-top: 0.2rem; }
 
-        .panel { background: #fff; border-radius: 1.1rem; border: 1px solid #EDE9FF; box-shadow: 0 2px 12px rgba(0,0,0,0.05); overflow: hidden; }
-        .panel-head { padding: 1rem 1.25rem; border-bottom: 1px solid #F0ECF8; display: flex; justify-content: space-between; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
+        /* ── Panels ──────────────────────────────────────────────── */
+        .panel { background: var(--a-panel); border-radius: 1.1rem; border: 1px solid var(--a-panel-border); box-shadow: 0 2px 12px rgba(0,0,0,0.05); overflow: hidden; transition: background 0.2s, border-color 0.2s; }
+        .panel-head { padding: 1rem 1.25rem; border-bottom: 1px solid var(--a-panel-head-border); display: flex; justify-content: space-between; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
         .panel-head h2 { font-size: 1.05rem; }
-        .panel-head .search { padding: 0.5rem 0.85rem; border: 1.5px solid #E5E7EB; border-radius: 0.6rem; font-size: 0.85rem; font-family: inherit; outline: none; min-width: 200px; }
+        .panel-head .search { padding: 0.5rem 0.85rem; border: 1.5px solid var(--a-input-border); border-radius: 0.6rem; font-size: 0.85rem; font-family: inherit; outline: none; min-width: 200px; background: var(--a-input-bg); color: var(--a-text); }
         .panel-head .search:focus { border-color: #7C3AED; }
 
+        /* ── Tables ──────────────────────────────────────────────── */
         .tbl-wrap { overflow-x: auto; }
         table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
-        th { text-align: left; padding: 0.7rem 1rem; background: #FAFAFA; color: #6B7280; font-weight: 600; white-space: nowrap; border-bottom: 1px solid #F0F0F0; position: sticky; top: 0; }
-        td { padding: 0.7rem 1rem; border-bottom: 1px solid #F5F5F5; vertical-align: middle; }
-        tr:hover td { background: #FBFAFF; }
+        th { text-align: left; padding: 0.7rem 1rem; background: var(--a-th-bg); color: var(--a-text-sec); font-weight: 600; white-space: nowrap; border-bottom: 1px solid var(--a-td-border); position: sticky; top: 0; }
+        td { padding: 0.7rem 1rem; border-bottom: 1px solid var(--a-td-border); vertical-align: middle; }
+        tr:hover td { background: var(--a-tr-hover); }
+
+        /* ── Badges ──────────────────────────────────────────────── */
         .badge { display: inline-block; padding: 0.15rem 0.6rem; border-radius: 2rem; font-size: 0.72rem; font-weight: 700; }
         .b-green { background: #F0FDF4; color: #16A34A; border: 1px solid #BBF7D0; }
         .b-purple { background: #F3E8FF; color: #7C3AED; border: 1px solid #E9D5FF; }
         .b-red { background: #FFF1F2; color: #BE123C; border: 1px solid #FECDD3; }
         .b-amber { background: #FFF8E7; color: #92400E; border: 1px solid #FCD34D; }
         .b-gray { background: #F3F4F6; color: #6B7280; border: 1px solid #E5E7EB; }
-        .btn-sm { padding: 0.35rem 0.7rem; border-radius: 0.5rem; border: none; font-size: 0.78rem; font-weight: 600; cursor: pointer; font-family: inherit; }
-        .btn-purple { background: linear-gradient(135deg,#7C3AED,#9F67FA); color: #fff; }
-        .btn-outline { background: #fff; border: 1.5px solid #E5E7EB; color: #374151; }
-        .btn-outline:hover { border-color: #7C3AED; color: #7C3AED; }
-        .btn-red { background: #FEF2F2; color: #DC2626; border: 1px solid #FECACA; }
-        .muted { color: #9CA3AF; }
-        .loading, .empty { text-align: center; padding: 2.5rem; color: #9CA3AF; }
-        .note { background: #FFF8E7; border: 1px solid #FCD34D; color: #92400E; border-radius: 0.7rem; padding: 0.75rem 1rem; font-size: 0.83rem; margin-bottom: 1rem; line-height: 1.5; }
+        body.dark .b-green { background: #1A2E1A; color: #4ADE80; border-color: #2D5A2D; }
+        body.dark .b-purple { background: #2D1F4E; color: #B794F4; border-color: #4A3670; }
+        body.dark .b-red { background: #2E1A1A; color: #F87171; border-color: #5C2020; }
+        body.dark .b-amber { background: #2E2A1A; color: #FBBF24; border-color: #5C4B1A; }
+        body.dark .b-gray { background: #2A2A2A; color: #A0A0A0; border-color: #444; }
 
+        /* ── Buttons ─────────────────────────────────────────────── */
+        .btn-sm { padding: 0.35rem 0.7rem; border-radius: 0.5rem; border: none; font-size: 0.78rem; font-weight: 600; cursor: pointer; font-family: inherit; transition: all 0.15s; }
+        .btn-purple { background: linear-gradient(135deg,#7C3AED,#9F67FA); color: #fff; }
+        .btn-outline { background: var(--a-panel); border: 1.5px solid var(--a-input-border); color: var(--a-text-sec); }
+        .btn-outline:hover { border-color: #7C3AED; color: #7C3AED; }
+        body.dark .btn-outline:hover { color: #B794F4; border-color: #B794F4; }
+        .btn-red { background: #FEF2F2; color: #DC2626; border: 1px solid #FECACA; }
+        body.dark .btn-red { background: #2E1A1A; color: #F87171; border-color: #5C2020; }
+
+        /* ── Misc ────────────────────────────────────────────────── */
+        .muted { color: var(--a-text-muted); }
+        .loading, .empty { text-align: center; padding: 2.5rem; color: var(--a-text-muted); }
+        .note { background: var(--a-note-bg); border: 1px solid var(--a-note-border); color: var(--a-note-color); border-radius: 0.7rem; padding: 0.75rem 1rem; font-size: 0.83rem; margin-bottom: 1rem; line-height: 1.5; transition: background 0.2s, border-color 0.2s, color 0.2s; }
+
+        /* Timeline */
         .timeline { padding: 0.5rem 0; }
-        .tl-item { display: flex; gap: 0.85rem; padding: 0.65rem 1.25rem; border-bottom: 1px solid #F5F5F5; align-items: flex-start; }
+        .tl-item { display: flex; gap: 0.85rem; padding: 0.65rem 1.25rem; border-bottom: 1px solid var(--a-td-border); align-items: flex-start; }
         .tl-ico { width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 0.9rem; }
         .tl-body { flex: 1; min-width: 0; }
-        .tl-sum { font-size: 0.87rem; color: #1A1A1A; }
-        .tl-ts { font-size: 0.74rem; color: #9CA3AF; margin-top: 0.1rem; }
+        .tl-sum { font-size: 0.87rem; color: var(--a-text); }
+        .tl-ts { font-size: 0.74rem; color: var(--a-text-muted); margin-top: 0.1rem; }
+
+        /* ── Notes section ───────────────────────────────────────── */
+        .note-card { display: flex; gap: 0.75rem; padding: 0.85rem 1rem; background: var(--a-panel); border: 1px solid var(--a-panel-border); border-radius: 0.7rem; margin-bottom: 0.5rem; align-items: flex-start; transition: all 0.15s; }
+        .note-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+        .note-card.is-done { opacity: 0.5; }
+        .note-card.is-done .note-card-title { text-decoration: line-through; }
+        .note-card-check { flex-shrink: 0; padding-top: 0.15rem; }
+        .note-card-check input[type="checkbox"] { width: 18px; height: 18px; accent-color: #7C3AED; cursor: pointer; }
+        .note-card-content { flex: 1; min-width: 0; }
+        .note-card-title { font-weight: 600; font-size: 0.93rem; margin-bottom: 0.15rem; word-break: break-word; }
+        .note-card-text { font-size: 0.84rem; color: var(--a-text-sec); white-space: pre-wrap; word-break: break-word; }
+        .note-card-meta { font-size: 0.73rem; color: var(--a-text-muted); margin-top: 0.25rem; }
+        .note-card-delete { flex-shrink: 0; width: 26px; height: 26px; border-radius: 0.35rem; border: none; background: transparent; color: var(--a-text-muted); font-size: 1.15rem; cursor: pointer; display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.15s; }
+        .note-card:hover .note-card-delete { opacity: 1; }
+        .note-card-delete:hover { background: #FEF2F2; color: #DC2626; }
+        body.dark .note-card-delete:hover { background: #3A2020; color: #F87171; }
+
+        /* ── Dark mode deep overrides ────────────────────────────── */
+        body.dark input, body.dark textarea, body.dark select { background: var(--a-input-bg) !important; border-color: var(--a-input-border) !important; color: var(--a-text) !important; }
+        body.dark input::placeholder, body.dark textarea::placeholder { color: var(--a-text-muted) !important; }
+        body.dark .panel-head .search { background: var(--a-input-bg); color: var(--a-text); }
+        body.dark #devModal > div { background: var(--a-panel) !important; color: var(--a-text) !important; }
+        body.dark #devModal p, body.dark #devModal h2 { color: var(--a-text) !important; }
+        body.dark [id*="Drop"] { background: var(--a-drop-bg) !important; border-color: var(--a-drop-border) !important; }
+        body.dark [id*="Drop"] div { color: var(--a-text-sec) !important; }
+        body.dark details summary { color: var(--a-text-muted); }
+
         @media (max-width: 820px) { #tariffGrid { grid-template-columns: 1fr !important; } }
     </style>
+    <script>
+        (function(){
+            var t = localStorage.getItem('admin-theme');
+            if (t === 'dark') document.documentElement.style.colorScheme = 'dark';
+        })();
+    </script>
 </head>
 <body>
+    <script>
+        (function(){ if (localStorage.getItem('admin-theme') === 'dark') document.body.classList.add('dark'); })();
+    </script>
     <script>psyWriteHeader();</script>
-    <div class="container">
-        <div class="page-head">
-            <div>
-                <h1>Админ-панель</h1>
-                <p id="adminWho">Загрузка...</p>
-            </div>
-            <button class="btn-sm btn-outline" onclick="psyLogout()" style="padding:0.5rem 1rem;">Выйти →</button>
-        </div>
 
-        <div class="tabs" id="tabs">
-            <div class="tab-group">
-                <div class="tab-group-btns">
-                    <button class="tab active" data-tab="overview" onclick="switchTab('overview')">📊 Обзор</button>
-                </div>
-            </div>
-            <div class="tab-divider"></div>
-            <div class="tab-group">
-                <div class="tab-group-label">Люди</div>
-                <div class="tab-group-btns">
-                    <button class="tab" data-tab="users" onclick="switchTab('users')">Пользователи</button>
-                    <button class="tab" data-tab="psychologists" onclick="switchTab('psychologists')">Психологи</button>
-                </div>
-            </div>
-            <div class="tab-divider"></div>
-            <div class="tab-group">
-                <div class="tab-group-label">Услуги</div>
-                <div class="tab-group-btns">
-                    <button class="tab" data-tab="appointments" onclick="switchTab('appointments')">Записи</button>
-                    <button class="tab" data-tab="calls" onclick="switchTab('calls')">Звонки</button>
-                    <button class="tab" data-tab="replacements" onclick="switchTab('replacements')">Замены</button>
-                    <button class="tab" data-tab="supervision" onclick="switchTab('supervision')">Супервизия</button>
-                </div>
-            </div>
-            <div class="tab-divider"></div>
-            <div class="tab-group">
-                <div class="tab-group-label">Финансы</div>
-                <div class="tab-group-btns">
-                    <button class="tab" data-tab="payments" onclick="switchTab('payments')">Оплаты</button>
-                    <button class="tab" data-tab="tariffs" onclick="switchTab('tariffs')">Тарифы</button>
-                    <button class="tab" data-tab="robokassa" onclick="switchTab('robokassa')">Робокасса</button>
-                </div>
-            </div>
-            <div class="tab-divider"></div>
-            <div class="tab-group">
-                <div class="tab-group-label">Аналитика</div>
-                <div class="tab-group-btns">
-                    <button class="tab" data-tab="subscribers" onclick="switchTab('subscribers')">Подписки</button>
-                    <button class="tab" data-tab="referrals" onclick="switchTab('referrals')">Источники</button>
-                    <button class="tab" data-tab="activity" onclick="switchTab('activity')">Журнал</button>
-                </div>
-            </div>
-            <div class="tab-divider"></div>
-            <div class="tab-group">
-                <div class="tab-group-label">Система</div>
-                <div class="tab-group-btns">
-                    <button class="tab" data-tab="support" onclick="switchTab('support')">💬 Поддержка</button>
-                    <button class="tab" data-tab="devtasks" onclick="switchTab('devtasks')">🤖 Задачи Клоду</button>
-                </div>
-            </div>
-        </div>
+    <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+    <button class="sidebar-toggle" id="sidebarToggle" onclick="toggleSidebar()" aria-label="Меню">☰</button>
 
-        <div id="content"><div class="loading">Загрузка...</div></div>
+    <div class="admin-layout">
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-brand">
+                    <span>psy</span><span style="color:#7C3AED;font-style:italic;">talk.pro</span>
+                </div>
+                <div class="sidebar-sub" id="adminWho">Загрузка...</div>
+            </div>
+            <nav class="sidebar-nav">
+                <button class="sidebar-item active" data-tab="overview" onclick="switchTab('overview')">
+                    <span class="sidebar-item-icon">📊</span> Обзор
+                </button>
+
+                <div class="sidebar-group">
+                    <div class="sidebar-group-label">Люди</div>
+                    <button class="sidebar-item" data-tab="users" onclick="switchTab('users')">
+                        <span class="sidebar-item-icon">👤</span> Пользователи
+                    </button>
+                    <button class="sidebar-item" data-tab="psychologists" onclick="switchTab('psychologists')">
+                        <span class="sidebar-item-icon">🧠</span> Психологи
+                    </button>
+                </div>
+
+                <div class="sidebar-group">
+                    <div class="sidebar-group-label">Услуги</div>
+                    <button class="sidebar-item" data-tab="appointments" onclick="switchTab('appointments')">
+                        <span class="sidebar-item-icon">📅</span> Записи
+                    </button>
+                    <button class="sidebar-item" data-tab="calls" onclick="switchTab('calls')">
+                        <span class="sidebar-item-icon">📹</span> Звонки
+                    </button>
+                    <button class="sidebar-item" data-tab="replacements" onclick="switchTab('replacements')">
+                        <span class="sidebar-item-icon">🔄</span> Замены
+                    </button>
+                    <button class="sidebar-item" data-tab="supervision" onclick="switchTab('supervision')">
+                        <span class="sidebar-item-icon">🎓</span> Супервизия
+                    </button>
+                </div>
+
+                <div class="sidebar-group">
+                    <div class="sidebar-group-label">Финансы</div>
+                    <button class="sidebar-item" data-tab="payments" onclick="switchTab('payments')">
+                        <span class="sidebar-item-icon">💳</span> Оплаты
+                    </button>
+                    <button class="sidebar-item" data-tab="tariffs" onclick="switchTab('tariffs')">
+                        <span class="sidebar-item-icon">📋</span> Тарифы
+                    </button>
+                    <button class="sidebar-item" data-tab="robokassa" onclick="switchTab('robokassa')">
+                        <span class="sidebar-item-icon">💰</span> Робокасса
+                    </button>
+                </div>
+
+                <div class="sidebar-group">
+                    <div class="sidebar-group-label">Аналитика</div>
+                    <button class="sidebar-item" data-tab="subscribers" onclick="switchTab('subscribers')">
+                        <span class="sidebar-item-icon">📧</span> Подписки
+                    </button>
+                    <button class="sidebar-item" data-tab="referrals" onclick="switchTab('referrals')">
+                        <span class="sidebar-item-icon">📍</span> Источники
+                    </button>
+                    <button class="sidebar-item" data-tab="activity" onclick="switchTab('activity')">
+                        <span class="sidebar-item-icon">📜</span> Журнал
+                    </button>
+                </div>
+
+                <div class="sidebar-group">
+                    <div class="sidebar-group-label">Система</div>
+                    <button class="sidebar-item" data-tab="support" onclick="switchTab('support')">
+                        <span class="sidebar-item-icon">💬</span> Поддержка
+                    </button>
+                    <button class="sidebar-item" data-tab="devtasks" onclick="switchTab('devtasks')">
+                        <span class="sidebar-item-icon">🤖</span> Задачи Клоду
+                    </button>
+                    <button class="sidebar-item" data-tab="notes" onclick="switchTab('notes')">
+                        <span class="sidebar-item-icon">📝</span> Записки
+                    </button>
+                </div>
+            </nav>
+            <div class="sidebar-footer">
+                <button class="sidebar-footer-btn" onclick="toggleTheme()">
+                    <span id="themeIcon">🌙</span> <span id="themeLabel">Тёмная тема</span>
+                </button>
+                <button class="sidebar-footer-btn" onclick="psyLogout()">
+                    <span>🚪</span> Выйти
+                </button>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <div class="container">
+                <div id="content"><div class="loading">Загрузка...</div></div>
+            </div>
+        </main>
     </div>
 
     <script>
@@ -162,27 +334,53 @@
         }
         window.psyLogout = psyLogout;
 
+        // ── Theme ───────────────────────────────────────────────────────────
+        function toggleTheme(){
+            document.body.classList.toggle('dark');
+            const isDark = document.body.classList.contains('dark');
+            localStorage.setItem('admin-theme', isDark ? 'dark' : 'light');
+            updateThemeUI();
+        }
+        function updateThemeUI(){
+            const isDark = document.body.classList.contains('dark');
+            const icon = document.getElementById('themeIcon');
+            const label = document.getElementById('themeLabel');
+            if (icon) icon.textContent = isDark ? '☀️' : '🌙';
+            if (label) label.textContent = isDark ? 'Светлая тема' : 'Тёмная тема';
+        }
+        updateThemeUI();
+
+        // ── Mobile sidebar ──────────────────────────────────────────────────
+        function toggleSidebar(){
+            document.getElementById('sidebar').classList.toggle('open');
+            document.getElementById('sidebarOverlay').classList.toggle('open');
+        }
+
+        // ── Init & navigation ───────────────────────────────────────────────
         async function init(){
             let user = null;
             if (window.Auth && window.Auth.getCurrentUser) { try { user = await window.Auth.getCurrentUser(); } catch(e){} }
             if (!user) { window.location.href = '/login.html?redirect=' + encodeURIComponent('/dashboard-admin.html'); return; }
             if (user.role !== 'admin') {
                 document.getElementById('content').innerHTML = '<div class="panel"><div class="empty">⛔ Доступ только для администратора.<br>Вы вошли как «'+esc(user.role)+'».</div></div>';
-                document.getElementById('tabs').style.display = 'none';
-                document.getElementById('adminWho').textContent = '';
+                document.getElementById('sidebar').style.display = 'none';
                 return;
             }
-            document.getElementById('adminWho').textContent = 'Вы вошли как администратор: ' + ((user.first_name||'')+' '+(user.last_name||'')).trim();
+            document.getElementById('adminWho').textContent = ((user.first_name||'')+' '+(user.last_name||'')).trim() || 'Администратор';
             switchTab('overview');
         }
 
         function switchTab(tab){
-            document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab===tab));
+            document.querySelectorAll('.sidebar-item').forEach(t => t.classList.toggle('active', t.dataset.tab===tab));
             const el = document.getElementById('content');
             el.innerHTML = '<div class="loading">Загрузка...</div>';
-            ({ overview:renderOverview, support:renderSupport, users:renderUsers, psychologists:renderPsych, tariffs:renderTariffs, robokassa:renderRobokassa, devtasks:renderDevTasks, appointments:renderAppointments, replacements:renderReplacements, supervision:renderSupervision, calls:renderCalls, payments:renderPayments, subscribers:renderSubscribers, referrals:renderReferrals, activity:renderActivity }[tab])();
+            // Close mobile sidebar
+            document.getElementById('sidebar').classList.remove('open');
+            document.getElementById('sidebarOverlay').classList.remove('open');
+            ({ overview:renderOverview, support:renderSupport, users:renderUsers, psychologists:renderPsych, tariffs:renderTariffs, robokassa:renderRobokassa, devtasks:renderDevTasks, appointments:renderAppointments, replacements:renderReplacements, supervision:renderSupervision, calls:renderCalls, payments:renderPayments, subscribers:renderSubscribers, referrals:renderReferrals, activity:renderActivity, notes:renderNotes }[tab])();
         }
 
+        // ── Overview ────────────────────────────────────────────────────────
         async function renderOverview(){
             const res = await apiGet('overview');
             if (!res.ok) return fail();
@@ -200,6 +398,7 @@
                 '<div class="note">📊 Сводка по реальным данным БД. Раздел «Журнал активности» собирает события (регистрации, записи, оплаты, звонки) в единую ленту — это аудит на основе данных. Детальный аудит действий (входы, правки полей) требует логирующих хуков в бэкенде — добавлю, когда дашь доступ к серверной части.</div>';
         }
 
+        // ── Table search ────────────────────────────────────────────────────
         function tableSearch(id){
             const q = document.getElementById(id).value.toLowerCase();
             document.querySelectorAll('#dataTable tbody tr').forEach(tr => {
@@ -214,6 +413,7 @@
                 <div class="tbl-wrap">${bodyHtml}</div></div>`;
         }
 
+        // ── Users ───────────────────────────────────────────────────────────
         async function renderUsers(){
             const res = await apiGet('users');
             if (!res.ok) return fail();
@@ -240,12 +440,12 @@
             renderUsers();
         }
 
+        // ── Psychologists ───────────────────────────────────────────────────
         async function renderPsych(){
             const res = await apiGet('psychologists');
             if (!res.ok) return fail();
             const rows = res.data || [];
             if (!rows.length) return empty('Нет психологов');
-            // на модерации — сверху
             rows.sort((a,b)=> (String(a.is_approved)==='1'?1:0) - (String(b.is_approved)==='1'?1:0));
             const body = `<table id="dataTable"><thead><tr>
                 <th>Имя</th><th>Контакты</th><th>Специализация</th><th>Цена</th><th>Опыт</th><th>Статус</th><th>Действия</th></tr></thead><tbody>` +
@@ -274,7 +474,7 @@
                         ? `<div style="font-weight:700;margin-bottom:0.25rem;">${fmtMoney(p.price)} ₽</div><button class="btn-sm btn-outline" onclick="setPrice('${esc(p.id)}',${parseFloat(p.price)||0})" title="Изменить цену">✎ Изменить</button>`
                         : `<div><span class="badge b-amber">не задана</span></div><button class="btn-sm btn-purple" style="margin-top:0.25rem;" onclick="setPrice('${esc(p.id)}',0)">Назначить цену</button>`;
                     return `<tr><td>${esc(p.name||'—')}</td><td style="font-size:0.8rem;">${contact}</td><td>${esc(p.specialization||'—')}</td><td style="white-space:nowrap;">${priceCell}</td><td>${esc(p.experience||0)} лет</td><td>${status}</td><td style="white-space:nowrap;">${btn} <button class="btn-sm btn-outline" onclick="document.getElementById('pd${idx}').style.display=document.getElementById('pd${idx}').style.display==='none'?'table-row':'none'">Подробнее</button></td></tr>
-                    <tr id="pd${idx}" style="display:none;"><td colspan="7" style="background:#FBFAFF;font-size:0.82rem;line-height:1.7;color:#374151;">${details||'<span class="muted">Профиль не заполнен — стоит запросить данные перед одобрением.</span>'}</td></tr>`;
+                    <tr id="pd${idx}" style="display:none;"><td colspan="7" style="background:var(--a-tr-hover);font-size:0.82rem;line-height:1.7;color:var(--a-text-sec);">${details||'<span class="muted">Профиль не заполнен — стоит запросить данные перед одобрением.</span>'}</td></tr>`;
                 }).join('') + '</tbody></table>';
             document.getElementById('content').innerHTML = panel('Психологи ('+rows.length+')','sPsych',body);
         }
@@ -295,6 +495,7 @@
             renderPsych();
         }
 
+        // ── Appointments ────────────────────────────────────────────────────
         async function renderAppointments(){
             const res = await apiGet('appointments');
             if (!res.ok) return fail();
@@ -310,6 +511,7 @@
             document.getElementById('content').innerHTML = panel('Записи ('+rows.length+')','sAppt',body);
         }
 
+        // ── Calls ───────────────────────────────────────────────────────────
         async function renderCalls(){
             const res = await apiGet('calls');
             if (!res.ok) return fail();
@@ -325,6 +527,7 @@
             document.getElementById('content').innerHTML = panel('Звонки / сессии ('+rows.length+')','sCalls',body);
         }
 
+        // ── Payments ────────────────────────────────────────────────────────
         async function renderPayments(){
             const res = await apiGet('payments');
             if (!res.ok) return fail();
@@ -340,6 +543,7 @@
             document.getElementById('content').innerHTML = panel('Оплаты ('+rows.length+')','sPay',body);
         }
 
+        // ── Subscribers ─────────────────────────────────────────────────────
         async function renderSubscribers(){
             const res = await apiGet('subscribers');
             if (!res.ok) return fail();
@@ -360,6 +564,7 @@
             t.style.left='-9999px';
         }
 
+        // ── Referrals ───────────────────────────────────────────────────────
         async function renderReferrals(){
             const res = await apiGet('referrals');
             if (!res.ok) return fail();
@@ -374,6 +579,7 @@
             document.getElementById('content').innerHTML = sumHtml + panel('Как нас находят ('+rows.length+')','sRef',body);
         }
 
+        // ── Activity ────────────────────────────────────────────────────────
         async function renderActivity(){
             const res = await apiGet('activity');
             if (!res.ok) return fail();
@@ -390,7 +596,7 @@
                 `<div class="panel"><div class="timeline">${items}</div></div>`;
         }
 
-        // ── Тарифы и цены ──────────────────────────────────────────────────────
+        // ── Tariffs ─────────────────────────────────────────────────────────
         const TARIFFS = [
             { key:'self',   label:'Для себя',      hint:'индивидуальная сессия' },
             { key:'couple', label:'Для пары',      hint:'парная сессия' },
@@ -402,7 +608,6 @@
         function num(id){ const el=document.getElementById(id); return el ? (parseFloat(el.value)||0) : 0; }
 
         async function renderTariffs(){
-            // Читаем из БД (admin), при пустом — из публичного эндпоинта.
             let s = {};
             try { const r = await apiGet('get-settings'); if (r.ok && r.data) s = r.data; } catch(e){}
             if (!s || !Object.keys(s).length) {
@@ -412,40 +617,39 @@
 
             const fld = (id, label, val, suffix) =>
                 `<label style="display:block;margin-bottom:0.9rem;">
-                    <span style="display:block;font-size:0.82rem;color:#6B7280;margin-bottom:0.3rem;font-weight:600;">${label}</span>
+                    <span style="display:block;font-size:0.82rem;color:var(--a-text-sec);margin-bottom:0.3rem;font-weight:600;">${label}</span>
                     <span style="display:inline-flex;align-items:center;gap:0.4rem;">
                       <input id="${id}" type="number" min="0" step="${id.startsWith('commission')||id.includes('fee')||id.includes('tax')?'0.1':'50'}" value="${esc(val)}"
-                        oninput="recalcIncome()" style="width:140px;padding:0.55rem 0.7rem;border:1.5px solid #E5E7EB;border-radius:0.6rem;font-size:0.95rem;font-family:inherit;outline:none;">
-                      <span style="color:#9CA3AF;font-size:0.85rem;">${suffix||''}</span>
+                        oninput="recalcIncome()" style="width:140px;padding:0.55rem 0.7rem;border:1.5px solid var(--a-input-border);border-radius:0.6rem;font-size:0.95rem;font-family:inherit;outline:none;background:var(--a-input-bg);color:var(--a-text);">
+                      <span style="color:var(--a-text-muted);font-size:0.85rem;">${suffix||''}</span>
                     </span>
                 </label>`;
 
             const baseInputs = TARIFFS.map(t =>
-                fld('price_'+t.key, t.label + ' <span style="color:#9CA3AF;font-weight:400;">('+t.hint+')</span>', sGet('price_'+t.key, ''), '₽')
+                fld('price_'+t.key, t.label + ' <span style="color:var(--a-text-muted);font-weight:400;">('+t.hint+')</span>', sGet('price_'+t.key, ''), '₽')
             ).join('');
 
             const commission = sGet('platform_commission', '40');
             const acquiring  = sGet('acquiring_fee', '3');
             const tax        = sGet('tax_rate', '6');
 
-            // Блок акций «первая сессия»
             const promoBlocks = TARIFFS.map(t => {
                 const k = t.key;
                 const en = String(sGet('promo_'+k+'_enabled','0'))==='1';
-                return `<div style="border:1px solid #EDE9FF;border-radius:0.8rem;padding:1rem 1.1rem;margin-bottom:0.8rem;">
+                return `<div style="border:1px solid var(--a-panel-border);border-radius:0.8rem;padding:1rem 1.1rem;margin-bottom:0.8rem;">
                   <label style="display:flex;align-items:center;gap:0.5rem;font-weight:700;margin-bottom:0.7rem;cursor:pointer;">
                     <input type="checkbox" id="promo_${k}_enabled" ${en?'checked':''} style="width:18px;height:18px;accent-color:#7C3AED;cursor:pointer;">
                     Акция «первая сессия» — ${t.label}
                   </label>
                   <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:0.7rem;">
-                    <label style="font-size:0.8rem;color:#6B7280;">Цена акции, ₽<br>
-                      <input id="promo_${k}_price" type="number" min="0" step="50" value="${esc(sGet('promo_'+k+'_price',''))}" style="width:100%;margin-top:0.25rem;padding:0.45rem 0.6rem;border:1.5px solid #E5E7EB;border-radius:0.5rem;font-family:inherit;"></label>
-                    <label style="font-size:0.8rem;color:#6B7280;">Заголовок<br>
-                      <input id="promo_${k}_title" type="text" value="${esc(sGet('promo_'+k+'_title',''))}" placeholder="Сессия-знакомство" style="width:100%;margin-top:0.25rem;padding:0.45rem 0.6rem;border:1.5px solid #E5E7EB;border-radius:0.5rem;font-family:inherit;"></label>
-                    <label style="font-size:0.8rem;color:#6B7280;">Длительность<br>
-                      <input id="promo_${k}_duration" type="text" value="${esc(sGet('promo_'+k+'_duration',''))}" placeholder="30 мин" style="width:100%;margin-top:0.25rem;padding:0.45rem 0.6rem;border:1.5px solid #E5E7EB;border-radius:0.5rem;font-family:inherit;"></label>
-                    <label style="font-size:0.8rem;color:#6B7280;">Действует до<br>
-                      <input id="promo_${k}_deadline" type="datetime-local" value="${esc(sGet('promo_'+k+'_deadline',''))}" style="width:100%;margin-top:0.25rem;padding:0.45rem 0.6rem;border:1.5px solid #E5E7EB;border-radius:0.5rem;font-family:inherit;"></label>
+                    <label style="font-size:0.8rem;color:var(--a-text-sec);">Цена акции, ₽<br>
+                      <input id="promo_${k}_price" type="number" min="0" step="50" value="${esc(sGet('promo_'+k+'_price',''))}" style="width:100%;margin-top:0.25rem;padding:0.45rem 0.6rem;border:1.5px solid var(--a-input-border);border-radius:0.5rem;font-family:inherit;background:var(--a-input-bg);color:var(--a-text);"></label>
+                    <label style="font-size:0.8rem;color:var(--a-text-sec);">Заголовок<br>
+                      <input id="promo_${k}_title" type="text" value="${esc(sGet('promo_'+k+'_title',''))}" placeholder="Сессия-знакомство" style="width:100%;margin-top:0.25rem;padding:0.45rem 0.6rem;border:1.5px solid var(--a-input-border);border-radius:0.5rem;font-family:inherit;background:var(--a-input-bg);color:var(--a-text);"></label>
+                    <label style="font-size:0.8rem;color:var(--a-text-sec);">Длительность<br>
+                      <input id="promo_${k}_duration" type="text" value="${esc(sGet('promo_'+k+'_duration',''))}" placeholder="30 мин" style="width:100%;margin-top:0.25rem;padding:0.45rem 0.6rem;border:1.5px solid var(--a-input-border);border-radius:0.5rem;font-family:inherit;background:var(--a-input-bg);color:var(--a-text);"></label>
+                    <label style="font-size:0.8rem;color:var(--a-text-sec);">Действует до<br>
+                      <input id="promo_${k}_deadline" type="datetime-local" value="${esc(sGet('promo_'+k+'_deadline',''))}" style="width:100%;margin-top:0.25rem;padding:0.45rem 0.6rem;border:1.5px solid var(--a-input-border);border-radius:0.5rem;font-family:inherit;background:var(--a-input-bg);color:var(--a-text);"></label>
                   </div>
                 </div>`;
             }).join('');
@@ -503,7 +707,7 @@
               <table style="font-size:0.78rem;"><thead><tr>
                 <th>Тариф</th><th>Клиент платит</th><th>Психолог</th><th>Комиссия</th><th>Эквайринг</th><th>Налог</th><th>Чистыми</th>
               </tr></thead><tbody>${rows}</tbody></table>
-              <p style="font-size:0.74rem;color:#9CA3AF;margin-top:0.6rem;line-height:1.5;">«Психолог» — выплата специалисту (цена минус комиссия). «Чистыми» — доход платформы после эквайринга и налога. Клиент видит только итоговую цену.</p>`;
+              <p style="font-size:0.74rem;color:var(--a-text-muted);margin-top:0.6rem;line-height:1.5;">«Психолог» — выплата специалисту (цена минус комиссия). «Чистыми» — доход платформы после эквайринга и налога. Клиент видит только итоговую цену.</p>`;
         }
 
         async function saveTariffs(btn){
@@ -521,7 +725,7 @@
                 payload['promo_'+k+'_deadline'] = document.getElementById('promo_'+k+'_deadline').value.trim();
             });
             const msg = document.getElementById('saveMsg');
-            btn.disabled = true; if(msg){ msg.textContent='Сохраняем...'; msg.style.color='#6B7280'; }
+            btn.disabled = true; if(msg){ msg.textContent='Сохраняем...'; msg.style.color='var(--a-text-sec)'; }
             const res = await apiPost('save-settings', { settings: payload });
             btn.disabled = false;
             if (res && res.ok) {
@@ -531,7 +735,7 @@
             }
         }
 
-        // ── Поддержка / входящие чаты (рег. и не зарег.) ──────────────────────────
+        // ── Support ─────────────────────────────────────────────────────────
         let supportThreadId = null;
         async function renderSupport(){
             let res;
@@ -573,13 +777,13 @@
             const head = `${esc(t.name||'Гость')} · ${t.role?esc(t.role):'—'} · ${t.registered||t.user_id?'<span class="badge b-green">в системе</span>':'<span class="badge b-amber">гость</span>'}${t.email?(' · '+esc(t.email)):''}`;
             const bubbles = msgs.length ? msgs.map(m => {
                 const admin = m.sender === 'admin';
-                return `<div style="align-self:${admin?'flex-end':'flex-start'};max-width:75%;background:${admin?'linear-gradient(135deg,#7C3AED,#9F67FA)':'#fff'};color:${admin?'#fff':'#1A1A1A'};border:${admin?'none':'1px solid #ECECEC'};border-radius:0.9rem;padding:0.5rem 0.8rem;font-size:0.875rem;line-height:1.45;">${esc(m.body)}<div style="font-size:0.68rem;opacity:0.7;margin-top:0.2rem;">${fmtDateTime(m.created_at)}</div></div>`;
+                return `<div style="align-self:${admin?'flex-end':'flex-start'};max-width:75%;background:${admin?'linear-gradient(135deg,#7C3AED,#9F67FA)':'var(--a-panel)'};color:${admin?'#fff':'var(--a-text)'};border:${admin?'none':'1px solid var(--a-panel-border)'};border-radius:0.9rem;padding:0.5rem 0.8rem;font-size:0.875rem;line-height:1.45;">${esc(m.body)}<div style="font-size:0.68rem;opacity:0.7;margin-top:0.2rem;">${fmtDateTime(m.created_at)}</div></div>`;
             }).join('') : '<div class="muted" style="text-align:center;padding:1rem;">Нет сообщений</div>';
             panel.innerHTML = `<div class="panel">
                 <div class="panel-head"><h2 style="font-size:0.95rem;">${head}</h2></div>
-                <div style="display:flex;flex-direction:column;gap:0.5rem;padding:1rem;background:#F7F8FA;max-height:340px;overflow-y:auto;">${bubbles}</div>
-                <div style="display:flex;gap:0.5rem;padding:0.75rem;border-top:1px solid #eee;">
-                    <input id="supReplyInput" placeholder="Ответ клиенту..." style="flex:1;padding:0.6rem 0.85rem;border:1.5px solid #E5E7EB;border-radius:0.6rem;font-family:inherit;outline:none;" onkeypress="if(event.key==='Enter')sendSupportReply()">
+                <div style="display:flex;flex-direction:column;gap:0.5rem;padding:1rem;background:var(--a-bg);max-height:340px;overflow-y:auto;">${bubbles}</div>
+                <div style="display:flex;gap:0.5rem;padding:0.75rem;border-top:1px solid var(--a-panel-head-border);">
+                    <input id="supReplyInput" placeholder="Ответ клиенту..." style="flex:1;padding:0.6rem 0.85rem;border:1.5px solid var(--a-input-border);border-radius:0.6rem;font-family:inherit;outline:none;background:var(--a-input-bg);color:var(--a-text);" onkeypress="if(event.key==='Enter')sendSupportReply()">
                     <button class="btn-sm btn-purple" style="padding:0.6rem 1.2rem;" onclick="sendSupportReply()">Ответить</button>
                 </div></div>`;
             const box = panel.querySelector('div[style*="overflow-y"]'); if (box) box.scrollTop = box.scrollHeight;
@@ -595,11 +799,11 @@
             } catch(e){ alert('Не удалось отправить ответ'); inp.value = msg; }
         }
 
-        // ── Задачи Клоду (очередь доработок сайта) ────────────────────────────────
+        // ── Dev tasks ───────────────────────────────────────────────────────
         const DEV_API = '/api/dev_tasks.php';
         let devPollTimer = null;
-        let devNewFiles = [];      // прикреплённые фото к новой задаче
-        let devReworkFiles = [];   // прикреплённые фото к доработке (в модалке)
+        let devNewFiles = [];
+        let devReworkFiles = [];
         const DEV_STMAP = { new:['b-amber','новая'], in_progress:['b-purple','в работе у Клода'], done:['b-green','готово — проверьте'], rework:['b-red','на доработку'], closed:['b-gray','закрыто ✓'] };
 
         function devImgs(json, label){
@@ -607,16 +811,16 @@
             if (!arr || !arr.length) return '';
             const items = arr.map(u => {
                 if (/\.(jpg|jpeg|png|gif|webp)$/i.test(u))
-                    return `<a href="${esc(u)}" target="_blank" rel="noopener"><img src="${esc(u)}" alt="скрин" style="height:70px;border-radius:0.4rem;border:1px solid #E5E7EB;object-fit:cover;"></a>`;
+                    return `<a href="${esc(u)}" target="_blank" rel="noopener"><img src="${esc(u)}" alt="скрин" style="height:70px;border-radius:0.4rem;border:1px solid var(--a-input-border);object-fit:cover;"></a>`;
                 const ext = (u.split('.').pop() || 'файл').toUpperCase();
-                return `<a href="${esc(u)}" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:0.35rem;height:44px;padding:0 0.8rem;border:1px solid #E5E7EB;border-radius:0.4rem;background:#F9FAFB;font-size:0.82rem;color:#374151;text-decoration:none;">📄 ${esc(ext)}-файл</a>`;
+                return `<a href="${esc(u)}" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:0.35rem;height:44px;padding:0 0.8rem;border:1px solid var(--a-input-border);border-radius:0.4rem;background:var(--a-input-bg);font-size:0.82rem;color:var(--a-text-sec);text-decoration:none;">📄 ${esc(ext)}-файл</a>`;
             }).join('');
             return `<div style="margin-top:0.5rem;">${label ? `<div class="muted" style="font-size:0.75rem;margin-bottom:0.25rem;">${label}</div>` : ''}<div style="display:flex;gap:0.4rem;flex-wrap:wrap;align-items:center;">${items}</div></div>`;
         }
         function devTaskRow(t){
             const s = DEV_STMAP[t.status] || ['b-gray', t.status];
-            const cc = t.claude_comment ? `<div style="margin-top:0.4rem;background:#F3E8FF;border-radius:0.5rem;padding:0.5rem 0.7rem;font-size:0.82rem;"><b>🤖 Клод:</b> ${esc(t.claude_comment)}</div>` : '';
-            const ac = t.admin_comment ? `<div style="margin-top:0.3rem;color:#6B7280;font-size:0.8rem;">✍️ Ваш комментарий: ${esc(t.admin_comment)}</div>` : '';
+            const cc = t.claude_comment ? `<div style="margin-top:0.4rem;background:var(--a-sidebar-active-bg);border-radius:0.5rem;padding:0.5rem 0.7rem;font-size:0.82rem;"><b>🤖 Клод:</b> ${esc(t.claude_comment)}</div>` : '';
+            const ac = t.admin_comment ? `<div style="margin-top:0.3rem;color:var(--a-text-sec);font-size:0.8rem;">✍️ Ваш комментарий: ${esc(t.admin_comment)}</div>` : '';
             const closed = t.status === 'closed';
             const btns = closed
                 ? `<button class="btn-sm btn-outline" onclick="devSet(${t.id},'new')">↩ Вернуть в работу</button>`
@@ -627,7 +831,7 @@
                     <b>${esc(t.title || ('Задача #' + t.id))}</b>
                     <span class="badge ${s[0]}">${s[1]}</span>
                 </div>
-                <div style="white-space:pre-wrap;color:#374151;font-size:0.9rem;margin-top:0.4rem;">${esc(t.body)}</div>
+                <div style="white-space:pre-wrap;color:var(--a-text-sec);font-size:0.9rem;margin-top:0.4rem;">${esc(t.body)}</div>
                 ${devImgs(t.attachments, '')}${cc}${ac}${devImgs(t.admin_attachments, '📎 к доработке:')}
                 <div style="margin-top:0.6rem;display:flex;gap:0.4rem;flex-wrap:wrap;align-items:center;">
                     ${btns}
@@ -635,7 +839,6 @@
                 </div>
             </div></div>`;
         }
-        // Обновляет только счётчики и список задач — форму ввода не трогает (для авто-опроса)
         async function devRefresh(){
             let list = [], st = {};
             try { list = (await (await fetch(DEV_API + '?action=list', { credentials:'include' })).json()).data || []; } catch(e){}
@@ -658,7 +861,7 @@
                 const closed = list.filter(t => t.status === 'closed');
                 listEl.innerHTML =
                     (active.length ? active.map(devTaskRow).join('') : '<div class="empty">Активных задач нет — добавьте новую выше.</div>')
-                    + (closed.length ? `<details ${wasOpen?'open':''} style="margin-top:1rem;"><summary style="cursor:pointer;color:#6B7280;font-size:0.9rem;">Архив закрытых (${closed.length})</summary><div style="margin-top:0.75rem;">${closed.map(devTaskRow).join('')}</div></details>` : '');
+                    + (closed.length ? `<details ${wasOpen?'open':''} style="margin-top:1rem;"><summary style="cursor:pointer;color:var(--a-text-muted);font-size:0.9rem;">Архив закрытых (${closed.length})</summary><div style="margin-top:0.75rem;">${closed.map(devTaskRow).join('')}</div></details>` : '');
             }
         }
         async function renderDevTasks(){
@@ -674,9 +877,9 @@
                     <span class="muted" style="font-size:0.8rem;">Клод берёт задачи автоматически по расписанию (раз в день 04:00 МСК). Нужно раньше — запустите вручную кнопкой «Run now» в Claude Code.</span>
                  </div>` +
                 `<div class="panel" style="margin-bottom:1rem;"><div class="panel-head"><h2>Новая задача</h2></div><div style="padding:1.1rem;">
-                    <input id="devTitle" placeholder="Коротко: что улучшить" style="width:100%;padding:0.6rem 0.8rem;border:1.5px solid #E5E7EB;border-radius:0.6rem;font-family:inherit;margin-bottom:0.6rem;">
-                    <textarea id="devBody" rows="6" placeholder="Подробно опишите доработку/недоработку (можно длинный текст, список пунктов)..." style="width:100%;padding:0.7rem 0.9rem;border:1.5px solid #E5E7EB;border-radius:0.6rem;font-family:inherit;font-size:0.92rem;resize:vertical;"></textarea>
-                    <div id="devDrop" style="margin-top:0.7rem;border:2px dashed #C4B5FD;border-radius:0.7rem;padding:1.1rem;text-align:center;cursor:pointer;background:#FAF8FF;transition:background .15s,border-color .15s;">
+                    <input id="devTitle" placeholder="Коротко: что улучшить" style="width:100%;padding:0.6rem 0.8rem;border:1.5px solid var(--a-input-border);border-radius:0.6rem;font-family:inherit;margin-bottom:0.6rem;background:var(--a-input-bg);color:var(--a-text);">
+                    <textarea id="devBody" rows="6" placeholder="Подробно опишите доработку/недоработку (можно длинный текст, список пунктов)..." style="width:100%;padding:0.7rem 0.9rem;border:1.5px solid var(--a-input-border);border-radius:0.6rem;font-family:inherit;font-size:0.92rem;resize:vertical;background:var(--a-input-bg);color:var(--a-text);"></textarea>
+                    <div id="devDrop" style="margin-top:0.7rem;border:2px dashed var(--a-drop-border);border-radius:0.7rem;padding:1.1rem;text-align:center;cursor:pointer;background:var(--a-drop-bg);transition:background .15s,border-color .15s;">
                         <div style="font-size:1.6rem;line-height:1;">📎</div>
                         <div style="font-size:0.9rem;color:#6D28D9;margin-top:0.3rem;"><b>Перетащите фото или документы сюда</b> или нажмите, чтобы выбрать</div>
                         <div class="muted" style="font-size:0.76rem;margin-top:0.2rem;">Изображения, PDF, DOC/DOCX, TXT — до 20 МБ каждый. Клод увидит их при выполнении задачи.</div>
@@ -690,7 +893,7 @@
                     `<div class="panel" style="margin-bottom:1rem;border-color:#FCD34D;"><div class="panel-head"><h2>⚙️ Токен автоматизации (один раз)</h2></div><div style="padding:1.1rem;">
                         <p class="muted" style="font-size:0.85rem;margin-bottom:0.6rem;">Чтобы Клод мог забирать задачи по расписанию, задайте секретный токен. Сгенерируйте случайный и сохраните — он понадобится при настройке расписания.</p>
                         <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
-                          <input id="devToken" placeholder="секретный токен (мин. 16 символов)" style="flex:1;min-width:240px;padding:0.55rem 0.75rem;border:1.5px solid #E5E7EB;border-radius:0.6rem;font-family:monospace;">
+                          <input id="devToken" placeholder="секретный токен (мин. 16 символов)" style="flex:1;min-width:240px;padding:0.55rem 0.75rem;border:1.5px solid var(--a-input-border);border-radius:0.6rem;font-family:monospace;background:var(--a-input-bg);color:var(--a-text);">
                           <button class="btn-sm btn-outline" onclick="document.getElementById('devToken').value=[...crypto.getRandomValues(new Uint8Array(24))].map(b=>b.toString(16).padStart(2,'0')).join('')">🎲 Сгенерировать</button>
                           <button class="btn-sm btn-purple" onclick="devSaveToken(this)">Сохранить токен</button>
                         </div>
@@ -704,13 +907,12 @@
                 else { clearInterval(devPollTimer); devPollTimer = null; }
             }, 15000);
         }
-        // ── Drag-and-drop + клик для загрузки фото ────────────────────────────────
         function devSetupDropzone(zone, input, kind){
             if (!zone || !input) return;
             zone.onclick = () => input.click();
             input.onchange = () => { devAddFiles([...input.files], kind); input.value = ''; };
-            ['dragenter','dragover'].forEach(ev => zone.addEventListener(ev, e => { e.preventDefault(); zone.style.background = '#F3E8FF'; zone.style.borderColor = '#7C3AED'; }));
-            ['dragleave','drop'].forEach(ev => zone.addEventListener(ev, e => { e.preventDefault(); zone.style.background = '#FAF8FF'; zone.style.borderColor = '#C4B5FD'; }));
+            ['dragenter','dragover'].forEach(ev => zone.addEventListener(ev, e => { e.preventDefault(); zone.style.background = 'var(--a-sidebar-active-bg)'; zone.style.borderColor = '#7C3AED'; }));
+            ['dragleave','drop'].forEach(ev => zone.addEventListener(ev, e => { e.preventDefault(); zone.style.background = 'var(--a-drop-bg)'; zone.style.borderColor = 'var(--a-drop-border)'; }));
             zone.addEventListener('drop', e => { devAddFiles([...((e.dataTransfer && e.dataTransfer.files) || [])], kind); });
         }
         function devFileAllowed(f){
@@ -734,18 +936,17 @@
             box.innerHTML = arr.map((f, i) => {
                 const isImg = f.type && f.type.indexOf('image/') === 0;
                 const inner = isImg
-                    ? `<img src="${URL.createObjectURL(f)}" style="height:64px;border-radius:0.4rem;border:1px solid #E5E7EB;object-fit:cover;display:block;">`
-                    : `<div style="height:64px;max-width:150px;display:flex;align-items:center;gap:0.4rem;padding:0 0.7rem;border:1px solid #E5E7EB;border-radius:0.4rem;background:#F9FAFB;font-size:0.78rem;color:#374151;">📄 <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(f.name || 'файл')}</span></div>`;
+                    ? `<img src="${URL.createObjectURL(f)}" style="height:64px;border-radius:0.4rem;border:1px solid var(--a-input-border);object-fit:cover;display:block;">`
+                    : `<div style="height:64px;max-width:150px;display:flex;align-items:center;gap:0.4rem;padding:0 0.7rem;border:1px solid var(--a-input-border);border-radius:0.4rem;background:var(--a-input-bg);font-size:0.78rem;color:var(--a-text-sec);">📄 <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(f.name || 'файл')}</span></div>`;
                 return `<div style="position:relative;">${inner}
                     <button onclick="devRemoveFile(${i},'${kind}')" title="убрать" style="position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;border:none;background:#DC2626;color:#fff;font-size:12px;line-height:1;cursor:pointer;">×</button>
                 </div>`;
             }).join('');
         }
-        // Загружает массив File на сервер, возвращает массив URL (или null при ошибке)
         async function devUpload(files, msgEl){
             const urls = [];
             for (let i = 0; i < files.length; i++){
-                if (msgEl){ msgEl.textContent = ' загружаю фото ' + (i+1) + '/' + files.length + '...'; msgEl.style.color = '#6B7280'; }
+                if (msgEl){ msgEl.textContent = ' загружаю фото ' + (i+1) + '/' + files.length + '...'; msgEl.style.color = 'var(--a-text-sec)'; }
                 const fd = new FormData(); fd.append('file', files[i]);
                 let r;
                 try { r = await (await fetch(DEV_API + '?action=upload', { method:'POST', credentials:'include', body: fd })).json(); }
@@ -769,20 +970,19 @@
             else { msg.textContent = r.error || 'Ошибка'; msg.style.color = '#DC2626'; }
         }
         async function devSet(id, status){ const r = await apiPostTo(DEV_API,'set-status',{id,status}); if(r.ok) devRefresh(); else alert(r.error||'Ошибка'); }
-        // ── Доработка: модалка с комментарием + фото ──────────────────────────────
         function devOpenRework(id){
             devReworkFiles = [];
             const ov = document.createElement('div');
             ov.id = 'devModal';
             ov.style.cssText = 'position:fixed;inset:0;background:rgba(17,24,39,0.5);display:flex;align-items:center;justify-content:center;z-index:9999;padding:1rem;';
-            ov.innerHTML = `<div style="background:#fff;border-radius:0.9rem;max-width:520px;width:100%;max-height:90vh;overflow:auto;padding:1.3rem;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+            ov.innerHTML = `<div style="background:var(--a-panel);border-radius:0.9rem;max-width:520px;width:100%;max-height:90vh;overflow:auto;padding:1.3rem;box-shadow:0 20px 60px rgba(0,0,0,0.3);color:var(--a-text);">
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.7rem;">
                     <h2 style="font-size:1.05rem;margin:0;">↩ Отправить на доработку</h2>
-                    <button onclick="devCloseModal()" style="border:none;background:none;font-size:1.5rem;cursor:pointer;color:#9CA3AF;line-height:1;">×</button>
+                    <button onclick="devCloseModal()" style="border:none;background:none;font-size:1.5rem;cursor:pointer;color:var(--a-text-muted);line-height:1;">×</button>
                 </div>
                 <p class="muted" style="font-size:0.85rem;margin-bottom:0.6rem;">Опишите, что не так и что нужно поправить. Можно приложить скрины или документы — Клод их увидит при доработке.</p>
-                <textarea id="devRwText" rows="5" placeholder="Что доработать..." style="width:100%;padding:0.7rem 0.9rem;border:1.5px solid #E5E7EB;border-radius:0.6rem;font-family:inherit;font-size:0.92rem;resize:vertical;"></textarea>
-                <div id="devRwDrop" style="margin-top:0.7rem;border:2px dashed #C4B5FD;border-radius:0.7rem;padding:1rem;text-align:center;cursor:pointer;background:#FAF8FF;transition:background .15s,border-color .15s;">
+                <textarea id="devRwText" rows="5" placeholder="Что доработать..." style="width:100%;padding:0.7rem 0.9rem;border:1.5px solid var(--a-input-border);border-radius:0.6rem;font-family:inherit;font-size:0.92rem;resize:vertical;background:var(--a-input-bg);color:var(--a-text);"></textarea>
+                <div id="devRwDrop" style="margin-top:0.7rem;border:2px dashed var(--a-drop-border);border-radius:0.7rem;padding:1rem;text-align:center;cursor:pointer;background:var(--a-drop-bg);transition:background .15s,border-color .15s;">
                     <div style="font-size:1.4rem;line-height:1;">📎</div>
                     <div style="font-size:0.88rem;color:#6D28D9;margin-top:0.3rem;"><b>Перетащите фото или документы сюда</b> или нажмите</div>
                     <input id="devRwFiles" type="file" accept="image/*,.pdf,.doc,.docx,.txt,.rtf" multiple style="display:none;">
@@ -817,7 +1017,7 @@
             catch(e){ return { error:'сеть' }; }
         }
 
-        // ── Робокасса: настройка ключей (пишет robokassa_config.php на сервере) ────
+        // ── Robokassa ───────────────────────────────────────────────────────
         async function renderRobokassa(){
             let diag = {};
             try { diag = await (await fetch('/api/robokassa.php?action=diag', { credentials:'include' })).json(); } catch(e){}
@@ -833,14 +1033,14 @@
                     <tr><td>TEST Password#1 / #2</td><td>${yn(diag.test_password1_set)} ${yn(diag.test_password2_set)}</td></tr>
                     <tr><td>PROD Password#1 / #2</td><td>${yn(diag.prod_password1_set)} ${yn(diag.prod_password2_set)}</td></tr>
                 </tbody></table>`;
-            const fld = (id,label,type,ph) => `<label style="display:block;margin-bottom:0.7rem;"><span style="display:block;font-size:0.82rem;color:#6B7280;margin-bottom:0.25rem;font-weight:600;">${label}</span><input id="${id}" type="${type}" placeholder="${ph||''}" autocomplete="off" style="width:100%;max-width:420px;padding:0.55rem 0.7rem;border:1.5px solid #E5E7EB;border-radius:0.6rem;font-family:inherit;font-size:0.9rem;"></label>`;
+            const fld = (id,label,type,ph) => `<label style="display:block;margin-bottom:0.7rem;"><span style="display:block;font-size:0.82rem;color:var(--a-text-sec);margin-bottom:0.25rem;font-weight:600;">${label}</span><input id="${id}" type="${type}" placeholder="${ph||''}" autocomplete="off" style="width:100%;max-width:420px;padding:0.55rem 0.7rem;border:1.5px solid var(--a-input-border);border-radius:0.6rem;font-family:inherit;font-size:0.9rem;background:var(--a-input-bg);color:var(--a-text);"></label>`;
             document.getElementById('content').innerHTML =
                 '<div class="note">🔐 Ключи Робокассы хранятся в файле <b>api/robokassa_config.php</b> на сервере (не в git). Здесь можно записать их безопасно — поля с паролями не показывают текущее значение; пустое поле = «не менять». После сохранения проверьте статус «Приём платежей: готово».</div>' +
                 '<div class="panel"><div class="panel-head"><h2>Ключи и режим Робокассы</h2><button class="btn-sm btn-outline" onclick="renderRobokassa()">↻ Обновить статус</button></div>' +
                 '<div style="padding:1.25rem;">' + status +
                     fld('rkMerchant','MerchantLogin (идентификатор магазина)','text','psytalk.pro') +
-                    `<label style="display:block;margin-bottom:0.7rem;"><span style="display:block;font-size:0.82rem;color:#6B7280;margin-bottom:0.25rem;font-weight:600;">Режим</span>
-                     <select id="rkIsTest" style="padding:0.55rem 0.7rem;border:1.5px solid #E5E7EB;border-radius:0.6rem;font-family:inherit;"><option value="1"${diag.is_test?' selected':''}>ТЕСТ (IsTest=1)</option><option value="0"${!diag.is_test?' selected':''}>БОЕВОЙ (IsTest=0)</option></select></label>` +
+                    `<label style="display:block;margin-bottom:0.7rem;"><span style="display:block;font-size:0.82rem;color:var(--a-text-sec);margin-bottom:0.25rem;font-weight:600;">Режим</span>
+                     <select id="rkIsTest" style="padding:0.55rem 0.7rem;border:1.5px solid var(--a-input-border);border-radius:0.6rem;font-family:inherit;background:var(--a-input-bg);color:var(--a-text);"><option value="1"${diag.is_test?' selected':''}>ТЕСТ (IsTest=1)</option><option value="0"${!diag.is_test?' selected':''}>БОЕВОЙ (IsTest=0)</option></select></label>` +
                     '<div style="font-weight:700;margin:0.6rem 0 0.4rem;">Тестовые пароли</div>' +
                     fld('rkTest1','TEST Password #1','password','оставьте пустым — не менять') +
                     fld('rkTest2','TEST Password #2','password','оставьте пустым — не менять') +
@@ -862,7 +1062,7 @@
                 receipt_enabled: document.getElementById('rkReceipt').checked
             };
             const msg = document.getElementById('rkMsg');
-            btn.disabled = true; msg.textContent = 'Сохраняем...'; msg.style.color = '#6B7280';
+            btn.disabled = true; msg.textContent = 'Сохраняем...'; msg.style.color = 'var(--a-text-sec)';
             try {
                 const r = await fetch('/api/robokassa.php?action=save-config', { method:'POST', headers:{'Content-Type':'application/json'}, credentials:'include', body: JSON.stringify(payload) });
                 const d = await r.json();
@@ -872,7 +1072,7 @@
             } catch(e){ btn.disabled = false; msg.textContent = '⚠️ Ошибка сети'; msg.style.color = '#DC2626'; }
         }
 
-        // ── Супервизия (группы + индивидуальные запросы) ──────────────────────────
+        // ── Supervision ─────────────────────────────────────────────────────
         async function renderSupervision(){
             let res;
             try { res = await (await fetch('/api/supervision.php?action=admin-overview', { credentials:'include' })).json(); }
@@ -894,7 +1094,7 @@
                 `<div class="panel"><div class="panel-head"><h2>Индивидуальные запросы (${requests.length})</h2></div><div class="tbl-wrap">${rTable}</div></div>`;
         }
 
-        // ── Заявки на замену психолога ───────────────────────────────────────────
+        // ── Replacements ────────────────────────────────────────────────────
         async function renderReplacements(){
             const res = await apiGet('replacements');
             if (!res.ok) return fail();
@@ -922,6 +1122,84 @@
             renderReplacements();
         }
 
+        // ── Admin notes ─────────────────────────────────────────────────────
+        async function renderNotes(){
+            let res;
+            try { res = await (await fetch('/api/admin_notes.php?action=list', { credentials:'include' })).json(); }
+            catch(e){ return fail(); }
+            const notes = (res && res.ok) ? (res.data || []) : [];
+            const active = notes.filter(n => !parseInt(n.is_done));
+            const done = notes.filter(n => parseInt(n.is_done));
+
+            document.getElementById('content').innerHTML =
+                '<div class="note">📝 Личная записная книжка. Записки видите только вы. Удобно для TODO, заметок к себе, идей по улучшению платформы.</div>' +
+                `<div class="panel" style="margin-bottom:1.25rem;">
+                    <div class="panel-head"><h2>Новая записка</h2></div>
+                    <div style="padding:1rem;">
+                        <input id="noteTitle" placeholder="Заголовок" style="width:100%;padding:0.55rem 0.8rem;border:1.5px solid var(--a-input-border);border-radius:0.6rem;font-family:inherit;margin-bottom:0.5rem;background:var(--a-input-bg);color:var(--a-text);">
+                        <textarea id="noteBody" rows="3" placeholder="Текст записки..." style="width:100%;padding:0.6rem 0.8rem;border:1.5px solid var(--a-input-border);border-radius:0.6rem;font-family:inherit;font-size:0.9rem;resize:vertical;background:var(--a-input-bg);color:var(--a-text);"></textarea>
+                        <div style="display:flex;gap:0.5rem;align-items:center;margin-top:0.5rem;">
+                            <button class="btn-sm btn-purple" onclick="addNote(this)">Добавить</button>
+                            <span id="noteMsg" style="font-size:0.85rem;"></span>
+                        </div>
+                    </div>
+                </div>` +
+                '<div id="notesList"></div>';
+            renderNotesList(active, done);
+        }
+
+        function renderNotesList(active, done){
+            const el = document.getElementById('notesList');
+            if (!el) return;
+            const card = (n) => {
+                const isDone = parseInt(n.is_done);
+                return `<div class="note-card ${isDone ? 'is-done' : ''}">
+                    <div class="note-card-check">
+                        <input type="checkbox" ${isDone ? 'checked' : ''} onchange="toggleNoteDone(${n.id}, this.checked)">
+                    </div>
+                    <div class="note-card-content">
+                        ${n.title ? `<div class="note-card-title">${esc(n.title)}</div>` : ''}
+                        ${n.body ? `<div class="note-card-text">${esc(n.body)}</div>` : ''}
+                        <div class="note-card-meta">${fmtDateTime(n.created_at)}</div>
+                    </div>
+                    <button class="note-card-delete" onclick="deleteNote(${n.id})" title="Удалить">×</button>
+                </div>`;
+            };
+            el.innerHTML =
+                (active.length ? active.map(card).join('') : '<div class="empty" style="padding:1.5rem;">Записок пока нет — добавьте выше.</div>') +
+                (done.length ? `<details style="margin-top:1rem;"><summary style="cursor:pointer;color:var(--a-text-muted);font-size:0.9rem;">Завершённые (${done.length})</summary><div style="margin-top:0.5rem;">${done.map(card).join('')}</div></details>` : '');
+        }
+
+        async function addNote(btn){
+            const title = document.getElementById('noteTitle').value.trim();
+            const body = document.getElementById('noteBody').value.trim();
+            const msg = document.getElementById('noteMsg');
+            if (!title && !body){ if(msg){msg.textContent='Введите заголовок или текст';msg.style.color='#DC2626';} return; }
+            btn.disabled = true;
+            try {
+                const r = await (await fetch('/api/admin_notes.php?action=add', { method:'POST', headers:{'Content-Type':'application/json'}, credentials:'include', body:JSON.stringify({title, body}) })).json();
+                btn.disabled = false;
+                if (r.ok) renderNotes();
+                else { if(msg){msg.textContent=r.error||'Ошибка';msg.style.color='#DC2626';} }
+            } catch(e){ btn.disabled=false; if(msg){msg.textContent='Ошибка сети';msg.style.color='#DC2626';} }
+        }
+
+        async function toggleNoteDone(id, checked){
+            try {
+                await fetch('/api/admin_notes.php?action=update', { method:'POST', headers:{'Content-Type':'application/json'}, credentials:'include', body:JSON.stringify({id, is_done:checked?1:0}) });
+                renderNotes();
+            } catch(e){}
+        }
+
+        async function deleteNote(id){
+            if (!confirm('Удалить записку?')) return;
+            try {
+                await fetch('/api/admin_notes.php?action=delete', { method:'POST', headers:{'Content-Type':'application/json'}, credentials:'include', body:JSON.stringify({id}) });
+                renderNotes();
+            } catch(e){}
+        }
+
+        // ── Helpers ─────────────────────────────────────────────────────────
         function fail(){ document.getElementById('content').innerHTML = '<div class="panel"><div class="empty">Не удалось загрузить данные. Проверьте, что вы вошли как администратор.</div></div>'; }
         function empty(msg){ document.getElementById('content').innerHTML = '<div class="panel"><div class="empty">'+esc(msg)+'</div></div>'; }
 
