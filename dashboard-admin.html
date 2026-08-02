@@ -81,6 +81,7 @@
             <button class="tab" data-tab="psychologists" onclick="switchTab('psychologists')">Психологи</button>
             <button class="tab" data-tab="tariffs" onclick="switchTab('tariffs')">Тарифы и цены</button>
             <button class="tab" data-tab="robokassa" onclick="switchTab('robokassa')">Робокасса</button>
+            <button class="tab" data-tab="devtasks" onclick="switchTab('devtasks')">🤖 Задачи Клоду</button>
             <button class="tab" data-tab="appointments" onclick="switchTab('appointments')">Записи</button>
             <button class="tab" data-tab="replacements" onclick="switchTab('replacements')">Замены психолога</button>
             <button class="tab" data-tab="supervision" onclick="switchTab('supervision')">Супервизия</button>
@@ -140,7 +141,7 @@
             document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab===tab));
             const el = document.getElementById('content');
             el.innerHTML = '<div class="loading">Загрузка...</div>';
-            ({ overview:renderOverview, support:renderSupport, users:renderUsers, psychologists:renderPsych, tariffs:renderTariffs, robokassa:renderRobokassa, appointments:renderAppointments, replacements:renderReplacements, supervision:renderSupervision, calls:renderCalls, payments:renderPayments, subscribers:renderSubscribers, referrals:renderReferrals, activity:renderActivity }[tab])();
+            ({ overview:renderOverview, support:renderSupport, users:renderUsers, psychologists:renderPsych, tariffs:renderTariffs, robokassa:renderRobokassa, devtasks:renderDevTasks, appointments:renderAppointments, replacements:renderReplacements, supervision:renderSupervision, calls:renderCalls, payments:renderPayments, subscribers:renderSubscribers, referrals:renderReferrals, activity:renderActivity }[tab])();
         }
 
         async function renderOverview(){
@@ -553,6 +554,79 @@
                 await fetch('/api/support.php?action=reply', { method:'POST', headers:{'Content-Type':'application/json'}, credentials:'include', body: JSON.stringify({ thread_id: supportThreadId, message: msg }) });
                 await openSupportThread(supportThreadId);
             } catch(e){ alert('Не удалось отправить ответ'); inp.value = msg; }
+        }
+
+        // ── Задачи Клоду (очередь доработок сайта) ────────────────────────────────
+        const DEV_API = '/api/dev_tasks.php';
+        async function renderDevTasks(){
+            let list = [], st = {};
+            try { list = (await (await fetch(DEV_API + '?action=list', { credentials:'include' })).json()).data || []; } catch(e){}
+            try { st = await (await fetch(DEV_API + '?action=status', { credentials:'include' })).json(); } catch(e){}
+            const lr = st.last_run;
+            const stateLbl = lr ? ({running:'🟢 Клод сейчас работает', idle:'⚪ Ждёт следующего запуска', limited:'🟠 Достигнут лимит — повторит позже', error:'🔴 Ошибка в прошлом запуске'}[lr.state] || lr.state) : 'запусков ещё не было';
+            const c = st.counts || {};
+            const stMap = { new:['b-amber','новая'], in_progress:['b-purple','в работе у Клода'], done:['b-green','сделано Клодом'], rework:['b-red','на доработку'] };
+            const rows = list.length ? list.map(t => {
+                const s = stMap[t.status] || ['b-gray', t.status];
+                const cc = t.claude_comment ? `<div style="margin-top:0.4rem;background:#F3E8FF;border-radius:0.5rem;padding:0.5rem 0.7rem;font-size:0.82rem;"><b>🤖 Клод:</b> ${esc(t.claude_comment)}</div>` : '';
+                const ac = t.admin_comment ? `<div style="margin-top:0.3rem;color:#6B7280;font-size:0.8rem;">✍️ Ваш комментарий: ${esc(t.admin_comment)}</div>` : '';
+                return `<div class="panel" style="margin-bottom:0.75rem;"><div style="padding:0.9rem 1.1rem;">
+                    <div style="display:flex;justify-content:space-between;gap:0.75rem;align-items:center;flex-wrap:wrap;">
+                        <b>${esc(t.title || ('Задача #' + t.id))}</b>
+                        <span class="badge ${s[0]}">${s[1]}</span>
+                    </div>
+                    <div style="white-space:pre-wrap;color:#374151;font-size:0.9rem;margin-top:0.4rem;">${esc(t.body)}</div>
+                    ${cc}${ac}
+                    <div style="margin-top:0.6rem;display:flex;gap:0.4rem;flex-wrap:wrap;">
+                        <button class="btn-sm btn-outline" onclick="devSet(${t.id},'done')">✓ Закрыто</button>
+                        <button class="btn-sm btn-red" onclick="devRework(${t.id})">↩ На доработку</button>
+                        <span class="muted" style="font-size:0.75rem;align-self:center;">обновлено ${fmtDateTime(t.updated_at)}</span>
+                    </div>
+                </div></div>`;
+            }).join('') : '<div class="empty">Задач пока нет — добавьте первую ниже.</div>';
+
+            document.getElementById('content').innerHTML =
+                '<div class="note">🤖 Пишите сюда задачи на доработку сайта. Клод по расписанию (Routine в облаке) забирает «новые» и «на доработку», выполняет, деплоит и возвращает статус со своим комментарием. Вы отмечаете «Закрыто» или «На доработку».</div>' +
+                `<div class="stats-grid" style="margin-bottom:1rem;">
+                    <div class="stat"><div class="v">${(c.new||0)+(c.rework||0)}</div><div class="l">В очереди</div></div>
+                    <div class="stat"><div class="v">${c.in_progress||0}</div><div class="l">В работе</div></div>
+                    <div class="stat"><div class="v">${c.done||0}</div><div class="l">Сделано</div></div>
+                    <div class="stat"><div class="v" style="font-size:0.95rem;">${stateLbl}</div><div class="l">Статус Клода${lr?(' · '+fmtDateTime(lr.created_at)):''}</div></div>
+                </div>` +
+                `<div class="panel" style="margin-bottom:1rem;"><div class="panel-head"><h2>Новая задача</h2></div><div style="padding:1.1rem;">
+                    <input id="devTitle" placeholder="Коротко: что улучшить" style="width:100%;padding:0.6rem 0.8rem;border:1.5px solid #E5E7EB;border-radius:0.6rem;font-family:inherit;margin-bottom:0.6rem;">
+                    <textarea id="devBody" rows="6" placeholder="Подробно опишите доработку/недоработку (можно длинный текст, список пунктов)..." style="width:100%;padding:0.7rem 0.9rem;border:1.5px solid #E5E7EB;border-radius:0.6rem;font-family:inherit;font-size:0.92rem;resize:vertical;"></textarea>
+                    <button class="btn-sm btn-purple" style="margin-top:0.6rem;padding:0.65rem 1.4rem;" onclick="devAdd(this)">Добавить задачу</button>
+                    <span id="devMsg" style="font-size:0.85rem;margin-left:0.5rem;"></span>
+                </div></div>` +
+                (st.token_configured ? '' :
+                    `<div class="panel" style="margin-bottom:1rem;border-color:#FCD34D;"><div class="panel-head"><h2>⚙️ Токен автоматизации (один раз)</h2></div><div style="padding:1.1rem;">
+                        <p class="muted" style="font-size:0.85rem;margin-bottom:0.6rem;">Чтобы Клод мог забирать задачи по расписанию, задайте секретный токен. Сгенерируйте случайный и сохраните — он понадобится при настройке расписания.</p>
+                        <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+                          <input id="devToken" placeholder="секретный токен (мин. 16 символов)" style="flex:1;min-width:240px;padding:0.55rem 0.75rem;border:1.5px solid #E5E7EB;border-radius:0.6rem;font-family:monospace;">
+                          <button class="btn-sm btn-outline" onclick="document.getElementById('devToken').value=[...crypto.getRandomValues(new Uint8Array(24))].map(b=>b.toString(16).padStart(2,'0')).join('')">🎲 Сгенерировать</button>
+                          <button class="btn-sm btn-purple" onclick="devSaveToken(this)">Сохранить токен</button>
+                        </div>
+                        <span id="devTokMsg" style="font-size:0.85rem;"></span>
+                    </div></div>`) +
+                '<h3 style="margin:0.5rem 0;font-size:1rem;">Задачи</h3>' + rows;
+        }
+        async function devAdd(btn){
+            const title = document.getElementById('devTitle').value.trim();
+            const body = document.getElementById('devBody').value.trim();
+            const msg = document.getElementById('devMsg');
+            if (!body){ msg.textContent='Введите текст'; msg.style.color='#DC2626'; return; }
+            btn.disabled = true;
+            const r = await apiPostTo(DEV_API, 'add', { title, body });
+            btn.disabled = false;
+            if (r.ok) renderDevTasks(); else { msg.textContent = r.error||'Ошибка'; msg.style.color='#DC2626'; }
+        }
+        async function devSet(id, status){ const r = await apiPostTo(DEV_API,'set-status',{id,status}); if(r.ok) renderDevTasks(); else alert(r.error||'Ошибка'); }
+        async function devRework(id){ const c = prompt('Что доработать? (комментарий Клоду)'); if(c===null) return; const r = await apiPostTo(DEV_API,'set-status',{id,status:'rework',admin_comment:c}); if(r.ok) renderDevTasks(); else alert(r.error||'Ошибка'); }
+        async function devSaveToken(btn){ const t=document.getElementById('devToken').value.trim(); const m=document.getElementById('devTokMsg'); if(t.length<16){m.textContent=' минимум 16 символов';m.style.color='#DC2626';return;} btn.disabled=true; const r=await apiPostTo(DEV_API,'save-token',{token:t}); btn.disabled=false; if(r.ok){ m.textContent=' ✅ сохранён'; m.style.color='#16A34A'; alert('Токен сохранён. Передайте его Клоду в чате для настройки расписания:\n\n'+t);} else { m.textContent=' '+(r.error||'ошибка'); m.style.color='#DC2626'; } }
+        async function apiPostTo(url, action, body){
+            try { const r = await fetch(url+'?action='+action, { method:'POST', headers:{'Content-Type':'application/json'}, credentials:'include', body: JSON.stringify(body) }); return await r.json(); }
+            catch(e){ return { error:'сеть' }; }
         }
 
         // ── Робокасса: настройка ключей (пишет robokassa_config.php на сервере) ────
