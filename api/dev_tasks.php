@@ -159,4 +159,27 @@ if ($action === 'heartbeat') {
     } catch (Exception $e) { out(['error' => 'Не удалось записать'], 500); }
 }
 
+// ── «Запустить сейчас»: админ ставит запрос, runner его забирает ──────────────────
+if ($action === 'request-run') {
+    if (!$isAdmin) out(['error' => 'Только для администратора'], 403);
+    try {
+        $pdo->prepare("INSERT INTO dev_task_runs (state, note, processed) VALUES ('requested', ?, 0)")
+            ->execute([mb_substr(trim((string)($body['note'] ?? 'ручной запуск из админки')), 0, 500)]);
+        out(['ok' => true]);
+    } catch (Exception $e) { out(['error' => 'Не удалось поставить запрос'], 500); }
+}
+
+if ($action === 'claim-run') {
+    if (!$validToken && !$isAdmin) out(['error' => 'Требуется токен'], 403);
+    // Есть ли необработанный запрос на запуск?
+    try {
+        $last = $pdo->query("SELECT * FROM dev_task_runs ORDER BY id DESC LIMIT 1")->fetch(PDO::FETCH_ASSOC);
+        if ($last && $last['state'] === 'requested') {
+            $pdo->prepare("UPDATE dev_task_runs SET state='running', note=CONCAT('claimed: ', COALESCE(note,'')) WHERE id=?")->execute([$last['id']]);
+            out(['ok' => true, 'run' => true]);
+        }
+        out(['ok' => true, 'run' => false]);
+    } catch (Exception $e) { out(['ok' => true, 'run' => false]); }
+}
+
 out(['error' => 'Неизвестное действие'], 400);
