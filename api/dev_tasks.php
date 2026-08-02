@@ -127,13 +127,15 @@ if ($action === 'upload') {
     if (empty($_FILES['file']) || !is_array($_FILES['file'])) out(['error' => 'Файл не передан'], 400);
     $f = $_FILES['file'];
     if (($f['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) out(['error' => 'Ошибка загрузки файла'], 400);
-    if (($f['size'] ?? 0) > 8 * 1024 * 1024) out(['error' => 'Файл больше 8 МБ'], 400);
-    $allowed = ['image/jpeg' => 'jpg', 'image/png' => 'png', 'image/gif' => 'gif', 'image/webp' => 'webp'];
-    $mime = function_exists('mime_content_type') ? (@mime_content_type($f['tmp_name']) ?: '') : '';
-    if (!isset($allowed[$mime])) out(['error' => 'Только изображения (jpg, png, gif, webp)'], 400);
+    if (($f['size'] ?? 0) > 20 * 1024 * 1024) out(['error' => 'Файл больше 20 МБ'], 400);
+    // Разрешаем изображения и документы. Загрузка только у админа → проверяем по расширению.
+    $allowExt = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'pdf', 'doc', 'docx', 'txt', 'rtf'];
+    $ext = strtolower(pathinfo((string)($f['name'] ?? ''), PATHINFO_EXTENSION));
+    if ($ext === 'jpeg') $ext = 'jpg';
+    if (!in_array($ext, $allowExt, true)) out(['error' => 'Разрешены: изображения, PDF, DOC/DOCX, TXT, RTF'], 400);
     $dir = __DIR__ . '/../uploads/dev_tasks';
     if (!is_dir($dir)) @mkdir($dir, 0755, true);
-    $name = bin2hex(random_bytes(16)) . '.' . $allowed[$mime];
+    $name = bin2hex(random_bytes(16)) . '.' . $ext;
     if (!@move_uploaded_file($f['tmp_name'], $dir . '/' . $name)) out(['error' => 'Не удалось сохранить файл (проверьте права на /uploads)'], 500);
     @chmod($dir . '/' . $name, 0644);
     out(['ok' => true, 'url' => '/uploads/dev_tasks/' . $name]);

@@ -605,9 +605,13 @@
         function devImgs(json, label){
             let arr = []; try { arr = json ? JSON.parse(json) : []; } catch(e){}
             if (!arr || !arr.length) return '';
-            return `<div style="margin-top:0.5rem;">${label ? `<div class="muted" style="font-size:0.75rem;margin-bottom:0.25rem;">${label}</div>` : ''}<div style="display:flex;gap:0.4rem;flex-wrap:wrap;">`
-                + arr.map(u=>`<a href="${esc(u)}" target="_blank" rel="noopener"><img src="${esc(u)}" alt="скрин" style="height:70px;border-radius:0.4rem;border:1px solid #E5E7EB;object-fit:cover;"></a>`).join('')
-                + `</div></div>`;
+            const items = arr.map(u => {
+                if (/\.(jpg|jpeg|png|gif|webp)$/i.test(u))
+                    return `<a href="${esc(u)}" target="_blank" rel="noopener"><img src="${esc(u)}" alt="скрин" style="height:70px;border-radius:0.4rem;border:1px solid #E5E7EB;object-fit:cover;"></a>`;
+                const ext = (u.split('.').pop() || 'файл').toUpperCase();
+                return `<a href="${esc(u)}" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:0.35rem;height:44px;padding:0 0.8rem;border:1px solid #E5E7EB;border-radius:0.4rem;background:#F9FAFB;font-size:0.82rem;color:#374151;text-decoration:none;">📄 ${esc(ext)}-файл</a>`;
+            }).join('');
+            return `<div style="margin-top:0.5rem;">${label ? `<div class="muted" style="font-size:0.75rem;margin-bottom:0.25rem;">${label}</div>` : ''}<div style="display:flex;gap:0.4rem;flex-wrap:wrap;align-items:center;">${items}</div></div>`;
         }
         function devTaskRow(t){
             const s = DEV_STMAP[t.status] || ['b-gray', t.status];
@@ -666,18 +670,17 @@
                 '<div class="note">🤖 Пишите сюда задачи на доработку сайта. Клод по расписанию (Routine в облаке) забирает «новые» и «на доработку», выполняет, деплоит и возвращает статус со своим комментарием. Статусы обновляются автоматически, страницу перезагружать не нужно.</div>' +
                 `<div id="devStats" class="stats-grid" style="margin-bottom:1rem;"></div>` +
                 `<div style="margin-bottom:1rem;display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;">
-                    <button class="btn-sm btn-purple" style="padding:0.6rem 1.3rem;" onclick="devRunNow(this)">▶ Запустить сейчас</button>
                     <button class="btn-sm btn-outline" onclick="devRefresh()">↻ Обновить</button>
-                    <span id="devRunMsg" class="muted" style="font-size:0.83rem;"></span>
+                    <span class="muted" style="font-size:0.8rem;">Клод берёт задачи автоматически по расписанию (раз в день 04:00 МСК). Нужно раньше — запустите вручную кнопкой «Run now» в Claude Code.</span>
                  </div>` +
                 `<div class="panel" style="margin-bottom:1rem;"><div class="panel-head"><h2>Новая задача</h2></div><div style="padding:1.1rem;">
                     <input id="devTitle" placeholder="Коротко: что улучшить" style="width:100%;padding:0.6rem 0.8rem;border:1.5px solid #E5E7EB;border-radius:0.6rem;font-family:inherit;margin-bottom:0.6rem;">
                     <textarea id="devBody" rows="6" placeholder="Подробно опишите доработку/недоработку (можно длинный текст, список пунктов)..." style="width:100%;padding:0.7rem 0.9rem;border:1.5px solid #E5E7EB;border-radius:0.6rem;font-family:inherit;font-size:0.92rem;resize:vertical;"></textarea>
                     <div id="devDrop" style="margin-top:0.7rem;border:2px dashed #C4B5FD;border-radius:0.7rem;padding:1.1rem;text-align:center;cursor:pointer;background:#FAF8FF;transition:background .15s,border-color .15s;">
-                        <div style="font-size:1.6rem;line-height:1;">🖼️</div>
-                        <div style="font-size:0.9rem;color:#6D28D9;margin-top:0.3rem;"><b>Перетащите фото/скрины сюда</b> или нажмите, чтобы выбрать</div>
-                        <div class="muted" style="font-size:0.76rem;margin-top:0.2rem;">jpg, png, gif, webp — до 8 МБ каждое. Клод увидит их при выполнении задачи.</div>
-                        <input id="devFiles" type="file" accept="image/*" multiple style="display:none;">
+                        <div style="font-size:1.6rem;line-height:1;">📎</div>
+                        <div style="font-size:0.9rem;color:#6D28D9;margin-top:0.3rem;"><b>Перетащите фото или документы сюда</b> или нажмите, чтобы выбрать</div>
+                        <div class="muted" style="font-size:0.76rem;margin-top:0.2rem;">Изображения, PDF, DOC/DOCX, TXT — до 20 МБ каждый. Клод увидит их при выполнении задачи.</div>
+                        <input id="devFiles" type="file" accept="image/*,.pdf,.doc,.docx,.txt,.rtf" multiple style="display:none;">
                     </div>
                     <div id="devFilePrev" style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-top:0.6rem;"></div>
                     <button class="btn-sm btn-purple" style="margin-top:0.7rem;padding:0.65rem 1.4rem;" onclick="devAdd(this)">Добавить задачу</button>
@@ -710,9 +713,14 @@
             ['dragleave','drop'].forEach(ev => zone.addEventListener(ev, e => { e.preventDefault(); zone.style.background = '#FAF8FF'; zone.style.borderColor = '#C4B5FD'; }));
             zone.addEventListener('drop', e => { devAddFiles([...((e.dataTransfer && e.dataTransfer.files) || [])], kind); });
         }
+        function devFileAllowed(f){
+            if (!f) return false;
+            if (f.type && f.type.indexOf('image/') === 0) return true;
+            return /\.(pdf|docx?|txt|rtf)$/i.test(f.name || '');
+        }
         function devAddFiles(files, kind){
             const arr = kind === 'new' ? devNewFiles : devReworkFiles;
-            files.forEach(f => { if (f && f.type && f.type.indexOf('image/') === 0) arr.push(f); });
+            files.forEach(f => { if (devFileAllowed(f)) arr.push(f); });
             devRenderPrev(kind);
         }
         function devRemoveFile(i, kind){
@@ -723,10 +731,15 @@
             const arr = kind === 'new' ? devNewFiles : devReworkFiles;
             const box = document.getElementById(kind === 'new' ? 'devFilePrev' : 'devRwPrev');
             if (!box) return;
-            box.innerHTML = arr.map((f, i) => `<div style="position:relative;">
-                <img src="${URL.createObjectURL(f)}" style="height:64px;border-radius:0.4rem;border:1px solid #E5E7EB;object-fit:cover;display:block;">
-                <button onclick="devRemoveFile(${i},'${kind}')" title="убрать" style="position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;border:none;background:#DC2626;color:#fff;font-size:12px;line-height:1;cursor:pointer;">×</button>
-            </div>`).join('');
+            box.innerHTML = arr.map((f, i) => {
+                const isImg = f.type && f.type.indexOf('image/') === 0;
+                const inner = isImg
+                    ? `<img src="${URL.createObjectURL(f)}" style="height:64px;border-radius:0.4rem;border:1px solid #E5E7EB;object-fit:cover;display:block;">`
+                    : `<div style="height:64px;max-width:150px;display:flex;align-items:center;gap:0.4rem;padding:0 0.7rem;border:1px solid #E5E7EB;border-radius:0.4rem;background:#F9FAFB;font-size:0.78rem;color:#374151;">📄 <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(f.name || 'файл')}</span></div>`;
+                return `<div style="position:relative;">${inner}
+                    <button onclick="devRemoveFile(${i},'${kind}')" title="убрать" style="position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;border:none;background:#DC2626;color:#fff;font-size:12px;line-height:1;cursor:pointer;">×</button>
+                </div>`;
+            }).join('');
         }
         // Загружает массив File на сервер, возвращает массив URL (или null при ошибке)
         async function devUpload(files, msgEl){
@@ -755,14 +768,6 @@
             if (r.ok){ devNewFiles = []; renderDevTasks(); }
             else { msg.textContent = r.error || 'Ошибка'; msg.style.color = '#DC2626'; }
         }
-        async function devRunNow(btn){
-            const m = document.getElementById('devRunMsg');
-            btn.disabled = true; m.textContent = ' ставлю запрос...'; m.style.color = '#6B7280';
-            const r = await apiPostTo(DEV_API, 'request-run', {});
-            btn.disabled = false;
-            if (r.ok) { m.textContent = ' ✅ Запрос поставлен. Клод обработает при ближайшем прогоне (по расписанию — раз в 3 дня в 04:00 МСК; вручную — из Claude Code).'; m.style.color = '#16A34A'; }
-            else { m.textContent = ' ⚠️ ' + (r.error || 'ошибка'); m.style.color = '#DC2626'; }
-        }
         async function devSet(id, status){ const r = await apiPostTo(DEV_API,'set-status',{id,status}); if(r.ok) devRefresh(); else alert(r.error||'Ошибка'); }
         // ── Доработка: модалка с комментарием + фото ──────────────────────────────
         function devOpenRework(id){
@@ -775,12 +780,12 @@
                     <h2 style="font-size:1.05rem;margin:0;">↩ Отправить на доработку</h2>
                     <button onclick="devCloseModal()" style="border:none;background:none;font-size:1.5rem;cursor:pointer;color:#9CA3AF;line-height:1;">×</button>
                 </div>
-                <p class="muted" style="font-size:0.85rem;margin-bottom:0.6rem;">Опишите, что не так и что нужно поправить. Можно приложить скрины — Клод их увидит при доработке.</p>
+                <p class="muted" style="font-size:0.85rem;margin-bottom:0.6rem;">Опишите, что не так и что нужно поправить. Можно приложить скрины или документы — Клод их увидит при доработке.</p>
                 <textarea id="devRwText" rows="5" placeholder="Что доработать..." style="width:100%;padding:0.7rem 0.9rem;border:1.5px solid #E5E7EB;border-radius:0.6rem;font-family:inherit;font-size:0.92rem;resize:vertical;"></textarea>
                 <div id="devRwDrop" style="margin-top:0.7rem;border:2px dashed #C4B5FD;border-radius:0.7rem;padding:1rem;text-align:center;cursor:pointer;background:#FAF8FF;transition:background .15s,border-color .15s;">
-                    <div style="font-size:1.4rem;line-height:1;">🖼️</div>
-                    <div style="font-size:0.88rem;color:#6D28D9;margin-top:0.3rem;"><b>Перетащите фото сюда</b> или нажмите</div>
-                    <input id="devRwFiles" type="file" accept="image/*" multiple style="display:none;">
+                    <div style="font-size:1.4rem;line-height:1;">📎</div>
+                    <div style="font-size:0.88rem;color:#6D28D9;margin-top:0.3rem;"><b>Перетащите фото или документы сюда</b> или нажмите</div>
+                    <input id="devRwFiles" type="file" accept="image/*,.pdf,.doc,.docx,.txt,.rtf" multiple style="display:none;">
                 </div>
                 <div id="devRwPrev" style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-top:0.6rem;"></div>
                 <div style="display:flex;gap:0.5rem;justify-content:flex-end;margin-top:1rem;align-items:center;">
