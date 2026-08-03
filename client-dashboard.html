@@ -10,27 +10,47 @@
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+        :root {
+            --d-bg: #F4F0FF; --d-panel: #FFFFFF; --d-panel-alt: #FAFAFA;
+            --d-border: #F0ECF8; --d-border-light: #F0F0F0; --d-border-accent: #EDE9FF;
+            --d-text: #1A1A1A; --d-text-sec: #6B7280; --d-text-muted: #9CA3AF; --d-text-dark: #374151;
+            --d-accent: #7C3AED; --d-accent-bg: #F3E8FF; --d-accent-hover: #FAF5FF;
+            --d-green-bg: #F0FDF4; --d-green: #16A34A; --d-red-bg: #FFF1F2; --d-red: #BE123C;
+            --d-shadow: rgba(124,58,237,0.1); --d-shadow-hover: rgba(124,58,237,0.12);
+        }
+        body.dark {
+            --d-bg: #191919; --d-panel: #252525; --d-panel-alt: #2A2A2A;
+            --d-border: #333; --d-border-light: #333; --d-border-accent: #37254A;
+            --d-text: #E6E6E6; --d-text-sec: #A0A0A0; --d-text-muted: #707070; --d-text-dark: #C0C0C0;
+            --d-accent: #B794F4; --d-accent-bg: #2D1F4E; --d-accent-hover: #37254A;
+            --d-green-bg: #1A2E1A; --d-green: #4ADE80; --d-red-bg: #2E1A1A; --d-red: #F87171;
+            --d-shadow: rgba(0,0,0,0.2); --d-shadow-hover: rgba(0,0,0,0.3);
+        }
         *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
         body {
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-            background: #F4F0FF;
-            min-height: 100vh;
-            padding: 0;
-            padding-top: 84px;
+            background: var(--d-bg); color: var(--d-text);
+            min-height: 100vh; padding: 0; padding-top: 84px;
+            transition: background 0.2s, color 0.2s;
         }
+        body.dark .nav { background: #1E1E1E !important; border-color: #333 !important; }
+        body.dark .nav-brand span:first-child { color: #E6E6E6 !important; }
+        body.dark .nav a.nav-link { color: #A0A0A0 !important; }
+        body.dark .nav a.nav-link:hover { color: #E6E6E6 !important; }
 
         .container { max-width: 1200px; margin: 0 auto; padding: 2rem; }
 
         .header {
-            background: white; border-radius: 1.25rem; padding: 1.75rem 2rem;
+            background: var(--d-panel); border-radius: 1.25rem; padding: 1.75rem 2rem;
             margin-bottom: 1.75rem;
-            box-shadow: 0 4px 20px rgba(124,58,237,0.1);
-            border: 1px solid #EDE9FF;
+            box-shadow: 0 4px 20px var(--d-shadow);
+            border: 1px solid var(--d-border-accent);
             display: flex; justify-content: space-between; align-items: center;
+            transition: background 0.2s, border-color 0.2s;
         }
-        .header-left h1 { color: #1A1A1A; font-size: 1.75rem; margin-bottom: 0.25rem; letter-spacing: -0.02em; }
-        .header-left p { color: #6B7280; font-size: 0.9375rem; }
+        .header-left h1 { color: var(--d-text); font-size: 1.75rem; margin-bottom: 0.25rem; letter-spacing: -0.02em; }
+        .header-left p { color: var(--d-text-sec); font-size: 0.9375rem; }
 
         .user-info { display: flex; align-items: center; gap: 0.875rem; }
         .user-avatar {
@@ -45,17 +65,17 @@
         .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem; }
 
         .card {
-            background: white; border-radius: 1.25rem; padding: 1.75rem;
+            background: var(--d-panel); border-radius: 1.25rem; padding: 1.75rem;
             box-shadow: 0 2px 12px rgba(0,0,0,0.06);
-            border: 1px solid #F0ECF8;
-            transition: box-shadow 0.2s, transform 0.2s;
+            border: 1px solid var(--d-border);
+            transition: box-shadow 0.2s, transform 0.2s, background 0.2s, border-color 0.2s;
         }
-        .card:hover { box-shadow: 0 8px 30px rgba(124,58,237,0.12); transform: translateY(-2px); }
+        .card:hover { box-shadow: 0 8px 30px var(--d-shadow-hover); transform: translateY(-2px); }
         .card h2 {
-            color: #7C3AED; margin-bottom: 1rem; font-size: 1.125rem;
+            color: var(--d-accent); margin-bottom: 1rem; font-size: 1.125rem;
             display: flex; align-items: center; gap: 0.5rem;
         }
-        .card p { color: #6B7280; line-height: 1.6; }
+        .card p { color: var(--d-text-sec); line-height: 1.6; }
 
         .btn {
             display: inline-flex; align-items: center; gap: 0.5rem;
@@ -70,42 +90,48 @@
 
         .appointments-list { margin-top: 1rem; }
         .appointment-item {
-            background: #FAFAFA; padding: 1rem; border-radius: 0.875rem;
+            background: var(--d-panel-alt); padding: 1rem; border-radius: 0.875rem;
             margin-bottom: 0.625rem; display: flex; flex-wrap: wrap;
             justify-content: space-between; align-items: center; gap: 0.75rem;
-            border: 1px solid #F0F0F0; transition: border-color 0.2s;
+            border: 1px solid var(--d-border-light); transition: border-color 0.2s, background 0.2s;
         }
-        .appointment-item:hover { border-color: #EDE9FF; }
+        .appointment-item:hover { border-color: var(--d-border-accent); }
         .appointment-info { flex: 1; min-width: 120px; word-break: break-word; }
-        .appointment-psychologist { font-weight: 600; color: #1A1A1A; margin-bottom: 0.2rem; font-size: 0.9375rem; }
-        .appointment-datetime { font-size: 0.8125rem; color: #6B7280; }
+        .appointment-psychologist { font-weight: 600; color: var(--d-text); margin-bottom: 0.2rem; font-size: 0.9375rem; }
+        .appointment-datetime { font-size: 0.8125rem; color: var(--d-text-sec); }
         .appointment-status { padding: 0.2rem 0.75rem; border-radius: 2rem; font-size: 0.75rem; font-weight: 600; }
-        .status-scheduled { background: #F3E8FF; color: #7C3AED; }
-        .status-completed { background: #F0FDF4; color: #16A34A; }
-        .status-cancelled { background: #FFF1F2; color: #BE123C; }
-        .appointment-actions { display: flex; gap: 0.5rem; }
+        .status-scheduled { background: var(--d-accent-bg); color: var(--d-accent); }
+        .status-completed { background: var(--d-green-bg); color: var(--d-green); }
+        .status-cancelled { background: var(--d-red-bg); color: var(--d-red); }
+        .appointment-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
         .btn-small { padding: 0.4rem 0.875rem; font-size: 0.8125rem; }
         .btn-danger { background: linear-gradient(135deg, #ef4444, #dc2626); box-shadow: none; }
         .btn-outline {
-            background: white; border: 1.5px solid #E2E8F0; color: #374151;
+            background: var(--d-panel); border: 1.5px solid var(--d-border); color: var(--d-text-dark);
             box-shadow: none;
         }
-        .btn-outline:hover { border-color: #7C3AED; color: #7C3AED; background: #FAF5FF; }
-        .empty-state { text-align: center; padding: 2rem; color: #9CA3AF; }
-        .loading { text-align: center; color: #9CA3AF; padding: 1rem; }
+        .btn-outline:hover { border-color: var(--d-accent); color: var(--d-accent); background: var(--d-accent-hover); }
+        .empty-state { text-align: center; padding: 2rem; color: var(--d-text-muted); }
+        .loading { text-align: center; color: var(--d-text-muted); padding: 1rem; }
+        .theme-toggle { background: var(--d-panel); border: 1.5px solid var(--d-border); color: var(--d-text-sec); padding: 0.4rem 0.7rem; border-radius: 0.5rem; cursor: pointer; font-size: 0.85rem; font-family: inherit; transition: all 0.15s; }
+        .theme-toggle:hover { border-color: var(--d-accent); color: var(--d-accent); }
+        body.dark input, body.dark textarea, body.dark select { background: var(--d-panel-alt) !important; border-color: var(--d-border) !important; color: var(--d-text) !important; }
+        body.dark #replaceModal > div > div { background: var(--d-panel) !important; color: var(--d-text) !important; }
     </style>
+    <script>(function(){ if (localStorage.getItem('psy-theme') === 'dark' || (!localStorage.getItem('psy-theme') && window.matchMedia('(prefers-color-scheme:dark)').matches)) document.documentElement.style.colorScheme = 'dark'; })();</script>
 </head>
 
 <body>
+    <script>(function(){ var t = localStorage.getItem('psy-theme'); if (t === 'dark' || (!t && window.matchMedia('(prefers-color-scheme:dark)').matches)) document.body.classList.add('dark'); })();</script>
     <script>psyWriteHeader();</script>
     <div class="container">
-        <!-- Dashboard Content -->
         <div class="header">
             <div class="header-left">
                 <h1>Личный кабинет</h1>
                 <p>Управление записями и профилем</p>
             </div>
             <div class="user-info">
+                <button class="theme-toggle" onclick="toggleDashTheme()" id="themeBtn" title="Сменить тему">🌙</button>
                 <a href="/edit-profile.html" class="btn btn-outline btn-small" title="Настройки профиля">⚙ Профиль</a>
                 <button class="btn btn-outline btn-small" onclick="psyLogout()" title="Выйти из аккаунта">Выйти →</button>
                 <span id="userName" style="font-weight: 600;">Загрузка...</span>
@@ -142,7 +168,7 @@
 
         <!-- Replacement request modal -->
         <div id="replaceModal" style="display:none;position:fixed;inset:0;background:rgba(26,26,46,0.55);z-index:2000;align-items:center;justify-content:center;padding:1rem;">
-            <div style="background:#fff;border-radius:1.25rem;max-width:440px;width:100%;padding:2rem;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+            <div style="background:var(--d-panel);border-radius:1.25rem;max-width:440px;width:100%;padding:2rem;box-shadow:0 20px 60px rgba(0,0,0,0.3);color:var(--d-text);">
                 <div style="text-align:center;margin-bottom:1.1rem;">
                     <div style="width:60px;height:60px;border-radius:50%;background:linear-gradient(135deg,#7C3AED,#9F67FA);display:flex;align-items:center;justify-content:center;margin:0 auto 0.7rem;font-size:1.8rem;">🔄</div>
                     <h3 style="font-size:1.2rem;color:#1A1A1A;margin-bottom:0.25rem;">Заменить психолога</h3>
@@ -437,6 +463,15 @@
                 }
             }
             window.submitReplace = submitReplace;
+
+            function toggleDashTheme(){
+                document.body.classList.toggle('dark');
+                const isDark = document.body.classList.contains('dark');
+                localStorage.setItem('psy-theme', isDark ? 'dark' : 'light');
+                const btn = document.getElementById('themeBtn');
+                if (btn) btn.textContent = isDark ? '☀️' : '🌙';
+            }
+            (function(){ const btn = document.getElementById('themeBtn'); if (btn) btn.textContent = document.body.classList.contains('dark') ? '☀️' : '🌙'; })();
 
             init();
         </script>

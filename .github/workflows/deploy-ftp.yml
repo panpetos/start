@@ -24,6 +24,7 @@ jobs:
             open sftp://u3105470:a9Y3yfN5Im4It0bF@31.31.197.13;
             cd /var/www/u3105470/data/www/psytalk.pro;
             mkdir -f assets;
+            put assets/favicon.svg -o assets/favicon.svg;
             put assets/quiz-hero.jpg -o assets/quiz-hero.jpg;
             put assets/session.mp4 -o assets/session.mp4;
             put assets/session-poster.jpg -o assets/session-poster.jpg;
@@ -70,6 +71,8 @@ jobs:
             put api/robokassa-success.php -o api/robokassa-success.php;
             put api/robokassa-fail.php -o api/robokassa-fail.php;
             put api/robokassa_config.sample.php -o api/robokassa_config.sample.php;
+            put api/yookassa.php -o api/yookassa.php;
+            put api/yookassa_config.sample.php -o api/yookassa_config.sample.php;
             put api/dev_tasks.php -o api/dev_tasks.php;
             put api/orders.php -o api/orders.php;
             put api/replace.php -o api/replace.php;

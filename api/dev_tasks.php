@@ -141,6 +141,23 @@ if ($action === 'upload') {
     out(['ok' => true, 'url' => '/uploads/dev_tasks/' . $name]);
 }
 
+if ($action === 'update') {
+    if (!$isAdmin) out(['error' => 'Только для администратора'], 403);
+    $id = $body['id'] ?? null;
+    if (!$id) out(['error' => 'Нужен id'], 400);
+    $fields = []; $params = [];
+    if (array_key_exists('title', $body)) { $fields[] = 'title=?'; $params[] = trim((string)$body['title']); }
+    if (array_key_exists('body', $body)) { $fields[] = 'body=?'; $params[] = trim((string)$body['body']); }
+    if (!$fields) out(['ok' => true]);
+    $fields[] = 'updated_at=NOW()';
+    $params[] = $id;
+    try {
+        $st = $pdo->prepare("UPDATE dev_tasks SET " . implode(', ', $fields) . " WHERE id=?");
+        $st->execute($params);
+        out(['ok' => true]);
+    } catch (Exception $e) { out(['error' => 'Не удалось обновить'], 500); }
+}
+
 if ($action === 'set-status') {
     if (!$isAdmin) out(['error' => 'Только для администратора'], 403);
     $id = $body['id'] ?? null;

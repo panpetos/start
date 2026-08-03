@@ -352,7 +352,17 @@
     }).catch(function () { /* оставляем статическое значение */ });
   }
 
+  function injectFavicon() {
+    if (document.querySelector('link[rel*="icon"]')) return;
+    var link = document.createElement('link');
+    link.rel = 'icon';
+    link.type = 'image/svg+xml';
+    link.href = '/assets/favicon.svg';
+    document.head.appendChild(link);
+  }
+
   function onReady() {
+    injectFavicon();
     fillPlaceholders();
     fillDynamicPrices();
     wireBurger();

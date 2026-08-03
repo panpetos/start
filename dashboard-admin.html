@@ -81,9 +81,8 @@
 
         /* ── Sidebar ─────────────────────────────────────────────── */
         .sidebar { width: 260px; background: var(--a-sidebar); border-right: 1px solid var(--a-sidebar-border); display: flex; flex-direction: column; position: sticky; top: 84px; height: calc(100vh - 84px); flex-shrink: 0; transition: background 0.2s, border-color 0.2s; z-index: 10; }
-        .sidebar-header { padding: 1.25rem 1rem 0.75rem; border-bottom: 1px solid var(--a-sidebar-border); }
-        .sidebar-brand { font-size: 1.15rem; font-weight: 700; letter-spacing: -0.02em; }
-        .sidebar-sub { font-size: 0.78rem; color: var(--a-text-muted); margin-top: 0.15rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .sidebar-header { padding: 0.6rem 1rem 0.55rem; border-bottom: 1px solid var(--a-sidebar-border); }
+        .sidebar-sub { font-size: 0.78rem; color: var(--a-text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .sidebar-nav { flex: 1; padding: 0.5rem 0; overflow-y: auto; }
         .sidebar-group { padding: 0.6rem 0 0.15rem; }
         .sidebar-group-label { padding: 0.25rem 1rem 0.35rem; font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--a-sidebar-group); user-select: none; }
@@ -183,6 +182,14 @@
         .note-card-delete:hover { background: #FEF2F2; color: #DC2626; }
         body.dark .note-card-delete:hover { background: #3A2020; color: #F87171; }
 
+        /* ── Archive details/summary ────────────────────────────── */
+        details { border: 1px solid var(--a-panel-border); border-radius: 0.7rem; overflow: hidden; background: var(--a-panel); transition: background 0.2s, border-color 0.2s; }
+        details summary { padding: 0.7rem 1rem; cursor: pointer; font-size: 0.88rem; color: var(--a-text-sec); font-weight: 500; user-select: none; list-style: none; display: flex; align-items: center; gap: 0.4rem; }
+        details summary::before { content: '▸'; font-size: 0.8rem; transition: transform 0.15s; }
+        details[open] summary::before { transform: rotate(90deg); }
+        details summary::-webkit-details-marker { display: none; }
+        details > div { padding: 0 0.75rem 0.75rem; }
+
         /* ── Dark mode deep overrides ────────────────────────────── */
         body.dark input, body.dark textarea, body.dark select { background: var(--a-input-bg) !important; border-color: var(--a-input-border) !important; color: var(--a-text) !important; }
         body.dark input::placeholder, body.dark textarea::placeholder { color: var(--a-text-muted) !important; }
@@ -197,14 +204,19 @@
     </style>
     <script>
         (function(){
-            var t = localStorage.getItem('admin-theme');
-            if (t === 'dark') document.documentElement.style.colorScheme = 'dark';
+            var t = localStorage.getItem('admin-theme') || 'light';
+            var dark = t === 'dark' || (t === 'system' && window.matchMedia('(prefers-color-scheme:dark)').matches);
+            if (dark) document.documentElement.style.colorScheme = 'dark';
         })();
     </script>
 </head>
 <body>
     <script>
-        (function(){ if (localStorage.getItem('admin-theme') === 'dark') document.body.classList.add('dark'); })();
+        (function(){
+            var t = localStorage.getItem('admin-theme') || 'light';
+            var dark = t === 'dark' || (t === 'system' && window.matchMedia('(prefers-color-scheme:dark)').matches);
+            if (dark) document.body.classList.add('dark');
+        })();
     </script>
     <script>psyWriteHeader();</script>
 
@@ -214,9 +226,6 @@
     <div class="admin-layout">
         <aside class="sidebar" id="sidebar">
             <div class="sidebar-header">
-                <div class="sidebar-brand">
-                    <span>psy</span><span style="color:#7C3AED;font-style:italic;">talk.pro</span>
-                </div>
                 <div class="sidebar-sub" id="adminWho">Загрузка...</div>
             </div>
             <nav class="sidebar-nav">
@@ -260,6 +269,9 @@
                     </button>
                     <button class="sidebar-item" data-tab="robokassa" onclick="switchTab('robokassa')">
                         <span class="sidebar-item-icon">💰</span> Робокасса
+                    </button>
+                    <button class="sidebar-item" data-tab="yookassa" onclick="switchTab('yookassa')">
+                        <span class="sidebar-item-icon">🟣</span> ЮKassa
                     </button>
                 </div>
 
@@ -334,20 +346,31 @@
         }
         window.psyLogout = psyLogout;
 
-        // ── Theme ───────────────────────────────────────────────────────────
+        // ── Theme (light / dark / system) ──────────────────────────────────
+        const THEME_CYCLE = ['light', 'dark', 'system'];
+        const THEME_LABELS = { light: 'Тёмная тема', dark: 'Системная тема', system: 'Светлая тема' };
+        const THEME_ICONS  = { light: '🌙', dark: '💻', system: '☀️' };
+        function getAdminTheme(){ return localStorage.getItem('admin-theme') || 'light'; }
+        function applyAdminTheme(t){
+            const prefersDark = window.matchMedia('(prefers-color-scheme:dark)').matches;
+            const dark = t === 'dark' || (t === 'system' && prefersDark);
+            document.body.classList.toggle('dark', dark);
+        }
         function toggleTheme(){
-            document.body.classList.toggle('dark');
-            const isDark = document.body.classList.contains('dark');
-            localStorage.setItem('admin-theme', isDark ? 'dark' : 'light');
+            const cur = getAdminTheme();
+            const next = THEME_CYCLE[(THEME_CYCLE.indexOf(cur) + 1) % THEME_CYCLE.length];
+            localStorage.setItem('admin-theme', next);
+            applyAdminTheme(next);
             updateThemeUI();
         }
         function updateThemeUI(){
-            const isDark = document.body.classList.contains('dark');
+            const t = getAdminTheme();
             const icon = document.getElementById('themeIcon');
             const label = document.getElementById('themeLabel');
-            if (icon) icon.textContent = isDark ? '☀️' : '🌙';
-            if (label) label.textContent = isDark ? 'Светлая тема' : 'Тёмная тема';
+            if (icon) icon.textContent = THEME_ICONS[t] || '🌙';
+            if (label) label.textContent = THEME_LABELS[t] || 'Тёмная тема';
         }
+        try { window.matchMedia('(prefers-color-scheme:dark)').addEventListener('change', () => { if (getAdminTheme() === 'system') applyAdminTheme('system'); }); } catch(e){}
         updateThemeUI();
 
         // ── Mobile sidebar ──────────────────────────────────────────────────
@@ -377,7 +400,7 @@
             // Close mobile sidebar
             document.getElementById('sidebar').classList.remove('open');
             document.getElementById('sidebarOverlay').classList.remove('open');
-            ({ overview:renderOverview, support:renderSupport, users:renderUsers, psychologists:renderPsych, tariffs:renderTariffs, robokassa:renderRobokassa, devtasks:renderDevTasks, appointments:renderAppointments, replacements:renderReplacements, supervision:renderSupervision, calls:renderCalls, payments:renderPayments, subscribers:renderSubscribers, referrals:renderReferrals, activity:renderActivity, notes:renderNotes }[tab])();
+            ({ overview:renderOverview, support:renderSupport, users:renderUsers, psychologists:renderPsych, tariffs:renderTariffs, robokassa:renderRobokassa, yookassa:renderYookassa, devtasks:renderDevTasks, appointments:renderAppointments, replacements:renderReplacements, supervision:renderSupervision, calls:renderCalls, payments:renderPayments, subscribers:renderSubscribers, referrals:renderReferrals, activity:renderActivity, notes:renderNotes }[tab])();
         }
 
         // ── Overview ────────────────────────────────────────────────────────
@@ -882,7 +905,7 @@
                     <div id="devDrop" style="margin-top:0.7rem;border:2px dashed var(--a-drop-border);border-radius:0.7rem;padding:1.1rem;text-align:center;cursor:pointer;background:var(--a-drop-bg);transition:background .15s,border-color .15s;">
                         <div style="font-size:1.6rem;line-height:1;">📎</div>
                         <div style="font-size:0.9rem;color:#6D28D9;margin-top:0.3rem;"><b>Перетащите фото или документы сюда</b> или нажмите, чтобы выбрать</div>
-                        <div class="muted" style="font-size:0.76rem;margin-top:0.2rem;">Изображения, PDF, DOC/DOCX, TXT — до 20 МБ каждый. Клод увидит их при выполнении задачи.</div>
+                        <div class="muted" style="font-size:0.76rem;margin-top:0.2rem;">Изображения, PDF, DOC/DOCX, TXT — до 20 МБ. Можно вставить из буфера обмена (Ctrl+V).</div>
                         <input id="devFiles" type="file" accept="image/*,.pdf,.doc,.docx,.txt,.rtf" multiple style="display:none;">
                     </div>
                     <div id="devFilePrev" style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-top:0.6rem;"></div>
@@ -914,6 +937,18 @@
             ['dragenter','dragover'].forEach(ev => zone.addEventListener(ev, e => { e.preventDefault(); zone.style.background = 'var(--a-sidebar-active-bg)'; zone.style.borderColor = '#7C3AED'; }));
             ['dragleave','drop'].forEach(ev => zone.addEventListener(ev, e => { e.preventDefault(); zone.style.background = 'var(--a-drop-bg)'; zone.style.borderColor = 'var(--a-drop-border)'; }));
             zone.addEventListener('drop', e => { devAddFiles([...((e.dataTransfer && e.dataTransfer.files) || [])], kind); });
+            const container = zone.closest('.panel') || zone.closest('[style*="background:var(--a-panel)"]') || zone.parentElement;
+            if (container) {
+                container.addEventListener('paste', e => {
+                    const items = e.clipboardData && e.clipboardData.items;
+                    if (!items) return;
+                    const files = [];
+                    for (let i = 0; i < items.length; i++) {
+                        if (items[i].kind === 'file') { const f = items[i].getAsFile(); if (f) files.push(f); }
+                    }
+                    if (files.length) { e.preventDefault(); devAddFiles(files, kind); }
+                });
+            }
         }
         function devFileAllowed(f){
             if (!f) return false;
@@ -972,19 +1007,37 @@
         async function devSet(id, status){ const r = await apiPostTo(DEV_API,'set-status',{id,status}); if(r.ok) devRefresh(); else alert(r.error||'Ошибка'); }
         function devOpenRework(id){
             devReworkFiles = [];
+            let taskTitle = '', taskBody = '';
+            try {
+                const panels = document.querySelectorAll('#devTaskList .panel');
+                for (const p of panels) {
+                    if (p.querySelector(`button[onclick*="devOpenRework(${id})"]`)) {
+                        const b = p.querySelector('b'); if (b) taskTitle = b.textContent;
+                        const pre = p.querySelector('div[style*="pre-wrap"]'); if (pre) taskBody = pre.textContent;
+                        break;
+                    }
+                }
+            } catch(e){}
             const ov = document.createElement('div');
             ov.id = 'devModal';
             ov.style.cssText = 'position:fixed;inset:0;background:rgba(17,24,39,0.5);display:flex;align-items:center;justify-content:center;z-index:9999;padding:1rem;';
-            ov.innerHTML = `<div style="background:var(--a-panel);border-radius:0.9rem;max-width:520px;width:100%;max-height:90vh;overflow:auto;padding:1.3rem;box-shadow:0 20px 60px rgba(0,0,0,0.3);color:var(--a-text);">
+            ov.innerHTML = `<div style="background:var(--a-panel);border-radius:0.9rem;max-width:560px;width:100%;max-height:90vh;overflow:auto;padding:1.3rem;box-shadow:0 20px 60px rgba(0,0,0,0.3);color:var(--a-text);">
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.7rem;">
                     <h2 style="font-size:1.05rem;margin:0;">↩ Отправить на доработку</h2>
                     <button onclick="devCloseModal()" style="border:none;background:none;font-size:1.5rem;cursor:pointer;color:var(--a-text-muted);line-height:1;">×</button>
                 </div>
-                <p class="muted" style="font-size:0.85rem;margin-bottom:0.6rem;">Опишите, что не так и что нужно поправить. Можно приложить скрины или документы — Клод их увидит при доработке.</p>
-                <textarea id="devRwText" rows="5" placeholder="Что доработать..." style="width:100%;padding:0.7rem 0.9rem;border:1.5px solid var(--a-input-border);border-radius:0.6rem;font-family:inherit;font-size:0.92rem;resize:vertical;background:var(--a-input-bg);color:var(--a-text);"></textarea>
+                <details style="margin-bottom:0.7rem;border:1px solid var(--a-input-border);border-radius:0.6rem;background:var(--a-input-bg);">
+                    <summary style="padding:0.55rem 0.8rem;font-size:0.85rem;cursor:pointer;color:var(--a-text-sec);font-weight:500;">✏️ Редактировать задачу</summary>
+                    <div style="padding:0 0.8rem 0.7rem;">
+                        <input id="devRwTitle" value="${esc(taskTitle)}" placeholder="Заголовок задачи" style="width:100%;padding:0.5rem 0.7rem;border:1.5px solid var(--a-input-border);border-radius:0.5rem;font-family:inherit;font-size:0.9rem;margin-bottom:0.4rem;background:var(--a-input-bg);color:var(--a-text);">
+                        <textarea id="devRwBody" rows="4" placeholder="Описание задачи..." style="width:100%;padding:0.5rem 0.7rem;border:1.5px solid var(--a-input-border);border-radius:0.5rem;font-family:inherit;font-size:0.88rem;resize:vertical;background:var(--a-input-bg);color:var(--a-text);">${esc(taskBody)}</textarea>
+                    </div>
+                </details>
+                <p class="muted" style="font-size:0.85rem;margin-bottom:0.6rem;">Опишите, что не так и что нужно поправить. Можно вставить скрины из буфера (Ctrl+V).</p>
+                <textarea id="devRwText" rows="4" placeholder="Что доработать..." style="width:100%;padding:0.7rem 0.9rem;border:1.5px solid var(--a-input-border);border-radius:0.6rem;font-family:inherit;font-size:0.92rem;resize:vertical;background:var(--a-input-bg);color:var(--a-text);"></textarea>
                 <div id="devRwDrop" style="margin-top:0.7rem;border:2px dashed var(--a-drop-border);border-radius:0.7rem;padding:1rem;text-align:center;cursor:pointer;background:var(--a-drop-bg);transition:background .15s,border-color .15s;">
                     <div style="font-size:1.4rem;line-height:1;">📎</div>
-                    <div style="font-size:0.88rem;color:#6D28D9;margin-top:0.3rem;"><b>Перетащите фото или документы сюда</b> или нажмите</div>
+                    <div style="font-size:0.88rem;color:#6D28D9;margin-top:0.3rem;"><b>Перетащите фото сюда</b>, нажмите или вставьте из буфера (Ctrl+V)</div>
                     <input id="devRwFiles" type="file" accept="image/*,.pdf,.doc,.docx,.txt,.rtf" multiple style="display:none;">
                 </div>
                 <div id="devRwPrev" style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-top:0.6rem;"></div>
@@ -1004,6 +1057,16 @@
             const msg = document.getElementById('devRwMsg');
             if (!text){ msg.textContent = 'Напишите, что доработать'; msg.style.color = '#DC2626'; return; }
             btn.disabled = true;
+            const editedTitle = document.getElementById('devRwTitle');
+            const editedBody = document.getElementById('devRwBody');
+            if (editedTitle || editedBody) {
+                const t = editedTitle ? editedTitle.value.trim() : '';
+                const b = editedBody ? editedBody.value.trim() : '';
+                if (t || b) {
+                    const upd = {}; if (t) upd.title = t; if (b) upd.body = b;
+                    await apiPostTo(DEV_API, 'update', { id, ...upd });
+                }
+            }
             const admin_attachments = await devUpload(devReworkFiles, msg);
             if (admin_attachments === null){ btn.disabled = false; return; }
             const r = await apiPostTo(DEV_API, 'set-status', { id, status:'rework', admin_comment:text, admin_attachments });
@@ -1068,6 +1131,53 @@
                 const d = await r.json();
                 btn.disabled = false;
                 if (d.ok) { msg.textContent = '✅ Сохранено. Обновляю статус...'; msg.style.color = '#16A34A'; setTimeout(renderRobokassa, 800); }
+                else { msg.textContent = '⚠️ ' + (d.error || 'Не удалось сохранить'); msg.style.color = '#DC2626'; }
+            } catch(e){ btn.disabled = false; msg.textContent = '⚠️ Ошибка сети'; msg.style.color = '#DC2626'; }
+        }
+
+        // ── YooKassa ────────────────────────────────────────────────────────
+        async function renderYookassa(){
+            let diag = {};
+            try { diag = await (await fetch('/api/yookassa.php?action=diag', { credentials:'include' })).json(); } catch(e){}
+            const yn = (v) => v ? '<span class="badge b-green">задан</span>' : '<span class="badge b-red">пусто</span>';
+            const status = `
+                <div class="stats-grid" style="margin-bottom:1rem;">
+                    <div class="stat"><div class="v" style="font-size:1rem;">${diag.config_is_array ? '✅' : '⚠️'}</div><div class="l">Файл конфигурации ${diag.config_file_present ? 'есть' : 'отсутствует'}${diag.config_is_array ? '' : ' (некорректен)'}</div></div>
+                    <div class="stat"><div class="v" style="font-size:1rem;">${diag.is_test ? 'ТЕСТ' : 'БОЕВОЙ'}</div><div class="l">Режим</div></div>
+                    <div class="stat"><div class="v" style="font-size:1rem;">${diag.active_configured ? '✅ готово' : '— не готово'}</div><div class="l">Приём платежей</div></div>
+                </div>
+                <table style="font-size:0.85rem;margin-bottom:1rem;"><tbody>
+                    <tr><td>Shop ID</td><td><b>${esc(diag.shop_id||'—')}</b></td></tr>
+                    <tr><td>Secret Key</td><td>${yn(diag.secret_key_set)}</td></tr>
+                    <tr><td>Return URL</td><td>${esc(diag.return_url||'—')}</td></tr>
+                </tbody></table>`;
+            const fld = (id,label,type,ph) => `<label style="display:block;margin-bottom:0.7rem;"><span style="display:block;font-size:0.82rem;color:var(--a-text-sec);margin-bottom:0.25rem;font-weight:600;">${label}</span><input id="${id}" type="${type}" placeholder="${ph||''}" autocomplete="off" style="width:100%;max-width:420px;padding:0.55rem 0.7rem;border:1.5px solid var(--a-input-border);border-radius:0.6rem;font-family:inherit;font-size:0.9rem;background:var(--a-input-bg);color:var(--a-text);"></label>`;
+            document.getElementById('content').innerHTML =
+                '<div class="note">🔐 Ключи ЮKassa хранятся в файле <b>api/yookassa_config.php</b> на сервере (не в git). Пустое поле = «не менять». После сохранения проверьте статус «Приём платежей: готово».</div>' +
+                '<div class="panel"><div class="panel-head"><h2>Ключи и режим ЮKassa</h2><button class="btn-sm btn-outline" onclick="renderYookassa()">↻ Обновить статус</button></div>' +
+                '<div style="padding:1.25rem;">' + status +
+                    fld('ykShopId','Shop ID (идентификатор магазина)','text','000000') +
+                    fld('ykSecretKey','Secret Key (секретный ключ)','password','оставьте пустым — не менять') +
+                    `<label style="display:block;margin-bottom:0.7rem;"><span style="display:block;font-size:0.82rem;color:var(--a-text-sec);margin-bottom:0.25rem;font-weight:600;">Режим</span>
+                     <select id="ykIsTest" style="padding:0.55rem 0.7rem;border:1.5px solid var(--a-input-border);border-radius:0.6rem;font-family:inherit;background:var(--a-input-bg);color:var(--a-text);"><option value="1"${diag.is_test!==false?' selected':''}>ТЕСТ</option><option value="0"${diag.is_test===false?' selected':''}>БОЕВОЙ</option></select></label>` +
+                    fld('ykReturnUrl','Return URL (после оплаты)','text',diag.return_url||'https://psytalk.pro/payment-success.html') +
+                    '<button class="btn-sm btn-purple" style="padding:0.7rem 1.6rem;" onclick="saveYookassa(this)">💾 Сохранить ключи</button> <span id="ykMsg" style="font-size:0.88rem;margin-left:0.5rem;"></span>' +
+                '</div></div>';
+        }
+        async function saveYookassa(btn){
+            const payload = {
+                shop_id: document.getElementById('ykShopId').value.trim(),
+                secret_key: document.getElementById('ykSecretKey').value,
+                is_test: document.getElementById('ykIsTest').value === '1',
+                return_url: document.getElementById('ykReturnUrl').value.trim()
+            };
+            const msg = document.getElementById('ykMsg');
+            btn.disabled = true; msg.textContent = 'Сохраняем...'; msg.style.color = 'var(--a-text-sec)';
+            try {
+                const r = await fetch('/api/yookassa.php?action=save-config', { method:'POST', headers:{'Content-Type':'application/json'}, credentials:'include', body: JSON.stringify(payload) });
+                const d = await r.json();
+                btn.disabled = false;
+                if (d.ok) { msg.textContent = '✅ Сохранено. Обновляю статус...'; msg.style.color = '#16A34A'; setTimeout(renderYookassa, 800); }
                 else { msg.textContent = '⚠️ ' + (d.error || 'Не удалось сохранить'); msg.style.color = '#DC2626'; }
             } catch(e){ btn.disabled = false; msg.textContent = '⚠️ Ошибка сети'; msg.style.color = '#DC2626'; }
         }
