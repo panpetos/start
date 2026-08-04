@@ -452,7 +452,8 @@
                     const btn = frozen
                         ? `<button class="btn-sm btn-outline" onclick="toggleFrozen('${esc(u.id)}',0)">Разморозить</button>`
                         : `<button class="btn-sm btn-red" onclick="toggleFrozen('${esc(u.id)}',1)">Заморозить</button>`;
-                    return `<tr><td>${esc(name)}</td><td>${esc(u.email||'—')}</td><td>${role}</td><td>${status}</td><td class="muted">${fmtDateTime(u.created_at)}</td><td>${u.role!=='admin'?btn:''}</td></tr>`;
+                    const del = `<button class="btn-sm btn-red" style="margin-left:0.3rem;" onclick="deleteUser('${esc(u.id)}','${esc(u.email||'')}')" title="Полностью удалить аккаунт">🗑 Удалить</button>`;
+                    return `<tr><td>${esc(name)}</td><td>${esc(u.email||'—')}</td><td>${role}</td><td>${status}</td><td class="muted">${fmtDateTime(u.created_at)}</td><td style="white-space:nowrap;">${u.role!=='admin'?(btn+del):''}</td></tr>`;
                 }).join('') + '</tbody></table>';
             document.getElementById('content').innerHTML = panel('Пользователи ('+rows.length+')','sUsers',body);
         }
@@ -460,6 +461,13 @@
         async function toggleFrozen(id, frozen){
             const res = await apiPost('set-frozen', { user_id:id, frozen });
             if (res.error) return alert(res.error);
+            renderUsers();
+        }
+        async function deleteUser(id, email){
+            if (!confirm('Полностью удалить аккаунт '+(email||id)+'?\n\nБудут удалены сам пользователь, его профиль психолога (если есть), записи и оплаты. Действие необратимо — email освободится для повторной регистрации.')) return;
+            const res = await apiPost('delete-user', { user_id:id });
+            if (res.error) return alert('Не удалось: '+res.error);
+            alert('Аккаунт '+(res.deleted_email||email)+' удалён. Можно регистрироваться заново.');
             renderUsers();
         }
 

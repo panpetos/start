@@ -412,6 +412,55 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
     }
 
+    if ($action === 'delete-user') {
+        $email = trim((string)($body['email'] ?? ''));
+        $uidReq = $body['user_id'] ?? null;
+        if ($email === '' && !$uidReq) { http_response_code(400); echo json_encode(['error' => 'Нужен email или user_id']); exit; }
+        // Найти пользователя
+        try {
+            if ($uidReq) { $st = $pdo->prepare("SELECT id, email, role FROM users WHERE id = ? LIMIT 1"); $st->execute([$uidReq]); }
+            else { $st = $pdo->prepare("SELECT id, email, role FROM users WHERE LOWER(email) = LOWER(?) LIMIT 1"); $st->execute([$email]); }
+            $u = $st->fetch(PDO::FETCH_ASSOC);
+        } catch (Exception $e) { http_response_code(500); echo json_encode(['error' => 'Ошибка поиска пользователя']); exit; }
+        if (!$u) { http_response_code(404); echo json_encode(['error' => 'Пользователь с таким email не найден']); exit; }
+        if (($u['role'] ?? '') === 'admin') { http_response_code(403); echo json_encode(['error' => 'Нельзя удалить администратора']); exit; }
+        if ((string)$u['id'] === (string)$userId) { http_response_code(403); echo json_encode(['error' => 'Нельзя удалить свой аккаунт']); exit; }
+        $uid = $u['id']; $uemail = (string)$u['email'];
+
+        $del = function ($sql, $params) use ($pdo) {
+            try { $st = $pdo->prepare($sql); $st->execute($params); return $st->rowCount(); }
+            catch (Exception $e) { return 0; }
+        };
+        // id психолога (если пользователь — психолог)
+        $pids = [];
+        try { $st = $pdo->prepare("SELECT id FROM psychologists WHERE user_id = ?"); $st->execute([$uid]); $pids = $st->fetchAll(PDO::FETCH_COLUMN); } catch (Exception $e) {}
+        // связанные записи и оплаты
+        $apptIds = [];
+        try { $st = $pdo->prepare("SELECT id FROM appointments WHERE client_id = ?"); $st->execute([$uid]); $apptIds = $st->fetchAll(PDO::FETCH_COLUMN); } catch (Exception $e) {}
+        foreach ($pids as $pid) {
+            try { $st = $pdo->prepare("SELECT id FROM appointments WHERE psychologist_id = ?"); $st->execute([$pid]); $apptIds = array_merge($apptIds, $st->fetchAll(PDO::FETCH_COLUMN)); } catch (Exception $e) {}
+        }
+        $apptIds = array_values(array_unique($apptIds));
+        foreach ($apptIds as $aid) { $del("DELETE FROM payments WHERE appointment_id = ?", [$aid]); }
+        foreach ($apptIds as $aid) { $del("DELETE FROM appointments WHERE id = ?", [$aid]); }
+        // контакты и профиль психолога
+        $del("DELETE FROM psychologist_contacts WHERE LOWER(email) = LOWER(?)", [$uemail]);
+        foreach ($pids as $pid) { $del("DELETE FROM psychologists WHERE id = ?", [$pid]); }
+        // прочие возможные связи (best-effort: если таблицы/колонки нет — просто пропустится)
+        foreach (['consents' => 'user_id', 'notes' => 'user_id', 'reviews' => 'user_id', 'subscribers' => 'email', 'support_threads' => 'email', 'audit_log' => 'user_id', 'credentials' => 'user_id'] as $tbl => $col) {
+            $del("DELETE FROM `$tbl` WHERE `$col` = ?", [$col === 'email' ? $uemail : $uid]);
+        }
+        // сам пользователь
+        try {
+            $st = $pdo->prepare("DELETE FROM users WHERE id = ?"); $st->execute([$uid]);
+            echo json_encode(['ok' => true, 'deleted_email' => $uemail, 'appointments' => count($apptIds), 'psychologist' => count($pids) > 0]);
+        } catch (Exception $e) {
+            http_response_code(500);
+            echo json_encode(['error' => 'Не удалось удалить пользователя — остались связанные записи. Сообщите разработчику.']);
+        }
+        exit;
+    }
+
     if ($action === 'set-price') {
         $pid = $body['psychologist_id'] ?? null;
         $price = isset($body['price']) ? (float)$body['price'] : null;
