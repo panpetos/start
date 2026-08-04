@@ -9,6 +9,19 @@
     <script src="/js/layout.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
+        :root {
+            --ep-bg: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --ep-card: #fff; --ep-text: #333; --ep-text-sec: #555; --ep-text-muted: #999;
+            --ep-border: #e0e0e0; --ep-focus: #667eea; --ep-disabled: #f5f5f5;
+            --ep-link: white;
+        }
+        body.dark {
+            --ep-bg: #191919;
+            --ep-card: #252525; --ep-text: #E6E6E6; --ep-text-sec: #A0A0A0; --ep-text-muted: #707070;
+            --ep-border: #444; --ep-focus: #B794F4; --ep-disabled: #2A2A2A;
+            --ep-link: #B794F4;
+        }
+
         * {
             margin: 0;
             padding: 0;
@@ -17,11 +30,16 @@
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: var(--ep-bg);
             min-height: 100vh;
             padding: 0;
             padding-top: 84px;
+            transition: background 0.2s, color 0.2s;
         }
+        body.dark .nav { background: #1E1E1E !important; border-color: #333 !important; }
+        body.dark .nav-brand span:first-child { color: #E6E6E6 !important; }
+        body.dark .nav a.nav-link { color: #A0A0A0 !important; }
+        body.dark .nav a.nav-link:hover { color: #E6E6E6 !important; }
 
         .container {
             max-width: 800px;
@@ -33,7 +51,7 @@
             display: inline-flex;
             align-items: center;
             gap: 0.5rem;
-            color: white;
+            color: var(--ep-link);
             text-decoration: none;
             margin-bottom: 2rem;
             font-weight: 500;
@@ -45,14 +63,15 @@
         }
 
         .card {
-            background: white;
+            background: var(--ep-card);
             border-radius: 16px;
             padding: 2.5rem;
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            transition: background 0.2s;
         }
 
         h1 {
-            color: #333;
+            color: var(--ep-text);
             margin-bottom: 2rem;
             font-size: 2rem;
         }
@@ -65,7 +84,7 @@
             display: block;
             margin-bottom: 0.5rem;
             font-weight: 600;
-            color: #555;
+            color: var(--ep-text-sec);
             font-size: 0.95rem;
         }
 
@@ -76,22 +95,24 @@
         textarea {
             width: 100%;
             padding: 0.75rem 1rem;
-            border: 2px solid #e0e0e0;
+            border: 2px solid var(--ep-border);
             border-radius: 8px;
             font-size: 1rem;
             transition: border-color 0.3s, box-shadow 0.3s;
             font-family: inherit;
+            background: var(--ep-card);
+            color: var(--ep-text);
         }
 
         input:focus,
         textarea:focus {
             outline: none;
-            border-color: #667eea;
+            border-color: var(--ep-focus);
             box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
         }
 
         input:disabled {
-            background: #f5f5f5;
+            background: var(--ep-disabled);
             cursor: not-allowed;
         }
 
@@ -103,7 +124,7 @@
         small {
             display: block;
             margin-top: 0.25rem;
-            color: #999;
+            color: var(--ep-text-muted);
             font-size: 0.85rem;
         }
 
@@ -163,7 +184,7 @@
         }
 
         .btn-outline {
-            background: white;
+            background: var(--ep-card);
             border: 2px solid #667eea;
             color: #667eea;
         }
@@ -239,9 +260,10 @@
 </head>
 
 <body>
+    <script>(function(){ var t = localStorage.getItem('psy-theme'); if (t === 'dark' || (!t && window.matchMedia('(prefers-color-scheme:dark)').matches)) document.body.classList.add('dark'); })();</script>
     <script>psyWriteHeader();</script>
     <div class="container">
-        <a href="#" id="backToDash" style="display:inline-flex;align-items:center;gap:0.4rem;color:#fff;text-decoration:none;font-weight:600;margin-bottom:1rem;opacity:0.95;">← В личный кабинет</a>
+        <a href="#" id="backToDash" style="display:inline-flex;align-items:center;gap:0.4rem;color:var(--ep-link);text-decoration:none;font-weight:600;margin-bottom:1rem;opacity:0.95;">← В личный кабинет</a>
 
         <div class="card">
             <h1>
@@ -256,7 +278,7 @@
             <!-- Loading Indicator -->
             <div id="loadingIndicator" class="loading">
                 <div class="loading-spinner">⏳</div>
-                <p style="color: #666; margin-top: 1rem;">Загрузка данных профиля...</p>
+                <p style="color: var(--ep-text-muted); margin-top: 1rem;">Загрузка данных профиля...</p>
             </div>
 
             <!-- Client Form -->

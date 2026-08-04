@@ -166,20 +166,43 @@
             </div>
         </div>
 
+        <!-- Frozen account modal -->
+        <div id="frozenModal" style="display:none;position:fixed;inset:0;background:rgba(26,26,46,0.55);z-index:3000;align-items:center;justify-content:center;padding:1rem;">
+            <div style="background:var(--d-panel);border-radius:1.25rem;max-width:440px;width:100%;padding:2rem;box-shadow:0 20px 60px rgba(0,0,0,0.3);color:var(--d-text);text-align:center;">
+                <div style="width:60px;height:60px;border-radius:50%;background:linear-gradient(135deg,#ff6b6b,#ee5a24);display:flex;align-items:center;justify-content:center;margin:0 auto 1rem;font-size:1.8rem;">🔒</div>
+                <h3 style="font-size:1.2rem;margin-bottom:0.5rem;">Аккаунт заморожен</h3>
+                <p style="font-size:0.9rem;color:var(--d-text-sec);line-height:1.6;margin-bottom:1.25rem;">
+                    Функционал вашего аккаунта временно ограничен. Для разблокировки свяжитесь с нами любым удобным способом:
+                </p>
+                <div style="display:flex;flex-direction:column;gap:0.5rem;margin-bottom:1.25rem;text-align:left;">
+                    <a href="mailto:support@psytalk.pro" style="display:flex;align-items:center;gap:0.6rem;padding:0.7rem 1rem;background:var(--d-accent-bg);border-radius:0.6rem;text-decoration:none;color:var(--d-accent);font-weight:600;font-size:0.9rem;">
+                        ✉️ support@psytalk.pro
+                    </a>
+                    <a href="https://t.me/psytalk_support" target="_blank" style="display:flex;align-items:center;gap:0.6rem;padding:0.7rem 1rem;background:var(--d-accent-bg);border-radius:0.6rem;text-decoration:none;color:var(--d-accent);font-weight:600;font-size:0.9rem;">
+                        💬 Telegram: @psytalk_support
+                    </a>
+                    <div style="display:flex;align-items:center;gap:0.6rem;padding:0.7rem 1rem;background:var(--d-accent-bg);border-radius:0.6rem;color:var(--d-accent);font-weight:600;font-size:0.9rem;">
+                        💬 Чат поддержки на сайте (кнопка внизу справа)
+                    </div>
+                </div>
+                <button onclick="document.getElementById('frozenModal').style.display='none'" style="background:linear-gradient(135deg,#7C3AED,#9F67FA);color:#fff;border:none;padding:0.7rem 2rem;border-radius:0.6rem;font-weight:600;cursor:pointer;font-family:inherit;font-size:0.95rem;width:100%;">Понятно</button>
+            </div>
+        </div>
+
         <!-- Replacement request modal -->
         <div id="replaceModal" style="display:none;position:fixed;inset:0;background:rgba(26,26,46,0.55);z-index:2000;align-items:center;justify-content:center;padding:1rem;">
             <div style="background:var(--d-panel);border-radius:1.25rem;max-width:440px;width:100%;padding:2rem;box-shadow:0 20px 60px rgba(0,0,0,0.3);color:var(--d-text);">
                 <div style="text-align:center;margin-bottom:1.1rem;">
                     <div style="width:60px;height:60px;border-radius:50%;background:linear-gradient(135deg,#7C3AED,#9F67FA);display:flex;align-items:center;justify-content:center;margin:0 auto 0.7rem;font-size:1.8rem;">🔄</div>
-                    <h3 style="font-size:1.2rem;color:#1A1A1A;margin-bottom:0.25rem;">Заменить психолога</h3>
-                    <p style="font-size:0.875rem;color:#6B7280;line-height:1.5;">Если специалист не подошёл — поможем подобрать другого бесплатно. Расскажите, что было не так (по желанию) — учтём при подборе.</p>
+                    <h3 style="font-size:1.2rem;color:var(--d-text);margin-bottom:0.25rem;">Заменить психолога</h3>
+                    <p style="font-size:0.875rem;color:var(--d-text-sec);line-height:1.5;">Если специалист не подошёл — поможем подобрать другого бесплатно. Расскажите, что было не так (по желанию) — учтём при подборе.</p>
                 </div>
-                <div id="replacePsychName" style="background:#F4F0FF;border:1px solid #E9D5FF;border-radius:0.6rem;padding:0.55rem 0.8rem;font-size:0.85rem;color:#5B21B6;margin-bottom:0.7rem;"></div>
-                <label style="display:block;font-size:0.8125rem;font-weight:600;color:#374151;margin-bottom:0.3rem;">Что не подошло? (необязательно)</label>
-                <textarea id="replaceReason" placeholder="Напр.: не сошлись по подходу, неудобное время, хочу другого специалиста..." style="width:100%;height:80px;padding:0.7rem 0.9rem;border:2px solid #E5E7EB;border-radius:0.7rem;font-size:0.9rem;outline:none;font-family:inherit;resize:vertical;margin-bottom:0.7rem;"></textarea>
+                <div id="replacePsychName" style="background:var(--d-accent-bg);border:1px solid var(--d-border-accent);border-radius:0.6rem;padding:0.55rem 0.8rem;font-size:0.85rem;color:var(--d-accent);margin-bottom:0.7rem;"></div>
+                <label style="display:block;font-size:0.8125rem;font-weight:600;color:var(--d-text-dark);margin-bottom:0.3rem;">Что не подошло? (необязательно)</label>
+                <textarea id="replaceReason" placeholder="Напр.: не сошлись по подходу, неудобное время, хочу другого специалиста..." style="width:100%;height:80px;padding:0.7rem 0.9rem;border:2px solid var(--d-border);border-radius:0.7rem;font-size:0.9rem;outline:none;font-family:inherit;resize:vertical;margin-bottom:0.7rem;background:var(--d-panel-alt);color:var(--d-text);"></textarea>
                 <div id="replaceMsg" style="display:none;font-size:0.85rem;margin-bottom:0.6rem;"></div>
                 <button onclick="submitReplace()" id="replaceSubmit" style="width:100%;padding:0.85rem;background:linear-gradient(135deg,#7C3AED,#9F67FA);color:#fff;border:none;border-radius:0.75rem;font-weight:700;font-size:0.9375rem;cursor:pointer;font-family:inherit;margin-bottom:0.5rem;">Отправить заявку и подобрать</button>
-                <button onclick="closeReplace()" style="width:100%;padding:0.6rem;background:#F3F4F6;border:none;border-radius:0.75rem;color:#374151;font-weight:600;font-size:0.875rem;cursor:pointer;font-family:inherit;">Отмена</button>
+                <button onclick="closeReplace()" style="width:100%;padding:0.6rem;background:var(--d-panel-alt);border:1px solid var(--d-border);border-radius:0.75rem;color:var(--d-text-dark);font-weight:600;font-size:0.875rem;cursor:pointer;font-family:inherit;">Отмена</button>
             </div>
         </div>
 
@@ -259,14 +282,23 @@
 
                     // Проверка на заморозку аккаунта
                     if (user.is_frozen) {
+                        window._accountFrozen = true;
                         const frozenBanner = document.createElement('div');
                         frozenBanner.innerHTML = `
                         <div style="background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%); color: white; padding: 1.5rem; border-radius: 12px; margin-bottom: 1.5rem; text-align: center;">
                             <h3 style="margin-bottom: 0.5rem;">⚠️ Ваш аккаунт заморожен</h3>
-                            <p style="opacity: 0.9;">Функционал ограничен. Для разблокировки свяжитесь с поддержкой: support@psytalk.pro</p>
+                            <p style="opacity: 0.9;">Функционал ограничен. Для разблокировки свяжитесь с нами через чат на сайте, мессенджеры или по почте support@psytalk.pro</p>
                         </div>
                     `;
                         document.querySelector('.container').insertBefore(frozenBanner, document.querySelector('.cards'));
+                        document.querySelector('.container').addEventListener('click', function(e) {
+                            const target = e.target.closest('a.btn, button.btn, button.btn-danger, [onclick*="cancel"], [onclick*="Replace"], [onclick*="Review"]');
+                            if (!target) return;
+                            if (target.closest('#frozenModal') || target.id === 'themeBtn' || target.textContent.includes('Выйти') || target.textContent.includes('Профиль')) return;
+                            e.preventDefault();
+                            e.stopPropagation();
+                            document.getElementById('frozenModal').style.display = 'flex';
+                        }, true);
                     }
 
                     await loadPackages();

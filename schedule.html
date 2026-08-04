@@ -11,29 +11,48 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
         *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Inter', -apple-system, sans-serif; background: #F4F0FF; min-height: 100vh; color: #1A1A1A; padding-top: 84px; }
+        :root {
+            --s-bg: #F4F0FF; --s-text: #1A1A1A; --s-text-sec: #6B7280;
+            --s-panel: #fff; --s-panel-border: #EDE9FF; --s-cell-border: #E5E7EB; --s-cell-bg: #fff;
+            --s-hint-bg: #F8F6FF; --s-hint-border: #EDE9FF;
+            --s-back-bg: #fff; --s-back-border: #E5E7EB; --s-back-color: #374151;
+            --s-accent: #7C3AED; --s-green: #16A34A;
+        }
+        body.dark {
+            --s-bg: #191919; --s-text: #E6E6E6; --s-text-sec: #A0A0A0;
+            --s-panel: #252525; --s-panel-border: #333; --s-cell-border: #444; --s-cell-bg: #2A2A2A;
+            --s-hint-bg: #2D1F4E; --s-hint-border: #37254A;
+            --s-back-bg: #252525; --s-back-border: #444; --s-back-color: #C0C0C0;
+            --s-accent: #B794F4; --s-green: #4ADE80;
+        }
+        body { font-family: 'Inter', -apple-system, sans-serif; background: var(--s-bg); min-height: 100vh; color: var(--s-text); padding-top: 84px; transition: background 0.2s, color 0.2s; }
+        body.dark .nav { background: #1E1E1E !important; border-color: #333 !important; }
+        body.dark .nav-brand span:first-child { color: #E6E6E6 !important; }
+        body.dark .nav a.nav-link { color: #A0A0A0 !important; }
+        body.dark .nav a.nav-link:hover { color: #E6E6E6 !important; }
         .container { max-width: 1000px; margin: 0 auto; padding: 1.5rem; }
         .head { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 0.5rem; }
         h1 { font-size: 1.6rem; letter-spacing: -0.02em; }
-        .sub { color: #6B7280; margin-bottom: 1.5rem; }
-        .panel { background: #fff; border-radius: 1.1rem; border: 1px solid #EDE9FF; box-shadow: 0 2px 12px rgba(124,58,237,0.06); padding: 1.5rem; }
+        .sub { color: var(--s-text-sec); margin-bottom: 1.5rem; }
+        .panel { background: var(--s-panel); border-radius: 1.1rem; border: 1px solid var(--s-panel-border); box-shadow: 0 2px 12px rgba(124,58,237,0.06); padding: 1.5rem; transition: background 0.2s, border-color 0.2s; }
         .grid-wrap { overflow-x: auto; }
         table { border-collapse: collapse; width: 100%; min-width: 640px; }
         th, td { text-align: center; padding: 0.3rem; }
-        th { font-size: 0.8rem; color: #6B7280; font-weight: 600; }
-        td.time { color: #6B7280; font-size: 0.8rem; font-weight: 600; white-space: nowrap; text-align: right; padding-right: 0.6rem; }
-        .cell { width: 100%; height: 34px; border-radius: 0.5rem; border: 1.5px solid #E5E7EB; background: #fff; cursor: pointer; transition: all 0.1s; }
+        th { font-size: 0.8rem; color: var(--s-text-sec); font-weight: 600; }
+        td.time { color: var(--s-text-sec); font-size: 0.8rem; font-weight: 600; white-space: nowrap; text-align: right; padding-right: 0.6rem; }
+        .cell { width: 100%; height: 34px; border-radius: 0.5rem; border: 1.5px solid var(--s-cell-border); background: var(--s-cell-bg); cursor: pointer; transition: all 0.1s; }
         .cell:hover { border-color: #C4B5FD; }
         .cell.on { background: linear-gradient(135deg,#7C3AED,#9F67FA); border-color: transparent; }
-        .day-toggle { font-size: 0.72rem; color: #7C3AED; cursor: pointer; display: block; margin-top: 2px; }
+        .day-toggle { font-size: 0.72rem; color: var(--s-accent); cursor: pointer; display: block; margin-top: 2px; }
         .actions { display: flex; gap: 0.75rem; margin-top: 1.5rem; align-items: center; flex-wrap: wrap; }
         .btn-save { padding: 0.8rem 2rem; border: none; border-radius: 0.75rem; background: linear-gradient(135deg,#7C3AED,#9F67FA); color: #fff; font-weight: 700; cursor: pointer; font-family: inherit; box-shadow: 0 4px 14px rgba(124,58,237,0.35); }
-        .btn-back { padding: 0.8rem 1.5rem; border: 1.5px solid #E5E7EB; border-radius: 0.75rem; background: #fff; color: #374151; font-weight: 600; text-decoration: none; }
-        .saved { color: #16A34A; font-weight: 600; display: none; }
-        .hint { background: #F8F6FF; border: 1px solid #EDE9FF; border-radius: 0.75rem; padding: 0.875rem 1rem; color: #6B7280; font-size: 0.875rem; margin-bottom: 1.25rem; line-height: 1.5; }
+        .btn-back { padding: 0.8rem 1.5rem; border: 1.5px solid var(--s-back-border); border-radius: 0.75rem; background: var(--s-back-bg); color: var(--s-back-color); font-weight: 600; text-decoration: none; transition: background 0.2s, border-color 0.2s, color 0.2s; }
+        .saved { color: var(--s-green); font-weight: 600; display: none; }
+        .hint { background: var(--s-hint-bg); border: 1px solid var(--s-hint-border); border-radius: 0.75rem; padding: 0.875rem 1rem; color: var(--s-text-sec); font-size: 0.875rem; margin-bottom: 1.25rem; line-height: 1.5; transition: background 0.2s, border-color 0.2s, color 0.2s; }
     </style>
 </head>
 <body>
+    <script>(function(){ var t = localStorage.getItem('psy-theme'); if (t === 'dark' || (!t && window.matchMedia('(prefers-color-scheme:dark)').matches)) document.body.classList.add('dark'); })();</script>
     <script>psyWriteHeader();</script>
     <div class="container">
         <div class="head">

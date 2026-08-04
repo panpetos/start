@@ -239,10 +239,22 @@
               <span style="font-size: 0.75rem; color: #999;">Это поле помогает модератору принять решение об одобрении.</span>
             </div>
 
-            <!-- Стоимость консультаций назначает администрация — психолог цену не указывает -->
+            <!-- Желаемая цена консультации (для рассмотрения админом) -->
             <div class="form-group">
-              <div style="background:#F8F6FF;border:1px solid #EDE9FF;border-radius:0.75rem;padding:0.875rem 1rem;color:#6B7280;font-size:0.875rem;line-height:1.5;">
-                💡 Стоимость консультаций устанавливает администрация платформы — единые прозрачные цены для всех клиентов. Её назначат при одобрении профиля.
+              <label class="form-label" for="desiredPrice">Желаемая стоимость сессии (₽)</label>
+              <input
+                type="number"
+                id="desiredPrice"
+                name="desiredPrice"
+                class="form-input"
+                min="500"
+                max="50000"
+                step="100"
+                placeholder="Напр.: 3000"
+                data-testid="input-desiredPrice"
+              />
+              <div style="background:#F8F6FF;border:1px solid #EDE9FF;border-radius:0.75rem;padding:0.75rem 1rem;color:#6B7280;font-size:0.8125rem;line-height:1.5;margin-top:0.5rem;">
+                💡 Укажите желаемую стоимость одной сессии. Финальную цену устанавливает администрация при одобрении профиля.
               </div>
             </div>
 
@@ -533,6 +545,8 @@
         data.notWorkingWith = (formData.get('notWorkingWith') || '').trim();
         data.phone = (formData.get('phone') || '').trim();
         data.formats = formats;
+        const dp = parseInt(formData.get('desiredPrice'), 10);
+        data.price = (!isNaN(dp) && dp > 0) ? dp : 0;
         // Контакты для связи (видит только администратор)
         if (!data.phone) {
           showRegError('Укажите телефон для связи — он нужен администратору для проверки.');

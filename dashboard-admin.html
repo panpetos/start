@@ -827,6 +827,7 @@
         let devPollTimer = null;
         let devNewFiles = [];
         let devReworkFiles = [];
+        let devTasksCache = [];
         const DEV_STMAP = { new:['b-amber','новая'], in_progress:['b-purple','в работе у Клода'], done:['b-green','готово — проверьте'], rework:['b-red','на доработку'], closed:['b-gray','закрыто ✓'] };
 
         function devImgs(json, label){
@@ -865,6 +866,7 @@
         async function devRefresh(){
             let list = [], st = {};
             try { list = (await (await fetch(DEV_API + '?action=list', { credentials:'include' })).json()).data || []; } catch(e){}
+            devTasksCache = list;
             try { st = await (await fetch(DEV_API + '?action=status', { credentials:'include' })).json(); } catch(e){}
             const statsEl = document.getElementById('devStats');
             if (statsEl){
@@ -1007,7 +1009,7 @@
         async function devSet(id, status){ const r = await apiPostTo(DEV_API,'set-status',{id,status}); if(r.ok) devRefresh(); else alert(r.error||'Ошибка'); }
         function devOpenRework(id){
             devReworkFiles = [];
-            let taskTitle = '', taskBody = '';
+            let taskTitle = '', taskBody = '', existingComment = '';
             try {
                 const panels = document.querySelectorAll('#devTaskList .panel');
                 for (const p of panels) {
@@ -1017,6 +1019,8 @@
                         break;
                     }
                 }
+                const cached = devTasksCache.find(t => t.id == id);
+                if (cached && cached.admin_comment) existingComment = cached.admin_comment;
             } catch(e){}
             const ov = document.createElement('div');
             ov.id = 'devModal';
@@ -1034,7 +1038,8 @@
                     </div>
                 </details>
                 <p class="muted" style="font-size:0.85rem;margin-bottom:0.6rem;">Опишите, что не так и что нужно поправить. Можно вставить скрины из буфера (Ctrl+V).</p>
-                <textarea id="devRwText" rows="4" placeholder="Что доработать..." style="width:100%;padding:0.7rem 0.9rem;border:1.5px solid var(--a-input-border);border-radius:0.6rem;font-family:inherit;font-size:0.92rem;resize:vertical;background:var(--a-input-bg);color:var(--a-text);"></textarea>
+                ${existingComment ? `<div style="margin-bottom:0.5rem;padding:0.55rem 0.75rem;background:var(--a-sidebar-active-bg);border-radius:0.5rem;font-size:0.82rem;color:var(--a-text-sec);"><b>Предыдущий комментарий:</b> ${esc(existingComment)}</div>` : ''}
+                <textarea id="devRwText" rows="4" placeholder="Что доработать..." style="width:100%;padding:0.7rem 0.9rem;border:1.5px solid var(--a-input-border);border-radius:0.6rem;font-family:inherit;font-size:0.92rem;resize:vertical;background:var(--a-input-bg);color:var(--a-text);">${esc(existingComment)}</textarea>
                 <div id="devRwDrop" style="margin-top:0.7rem;border:2px dashed var(--a-drop-border);border-radius:0.7rem;padding:1rem;text-align:center;cursor:pointer;background:var(--a-drop-bg);transition:background .15s,border-color .15s;">
                     <div style="font-size:1.4rem;line-height:1;">📎</div>
                     <div style="font-size:0.88rem;color:#6D28D9;margin-top:0.3rem;"><b>Перетащите фото сюда</b>, нажмите или вставьте из буфера (Ctrl+V)</div>
