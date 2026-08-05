@@ -424,10 +424,15 @@
                 return;
             }
             document.getElementById('adminWho').textContent = ((user.first_name||'')+' '+(user.last_name||'')).trim() || 'Администратор';
+            supStartPolling();
             switchTab('overview');
         }
 
+        let currentTab = 'overview';
         function switchTab(tab){
+            currentTab = tab;
+            if (supMsgPollTimer) { clearInterval(supMsgPollTimer); supMsgPollTimer = null; }
+            supportThreadId = null;
             document.querySelectorAll('.sidebar-item').forEach(t => t.classList.toggle('active', t.dataset.tab===tab));
             const el = document.getElementById('content');
             el.innerHTML = '<div class="loading">Загрузка...</div>';
@@ -852,7 +857,6 @@
         function supStartPolling() {
             if (supPollTimer) clearInterval(supPollTimer);
             supPollTimer = setInterval(async () => {
-                if (currentTab !== 'support') { clearInterval(supPollTimer); supPollTimer = null; return; }
                 try {
                     const res = await (await fetch('/api/support.php?action=threads', { credentials:'include' })).json();
                     if (!res || !res.ok) return;
@@ -865,7 +869,7 @@
                     }
                     supLastTotalUnread = totalUnread;
                     updateSupportBadge(totalUnread);
-                    updateThreadList(rows);
+                    if (currentTab === 'support' && !supportThreadId) updateThreadList(rows);
                 } catch(e) {}
             }, 5000);
         }
@@ -925,68 +929,87 @@
                 </tr>`;
             }).join('') : '<tr><td colspan="4" class="muted" style="padding:1.5rem;text-align:center;">Обращений пока нет</td></tr>';
             document.getElementById('content').innerHTML =
-                '<div class="note">💬 Обращения обновляются автоматически каждые 5 сек. Нажмите на обращение, чтобы ответить.</div>' +
-                `<div class="panel"><div class="panel-head"><h2>Обращения (${rows.length})</h2><button class="btn-sm btn-outline" onclick="supportThreadId=null;renderSupport()">↻ К списку</button></div>
-                  <div class="tbl-wrap"><table><thead><tr><th>Контакт</th><th>Роль / статус</th><th>Последнее сообщение</th><th>Когда</th></tr></thead><tbody>${list}</tbody></table></div></div>` +
-                '<div id="supportThreadPanel" style="margin-top:1.25rem;"></div>';
-            supStartPolling();
+                '<div class="note">💬 Обращения обновляются автоматически. Нажмите на обращение для полноэкранного чата.</div>' +
+                `<div class="panel"><div class="panel-head"><h2>Обращения (${rows.length})</h2><button class="btn-sm btn-outline" onclick="supportThreadId=null;renderSupport()">↻ Обновить</button></div>
+                  <div class="tbl-wrap"><table><thead><tr><th>Контакт</th><th>Роль / статус</th><th>Последнее сообщение</th><th>Когда</th></tr></thead><tbody>${list}</tbody></table></div></div>`;
             if (supportThreadId) openSupportThread(supportThreadId);
         }
 
         let supOpenMsgCount = 0;
+        let supLastMsgId = 0;
+
+        function supRenderBubble(m) {
+            const admin = m.sender === 'admin';
+            return `<div data-msg-id="${m.id||''}" style="align-self:${admin?'flex-end':'flex-start'};max-width:75%;background:${admin?'linear-gradient(135deg,#7C3AED,#9F67FA)':'var(--a-panel)'};color:${admin?'#fff':'var(--a-text)'};border:${admin?'none':'1px solid var(--a-panel-border)'};border-radius:0.9rem;padding:0.5rem 0.8rem;font-size:0.875rem;line-height:1.45;">${esc(m.body)}${supRenderAttachment(m)}<div style="font-size:0.68rem;opacity:0.7;margin-top:0.2rem;">${fmtDateTime(m.created_at)}</div></div>`;
+        }
+
         async function openSupportThread(id){
             supportThreadId = id;
-            const panel = document.getElementById('supportThreadPanel');
-            if (!panel.innerHTML.includes('supReplyInput')) {
-                panel.innerHTML = '<div class="panel"><div class="loading">Загрузка переписки...</div></div>';
+            const isUpdate = document.getElementById('supMsgsBox') && document.getElementById('supMsgsBox').dataset.threadId === id;
+            if (!isUpdate) {
+                supLastMsgId = 0;
+                supOpenMsgCount = 0;
+                document.getElementById('content').innerHTML = `<div style="display:flex;flex-direction:column;height:calc(100vh - 84px);background:var(--a-bg);">
+                    <div id="supChatHead" style="display:flex;align-items:center;gap:0.5rem;padding:0.75rem 1rem;background:var(--a-panel);border-bottom:1px solid var(--a-panel-border);flex-shrink:0;">
+                        <button class="btn-sm btn-outline" style="font-size:0.8rem;flex-shrink:0;" onclick="supportThreadId=null;supOpenMsgCount=0;supLastMsgId=0;renderSupport()">← Назад</button>
+                        <h2 style="font-size:0.95rem;flex:1;margin:0;"></h2>
+                    </div>
+                    <div id="supMsgsBox" data-thread-id="${esc(id)}" style="display:flex;flex-direction:column;gap:0.5rem;padding:1rem;flex:1;overflow-y:auto;"></div>
+                    <div id="supAttachPreview" style="display:none;padding:0.3rem 0.75rem;font-size:0.78rem;color:#7C3AED;border-top:1px solid var(--a-panel-head-border);background:var(--a-panel);flex-shrink:0;"></div>
+                    <div style="display:flex;gap:0.5rem;padding:0.75rem;border-top:1px solid var(--a-panel-head-border);align-items:center;background:var(--a-panel);flex-shrink:0;">
+                        <button onclick="document.getElementById('supFileInput').click()" style="border:1px solid var(--a-input-border);background:none;cursor:pointer;padding:0.4rem;border-radius:0.4rem;font-size:1rem;color:var(--a-text-sec);" title="Прикрепить файл">📎</button>
+                        <input type="file" id="supFileInput" accept="image/*,.pdf,.txt,.doc,.docx" style="display:none;" onchange="supHandleFile(this)">
+                        <input id="supReplyInput" placeholder="Ответ клиенту..." style="flex:1;padding:0.6rem 0.85rem;border:1.5px solid var(--a-input-border);border-radius:0.6rem;font-family:inherit;outline:none;background:var(--a-input-bg);color:var(--a-text);" onkeypress="if(event.key==='Enter')sendSupportReply()">
+                        <button class="btn-sm btn-purple" style="padding:0.6rem 1.2rem;" onclick="sendSupportReply()">Ответить</button>
+                    </div>
+                </div>`;
+                const inp = document.getElementById('supReplyInput');
+                if (inp) inp.addEventListener('paste', function(e) {
+                    const items = (e.clipboardData || e.originalEvent.clipboardData).items;
+                    for (let i = 0; i < items.length; i++) {
+                        if (items[i].type.indexOf('image') === 0) {
+                            e.preventDefault();
+                            supUploadFile(items[i].getAsFile());
+                            break;
+                        }
+                    }
+                });
             }
+
             let res;
             try { res = await (await fetch('/api/support.php?action=messages&thread_id=' + encodeURIComponent(id), { credentials:'include' })).json(); }
-            catch(e){ panel.innerHTML = '<div class="panel"><div class="empty">Не удалось загрузить</div></div>'; return; }
+            catch(e){ return; }
             const t = res.thread || {};
             const msgs = res.data || [];
+
+            const headEl = document.querySelector('#supChatHead h2');
+            if (headEl) headEl.innerHTML = `${esc(t.name||'Гость')} · ${t.role?esc(t.role):'—'} · ${t.registered||t.user_id?'<span class="badge b-green">в системе</span>':'<span class="badge b-amber">гость</span>'}${t.email?(' · '+esc(t.email)):''}`;
 
             const userMsgCount = msgs.filter(m => m.sender === 'user').length;
             if (userMsgCount > supOpenMsgCount && supOpenMsgCount > 0) supPlaySound();
             supOpenMsgCount = userMsgCount;
 
-            const head = `${esc(t.name||'Гость')} · ${t.role?esc(t.role):'—'} · ${t.registered||t.user_id?'<span class="badge b-green">в системе</span>':'<span class="badge b-amber">гость</span>'}${t.email?(' · '+esc(t.email)):''} <button class="btn-sm btn-outline" style="margin-left:auto;font-size:0.75rem;" onclick="supportThreadId=null;supOpenMsgCount=0;renderSupport()">← Назад</button>`;
-            const bubbles = msgs.length ? msgs.map(m => {
-                const admin = m.sender === 'admin';
-                return `<div style="align-self:${admin?'flex-end':'flex-start'};max-width:75%;background:${admin?'linear-gradient(135deg,#7C3AED,#9F67FA)':'var(--a-panel)'};color:${admin?'#fff':'var(--a-text)'};border:${admin?'none':'1px solid var(--a-panel-border)'};border-radius:0.9rem;padding:0.5rem 0.8rem;font-size:0.875rem;line-height:1.45;">${esc(m.body)}${supRenderAttachment(m)}<div style="font-size:0.68rem;opacity:0.7;margin-top:0.2rem;">${fmtDateTime(m.created_at)}</div></div>`;
-            }).join('') : '<div class="muted" style="text-align:center;padding:1rem;">Нет сообщений</div>';
-            const savedInput = document.getElementById('supReplyInput')?.value || '';
-            panel.innerHTML = `<div class="panel">
-                <div class="panel-head" style="display:flex;align-items:center;gap:0.5rem;"><h2 style="font-size:0.95rem;flex:1;">${head}</h2></div>
-                <div id="supMsgsBox" style="display:flex;flex-direction:column;gap:0.5rem;padding:1rem;background:var(--a-bg);max-height:420px;overflow-y:auto;">${bubbles}</div>
-                <div id="supAttachPreview" style="display:none;padding:0.3rem 0.75rem;font-size:0.78rem;color:#7C3AED;border-top:1px solid var(--a-panel-head-border);"></div>
-                <div style="display:flex;gap:0.5rem;padding:0.75rem;border-top:1px solid var(--a-panel-head-border);align-items:center;">
-                    <button onclick="document.getElementById('supFileInput').click()" style="border:1px solid var(--a-input-border);background:none;cursor:pointer;padding:0.4rem;border-radius:0.4rem;font-size:1rem;color:var(--a-text-sec);" title="Прикрепить файл">📎</button>
-                    <input type="file" id="supFileInput" accept="image/*,.pdf,.txt,.doc,.docx" style="display:none;" onchange="supHandleFile(this)">
-                    <input id="supReplyInput" placeholder="Ответ клиенту..." value="${esc(savedInput).replace(/"/g,'&quot;')}" style="flex:1;padding:0.6rem 0.85rem;border:1.5px solid var(--a-input-border);border-radius:0.6rem;font-family:inherit;outline:none;background:var(--a-input-bg);color:var(--a-text);" onkeypress="if(event.key==='Enter')sendSupportReply()">
-                    <button class="btn-sm btn-purple" style="padding:0.6rem 1.2rem;" onclick="sendSupportReply()">Ответить</button>
-                </div></div>`;
-            const box = document.getElementById('supMsgsBox'); if (box) box.scrollTop = box.scrollHeight;
+            const box = document.getElementById('supMsgsBox');
+            if (!box) return;
 
-            // Ctrl+V paste for images
-            const inp = document.getElementById('supReplyInput');
-            if (inp) inp.addEventListener('paste', function(e) {
-                const items = (e.clipboardData || e.originalEvent.clipboardData).items;
-                for (let i = 0; i < items.length; i++) {
-                    if (items[i].type.indexOf('image') === 0) {
-                        e.preventDefault();
-                        const blob = items[i].getAsFile();
-                        supUploadFile(blob);
-                        break;
-                    }
+            if (isUpdate && msgs.length) {
+                const existingIds = new Set(Array.from(box.querySelectorAll('[data-msg-id]')).map(el => el.dataset.msgId));
+                const newMsgs = msgs.filter(m => !existingIds.has(String(m.id||'')));
+                if (newMsgs.length) {
+                    const wasAtBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 60;
+                    newMsgs.forEach(m => box.insertAdjacentHTML('beforeend', supRenderBubble(m)));
+                    if (wasAtBottom) box.scrollTop = box.scrollHeight;
                 }
-            });
+            } else {
+                box.innerHTML = msgs.length ? msgs.map(m => supRenderBubble(m)).join('') : '<div class="muted" style="text-align:center;padding:1rem;">Нет сообщений</div>';
+                box.scrollTop = box.scrollHeight;
+            }
 
             if (supMsgPollTimer) clearInterval(supMsgPollTimer);
             supMsgPollTimer = setInterval(() => {
                 if (currentTab !== 'support' || !supportThreadId) { clearInterval(supMsgPollTimer); supMsgPollTimer = null; return; }
                 openSupportThread(supportThreadId);
-            }, 4000);
+            }, 3000);
         }
 
         function supUploadFile(file) {
