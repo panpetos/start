@@ -1743,6 +1743,207 @@ body.dark .card:hover {
   border-color: rgba(183,148,244,0.3);
 }
 
+body.dark :root,
+body.dark {
+  --foreground: 0 0% 90%;
+  --background: 0 0% 10%;
+  --card: 0 0% 15%;
+  --card-foreground: 0 0% 90%;
+  --popover: 0 0% 15%;
+  --popover-foreground: 0 0% 90%;
+  --secondary: 270 30% 20%;
+  --secondary-foreground: 270 80% 75%;
+  --muted: 0 0% 18%;
+  --muted-foreground: 0 0% 65%;
+  --border: 0 0% 22%;
+  --input: 0 0% 18%;
+  --text-custom: #E6E6E6;
+}
+body.dark h1, body.dark h2, body.dark h3,
+body.dark h4, body.dark h5, body.dark h6 {
+  color: #E6E6E6;
+}
+body.dark .form-input,
+body.dark .form-select,
+body.dark .form-textarea {
+  background-color: #2A2A2A;
+  color: #E6E6E6;
+  border-color: #444;
+}
+body.dark .form-input::placeholder,
+body.dark .form-textarea::placeholder {
+  color: #888;
+}
+body.dark .alert {
+  background-color: #252525;
+}
+body.dark .alert-info { background-color: #1a2332; border-color: #2563eb55; color: #93c5fd; }
+body.dark .alert-success { background-color: #1a2e1a; border-color: #16a34a55; color: #86efac; }
+body.dark .alert-warning { background-color: #2e2a1a; border-color: #d9770655; color: #fde68a; }
+body.dark .alert-danger { background-color: #2e1a1a; border-color: #dc262655; color: #fecdd3; }
+body.dark .site-footer {
+  background: #1A1A1A;
+  border-color: #333;
+  color: #888;
+}
+body.dark .nav {
+  background-color: rgba(30, 30, 30, 0.95);
+  border-bottom-color: rgba(255,255,255,0.06);
+}
+body.dark .nav-link {
+  color: #C0C0C0;
+}
+body.dark .nav-link:hover,
+body.dark .nav-link.active {
+  color: #B794F4;
+  background-color: rgba(124, 58, 237, 0.12);
+}
+body.dark .modal-content {
+  background-color: #252525;
+  border-color: #444;
+}
+body.dark .modal-title {
+  color: #E6E6E6;
+}
+body.dark .step-card {
+  background: #252525;
+  border-color: #333;
+}
+body.dark details[open] {
+  background-color: #252525 !important;
+}
+body.dark .psych-card-modern {
+  background: #252525;
+  border-color: #333;
+}
+body.dark .psych-name {
+  color: #E6E6E6;
+}
+body.dark .psych-price-big {
+  color: #E6E6E6;
+}
+body.dark .psych-meta-row {
+  color: #999;
+}
+body.dark .psych-desc-text {
+  color: #999;
+}
+body.dark .stars-rating {
+  color: #C0C0C0;
+}
+body.dark .format-chip {
+  background: #2D1F4E;
+  color: #B794F4;
+}
+body.dark .verified-badge {
+  background: #1a2e1a;
+  color: #86efac;
+}
+body.dark .search-bar-wrap {
+  background: #2A2A2A;
+  border-color: #444;
+}
+body.dark .search-bar-input {
+  color: #E6E6E6;
+}
+body.dark .search-bar-input::placeholder {
+  color: #888;
+}
+body.dark .filter-chip-item {
+  background: #2A2A2A;
+  border-color: #444;
+  color: #C0C0C0;
+}
+body.dark .filter-chip-item:hover {
+  background: #2D1F4E;
+  color: #B794F4;
+  border-color: #7C3AED;
+}
+body.dark .sort-bar {
+  background: #252525;
+  border-color: #333;
+}
+body.dark .sort-bar-count {
+  color: #C0C0C0;
+}
+body.dark .sort-select {
+  background-color: #2A2A2A;
+  border-color: #444;
+  color: #C0C0C0;
+}
+body.dark .filters-sidebar-modern {
+  background: #252525;
+  border-color: #333;
+}
+body.dark .filters-sidebar-title {
+  color: #E6E6E6;
+}
+body.dark .filter-group-modern {
+  border-bottom-color: #333;
+}
+body.dark .filter-group-label {
+  color: #C0C0C0;
+}
+body.dark .filter-select-modern {
+  background: #2A2A2A;
+  border-color: #444;
+  color: #E6E6E6;
+}
+body.dark .filter-checkbox-modern {
+  color: #C0C0C0;
+}
+body.dark .filter-checkbox-modern input[type="checkbox"] {
+  background: #2A2A2A;
+  border-color: #555;
+}
+body.dark .filter-price-modern {
+  background: #2A2A2A;
+  border-color: #444;
+  color: #E6E6E6;
+}
+body.dark .filter-price-modern::placeholder {
+  color: #888;
+}
+body.dark .btn-reset-modern {
+  border-color: #444;
+  color: #B794F4;
+}
+body.dark .dropdown-item {
+  color: #E6E6E6;
+}
+body.dark .dropdown-item:hover {
+  background-color: #333;
+}
+body.dark .trust-badge {
+  color: #999;
+}
+body.dark .psych-avatar-modern {
+  border-color: #2D1F4E;
+}
+body.dark .psych-price-sub {
+  color: #888;
+}
+@media (max-width: 1023px) {
+  body.dark .nav-menu {
+    background: #1E1E1E;
+    border-left-color: #333;
+    box-shadow: -4px 0 20px rgba(0,0,0,0.4);
+  }
+  body.dark .nav-menu li {
+    border-bottom-color: #333;
+  }
+}
+body.dark .profile-dropdown {
+  background: #252525;
+  border-color: #444;
+}
+body.dark .card-footer {
+  border-top-color: #333;
+}
+body.dark .card-header {
+  border-bottom-color: #333;
+}
+
 /* ============================================
    Misc
    ============================================ */
