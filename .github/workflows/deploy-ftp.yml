@@ -46,6 +46,7 @@ jobs:
             put quiz.html;
             put schedule.html;
             put supervision.html;
+            put ai-chat.html;
             put psychologist-profile.html;
             put dashboard-admin.html;
             put admin.html;
@@ -83,6 +84,8 @@ jobs:
             put api/packages.php -o api/packages.php;
             put api/support.php -o api/support.php;
             put api/supervision.php -o api/supervision.php;
+            put api/ai_chat.php -o api/ai_chat.php;
+            put api/ai_chat_config.sample.php -o api/ai_chat_config.sample.php;
             put api/credentials.php -o api/credentials.php;
             put api/inn_check.php -o api/inn_check.php;
             put api/consent.php -o api/consent.php;
