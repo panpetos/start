@@ -87,5 +87,17 @@ if ($action === 'add' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     exit;
 }
 
+if ($action === 'counts') {
+    try {
+        $st = $pdo->query("SELECT psychologist_id, COUNT(*) AS cnt, ROUND(AVG(rating),1) AS avg_r FROM reviews_ext GROUP BY psychologist_id");
+        $out = [];
+        while ($r = $st->fetch(PDO::FETCH_ASSOC)) {
+            $out[$r['psychologist_id']] = ['count' => (int)$r['cnt'], 'avg' => (float)$r['avg_r']];
+        }
+        echo json_encode(['ok' => true, 'data' => $out]);
+    } catch (Exception $e) { echo json_encode(['ok' => true, 'data' => (object)[]]); }
+    exit;
+}
+
 http_response_code(400);
 echo json_encode(['error' => 'Неизвестное действие']);

@@ -40,6 +40,10 @@
         body.dark .nav-brand span:first-child { color: #E6E6E6 !important; }
         body.dark .nav a.nav-link { color: #A0A0A0 !important; }
         body.dark .nav a.nav-link:hover { color: #E6E6E6 !important; }
+        .ep-info-box { background:#F8F6FF; border:1px solid #EDE9FF; color:#6B7280; }
+        body.dark .ep-info-box { background:#2A2535; border-color:#3D3555; color:#A0A0A0; }
+        body.dark input, body.dark textarea, body.dark select { background: var(--ep-disabled) !important; border-color: var(--ep-border) !important; color: var(--ep-text) !important; }
+        body.dark input::placeholder, body.dark textarea::placeholder { color: var(--ep-text-muted) !important; }
 
         .container {
             max-width: 800px;
@@ -185,12 +189,12 @@
 
         .btn-outline {
             background: var(--ep-card);
-            border: 2px solid #667eea;
-            color: #667eea;
+            border: 2px solid var(--ep-focus);
+            color: var(--ep-focus);
         }
 
         .btn-outline:hover {
-            background: #667eea;
+            background: var(--ep-focus);
             color: white;
         }
 
@@ -219,11 +223,21 @@
             color: #c00;
             border: 1px solid #fcc;
         }
+        body.dark .alert-error {
+            background: #3B1A1A;
+            color: #FCA5A5;
+            border-color: #5C2020;
+        }
 
         .alert-success {
             background: #efe;
             color: #060;
             border: 1px solid #cfc;
+        }
+        body.dark .alert-success {
+            background: #1A3B1A;
+            color: #86EFAC;
+            border-color: #205C20;
         }
 
         .loading {
@@ -366,7 +380,7 @@
 
                 <div class="form-group">
                     <label>Стоимость сессии</label>
-                    <div id="priceInfo" style="background:#F8F6FF;border:1px solid #EDE9FF;border-radius:0.75rem;padding:0.875rem 1rem;color:#6B7280;font-size:0.9rem;line-height:1.5;">
+                    <div id="priceInfo" class="ep-info-box" style="border-radius:0.75rem;padding:0.875rem 1rem;font-size:0.9rem;line-height:1.5;">
                         Стоимость консультаций устанавливает администрация платформы — так мы держим единые прозрачные цены. Ваша текущая ставка: <b id="priceValue">уточняется</b>.
                     </div>
                 </div>
@@ -735,7 +749,7 @@
                 let rows = [];
                 try { const r = await fetch('/api/credentials.php?action=mine', { credentials:'include' }); const d = await r.json(); rows = (d && d.data || []).filter(c => c.type === 'diploma' || c.type === 'cert'); } catch(e){}
                 if (!rows.length) { listEl.innerHTML = '<div style="color:#9CA3AF;font-size:0.85rem;">Документы пока не загружены.</div>'; return; }
-                listEl.innerHTML = rows.map(c => `<div style="display:flex;align-items:center;justify-content:space-between;gap:0.5rem;background:#F8F6FF;border:1px solid #EDE9FF;border-radius:0.5rem;padding:0.4rem 0.6rem;">
+                listEl.innerHTML = rows.map(c => `<div class="ep-info-box" style="display:flex;align-items:center;justify-content:space-between;gap:0.5rem;border-radius:0.5rem;padding:0.4rem 0.6rem;">
                     <a href="${esc(c.url)}" target="_blank" rel="noopener" style="color:#7C3AED;text-decoration:none;font-size:0.85rem;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">📄 ${esc(c.name||'Документ')}</a>
                     <button type="button" data-id="${esc(c.id)}" style="background:none;border:none;color:#EF4444;cursor:pointer;font-size:0.8rem;">Удалить</button>
                 </div>`).join('');

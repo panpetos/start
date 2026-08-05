@@ -9,59 +9,61 @@
   <script src="/js/layout.js"></script>
   <script src="https://unpkg.com/lucide@latest"></script>
   <style>
-    body { background: #FAFAFA; display: flex; flex-direction: column; min-height: 100vh; }
+    :root { --bk-bg:#FAFAFA; --bk-text:#1A1A1A; --bk-text-sec:#6B7280; --bk-card:#fff; --bk-border:#F0F0F0; --bk-input-border:#E5E7EB; --bk-slot-bg:#fff; --bk-slot-hover:#FAF5FF; --bk-disabled-text:#D1D5DB; }
+    body.dark { --bk-bg:#191919; --bk-text:#E6E6E6; --bk-text-sec:#A0A0A0; --bk-card:#252525; --bk-border:#333; --bk-input-border:#444; --bk-slot-bg:#2A2A2A; --bk-slot-hover:#2D1F4E; --bk-disabled-text:#555; }
+    body { background: var(--bk-bg); display: flex; flex-direction: column; min-height: 100vh; transition: background 0.2s, color 0.2s; color: var(--bk-text); }
     main { flex: 1; padding: 2.5rem 1rem 4rem; }
     .page-wrap { max-width: 840px; margin: 0 auto; }
     .back-link { display: inline-flex; align-items: center; gap: 0.5rem; color: #7C3AED; text-decoration: none; font-weight: 500; font-size: 0.9375rem; margin-bottom: 1.75rem; }
     .back-link:hover { text-decoration: underline; }
-    .section-title { font-size: 1.625rem; font-weight: 800; color: #1A1A1A; letter-spacing: -0.03em; margin-bottom: 0.375rem; }
-    .section-sub  { color: #6B7280; font-size: 0.9375rem; margin-bottom: 2rem; }
+    .section-title { font-size: 1.625rem; font-weight: 800; color: var(--bk-text); letter-spacing: -0.03em; margin-bottom: 0.375rem; }
+    .section-sub  { color: var(--bk-text-sec); font-size: 0.9375rem; margin-bottom: 2rem; }
 
     /* Psychologist card */
-    .psych-card { background: white; border-radius: 1.25rem; padding: 1.5rem; border: 1px solid #F0F0F0; box-shadow: 0 2px 8px rgba(0,0,0,0.04); display: flex; gap: 1.25rem; align-items: center; margin-bottom: 2.25rem; }
+    .psych-card { background: var(--bk-card); border-radius: 1.25rem; padding: 1.5rem; border: 1px solid var(--bk-border); box-shadow: 0 2px 8px rgba(0,0,0,0.04); display: flex; gap: 1.25rem; align-items: center; margin-bottom: 2.25rem; }
     .psych-avatar { width: 72px; height: 72px; min-width: 72px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 1.625rem; font-weight: 700; overflow: hidden; flex-shrink: 0; }
-    .psych-info-name { font-size: 1.25rem; font-weight: 700; color: #1A1A1A; margin-bottom: 0.25rem; }
+    .psych-info-name { font-size: 1.25rem; font-weight: 700; color: var(--bk-text); margin-bottom: 0.25rem; }
     .psych-info-spec { font-size: 0.875rem; color: #7C3AED; font-weight: 500; margin-bottom: 0.5rem; }
-    .psych-info-meta { display: flex; gap: 1rem; flex-wrap: wrap; font-size: 0.8125rem; color: #6B7280; }
+    .psych-info-meta { display: flex; gap: 1rem; flex-wrap: wrap; font-size: 0.8125rem; color: var(--bk-text-sec); }
     .psych-price { margin-left: auto; text-align: right; flex-shrink: 0; }
-    .psych-price-val { font-size: 1.5rem; font-weight: 800; color: #1A1A1A; letter-spacing: -0.03em; }
-    .psych-price-label { font-size: 0.75rem; color: #6B7280; }
+    .psych-price-val { font-size: 1.5rem; font-weight: 800; color: var(--bk-text); letter-spacing: -0.03em; }
+    .psych-price-label { font-size: 0.75rem; color: var(--bk-text-sec); }
 
     /* Calendar */
-    .calendar-wrap { background: white; border-radius: 1.25rem; border: 1px solid #F0F0F0; box-shadow: 0 2px 8px rgba(0,0,0,0.04); overflow: hidden; margin-bottom: 2rem; }
-    .calendar-header { display: flex; align-items: center; justify-content: space-between; padding: 1.25rem 1.5rem; border-bottom: 1px solid #F0F0F0; }
-    .calendar-month { font-weight: 700; color: #1A1A1A; font-size: 1.0625rem; }
-    .cal-nav-btn { width: 2rem; height: 2rem; border: 1px solid #E5E7EB; border-radius: 0.5rem; background: white; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #6B7280; transition: background 0.15s, border-color 0.15s; }
+    .calendar-wrap { background: var(--bk-card); border-radius: 1.25rem; border: 1px solid var(--bk-border); box-shadow: 0 2px 8px rgba(0,0,0,0.04); overflow: hidden; margin-bottom: 2rem; }
+    .calendar-header { display: flex; align-items: center; justify-content: space-between; padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--bk-border); }
+    .calendar-month { font-weight: 700; color: var(--bk-text); font-size: 1.0625rem; }
+    .cal-nav-btn { width: 2rem; height: 2rem; border: 1px solid var(--bk-input-border); border-radius: 0.5rem; background: var(--bk-card); cursor: pointer; display: flex; align-items: center; justify-content: center; color: var(--bk-text-sec); transition: background 0.15s, border-color 0.15s; }
     .cal-nav-btn:hover { background: #F3E8FF; border-color: #C4B5FD; color: #7C3AED; }
     .cal-days-header { display: grid; grid-template-columns: repeat(7, 1fr); gap: 0; padding: 0.75rem 1rem 0; }
     .cal-day-name { text-align: center; font-size: 0.75rem; color: #9CA3AF; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; padding-bottom: 0.5rem; }
     .cal-days { display: grid; grid-template-columns: repeat(7, 1fr); gap: 0; padding: 0 1rem 1rem; }
     .cal-day { text-align: center; padding: 0.375rem; }
-    .cal-day-btn { width: 2.25rem; height: 2.25rem; border-radius: 50%; border: none; background: none; cursor: pointer; font-size: 0.9375rem; color: #1A1A1A; margin: 0 auto; display: flex; align-items: center; justify-content: center; transition: background 0.15s; }
+    .cal-day-btn { width: 2.25rem; height: 2.25rem; border-radius: 50%; border: none; background: none; cursor: pointer; font-size: 0.9375rem; color: var(--bk-text); margin: 0 auto; display: flex; align-items: center; justify-content: center; transition: background 0.15s; }
     .cal-day-btn:hover:not(:disabled) { background: #F3E8FF; color: #7C3AED; }
     .cal-day-btn.selected { background: #7C3AED; color: white; font-weight: 700; }
     .cal-day-btn.today { border: 2px solid #7C3AED; color: #7C3AED; font-weight: 600; }
     .cal-day-btn.today.selected { color: white; }
-    .cal-day-btn:disabled { color: #D1D5DB; cursor: default; pointer-events: none; }
-    .cal-day-btn.other-month { color: #D1D5DB; }
+    .cal-day-btn:disabled { color: var(--bk-disabled-text); cursor: default; pointer-events: none; }
+    .cal-day-btn.other-month { color: var(--bk-disabled-text); }
     .cal-day-btn.has-slots::after { content: ''; display: block; width: 4px; height: 4px; background: #7C3AED; border-radius: 50%; margin: 2px auto 0; }
     .cal-day-btn.selected::after { background: white; }
 
     /* Time slots */
-    .slots-wrap { padding: 1.5rem; border-top: 1px solid #F0F0F0; }
-    .slots-title { font-size: 0.875rem; font-weight: 600; color: #6B7280; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 1rem; }
+    .slots-wrap { padding: 1.5rem; border-top: 1px solid var(--bk-border); }
+    .slots-title { font-size: 0.875rem; font-weight: 600; color: var(--bk-text-sec); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 1rem; }
     .slots-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.625rem; }
-    .slot-btn { padding: 0.625rem 0.5rem; border: 1px solid #E5E7EB; border-radius: 0.625rem; background: white; cursor: pointer; font-size: 0.9375rem; font-weight: 500; color: #1A1A1A; text-align: center; transition: all 0.15s; }
-    .slot-btn:hover { border-color: #7C3AED; color: #7C3AED; background: #FAF5FF; }
+    .slot-btn { padding: 0.625rem 0.5rem; border: 1px solid var(--bk-input-border); border-radius: 0.625rem; background: var(--bk-slot-bg); cursor: pointer; font-size: 0.9375rem; font-weight: 500; color: var(--bk-text); text-align: center; transition: all 0.15s; }
+    .slot-btn:hover { border-color: #7C3AED; color: #7C3AED; background: var(--bk-slot-hover); }
     .slot-btn.selected { background: #7C3AED; color: white; border-color: #7C3AED; font-weight: 700; }
     .slot-btn.busy { background: #F9FAFB; color: #D1D5DB; cursor: default; border-color: #F3F4F6; pointer-events: none; }
     .slots-empty { color: #9CA3AF; font-size: 0.9375rem; text-align: center; padding: 1.5rem 0; }
 
     /* Confirm bar */
-    .confirm-bar { background: white; border-radius: 1.25rem; padding: 1.5rem; border: 1px solid #F0F0F0; box-shadow: 0 2px 8px rgba(0,0,0,0.04); display: flex; align-items: center; gap: 1.5rem; flex-wrap: wrap; }
+    .confirm-bar { background: var(--bk-card); border-radius: 1.25rem; padding: 1.5rem; border: 1px solid var(--bk-border); box-shadow: 0 2px 8px rgba(0,0,0,0.04); display: flex; align-items: center; gap: 1.5rem; flex-wrap: wrap; }
     .confirm-bar-info { flex: 1; min-width: 200px; }
-    .confirm-bar-label { font-size: 0.8125rem; color: #6B7280; margin-bottom: 0.25rem; }
-    .confirm-bar-val { font-weight: 700; color: #1A1A1A; font-size: 1.0625rem; }
+    .confirm-bar-label { font-size: 0.8125rem; color: var(--bk-text-sec); margin-bottom: 0.25rem; }
+    .confirm-bar-val { font-weight: 700; color: var(--bk-text); font-size: 1.0625rem; }
     .confirm-bar-val span { color: #7C3AED; }
     #confirmBtn { padding: 0.875rem 2.5rem; background: linear-gradient(135deg, #7C3AED 0%, #9F67FA 100%); color: white; border: none; border-radius: 0.875rem; font-size: 1.0625rem; font-weight: 700; cursor: pointer; white-space: nowrap; transition: all 0.2s; box-shadow: 0 4px 14px rgba(124,58,237,0.35); }
     #confirmBtn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(124,58,237,0.45); }
@@ -80,6 +82,7 @@
   </style>
 </head>
 <body>
+  <script>(function(){var t=localStorage.getItem('psy-theme')||'light';if(t==='dark'||(t==='system'&&matchMedia('(prefers-color-scheme:dark)').matches))document.body.classList.add('dark');})()</script>
   <script>psyWriteHeader();</script>
 
   <main>
@@ -153,15 +156,13 @@
     var WEEKDAY_KEYS = ['sun','mon','tue','wed','thu','fri','sat'];
 
     function getSlots(dateStr) {
-      // Если психолог задал расписание — показываем только его окна на этот день недели.
       if (psychSchedule) {
         var d = new Date(dateStr + 'T12:00:00');
         var key = WEEKDAY_KEYS[d.getDay()];
         var times = (psychSchedule[key] || []).slice().sort();
         return times.map(function(t) { return { time: t, busy: false }; });
       }
-      // Нет расписания — дефолтные окна (старое поведение для незаполненных профилей).
-      return ALL_SLOTS.map(function(t) { return { time: t, busy: false }; });
+      return [];
     }
 
     function toISO(dateStr, time) {
@@ -396,7 +397,7 @@
             .then(function(r) { return r.ok ? r.json() : null; })
             .then(function(s) { if (s && s.ok && s.slots) psychSchedule = s.slots; })
             .catch(function() {})
-            .finally(function() { buildPage(); checkSelfBooking(); });
+            .finally(function() { buildPage(); checkSelfBooking(); showNoScheduleNotice(); });
         })
         .catch(function() { showLoadError(); });
     })();
@@ -429,6 +430,25 @@
           confirmBtn.style.boxShadow = 'none';
         }
       }).catch(function() {});
+    }
+
+    function showNoScheduleNotice() {
+      if (psychSchedule) return;
+      var calWrap = document.querySelector('.calendar-wrap');
+      if (!calWrap) return;
+      var notice = document.createElement('div');
+      notice.style.cssText = 'background:#FEF3C7;border:1.5px solid #F59E0B;border-radius:1rem;padding:1rem 1.25rem;margin-bottom:1.5rem;display:flex;align-items:center;gap:0.75rem;color:#92400E;font-size:0.9375rem;font-weight:500;';
+      notice.innerHTML = '<span style="font-size:1.375rem;flex-shrink:0;">📅</span><span>Этот специалист ещё не настроил своё расписание. Запись временно недоступна.</span>';
+      calWrap.parentNode.insertBefore(notice, calWrap);
+      calWrap.style.display = 'none';
+      var confirmBtn = document.getElementById('confirmBtn');
+      if (confirmBtn) {
+        confirmBtn.disabled = true;
+        confirmBtn.textContent = 'Расписание не настроено';
+        confirmBtn.style.background = '#E5E7EB';
+        confirmBtn.style.color = '#9CA3AF';
+        confirmBtn.style.boxShadow = 'none';
+      }
     }
   })();
   </script>

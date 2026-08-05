@@ -34,6 +34,8 @@
             min-height: 100vh; padding-top: 84px;
             transition: background 0.2s, color 0.2s;
         }
+        body.dark input, body.dark textarea, body.dark select { background: var(--d-panel-alt) !important; border-color: var(--d-border) !important; color: var(--d-text) !important; }
+        body.dark input::placeholder, body.dark textarea::placeholder { color: var(--d-text-muted) !important; }
         body.dark .nav { background: #1E1E1E !important; border-color: #333 !important; }
         body.dark .nav-brand span:first-child { color: #E6E6E6 !important; }
         body.dark .nav a.nav-link { color: #A0A0A0 !important; }

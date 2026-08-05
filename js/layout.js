@@ -79,6 +79,28 @@
       '</p>' +
     '</footer>';
 
+  var darkCss = document.createElement('style');
+  darkCss.textContent =
+    'body.dark .nav{background:#1E1E1E!important;border-bottom-color:#333!important}' +
+    'body.dark .nav-brand span:first-child{color:#E6E6E6!important}' +
+    'body.dark .nav-link{color:#D1D5DB!important}' +
+    'body.dark .nav-link:hover{color:#A78BFA!important}' +
+    'body.dark .nav-menu{background:#1E1E1E!important}' +
+    'body.dark .site-footer{background:#1A1A1A!important;color:#9CA3AF!important}' +
+    'body.dark .site-footer a{color:#9CA3AF!important}' +
+    'body.dark .site-footer span[style*="background:#fff"]{background:#2A2A2A!important;border-color:#444!important}' +
+    'body.dark #psySupPanel{background:#1E1E1E!important}' +
+    'body.dark #psySupForm{background:#1E1E1E!important}' +
+    'body.dark #psySupForm p{color:#9CA3AF!important}' +
+    'body.dark #psySupForm input,body.dark #psySupForm select,body.dark #psySupForm textarea{background:#2A2A2A!important;border-color:#444!important;color:#E6E6E6!important}' +
+    'body.dark #psySupMsgs{background:#1A1A1A!important}' +
+    'body.dark #psySupChat>div:last-child{border-color:#333!important;background:#1E1E1E!important}' +
+    'body.dark #psySupInput{background:#2A2A2A!important;border-color:#444!important;color:#E6E6E6!important}' +
+    'body.dark #psyDevNotice>div{background:#1E1E1E!important}' +
+    'body.dark #psyDevNotice h3{color:#E6E6E6!important}' +
+    'body.dark #psyDevNotice p{color:#9CA3AF!important}';
+  document.head.appendChild(darkCss);
+
   // Синхронная вставка во время разбора HTML — без мерцания.
   window.psyWriteHeader = function () { document.write(headerHtml); };
   window.psyWriteFooter = function () { document.write(footerHtml); };
@@ -271,7 +293,8 @@
       if (!rows.length) { box.innerHTML = '<div style="color:#9CA3AF;text-align:center;font-size:0.85rem;padding:1rem;">Напишите сообщение — мы ответим здесь.</div>'; return; }
       box.innerHTML = rows.map(function (m) {
         var mine = m.sender === 'user';
-        return '<div style="align-self:' + (mine ? 'flex-end' : 'flex-start') + ';max-width:80%;background:' + (mine ? 'linear-gradient(135deg,#7C3AED,#9F67FA)' : '#fff') + ';color:' + (mine ? '#fff' : '#1A1A1A') + ';border:' + (mine ? 'none' : '1px solid #ECECEC') + ';border-radius:0.9rem;padding:0.5rem 0.75rem;font-size:0.875rem;line-height:1.4;">' +
+        var isDark = document.body.classList.contains('dark');
+        return '<div style="align-self:' + (mine ? 'flex-end' : 'flex-start') + ';max-width:80%;background:' + (mine ? 'linear-gradient(135deg,#7C3AED,#9F67FA)' : (isDark ? '#2A2A2A' : '#fff')) + ';color:' + (mine ? '#fff' : (isDark ? '#E6E6E6' : '#1A1A1A')) + ';border:' + (mine ? 'none' : ('1px solid ' + (isDark ? '#444' : '#ECECEC'))) + ';border-radius:0.9rem;padding:0.5rem 0.75rem;font-size:0.875rem;line-height:1.4;">' +
           (mine ? '' : '<div style="font-size:0.7rem;color:#7C3AED;font-weight:700;margin-bottom:0.15rem;">Поддержка</div>') +
           escSup(m.body) + '</div>';
       }).join('');

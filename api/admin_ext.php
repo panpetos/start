@@ -102,6 +102,7 @@ function usersMap(PDO $pdo): array {
                 'email' => $u['email'] ?? '',
                 'phone' => $u['phone'] ?? ($u['phone_number'] ?? ''),
                 'role'  => $u['role'] ?? '',
+                'avatar' => $u['avatar'] ?? '',
             ];
         }
     } catch (Exception $e) {}
@@ -221,6 +222,7 @@ if ($action === 'psychologists') {
         $r['telegram'] = $c['telegram'] ?? '';
         $r['whatsapp'] = $c['whatsapp'] ?? '';
         $r['max_msg']  = $c['max_msg'] ?? '';
+        if (empty($r['avatar']) && !empty($um[$uid]['avatar'])) $r['avatar'] = $um[$uid]['avatar'];
     }
     echo json_encode(['ok' => true, 'data' => $rows]);
     exit;

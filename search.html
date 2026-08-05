@@ -522,6 +522,7 @@
           if (Array.isArray(data)) {
             allPsychologists = data.map(normalizePsych);
             applyFilters();
+            enrichReviewCounts();
             return;
           }
         }
@@ -539,6 +540,25 @@
           if (window.lucide) { try { lucide.createIcons(); } catch(e) {} }
         }
       }
+    }
+
+    async function enrichReviewCounts() {
+      try {
+        const resp = await fetch('/api/reviews.php?action=counts', { credentials: 'include' });
+        if (!resp.ok) return;
+        const json = await resp.json();
+        if (!json.ok || !json.data) return;
+        let changed = false;
+        allPsychologists.forEach(p => {
+          const rc = json.data[p.id];
+          if (rc) {
+            p.reviews = rc.count;
+            if (rc.avg > 0) p.rating = rc.avg;
+            changed = true;
+          }
+        });
+        if (changed) applyFilters();
+      } catch (_) {}
     }
 
     /* ─── Filter chip toggle ─── */
@@ -644,7 +664,7 @@
       container.innerHTML = list.map((p, idx) => {
         const initials = (p.name || '?').split(' ').map(w => w[0]).join('').slice(0,2).toUpperCase();
         const avatarHtml = p.avatar
-          ? '<img src="' + p.avatar + '" alt="' + p.name + '">'
+          ? '<img src="' + p.avatar + '" alt="' + p.name + '" style="width:100%;height:100%;object-fit:cover;">'
           : '<span>' + initials + '</span>';
         const stars = renderStars(p.rating || 0);
         const fmtIcons = {video: 'video', chat: 'message-square', phone: 'phone'};
