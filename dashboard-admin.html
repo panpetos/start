@@ -310,6 +310,9 @@
                     <button class="sidebar-item" data-tab="devtasks" onclick="switchTab('devtasks')">
                         <span class="sidebar-item-icon">🤖</span> Задачи Клоду
                     </button>
+                    <button class="sidebar-item" data-tab="notifications" onclick="switchTab('notifications')">
+                        <span class="sidebar-item-icon">🔔</span> Уведомления
+                    </button>
                     <button class="sidebar-item" data-tab="notes" onclick="switchTab('notes')">
                         <span class="sidebar-item-icon">📝</span> Записки
                     </button>
@@ -414,7 +417,7 @@
             // Close mobile sidebar
             document.getElementById('sidebar').classList.remove('open');
             document.getElementById('sidebarOverlay').classList.remove('open');
-            ({ overview:renderOverview, support:renderSupport, users:renderUsers, psychologists:renderPsych, tariffs:renderTariffs, robokassa:renderRobokassa, yookassa:renderYookassa, devtasks:renderDevTasks, appointments:renderAppointments, replacements:renderReplacements, supervision:renderSupervision, calls:renderCalls, payments:renderPayments, subscribers:renderSubscribers, referrals:renderReferrals, activity:renderActivity, notes:renderNotes }[tab])();
+            ({ overview:renderOverview, support:renderSupport, users:renderUsers, psychologists:renderPsych, tariffs:renderTariffs, robokassa:renderRobokassa, yookassa:renderYookassa, devtasks:renderDevTasks, appointments:renderAppointments, replacements:renderReplacements, supervision:renderSupervision, calls:renderCalls, payments:renderPayments, subscribers:renderSubscribers, referrals:renderReferrals, activity:renderActivity, notes:renderNotes, notifications:renderNotifications }[tab])();
         }
 
         // ── Overview ────────────────────────────────────────────────────────
@@ -1108,6 +1111,140 @@
         async function apiPostTo(url, action, body){
             try { const r = await fetch(url+'?action='+action, { method:'POST', headers:{'Content-Type':'application/json'}, credentials:'include', body: JSON.stringify(body) }); return await r.json(); }
             catch(e){ return { error:'сеть' }; }
+        }
+
+        // ── Уведомления: каналы + шаблоны сообщений ──────────────────────────
+        const NOTIF_API = '/api/notifications.php';
+        function nid(field, code){ return 'nt_'+field+'_'+code.replace(/[^a-z0-9]/gi,'_'); }
+        async function renderNotifications(){
+            let tpl = {}, ch = {};
+            try { tpl = await (await fetch(NOTIF_API + '?action=templates', { credentials:'include' })).json(); } catch(e){}
+            try { ch = await (await fetch(NOTIF_API + '?action=channels-status', { credentials:'include' })).json(); } catch(e){}
+            if (!tpl.ok) { document.getElementById('content').innerHTML = '<div class="empty">Не удалось загрузить (нужны права администратора)</div>'; return; }
+            const c = (ch && ch.data) || {};
+            const list = tpl.data || [];
+            const ph = tpl.placeholders || [];
+            const yn = (v) => v ? '<span class="badge b-green">подключён</span>' : '<span class="badge b-gray">не подключён</span>';
+
+            // — Каналы —
+            const smtp = (c.email_method === 'smtp');
+            const channels = `
+              <div class="panel" style="margin-bottom:1rem;"><div class="panel-head"><h2>📡 Каналы доставки</h2></div><div style="padding:1.1rem;display:flex;flex-direction:column;gap:1.1rem;">
+                <div class="note" style="margin:0;">Секреты сохраняются в конфиг на сервере <b>вне git</b>. Поля-секреты можно оставить пустыми — прежнее значение сохранится.</div>
+
+                <div>
+                  <div style="font-weight:600;margin-bottom:0.4rem;">✈️ Telegram-бот ${yn(c.telegram_configured)}</div>
+                  <input id="ntlg" type="password" placeholder="${c.telegram_configured?'•••• (задан, введите новый чтобы заменить)':'токен бота от @BotFather'}" style="width:100%;padding:0.55rem 0.75rem;border:1.5px solid #E5E7EB;border-radius:0.6rem;font-family:monospace;">
+                </div>
+                <div>
+                  <div style="font-weight:600;margin-bottom:0.4rem;">Ⓜ️ MAX-бот ${yn(c.max_configured)}</div>
+                  <input id="nmax" type="password" placeholder="${c.max_configured?'•••• (задан, введите новый чтобы заменить)':'токен бота MAX'}" style="width:100%;padding:0.55rem 0.75rem;border:1.5px solid #E5E7EB;border-radius:0.6rem;font-family:monospace;">
+                </div>
+                <div>
+                  <div style="font-weight:600;margin-bottom:0.4rem;">✉️ Email</div>
+                  <select id="nemeth" onchange="document.getElementById('nsmtp').style.display=this.value==='smtp'?'grid':'none'" style="padding:0.5rem 0.75rem;border:1.5px solid #E5E7EB;border-radius:0.6rem;font-family:inherit;">
+                    <option value="" ${!c.email_method?'selected':''}>— не настроено —</option>
+                    <option value="smtp" ${c.email_method==='smtp'?'selected':''}>SMTP через ящик на домене (рекомендуется)</option>
+                    <option value="mail" ${c.email_method==='mail'?'selected':''}>PHP mail() (просто, но часто спам)</option>
+                  </select>
+                  <div id="nsmtp" style="display:${smtp?'grid':'none'};margin-top:0.6rem;grid-template-columns:1fr 1fr;gap:0.5rem;">
+                    <input id="nsmtphost" placeholder="SMTP-хост (mail.hosting.reg.ru)" value="${esc(c.smtp_host||'')}" style="padding:0.55rem 0.75rem;border:1.5px solid #E5E7EB;border-radius:0.6rem;font-family:inherit;">
+                    <input id="nsmtpport" placeholder="порт (465)" value="${esc(c.smtp_port||'465')}" style="padding:0.55rem 0.75rem;border:1.5px solid #E5E7EB;border-radius:0.6rem;font-family:inherit;">
+                    <input id="nsmtpuser" placeholder="логин (noreply@psytalk.pro)" value="${esc(c.smtp_user||'')}" style="padding:0.55rem 0.75rem;border:1.5px solid #E5E7EB;border-radius:0.6rem;font-family:inherit;">
+                    <input id="nsmtppass" type="password" placeholder="${c.email_configured?'•••• (задан)':'пароль ящика'}" style="padding:0.55rem 0.75rem;border:1.5px solid #E5E7EB;border-radius:0.6rem;font-family:inherit;">
+                    <input id="nsmtpfrom" placeholder="От кого (psytalk.pro &lt;noreply@psytalk.pro&gt;)" value="${esc(c.smtp_from||'')}" style="grid-column:1/3;padding:0.55rem 0.75rem;border:1.5px solid #E5E7EB;border-radius:0.6rem;font-family:inherit;">
+                  </div>
+                </div>
+                <div>
+                  <div style="font-weight:600;margin-bottom:0.2rem;">🔔 Push (браузер/телефон)</div>
+                  <div class="muted" style="font-size:0.82rem;">Настроим на этапе PWA — отдельным шагом.</div>
+                </div>
+                <div><button class="btn-sm btn-purple" style="padding:0.6rem 1.4rem;" onclick="notifSaveChannels(this)">Сохранить каналы</button>
+                  <span id="nchMsg" style="font-size:0.85rem;margin-left:0.5rem;"></span></div>
+              </div></div>`;
+
+            // — Справочник переменных —
+            const phBox = `<div class="panel" style="margin-bottom:1rem;"><div class="panel-head"><h2>🔤 Динамические переменные</h2></div><div style="padding:1.1rem;">
+                <div class="muted" style="font-size:0.83rem;margin-bottom:0.6rem;">Вставляйте эти коды в тексты — при отправке они заменятся на реальные данные. Не все переменные применимы к каждому событию.</div>
+                <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:0.4rem;">
+                  ${ph.map(p=>`<div style="font-size:0.82rem;"><code style="background:#F3E8FF;color:#6D28D9;padding:0.1rem 0.35rem;border-radius:0.3rem;">${esc(p[0])}</code> — ${esc(p[1])}</div>`).join('')}
+                </div></div></div>`;
+
+            // — Шаблоны, сгруппированные —
+            const groups = {};
+            list.forEach(t => { (groups[t.group_label] = groups[t.group_label] || []).push(t); });
+            const typeBadge = { 'обязательное':'b-red', 'напоминание':'b-amber', 'инфо':'b-gray' };
+            let tplHtml = '';
+            for (const g in groups) {
+                tplHtml += `<h3 style="margin:1rem 0 0.5rem;font-size:1.05rem;">👤 ${esc(g)}</h3>`;
+                tplHtml += groups[g].map(t => `
+                  <div class="panel" style="margin-bottom:0.7rem;"><div style="padding:0.9rem 1.1rem;">
+                    <div style="display:flex;justify-content:space-between;gap:0.6rem;align-items:center;flex-wrap:wrap;margin-bottom:0.5rem;">
+                      <div><code style="font-size:0.78rem;color:#6B7280;">${esc(t.code)}</code>
+                        <span class="badge ${typeBadge[t.type_label]||'b-gray'}" style="margin-left:0.4rem;">${esc(t.type_label)}</span></div>
+                      <label style="font-size:0.82rem;display:flex;align-items:center;gap:0.35rem;${t.is_mandatory?'opacity:0.6;':''}">
+                        <input type="checkbox" id="${nid('en',t.code)}" ${t.enabled?'checked':''} ${t.is_mandatory?'disabled title="Обязательное — нельзя выключить"':''}> включено
+                      </label>
+                    </div>
+                    <input id="${nid('title',t.code)}" value="${esc(t.title||'')}" placeholder="Заголовок" style="width:100%;padding:0.5rem 0.7rem;border:1.5px solid #E5E7EB;border-radius:0.5rem;font-family:inherit;font-weight:600;margin-bottom:0.4rem;">
+                    <textarea id="${nid('body',t.code)}" rows="3" style="width:100%;padding:0.6rem 0.8rem;border:1.5px solid #E5E7EB;border-radius:0.5rem;font-family:inherit;font-size:0.9rem;resize:vertical;">${esc(t.body||'')}</textarea>
+                    <div style="margin-top:0.5rem;display:flex;gap:0.4rem;align-items:center;flex-wrap:wrap;">
+                      <button class="btn-sm btn-purple" onclick="notifSaveTemplate('${t.code}',this)">Сохранить</button>
+                      <button class="btn-sm btn-outline" onclick="notifResetTemplate('${t.code}')">Сбросить к стандартному</button>
+                      <span id="${nid('msg',t.code)}" style="font-size:0.8rem;"></span>
+                    </div>
+                  </div></div>`).join('');
+            }
+
+            document.getElementById('content').innerHTML =
+                '<div class="note">🔔 Здесь вы настраиваете каналы доставки и редактируете тексты всех уведомлений. Сама рассылка подключается следующим этапом. Маркетинговые рассылки пока не включены.</div>'
+                + channels + phBox
+                + '<h2 style="margin:1.2rem 0 0.3rem;">✍️ Шаблоны сообщений</h2>'
+                + '<div class="muted" style="font-size:0.83rem;margin-bottom:0.5rem;">Тексты можно менять как угодно, используя переменные выше. Обязательные (транзакционные) уведомления выключить нельзя — только отредактировать.</div>'
+                + tplHtml;
+        }
+        async function notifSaveChannels(btn){
+            const m = document.getElementById('nchMsg');
+            btn.disabled = true; m.textContent = ' сохраняю...'; m.style.color = '#6B7280';
+            const payload = {
+                telegram_token: document.getElementById('ntlg').value,
+                max_token: document.getElementById('nmax').value,
+                email_method: document.getElementById('nemeth').value,
+            };
+            if (payload.email_method === 'smtp') {
+                payload.smtp_host = document.getElementById('nsmtphost').value;
+                payload.smtp_port = document.getElementById('nsmtpport').value;
+                payload.smtp_user = document.getElementById('nsmtpuser').value;
+                payload.smtp_pass = document.getElementById('nsmtppass').value;
+                payload.smtp_from = document.getElementById('nsmtpfrom').value;
+            }
+            const r = await apiPostTo(NOTIF_API, 'channels-save', payload);
+            btn.disabled = false;
+            if (r.ok) { m.textContent = ' ✅ сохранено'; m.style.color = '#16A34A'; setTimeout(renderNotifications, 700); }
+            else { m.textContent = ' ⚠️ ' + (r.error||'ошибка'); m.style.color = '#DC2626'; }
+        }
+        async function notifSaveTemplate(code, btn){
+            const m = document.getElementById(nid('msg',code));
+            btn.disabled = true; m.textContent = ' сохраняю...'; m.style.color = '#6B7280';
+            const enEl = document.getElementById(nid('en',code));
+            const r = await apiPostTo(NOTIF_API, 'template-save', {
+                code,
+                title: document.getElementById(nid('title',code)).value,
+                body: document.getElementById(nid('body',code)).value,
+                enabled: enEl.checked ? 1 : 0,
+            });
+            btn.disabled = false;
+            if (r.ok) { m.textContent = ' ✅ сохранено'; m.style.color = '#16A34A'; }
+            else { m.textContent = ' ⚠️ ' + (r.error||'ошибка'); m.style.color = '#DC2626'; }
+        }
+        async function notifResetTemplate(code){
+            if (!confirm('Вернуть стандартный текст этого уведомления?')) return;
+            const r = await apiPostTo(NOTIF_API, 'template-reset', { code });
+            if (r.ok) {
+                document.getElementById(nid('title',code)).value = r.title || '';
+                document.getElementById(nid('body',code)).value = r.body || '';
+                const m = document.getElementById(nid('msg',code)); m.textContent = ' ↩ сброшено'; m.style.color = '#6B7280';
+            } else alert(r.error || 'Ошибка');
         }
 
         // ── Robokassa ───────────────────────────────────────────────────────

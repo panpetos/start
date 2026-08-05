@@ -74,6 +74,8 @@ jobs:
             put api/yookassa.php -o api/yookassa.php;
             put api/yookassa_config.sample.php -o api/yookassa_config.sample.php;
             put api/dev_tasks.php -o api/dev_tasks.php;
+            put api/notifications.php -o api/notifications.php;
+            put api/notifications_config.sample.php -o api/notifications_config.sample.php;
             put api/orders.php -o api/orders.php;
             put api/replace.php -o api/replace.php;
             put api/packages.php -o api/packages.php;

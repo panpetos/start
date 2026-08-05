@@ -4,6 +4,9 @@ api/robokassa_config.php
 # Токен автоматизации задач — только на сервере, НЕ в git
 api/dev_tasks_config.php
 
+# Конфиг каналов уведомлений (токены ботов, SMTP) — только на сервере, НЕ в git
+api/notifications_config.php
+
 # Прочие локальные секреты/конфиги вне репозитория
 api/config.php
 api/db.php
