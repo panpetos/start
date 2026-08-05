@@ -805,12 +805,110 @@
 
         // ── Support ─────────────────────────────────────────────────────────
         let supportThreadId = null;
+        let supPollTimer = null;
+        let supMsgPollTimer = null;
+        let supLastTotalUnread = 0;
+        let supPendingFile = null;
+
+        function supPlaySound() {
+            try {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.connect(gain); gain.connect(ctx.destination);
+                osc.frequency.setValueAtTime(660, ctx.currentTime);
+                osc.frequency.setValueAtTime(880, ctx.currentTime + 0.12);
+                gain.gain.setValueAtTime(0.15, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
+                osc.start(ctx.currentTime);
+                osc.stop(ctx.currentTime + 0.5);
+            } catch(e) {}
+        }
+
+        function supShowNotif(text) {
+            let notif = document.getElementById('supAdminNotif');
+            if (!notif) {
+                notif = document.createElement('div');
+                notif.id = 'supAdminNotif';
+                notif.style.cssText = 'position:fixed;top:92px;right:1rem;z-index:2000;background:var(--a-panel);border:1px solid var(--a-panel-border);border-left:3px solid #7C3AED;border-radius:0.6rem;padding:0.6rem 1rem;box-shadow:0 8px 24px rgba(0,0,0,0.15);max-width:320px;font-size:0.85rem;cursor:pointer;animation:supNotifIn 0.3s ease;';
+                document.body.appendChild(notif);
+                const style = document.createElement('style');
+                style.textContent = '@keyframes supNotifIn{from{opacity:0;transform:translateX(30px);}to{opacity:1;transform:translateX(0);}}';
+                document.head.appendChild(style);
+            }
+            notif.innerHTML = '<div style="font-weight:600;font-size:0.78rem;color:#7C3AED;margin-bottom:0.15rem;">💬 Новое сообщение</div>' + esc(text.length > 100 ? text.slice(0,100) + '...' : text);
+            notif.style.display = 'block';
+            notif.onclick = function() { notif.style.display = 'none'; };
+            setTimeout(() => { notif.style.display = 'none'; }, 6000);
+        }
+
+        function supRenderAttachment(m) {
+            if (!m.attachment_url) return '';
+            const isImg = (m.attachment_type || '').includes('image');
+            if (isImg) return `<div style="margin-top:0.3rem;"><img src="${esc(m.attachment_url)}" style="max-width:200px;max-height:150px;border-radius:0.5rem;cursor:pointer;" onclick="window.open(this.src,'_blank')"></div>`;
+            return `<div style="margin-top:0.3rem;"><a href="${esc(m.attachment_url)}" target="_blank" style="color:inherit;text-decoration:underline;font-size:0.8rem;">📎 ${esc(m.attachment_name || 'файл')}</a></div>`;
+        }
+
+        function supStartPolling() {
+            if (supPollTimer) clearInterval(supPollTimer);
+            supPollTimer = setInterval(async () => {
+                if (currentTab !== 'support') { clearInterval(supPollTimer); supPollTimer = null; return; }
+                try {
+                    const res = await (await fetch('/api/support.php?action=threads', { credentials:'include' })).json();
+                    if (!res || !res.ok) return;
+                    const rows = res.data || [];
+                    const totalUnread = rows.reduce((s,t) => s + (t.unread || 0), 0);
+                    if (totalUnread > supLastTotalUnread) {
+                        supPlaySound();
+                        const newest = rows.find(t => t.unread > 0);
+                        if (newest) supShowNotif((newest.name || 'Гость') + ': ' + (newest.last_message || ''));
+                    }
+                    supLastTotalUnread = totalUnread;
+                    updateSupportBadge(totalUnread);
+                    updateThreadList(rows);
+                } catch(e) {}
+            }, 5000);
+        }
+
+        function updateSupportBadge(count) {
+            const btn = document.querySelector('[data-tab="support"]');
+            if (!btn) return;
+            let badge = btn.querySelector('.sup-badge');
+            if (count > 0) {
+                if (!badge) { badge = document.createElement('span'); badge.className = 'sup-badge'; badge.style.cssText = 'background:#DC2626;color:#fff;font-size:0.65rem;font-weight:700;min-width:16px;height:16px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;padding:0 4px;margin-left:auto;'; btn.appendChild(badge); }
+                badge.textContent = count;
+            } else if (badge) { badge.remove(); }
+        }
+
+        function updateThreadList(rows) {
+            const tbody = document.querySelector('#content table tbody');
+            if (!tbody || supportThreadId) return;
+            const roleBadge = (t) => {
+                const reg = t.registered ? '<span class="badge b-green">в системе</span>' : '<span class="badge b-amber">не зарегистрирован</span>';
+                const role = t.role ? `<span class="badge b-purple">${esc(t.role)}</span>` : '';
+                return role + ' ' + reg;
+            };
+            tbody.innerHTML = rows.length ? rows.map(t => {
+                const contact = [t.email].filter(Boolean).map(esc).join(' · ') || '<span class="muted">email не указан</span>';
+                const unread = t.unread > 0 ? `<span class="badge b-red">${t.unread} новых</span>` : '';
+                return `<tr style="cursor:pointer;" onclick="openSupportThread('${esc(t.id)}')">
+                    <td><b>${esc(t.name || 'Гость')}</b><br><span class="muted" style="font-size:0.78rem;">${contact}</span></td>
+                    <td>${roleBadge(t)}</td>
+                    <td style="max-width:280px;white-space:normal;">${esc((t.last_sender==='admin'?'Вы: ':'') + (t.last_message||''))}</td>
+                    <td class="muted">${fmtDateTime(t.last_at)} ${unread}</td>
+                </tr>`;
+            }).join('') : '<tr><td colspan="4" class="muted" style="padding:1.5rem;text-align:center;">Обращений пока нет</td></tr>';
+        }
+
         async function renderSupport(){
+            if (supMsgPollTimer) { clearInterval(supMsgPollTimer); supMsgPollTimer = null; }
             let res;
             try { res = await (await fetch('/api/support.php?action=threads', { credentials:'include' })).json(); }
             catch(e){ return fail(); }
             if (!res || !res.ok) return fail();
             const rows = res.data || [];
+            supLastTotalUnread = rows.reduce((s,t) => s + (t.unread || 0), 0);
+            updateSupportBadge(supLastTotalUnread);
             const roleBadge = (t) => {
                 const reg = t.registered ? '<span class="badge b-green">в системе</span>' : '<span class="badge b-amber">не зарегистрирован</span>';
                 const role = t.role ? `<span class="badge b-purple">${esc(t.role)}</span>` : '';
@@ -827,42 +925,100 @@
                 </tr>`;
             }).join('') : '<tr><td colspan="4" class="muted" style="padding:1.5rem;text-align:center;">Обращений пока нет</td></tr>';
             document.getElementById('content').innerHTML =
-                '<div class="note">💬 Здесь все обращения из чата поддержки на сайте — от зарегистрированных (контакты подставляются автоматически) и от гостей (указывают имя, email и роль). Нажмите на обращение, чтобы ответить.</div>' +
-                `<div class="panel"><div class="panel-head"><h2>Обращения (${rows.length})</h2><button class="btn-sm btn-outline" onclick="renderSupport()">↻ Обновить</button></div>
+                '<div class="note">💬 Обращения обновляются автоматически каждые 5 сек. Нажмите на обращение, чтобы ответить.</div>' +
+                `<div class="panel"><div class="panel-head"><h2>Обращения (${rows.length})</h2><button class="btn-sm btn-outline" onclick="supportThreadId=null;renderSupport()">↻ К списку</button></div>
                   <div class="tbl-wrap"><table><thead><tr><th>Контакт</th><th>Роль / статус</th><th>Последнее сообщение</th><th>Когда</th></tr></thead><tbody>${list}</tbody></table></div></div>` +
                 '<div id="supportThreadPanel" style="margin-top:1.25rem;"></div>';
+            supStartPolling();
             if (supportThreadId) openSupportThread(supportThreadId);
         }
+
+        let supOpenMsgCount = 0;
         async function openSupportThread(id){
             supportThreadId = id;
             const panel = document.getElementById('supportThreadPanel');
-            panel.innerHTML = '<div class="panel"><div class="loading">Загрузка переписки...</div></div>';
+            if (!panel.innerHTML.includes('supReplyInput')) {
+                panel.innerHTML = '<div class="panel"><div class="loading">Загрузка переписки...</div></div>';
+            }
             let res;
             try { res = await (await fetch('/api/support.php?action=messages&thread_id=' + encodeURIComponent(id), { credentials:'include' })).json(); }
             catch(e){ panel.innerHTML = '<div class="panel"><div class="empty">Не удалось загрузить</div></div>'; return; }
             const t = res.thread || {};
             const msgs = res.data || [];
-            const head = `${esc(t.name||'Гость')} · ${t.role?esc(t.role):'—'} · ${t.registered||t.user_id?'<span class="badge b-green">в системе</span>':'<span class="badge b-amber">гость</span>'}${t.email?(' · '+esc(t.email)):''}`;
+
+            const userMsgCount = msgs.filter(m => m.sender === 'user').length;
+            if (userMsgCount > supOpenMsgCount && supOpenMsgCount > 0) supPlaySound();
+            supOpenMsgCount = userMsgCount;
+
+            const head = `${esc(t.name||'Гость')} · ${t.role?esc(t.role):'—'} · ${t.registered||t.user_id?'<span class="badge b-green">в системе</span>':'<span class="badge b-amber">гость</span>'}${t.email?(' · '+esc(t.email)):''} <button class="btn-sm btn-outline" style="margin-left:auto;font-size:0.75rem;" onclick="supportThreadId=null;supOpenMsgCount=0;renderSupport()">← Назад</button>`;
             const bubbles = msgs.length ? msgs.map(m => {
                 const admin = m.sender === 'admin';
-                return `<div style="align-self:${admin?'flex-end':'flex-start'};max-width:75%;background:${admin?'linear-gradient(135deg,#7C3AED,#9F67FA)':'var(--a-panel)'};color:${admin?'#fff':'var(--a-text)'};border:${admin?'none':'1px solid var(--a-panel-border)'};border-radius:0.9rem;padding:0.5rem 0.8rem;font-size:0.875rem;line-height:1.45;">${esc(m.body)}<div style="font-size:0.68rem;opacity:0.7;margin-top:0.2rem;">${fmtDateTime(m.created_at)}</div></div>`;
+                return `<div style="align-self:${admin?'flex-end':'flex-start'};max-width:75%;background:${admin?'linear-gradient(135deg,#7C3AED,#9F67FA)':'var(--a-panel)'};color:${admin?'#fff':'var(--a-text)'};border:${admin?'none':'1px solid var(--a-panel-border)'};border-radius:0.9rem;padding:0.5rem 0.8rem;font-size:0.875rem;line-height:1.45;">${esc(m.body)}${supRenderAttachment(m)}<div style="font-size:0.68rem;opacity:0.7;margin-top:0.2rem;">${fmtDateTime(m.created_at)}</div></div>`;
             }).join('') : '<div class="muted" style="text-align:center;padding:1rem;">Нет сообщений</div>';
+            const savedInput = document.getElementById('supReplyInput')?.value || '';
             panel.innerHTML = `<div class="panel">
-                <div class="panel-head"><h2 style="font-size:0.95rem;">${head}</h2></div>
-                <div style="display:flex;flex-direction:column;gap:0.5rem;padding:1rem;background:var(--a-bg);max-height:340px;overflow-y:auto;">${bubbles}</div>
-                <div style="display:flex;gap:0.5rem;padding:0.75rem;border-top:1px solid var(--a-panel-head-border);">
-                    <input id="supReplyInput" placeholder="Ответ клиенту..." style="flex:1;padding:0.6rem 0.85rem;border:1.5px solid var(--a-input-border);border-radius:0.6rem;font-family:inherit;outline:none;background:var(--a-input-bg);color:var(--a-text);" onkeypress="if(event.key==='Enter')sendSupportReply()">
+                <div class="panel-head" style="display:flex;align-items:center;gap:0.5rem;"><h2 style="font-size:0.95rem;flex:1;">${head}</h2></div>
+                <div id="supMsgsBox" style="display:flex;flex-direction:column;gap:0.5rem;padding:1rem;background:var(--a-bg);max-height:420px;overflow-y:auto;">${bubbles}</div>
+                <div id="supAttachPreview" style="display:none;padding:0.3rem 0.75rem;font-size:0.78rem;color:#7C3AED;border-top:1px solid var(--a-panel-head-border);"></div>
+                <div style="display:flex;gap:0.5rem;padding:0.75rem;border-top:1px solid var(--a-panel-head-border);align-items:center;">
+                    <button onclick="document.getElementById('supFileInput').click()" style="border:1px solid var(--a-input-border);background:none;cursor:pointer;padding:0.4rem;border-radius:0.4rem;font-size:1rem;color:var(--a-text-sec);" title="Прикрепить файл">📎</button>
+                    <input type="file" id="supFileInput" accept="image/*,.pdf,.txt,.doc,.docx" style="display:none;" onchange="supHandleFile(this)">
+                    <input id="supReplyInput" placeholder="Ответ клиенту..." value="${esc(savedInput).replace(/"/g,'&quot;')}" style="flex:1;padding:0.6rem 0.85rem;border:1.5px solid var(--a-input-border);border-radius:0.6rem;font-family:inherit;outline:none;background:var(--a-input-bg);color:var(--a-text);" onkeypress="if(event.key==='Enter')sendSupportReply()">
                     <button class="btn-sm btn-purple" style="padding:0.6rem 1.2rem;" onclick="sendSupportReply()">Ответить</button>
                 </div></div>`;
-            const box = panel.querySelector('div[style*="overflow-y"]'); if (box) box.scrollTop = box.scrollHeight;
+            const box = document.getElementById('supMsgsBox'); if (box) box.scrollTop = box.scrollHeight;
+
+            // Ctrl+V paste for images
+            const inp = document.getElementById('supReplyInput');
+            if (inp) inp.addEventListener('paste', function(e) {
+                const items = (e.clipboardData || e.originalEvent.clipboardData).items;
+                for (let i = 0; i < items.length; i++) {
+                    if (items[i].type.indexOf('image') === 0) {
+                        e.preventDefault();
+                        const blob = items[i].getAsFile();
+                        supUploadFile(blob);
+                        break;
+                    }
+                }
+            });
+
+            if (supMsgPollTimer) clearInterval(supMsgPollTimer);
+            supMsgPollTimer = setInterval(() => {
+                if (currentTab !== 'support' || !supportThreadId) { clearInterval(supMsgPollTimer); supMsgPollTimer = null; return; }
+                openSupportThread(supportThreadId);
+            }, 4000);
         }
+
+        function supUploadFile(file) {
+            if (file.size > 5 * 1024 * 1024) { alert('Файл слишком большой (макс. 5 МБ)'); return; }
+            const fd = new FormData(); fd.append('file', file);
+            fetch('/api/upload.php', { method: 'POST', credentials: 'include', body: fd })
+                .then(r => r.json()).then(d => {
+                    if (d.error) { alert(d.error); return; }
+                    supPendingFile = { url: d.url, type: file.type, name: file.name };
+                    const el = document.getElementById('supAttachPreview');
+                    if (el) { el.innerHTML = '📎 ' + esc(file.name) + ' <span style="cursor:pointer;margin-left:0.3rem;" onclick="supPendingFile=null;this.parentNode.style.display=\'none\'">✕</span>'; el.style.display = 'block'; }
+                }).catch(() => alert('Ошибка загрузки'));
+        }
+        function supHandleFile(input) {
+            const file = input.files[0]; if (!file) return;
+            supUploadFile(file);
+            input.value = '';
+        }
+
         async function sendSupportReply(){
             const inp = document.getElementById('supReplyInput');
             const msg = (inp.value||'').trim();
-            if (!msg || !supportThreadId) return;
+            const att = supPendingFile;
+            supPendingFile = null;
+            const preview = document.getElementById('supAttachPreview');
+            if (preview) preview.style.display = 'none';
+            if ((!msg && !att) || !supportThreadId) return;
             inp.value = '';
+            const payload = { thread_id: supportThreadId, message: msg };
+            if (att) { payload.attachment_url = att.url; payload.attachment_type = att.type; payload.attachment_name = att.name; }
             try {
-                await fetch('/api/support.php?action=reply', { method:'POST', headers:{'Content-Type':'application/json'}, credentials:'include', body: JSON.stringify({ thread_id: supportThreadId, message: msg }) });
+                await fetch('/api/support.php?action=reply', { method:'POST', headers:{'Content-Type':'application/json'}, credentials:'include', body: JSON.stringify(payload) });
                 await openSupportThread(supportThreadId);
             } catch(e){ alert('Не удалось отправить ответ'); inp.value = msg; }
         }

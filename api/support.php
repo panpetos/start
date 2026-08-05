@@ -59,9 +59,17 @@ try {
         thread_id INT NOT NULL,
         sender VARCHAR(10) NOT NULL,
         body TEXT NOT NULL,
+        attachment_url VARCHAR(500) NULL,
+        attachment_type VARCHAR(40) NULL,
+        attachment_name VARCHAR(255) NULL,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         INDEX idx_thread (thread_id)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+    // Migration: add columns if table already existed
+    try { $pdo->exec("ALTER TABLE support_messages ADD COLUMN attachment_url VARCHAR(500) NULL AFTER body"); } catch (Exception $e) {}
+    try { $pdo->exec("ALTER TABLE support_messages ADD COLUMN attachment_type VARCHAR(40) NULL AFTER attachment_url"); } catch (Exception $e) {}
+    try { $pdo->exec("ALTER TABLE support_messages ADD COLUMN attachment_name VARCHAR(255) NULL AFTER attachment_type"); } catch (Exception $e) {}
+    try { $pdo->exec("ALTER TABLE support_threads ADD COLUMN user_read_at DATETIME NULL AFTER admin_read_at"); } catch (Exception $e) {}
 } catch (Exception $e) {}
 
 /** Профиль текущего пользователя (для авто-подстановки контактов). */
@@ -131,12 +139,15 @@ if ($action === 'start') {
 if ($action === 'send') {
     $token = trim((string)($body['token'] ?? ''));
     $message = trim((string)($body['message'] ?? ''));
+    $attUrl = trim((string)($body['attachment_url'] ?? ''));
+    $attType = trim((string)($body['attachment_type'] ?? ''));
+    $attName = trim((string)($body['attachment_name'] ?? ''));
     $thread = threadByToken($pdo, $token);
     if (!$thread) { http_response_code(404); echo json_encode(['error' => 'Сессия чата не найдена']); exit; }
-    if ($message === '') { http_response_code(400); echo json_encode(['error' => 'Пустое сообщение']); exit; }
+    if ($message === '' && $attUrl === '') { http_response_code(400); echo json_encode(['error' => 'Пустое сообщение']); exit; }
     try {
-        $st = $pdo->prepare("INSERT INTO support_messages (thread_id, sender, body) VALUES (?, 'user', ?)");
-        $st->execute([(int)$thread['id'], $message]);
+        $st = $pdo->prepare("INSERT INTO support_messages (thread_id, sender, body, attachment_url, attachment_type, attachment_name) VALUES (?, 'user', ?, ?, ?, ?)");
+        $st->execute([(int)$thread['id'], $message, $attUrl ?: null, $attType ?: null, $attName ?: null]);
         $pdo->prepare("UPDATE support_threads SET last_at = NOW(), status = 'open' WHERE id = ?")->execute([(int)$thread['id']]);
     } catch (Exception $e) { http_response_code(500); echo json_encode(['error' => 'Не удалось отправить']); exit; }
     echo json_encode(['ok' => true]);
@@ -146,12 +157,27 @@ if ($action === 'send') {
 if ($action === 'poll') {
     $token = trim((string)($_GET['token'] ?? ''));
     $thread = threadByToken($pdo, $token);
-    if (!$thread) { echo json_encode(['ok' => true, 'data' => []]); exit; }
+    if (!$thread) { echo json_encode(['ok' => true, 'data' => [], 'unread' => 0]); exit; }
     try {
-        $st = $pdo->prepare("SELECT id, sender, body, created_at FROM support_messages WHERE thread_id = ? ORDER BY id ASC");
+        $st = $pdo->prepare("SELECT id, sender, body, attachment_url, attachment_type, attachment_name, created_at FROM support_messages WHERE thread_id = ? ORDER BY id ASC");
         $st->execute([(int)$thread['id']]);
-        echo json_encode(['ok' => true, 'data' => $st->fetchAll(PDO::FETCH_ASSOC)]);
+        $msgs = $st->fetchAll(PDO::FETCH_ASSOC);
+        $pdo->prepare("UPDATE support_threads SET user_read_at = NOW() WHERE id = ?")->execute([(int)$thread['id']]);
+        echo json_encode(['ok' => true, 'data' => $msgs]);
     } catch (Exception $e) { echo json_encode(['ok' => true, 'data' => []]); }
+    exit;
+}
+
+if ($action === 'client-unread') {
+    $token = trim((string)($_GET['token'] ?? ''));
+    $thread = threadByToken($pdo, $token);
+    if (!$thread) { echo json_encode(['ok' => true, 'unread' => 0]); exit; }
+    try {
+        $readAt = $thread['user_read_at'];
+        $q = $pdo->prepare("SELECT COUNT(*) FROM support_messages WHERE thread_id = ? AND sender = 'admin' AND (? IS NULL OR created_at > ?)");
+        $q->execute([(int)$thread['id'], $readAt, $readAt]);
+        echo json_encode(['ok' => true, 'unread' => (int)$q->fetchColumn()]);
+    } catch (Exception $e) { echo json_encode(['ok' => true, 'unread' => 0]); }
     exit;
 }
 
@@ -189,7 +215,7 @@ if ($action === 'messages') {
         $info = $pdo->prepare("SELECT * FROM support_threads WHERE id = ? LIMIT 1");
         $info->execute([$tid]);
         $thread = $info->fetch(PDO::FETCH_ASSOC);
-        $st = $pdo->prepare("SELECT id, sender, body, created_at FROM support_messages WHERE thread_id = ? ORDER BY id ASC");
+        $st = $pdo->prepare("SELECT id, sender, body, attachment_url, attachment_type, attachment_name, created_at FROM support_messages WHERE thread_id = ? ORDER BY id ASC");
         $st->execute([$tid]);
         $msgs = $st->fetchAll(PDO::FETCH_ASSOC);
         $pdo->prepare("UPDATE support_threads SET admin_read_at = NOW() WHERE id = ?")->execute([$tid]);
@@ -201,9 +227,12 @@ if ($action === 'messages') {
 if ($action === 'reply') {
     $tid = $body['thread_id'] ?? null;
     $message = trim((string)($body['message'] ?? ''));
-    if (!$tid || $message === '') { http_response_code(400); echo json_encode(['error' => 'Нужны тред и сообщение']); exit; }
+    $attUrl = trim((string)($body['attachment_url'] ?? ''));
+    $attType = trim((string)($body['attachment_type'] ?? ''));
+    $attName = trim((string)($body['attachment_name'] ?? ''));
+    if (!$tid || ($message === '' && $attUrl === '')) { http_response_code(400); echo json_encode(['error' => 'Нужны тред и сообщение']); exit; }
     try {
-        $pdo->prepare("INSERT INTO support_messages (thread_id, sender, body) VALUES (?, 'admin', ?)")->execute([$tid, $message]);
+        $pdo->prepare("INSERT INTO support_messages (thread_id, sender, body, attachment_url, attachment_type, attachment_name) VALUES (?, 'admin', ?, ?, ?, ?)")->execute([$tid, $message, $attUrl ?: null, $attType ?: null, $attName ?: null]);
         $pdo->prepare("UPDATE support_threads SET last_at = NOW(), status = 'open', admin_read_at = NOW() WHERE id = ?")->execute([$tid]);
     } catch (Exception $e) { http_response_code(500); echo json_encode(['error' => 'Не удалось ответить']); exit; }
     echo json_encode(['ok' => true]);
