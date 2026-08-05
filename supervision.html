@@ -41,10 +41,35 @@
         .b-gray { background: #F3F4F6; color: #6B7280; border: 1px solid #E5E7EB; }
         .muted { color: #9CA3AF; }
         .reqrow { border-bottom: 1px solid #F3F0FA; padding: 0.7rem 0; display: flex; justify-content: space-between; gap: 0.75rem; flex-wrap: wrap; align-items: center; }
+        body.dark { background: #191919; color: #E6E6E6; }
+        body.dark .card { background: #252525; border-color: #333; }
+        body.dark .card h2 { color: #E6E6E6; }
+        body.dark .card .sub { color: #A0A0A0; }
+        body.dark .sess { background: #2A2A2A; border-color: #3D3555; }
+        body.dark .sess .t { color: #E6E6E6; }
+        body.dark .sess .meta { color: #A0A0A0; }
+        body.dark .price { color: #B794F4; }
+        body.dark .btn-outline { background: #252525; color: #B794F4; border-color: #5B4A8A; }
+        body.dark .field label { color: #C0C0C0; }
+        body.dark .field input, body.dark .field textarea, body.dark .field select { background: #2A2A2A; border-color: #444; color: #E6E6E6; }
+        body.dark .field input:focus, body.dark .field textarea:focus, body.dark .field select:focus { border-color: #B794F4; }
+        body.dark #createForm { background: #2D1F4E; border-color: #5B4A8A; }
+        body.dark #gEarn { background: #1A2E1A; border-color: #2E5A2E; color: #4ADE80; }
+        body.dark .muted { color: #707070; }
+        body.dark .reqrow { border-bottom-color: #333; }
+        body.dark .b-green { background: #1A2E1A; color: #4ADE80; border-color: #2E5A2E; }
+        body.dark .b-amber { background: #2E2A1A; color: #FBBF24; border-color: #5A4A1A; }
+        body.dark .b-purple { background: #2D1F4E; color: #B794F4; border-color: #5B4A8A; }
+        body.dark .b-gray { background: #2A2A2A; color: #A0A0A0; border-color: #444; }
+        body.dark .nav { background: #1E1E1E !important; border-color: #333 !important; }
+        body.dark .nav-brand span:first-child { color: #E6E6E6 !important; }
+        body.dark .nav a.nav-link { color: #A0A0A0 !important; }
+        body.dark .nav a.nav-link:hover { color: #E6E6E6 !important; }
         @media (max-width: 560px){ .row2 { grid-template-columns: 1fr; } }
     </style>
 </head>
 <body>
+    <script>(function(){ var t = localStorage.getItem('psy-theme'); if (t === 'dark' || (!t && window.matchMedia('(prefers-color-scheme:dark)').matches)) document.body.classList.add('dark'); })();</script>
     <script>psyWriteHeader();</script>
     <main>
         <div class="wrap" id="wrap">

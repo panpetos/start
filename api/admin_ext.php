@@ -531,6 +531,86 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         exit;
     }
+
+    if ($action === 'update-psychologist') {
+        $pid = $body['psychologist_id'] ?? null;
+        if (!$pid) { http_response_code(400); echo json_encode(['error' => 'psychologist_id обязателен']); exit; }
+
+        $psyCols = ['specialization', 'experience', 'education', 'description', 'not_working_with', 'price', 'avatar'];
+        $userCols = ['first_name', 'last_name', 'phone'];
+        $contactCols = ['telegram', 'whatsapp', 'max_msg'];
+
+        $uid = null;
+        try {
+            $st = $pdo->prepare("SELECT user_id FROM psychologists WHERE id = ? LIMIT 1");
+            $st->execute([$pid]);
+            $uid = $st->fetchColumn();
+        } catch (Exception $e) {}
+        if (!$uid) { http_response_code(404); echo json_encode(['error' => 'Психолог не найден']); exit; }
+
+        $errors = [];
+        $sets = []; $vals = [];
+        foreach ($psyCols as $c) {
+            if (array_key_exists($c, $body)) { $sets[] = "`$c` = ?"; $vals[] = $body[$c]; }
+        }
+        if ($sets) {
+            $vals[] = $pid;
+            try { $pdo->prepare("UPDATE psychologists SET " . implode(', ', $sets) . " WHERE id = ?")->execute($vals); }
+            catch (Exception $e) { $errors[] = 'psychologists'; }
+        }
+
+        $uSets = []; $uVals = [];
+        foreach ($userCols as $c) {
+            if (array_key_exists($c, $body)) { $uSets[] = "`$c` = ?"; $uVals[] = $body[$c]; }
+        }
+        if ($uSets) {
+            $uVals[] = $uid;
+            try { $pdo->prepare("UPDATE users SET " . implode(', ', $uSets) . " WHERE id = ?")->execute($uVals); }
+            catch (Exception $e) { $errors[] = 'users'; }
+        }
+
+        $hasContact = false;
+        foreach ($contactCols as $c) { if (array_key_exists($c, $body)) { $hasContact = true; break; } }
+        if ($hasContact) {
+            $email = '';
+            try { $st = $pdo->prepare("SELECT email FROM users WHERE id = ? LIMIT 1"); $st->execute([$uid]); $email = $st->fetchColumn() ?: ''; } catch (Exception $e) {}
+            if ($email) {
+                $cSets = []; $cVals = [];
+                foreach ($contactCols as $c) {
+                    if (array_key_exists($c, $body)) { $cSets[] = "`$c` = ?"; $cVals[] = $body[$c]; }
+                }
+                try {
+                    $chk = $pdo->prepare("SELECT COUNT(*) FROM psychologist_contacts WHERE LOWER(email) = LOWER(?)");
+                    $chk->execute([$email]);
+                    if ((int)$chk->fetchColumn() > 0) {
+                        $cVals[] = $email;
+                        $pdo->prepare("UPDATE psychologist_contacts SET " . implode(', ', $cSets) . " WHERE LOWER(email) = LOWER(?)")->execute($cVals);
+                    } else {
+                        $ins = ['email' => $email];
+                        foreach ($contactCols as $c) { if (array_key_exists($c, $body)) $ins[$c] = $body[$c]; }
+                        $cols = array_keys($ins); $ph = array_fill(0, count($cols), '?');
+                        $pdo->prepare("INSERT INTO psychologist_contacts (`" . implode('`,`', $cols) . "`) VALUES (" . implode(',', $ph) . ")")->execute(array_values($ins));
+                    }
+                } catch (Exception $e) { $errors[] = 'contacts'; }
+            }
+        }
+
+        echo json_encode(['ok' => true, 'errors' => $errors]);
+        exit;
+    }
+
+    if ($action === 'psychologist-credentials') {
+        $pid = $body['psychologist_id'] ?? ($_GET['psychologist_id'] ?? null);
+        if (!$pid) { http_response_code(400); echo json_encode(['error' => 'psychologist_id обязателен']); exit; }
+        $uid = null;
+        try { $st = $pdo->prepare("SELECT user_id FROM psychologists WHERE id = ? LIMIT 1"); $st->execute([$pid]); $uid = $st->fetchColumn(); } catch (Exception $e) {}
+        try {
+            $st = $pdo->prepare("SELECT id, type, url, name, meta, created_at FROM psychologist_credentials WHERE psychologist_id = ? OR user_id = ? ORDER BY id ASC");
+            $st->execute([$pid, $uid ?: 0]);
+            echo json_encode(['ok' => true, 'data' => $st->fetchAll(PDO::FETCH_ASSOC)]);
+        } catch (Exception $e) { echo json_encode(['ok' => true, 'data' => []]); }
+        exit;
+    }
 }
 
 http_response_code(400);

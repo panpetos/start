@@ -39,7 +39,7 @@
         body.dark .nav a.nav-link { color: #A0A0A0 !important; }
         body.dark .nav a.nav-link:hover { color: #E6E6E6 !important; }
 
-        .container { max-width: 1200px; margin: 0 auto; padding: 2rem; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 2rem; flex: 1; min-width: 0; }
 
         .header {
             background: var(--d-panel); border-radius: 1.25rem; padding: 1.75rem 2rem;
@@ -116,7 +116,34 @@
         .theme-toggle { background: var(--d-panel); border: 1.5px solid var(--d-border); color: var(--d-text-sec); padding: 0.4rem 0.7rem; border-radius: 0.5rem; cursor: pointer; font-size: 0.85rem; font-family: inherit; transition: all 0.15s; }
         .theme-toggle:hover { border-color: var(--d-accent); color: var(--d-accent); }
         body.dark input, body.dark textarea, body.dark select { background: var(--d-panel-alt) !important; border-color: var(--d-border) !important; color: var(--d-text) !important; }
+        body.dark .card { background: var(--d-panel) !important; border-color: var(--d-border) !important; }
+        body.dark .header { background: var(--d-panel) !important; border-color: var(--d-border-accent) !important; }
         body.dark #replaceModal > div > div { background: var(--d-panel) !important; color: var(--d-text) !important; }
+
+        /* ── Notion-style sidebar layout ─── */
+        .dash-layout { display: flex; min-height: calc(100vh - 84px); }
+        .dash-sidebar { width: 240px; background: var(--d-panel); border-right: 1px solid var(--d-border); display: flex; flex-direction: column; position: sticky; top: 84px; height: calc(100vh - 84px); flex-shrink: 0; transition: background 0.2s, border-color 0.2s; z-index: 10; }
+        .dash-sidebar-header { padding: 1rem 1rem 0.75rem; border-bottom: 1px solid var(--d-border); }
+        .dash-sidebar-header h2 { font-size: 0.95rem; font-weight: 700; color: var(--d-text); margin-bottom: 0.15rem; }
+        .dash-sidebar-header p { font-size: 0.75rem; color: var(--d-text-muted); }
+        .dash-sidebar-nav { flex: 1; padding: 0.5rem 0; overflow-y: auto; }
+        .dash-sidebar-group { padding: 0.5rem 0 0.15rem; }
+        .dash-sidebar-group-label { padding: 0.25rem 1rem 0.35rem; font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--d-text-muted); user-select: none; }
+        .dash-sidebar-item { display: flex; align-items: center; gap: 0.55rem; padding: 0.45rem 0.75rem; margin: 0.06rem 0.5rem; border-radius: 0.45rem; font-size: 0.875rem; color: var(--d-text-sec); cursor: pointer; transition: background 0.12s, color 0.12s; font-weight: 500; text-decoration: none; border: none; background: none; width: calc(100% - 1rem); text-align: left; font-family: inherit; line-height: 1.4; }
+        .dash-sidebar-item:hover { background: var(--d-accent-hover); color: var(--d-text); }
+        .dash-sidebar-item.active { background: var(--d-accent-bg); color: var(--d-accent); font-weight: 600; }
+        .dash-sidebar-icon { font-size: 1rem; width: 1.35rem; text-align: center; flex-shrink: 0; }
+        .dash-sidebar-footer { padding: 0.6rem 0.5rem; border-top: 1px solid var(--d-border); display: flex; flex-direction: column; gap: 0.15rem; }
+        .dash-sidebar-footer .dash-sidebar-item { margin: 0.06rem 0; }
+        .dash-sidebar-toggle { display: none; position: fixed; top: 92px; left: 0.75rem; z-index: 1001; width: 38px; height: 38px; border-radius: 0.5rem; border: 1px solid var(--d-border); background: var(--d-panel); color: var(--d-text); font-size: 1.2rem; cursor: pointer; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+        .dash-sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.35); z-index: 999; }
+        .dash-sidebar-overlay.open { display: block; }
+        @media (max-width: 768px) {
+            .dash-sidebar { position: fixed; top: 0; left: -260px; bottom: 0; z-index: 1000; width: 240px; transition: left 0.25s ease; padding-top: 84px; height: 100vh; }
+            .dash-sidebar.open { left: 0; }
+            .dash-sidebar-toggle { display: flex; }
+            .dash-layout { display: block; }
+        }
     </style>
     <script>(function(){ if (localStorage.getItem('psy-theme') === 'dark' || (!localStorage.getItem('psy-theme') && window.matchMedia('(prefers-color-scheme:dark)').matches)) document.documentElement.style.colorScheme = 'dark'; })();</script>
 </head>
@@ -124,16 +151,47 @@
 <body>
     <script>(function(){ var t = localStorage.getItem('psy-theme'); if (t === 'dark' || (!t && window.matchMedia('(prefers-color-scheme:dark)').matches)) document.body.classList.add('dark'); })();</script>
     <script>psyWriteHeader();</script>
-    <div class="container">
+    <button class="dash-sidebar-toggle" onclick="document.querySelector('.dash-sidebar').classList.toggle('open');document.querySelector('.dash-sidebar-overlay').classList.toggle('open')">☰</button>
+    <div class="dash-sidebar-overlay" onclick="document.querySelector('.dash-sidebar').classList.remove('open');this.classList.remove('open')"></div>
+    <div class="dash-layout">
+        <aside class="dash-sidebar">
+            <div class="dash-sidebar-header">
+                <h2>Личный кабинет</h2>
+                <p id="sidebarName">Загрузка...</p>
+            </div>
+            <nav class="dash-sidebar-nav">
+                <div class="dash-sidebar-group">
+                    <div class="dash-sidebar-group-label">Основное</div>
+                    <a class="dash-sidebar-item active" href="/client-dashboard.html">
+                        <span class="dash-sidebar-icon">🏠</span> Главная
+                    </a>
+                    <a class="dash-sidebar-item" href="/search.html">
+                        <span class="dash-sidebar-icon">🔍</span> Найти психолога
+                    </a>
+                </div>
+                <div class="dash-sidebar-group">
+                    <div class="dash-sidebar-group-label">Профиль</div>
+                    <a class="dash-sidebar-item" href="/edit-profile.html">
+                        <span class="dash-sidebar-icon">⚙️</span> Настройки
+                    </a>
+                </div>
+            </nav>
+            <div class="dash-sidebar-footer">
+                <button class="dash-sidebar-item" onclick="toggleDashTheme()" id="themeBtn" title="Сменить тему">
+                    <span class="dash-sidebar-icon">🌙</span> <span id="themeBtnLabel">Тёмная тема</span>
+                </button>
+                <button class="dash-sidebar-item" onclick="psyLogout()">
+                    <span class="dash-sidebar-icon">🚪</span> Выйти
+                </button>
+            </div>
+        </aside>
+        <div class="container">
         <div class="header">
             <div class="header-left">
                 <h1>Личный кабинет</h1>
                 <p>Управление записями и профилем</p>
             </div>
             <div class="user-info">
-                <button class="theme-toggle" onclick="toggleDashTheme()" id="themeBtn" title="Сменить тему">🌙</button>
-                <a href="/edit-profile.html" class="btn btn-outline btn-small" title="Настройки профиля">⚙ Профиль</a>
-                <button class="btn btn-outline btn-small" onclick="psyLogout()" title="Выйти из аккаунта">Выйти →</button>
                 <span id="userName" style="font-weight: 600;">Загрузка...</span>
                 <div class="user-avatar" id="userAvatar">
                     <img src="" alt="" style="display: none;">
@@ -275,10 +333,12 @@
                         document.querySelector('.cards').parentNode.insertBefore(switchBanner, document.querySelector('.cards'));
                     }
 
-                    document.getElementById('userName').textContent =
-                        `${user.first_name || ''} ${user.last_name || ''}`.trim() || 'Профиль';
+                    var fullName = `${user.first_name || ''} ${user.last_name || ''}`.trim() || 'Профиль';
+                    document.getElementById('userName').textContent = fullName;
                     document.getElementById('userInitial').textContent =
                         (user.first_name || 'U').charAt(0).toUpperCase();
+                    var sn = document.getElementById('sidebarName');
+                    if (sn) sn.textContent = fullName;
 
                     // Проверка на заморозку аккаунта
                     if (user.is_frozen) {
@@ -500,13 +560,20 @@
                 document.body.classList.toggle('dark');
                 const isDark = document.body.classList.contains('dark');
                 localStorage.setItem('psy-theme', isDark ? 'dark' : 'light');
-                const btn = document.getElementById('themeBtn');
-                if (btn) btn.textContent = isDark ? '☀️' : '🌙';
+                updateThemeBtn();
             }
-            (function(){ const btn = document.getElementById('themeBtn'); if (btn) btn.textContent = document.body.classList.contains('dark') ? '☀️' : '🌙'; })();
+            function updateThemeBtn(){
+                const isDark = document.body.classList.contains('dark');
+                const icon = document.querySelector('#themeBtn .dash-sidebar-icon');
+                const label = document.getElementById('themeBtnLabel');
+                if (icon) icon.textContent = isDark ? '☀️' : '🌙';
+                if (label) label.textContent = isDark ? 'Светлая тема' : 'Тёмная тема';
+            }
+            updateThemeBtn();
 
             init();
         </script>
+    </div><!-- /dash-layout -->
 </body>
 
 </html>

@@ -56,6 +56,8 @@ jobs:
             put agent-offer.html;
             put privacy.html;
             put refund.html;
+            mkdir -f css;
+            put css/styles.css -o css/styles.css;
             put js/layout.js -o js/layout.js;
             put js/auth.js -o js/auth.js;
             put js/articles.js -o js/articles.js;

@@ -205,16 +205,26 @@
         /* ── Psychologist detail modal ─── */
         #psychModal { display:none; position:fixed; inset:0; z-index:9999; background:rgba(0,0,0,0.45); align-items:center; justify-content:center; }
         #psychModal.active { display:flex; }
-        #psychModal .pm-card { background:var(--a-panel); border-radius:1.25rem; max-width:600px; width:95%; max-height:90vh; overflow-y:auto; padding:2rem; position:relative; box-shadow:0 16px 48px rgba(0,0,0,0.18); }
-        #psychModal .pm-close { position:absolute; top:1rem; right:1rem; background:none; border:none; font-size:1.5rem; cursor:pointer; color:var(--a-text-sec); line-height:1; }
+        #psychModal .pm-card { background:var(--a-panel); border-radius:1.25rem; max-width:680px; width:95%; max-height:90vh; overflow-y:auto; padding:2rem; position:relative; box-shadow:0 16px 48px rgba(0,0,0,0.18); }
+        #psychModal .pm-close { position:absolute; top:1rem; right:1rem; background:none; border:none; font-size:1.5rem; cursor:pointer; color:var(--a-text-sec); line-height:1; z-index:1; }
         #psychModal .pm-avatar { width:96px; height:96px; border-radius:50%; object-fit:cover; border:3px solid #F3E8FF; display:block; margin:0 auto 1rem; }
         #psychModal .pm-initials { width:96px; height:96px; border-radius:50%; background:linear-gradient(135deg,#7C3AED,#9F67FA); display:flex; align-items:center; justify-content:center; color:#fff; font-size:2rem; font-weight:700; margin:0 auto 1rem; }
         #psychModal .pm-name { text-align:center; font-size:1.25rem; font-weight:700; color:var(--a-text); margin-bottom:0.25rem; }
         #psychModal .pm-spec { text-align:center; font-size:0.875rem; color:#7C3AED; margin-bottom:1rem; }
-        #psychModal .pm-row { display:flex; gap:0.5rem; margin-bottom:0.5rem; font-size:0.875rem; line-height:1.6; color:var(--a-text); }
-        #psychModal .pm-label { font-weight:600; min-width:110px; flex-shrink:0; color:var(--a-text-sec); }
-        #psychModal .pm-val { word-break:break-word; }
+        #psychModal .pm-section { font-size:0.8rem; font-weight:700; color:var(--a-text-sec); text-transform:uppercase; letter-spacing:0.04em; margin:1.25rem 0 0.5rem; padding-bottom:0.25rem; border-bottom:1px solid var(--a-td-border); }
+        #psychModal .pm-row { display:flex; gap:0.5rem; margin-bottom:0.6rem; font-size:0.875rem; line-height:1.6; color:var(--a-text); align-items:flex-start; }
+        #psychModal .pm-label { font-weight:600; min-width:120px; flex-shrink:0; color:var(--a-text-sec); padding-top:0.35rem; }
+        #psychModal .pm-val { word-break:break-word; flex:1; }
+        #psychModal .pm-input { width:100%; padding:0.4rem 0.6rem; border:1px solid var(--a-input-border); border-radius:0.5rem; background:var(--a-input-bg); color:var(--a-text); font-size:0.875rem; font-family:inherit; }
+        #psychModal .pm-input:focus { outline:none; border-color:#7C3AED; box-shadow:0 0 0 2px rgba(124,58,237,0.15); }
+        #psychModal textarea.pm-input { min-height:3.5rem; resize:vertical; }
         #psychModal .pm-actions { display:flex; gap:0.75rem; justify-content:center; margin-top:1.25rem; flex-wrap:wrap; }
+        #psychModal .pm-creds { display:flex; flex-wrap:wrap; gap:0.5rem; margin-top:0.25rem; }
+        #psychModal .pm-cred-thumb { width:80px; height:80px; border-radius:0.5rem; object-fit:cover; border:1px solid var(--a-input-border); cursor:pointer; transition:transform 0.15s; }
+        #psychModal .pm-cred-thumb:hover { transform:scale(1.08); }
+        #psychModal .pm-cred-empty { font-size:0.8rem; color:var(--a-text-muted); font-style:italic; }
+        #psychModal .pm-cred-placeholder { display:inline-flex; width:80px; height:80px; border-radius:0.5rem; background:var(--a-th-bg); align-items:center; justify-content:center; font-size:0.7rem; text-align:center; padding:0.25rem; border:1px solid var(--a-input-border); color:var(--a-text-sec); }
+        #psychModal .pm-save-ok { color:#22C55E; font-size:0.8rem; margin-left:0.5rem; display:none; }
     </style>
     <script>
         (function(){
@@ -1489,6 +1499,15 @@
     <script>
     var _psychRows = [];
     function closePsychModal(){ document.getElementById('psychModal').classList.remove('active'); }
+
+    function pmField(id, label, value, type) {
+        type = type || 'text';
+        if (type === 'textarea') {
+            return '<div class="pm-row"><div class="pm-label">'+esc(label)+'</div><div class="pm-val"><textarea class="pm-input" id="pm_'+id+'">'+esc(value||'')+'</textarea></div></div>';
+        }
+        return '<div class="pm-row"><div class="pm-label">'+esc(label)+'</div><div class="pm-val"><input class="pm-input" type="'+type+'" id="pm_'+id+'" value="'+esc(value||'')+'"></div></div>';
+    }
+
     function openPsychModal(idx){
         var p = _psychRows[idx]; if(!p) return;
         var hasAvatar = p.avatar && p.avatar.length > 10;
@@ -1497,33 +1516,86 @@
             ? '<img class="pm-avatar" src="'+esc(p.avatar)+'" alt="">'
             : '<div class="pm-initials">'+initials+'</div>';
         var approved = String(p.is_approved)==='1';
-        var rows = [
-            {l:'Email', v:p.email||'—'},
-            {l:'Телефон', v:p.phone||'—'},
-            {l:'Telegram', v:p.telegram||'—'},
-            {l:'WhatsApp', v:p.whatsapp||'—'},
-            {l:'MAX', v:p.max_msg||'—'},
-            {l:'Цена', v:(parseFloat(p.price)>0)?fmtMoney(p.price)+' ₽':'не задана'},
-            {l:'Опыт', v:(p.experience||0)+' лет'},
-            {l:'Статус', v:approved?'✅ Одобрен':'⏳ На модерации'},
-            {l:'О себе', v:p.description||'—'},
-            {l:'Образование', v:p.education||'—'},
-            {l:'Не работает с', v:p.not_working_with||'—'},
-            {l:'ID', v:p.id||'—'}
-        ].filter(function(r){return r.v!=='—'||['Email','Цена','Статус'].includes(r.l)});
+        var nameParts = (p.name||'').split(' ');
+        var firstName = nameParts[0]||'';
+        var lastName = nameParts.slice(1).join(' ')||'';
+
         var html = '<button class="pm-close" onclick="closePsychModal()">&times;</button>' +
             avatarHtml +
             '<div class="pm-name">'+esc(p.name||'—')+'</div>' +
             '<div class="pm-spec">'+esc(p.specialization||'Специализация не указана')+'</div>' +
-            rows.map(function(r){return '<div class="pm-row"><div class="pm-label">'+r.l+'</div><div class="pm-val">'+esc(r.v)+'</div></div>'}).join('') +
+            '<div class="pm-row"><div class="pm-label">ID</div><div class="pm-val">'+esc(p.id||'')+'</div></div>' +
+            '<div class="pm-row"><div class="pm-label">Статус</div><div class="pm-val">'+(approved?'✅ Одобрен':'⏳ На модерации')+'</div></div>' +
+
+            '<div class="pm-section">Личные данные</div>' +
+            pmField('first_name','Имя',firstName) +
+            pmField('last_name','Фамилия',lastName) +
+            pmField('specialization','Специализация',p.specialization) +
+            pmField('experience','Опыт (лет)',p.experience||'','number') +
+            pmField('price','Цена (₽)',p.price||'','number') +
+            pmField('education','Образование',p.education,'textarea') +
+            pmField('description','О себе',p.description,'textarea') +
+            pmField('not_working_with','Не работает с',p.not_working_with,'textarea') +
+
+            '<div class="pm-section">Контакты</div>' +
+            '<div class="pm-row"><div class="pm-label">Email</div><div class="pm-val">'+esc(p.email||'—')+'</div></div>' +
+            pmField('phone','Телефон',p.phone) +
+            pmField('telegram','Telegram',p.telegram) +
+            pmField('whatsapp','WhatsApp',p.whatsapp) +
+            pmField('max_msg','MAX',p.max_msg) +
+
+            '<div class="pm-section">Документы и сертификаты</div>' +
+            '<div id="pmCreds" class="pm-creds"><span class="pm-cred-empty">Загрузка...</span></div>' +
+
             '<div class="pm-actions">' +
+                '<button class="btn-sm btn-purple" onclick="savePsychModal(\''+esc(p.id)+'\')">Сохранить изменения</button>' +
+                '<span class="pm-save-ok" id="pmSaveOk">✓ Сохранено</span>' +
                 (approved
                     ? '<button class="btn-sm btn-outline" onclick="toggleApproved(\''+esc(p.id)+'\',0);closePsychModal()">Снять одобрение</button>'
                     : '<button class="btn-sm btn-purple" onclick="toggleApproved(\''+esc(p.id)+'\',1);closePsychModal()">Одобрить</button>') +
-                '<button class="btn-sm btn-outline" onclick="setPrice(\''+esc(p.id)+'\','+(parseFloat(p.price)||0)+');closePsychModal()">Изменить цену</button>' +
             '</div>';
         document.getElementById('psychModalContent').innerHTML = html;
         document.getElementById('psychModal').classList.add('active');
+        loadPsychCredentials(p.id);
+    }
+
+    async function loadPsychCredentials(psychId) {
+        var cont = document.getElementById('pmCreds');
+        if (!cont) return;
+        try {
+            var res = await apiPost('psychologist-credentials', { psychologist_id: psychId });
+            var creds = (res && res.data) ? res.data : [];
+            if (!creds.length) { cont.innerHTML = '<span class="pm-cred-empty">Нет загруженных документов</span>'; return; }
+            cont.innerHTML = creds.map(function(c) {
+                var typeLabel = c.type === 'cert' ? 'Сертификат' : (c.type === 'inn' ? 'ИНН' : 'Диплом');
+                var title = typeLabel + (c.name ? ': '+c.name : '');
+                if (c.url) {
+                    return '<a href="'+esc(c.url)+'" target="_blank" title="'+esc(title)+'">' +
+                        '<img class="pm-cred-thumb" src="'+esc(c.url)+'" alt="'+esc(typeLabel)+'" onerror="this.style.display=\'none\';this.parentNode.innerHTML=\'<span class=pm-cred-placeholder>'+esc(typeLabel)+'</span>\'">' +
+                        '</a>';
+                }
+                return '<span class="pm-cred-placeholder">'+esc(title)+'</span>';
+            }).join('');
+        } catch(e) { cont.innerHTML = '<span class="pm-cred-empty">Не удалось загрузить</span>'; }
+    }
+
+    async function savePsychModal(psychId) {
+        var data = { psychologist_id: psychId };
+        var fields = ['first_name','last_name','specialization','experience','price','education','description','not_working_with','phone','telegram','whatsapp','max_msg'];
+        fields.forEach(function(f) {
+            var el = document.getElementById('pm_'+f);
+            if (el) data[f] = el.value;
+        });
+        if (data.experience !== undefined) data.experience = parseInt(data.experience) || 0;
+        if (data.price !== undefined) data.price = parseFloat(data.price) || 0;
+        try {
+            var res = await apiPost('update-psychologist', data);
+            if (res && res.ok) {
+                var ok = document.getElementById('pmSaveOk');
+                if (ok) { ok.style.display = 'inline'; setTimeout(function(){ ok.style.display = 'none'; }, 2000); }
+                renderPsych();
+            } else { alert('Ошибка: '+(res.error||'Неизвестная ошибка')); }
+        } catch(e) { alert('Ошибка сохранения'); }
     }
     </script>
 </body>
