@@ -567,18 +567,26 @@
     }
 
     async function loadModels() {
+        const sel = document.getElementById('modelSelect');
         try {
             const r = await fetch('/api/ai_chat.php?action=models', { credentials: 'include' });
+            if (!r.ok) {
+                const d = await r.json().catch(() => ({}));
+                throw new Error(d.error || 'Сервер вернул ошибку ' + r.status);
+            }
             const d = await r.json();
-            if (d.ok && d.models) {
+            if (d.ok && d.models && d.models.length) {
                 models = d.models;
-                const sel = document.getElementById('modelSelect');
                 sel.innerHTML = d.models.map(m => `<option value="${esc(m.id)}">${esc(m.name)}</option>`).join('');
                 const saved = localStorage.getItem('ai_model');
                 if (saved && d.models.find(m => m.id === saved)) sel.value = saved;
+            } else {
+                sel.innerHTML = '<option value="">Нет моделей</option>';
             }
         } catch(e) {
             console.error('Failed to load models', e);
+            sel.innerHTML = '<option value="">Ошибка загрузки</option>';
+            sel.title = e.message || 'Не удалось загрузить модели';
         }
     }
 
@@ -744,6 +752,10 @@
         if (!text && !attachedFiles.length) return;
 
         const model = document.getElementById('modelSelect').value;
+        if (!model) {
+            alert('Модели не загружены. Обновите страницу или обратитесь к администратору.');
+            return;
+        }
         localStorage.setItem('ai_model', model);
 
         if (!currentChatId) {
@@ -807,6 +819,20 @@
             });
 
             typingDiv.remove();
+
+            if (!response.ok) {
+                let errMsg = 'Ошибка сервера (' + response.status + ')';
+                try {
+                    const errData = await response.json();
+                    if (errData.error) errMsg = errData.error;
+                } catch(e) {}
+                appendAiMsg(errMsg);
+                isStreaming = false;
+                document.getElementById('sendBtn').disabled = false;
+                input.focus();
+                return;
+            }
+
             const aiDiv = appendAiMsg('');
             const contentEl = aiDiv.querySelector('.ai-msg-ai-content');
 
@@ -828,6 +854,11 @@
                     if (data === '[DONE]') continue;
                     try {
                         const obj = JSON.parse(data);
+                        if (obj.error) {
+                            fullText += '\n\nОшибка: ' + (obj.error.message || JSON.stringify(obj.error));
+                            contentEl.innerHTML = renderMarkdown(fullText);
+                            break;
+                        }
                         const delta = obj.choices?.[0]?.delta?.content;
                         if (delta) {
                             fullText += delta;
@@ -837,12 +868,14 @@
                     } catch(e) {}
                 }
             }
+
+            if (!fullText) {
+                contentEl.innerHTML = '<em style="color:var(--ai-text-sec);">Пустой ответ от модели. Попробуйте другую модель или повторите запрос.</em>';
+            }
         } catch(e) {
             if (typingDiv.parentNode) typingDiv.remove();
-            fullText = fullText || 'Ошибка при обращении к ИИ. Попробуйте ещё раз.';
-            if (!fullText.includes('Ошибка')) {
-                // partial response is fine
-            } else {
+            if (!fullText) {
+                fullText = 'Ошибка при обращении к ИИ. Попробуйте ещё раз.';
                 appendAiMsg(fullText);
             }
         }
