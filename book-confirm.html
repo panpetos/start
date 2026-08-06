@@ -191,7 +191,17 @@
                 const data = await response.json();
 
                 if (!data || data.error || !data.id) {
-                    showError((data && data.error) || 'Специалист не найден');
+                    if (packageId) {
+                        document.getElementById('bookingCard').innerHTML = `
+                            <div style="text-align:center;padding:2rem;">
+                                <div style="font-size:2.5rem;margin-bottom:0.75rem;">😕</div>
+                                <h2 style="font-size:1.25rem;margin-bottom:0.5rem;">Специалист больше недоступен</h2>
+                                <p style="color:#6B7280;margin-bottom:1.5rem;">Ваш абонемент по-прежнему действует. Выберите другого психолога.</p>
+                                <a href="/search.html?pkg=${encodeURIComponent(packageId)}" style="display:inline-block;padding:0.75rem 1.5rem;background:linear-gradient(135deg,#7C3AED,#9F67FA);color:white;text-decoration:none;border-radius:0.75rem;font-weight:600;">🔄 Выбрать другого психолога</a>
+                            </div>`;
+                    } else {
+                        showError((data && data.error) || 'Специалист не найден');
+                    }
                     return;
                 }
 

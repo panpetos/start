@@ -388,15 +388,27 @@
                             : p.state === 'expired' ? '<span class="appointment-status status-cancelled">Истёк</span>'
                             : '<span class="appointment-status status-scheduled">Активен</span>';
                         const expires = p.expires_at ? ('до ' + new Date(String(p.expires_at).replace(' ','T')).toLocaleDateString('ru-RU')) : '';
+                        const unavailable = isActive && p.psychologist_unavailable;
+                        let actionHtml = '';
+                        if (isActive && !unavailable) {
+                            actionHtml = `<a href="/book.html?id=${p.psychologist_id}&pkg=${p.id}" class="btn btn-small" title="Записаться по абонементу">📅 Записаться по абонементу</a>`;
+                        } else if (unavailable) {
+                            actionHtml = `<div style="margin-top:6px;">
+                                <div style="background:var(--d-bg2,#FEF3C7);border:1px solid var(--d-border,#F59E0B);border-radius:8px;padding:10px 14px;margin-bottom:8px;font-size:.9rem;color:var(--d-text,#92400E);">
+                                    ⚠️ Ваш специалист больше недоступен. Вы можете выбрать другого психолога для использования абонемента.
+                                </div>
+                                <a href="/search.html?pkg=${p.id}" class="btn btn-small" style="background:#7C3AED;">🔄 Выбрать другого психолога</a>
+                            </div>`;
+                        }
                         return `
                         <div class="appointment-item">
                             <div class="appointment-info">
-                                <div class="appointment-psychologist">🎟 Абонемент · ${psychEsc(p.psychologist_name || 'Психолог')}</div>
+                                <div class="appointment-psychologist">🎟 Абонемент · ${psychEsc(p.psychologist_name || 'Психолог')}${unavailable ? ' <span style="color:#EF4444;font-size:.85em;">(недоступен)</span>' : ''}</div>
                                 <div class="appointment-datetime">Осталось <b style="color:#7C3AED;">${remaining}</b> из ${total} сессий ${expires ? '· ' + expires : ''}</div>
                             </div>
                             ${stLabel}
                             <div class="appointment-actions">
-                                ${isActive ? `<a href="/book.html?id=${p.psychologist_id}&pkg=${p.id}" class="btn btn-small" title="Записаться по абонементу">📅 Записаться по абонементу</a>` : ''}
+                                ${actionHtml}
                             </div>
                         </div>`;
                     }).join('');

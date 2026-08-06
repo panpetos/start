@@ -119,18 +119,24 @@ if ($action === 'list') {
         $rows = $st->fetchAll(PDO::FETCH_ASSOC);
     } catch (Exception $e) { $rows = []; }
 
-    // Имена психологов
-    $names = [];
+    // Имена и доступность психологов
+    $psyInfo = [];
     try {
-        foreach ($pdo->query("SELECT p.id, u.first_name, u.last_name FROM psychologists p LEFT JOIN users u ON u.id = p.user_id")->fetchAll(PDO::FETCH_ASSOC) as $r) {
+        foreach ($pdo->query("SELECT p.id, p.is_approved, u.first_name, u.last_name, u.is_frozen
+            FROM psychologists p LEFT JOIN users u ON u.id = p.user_id")->fetchAll(PDO::FETCH_ASSOC) as $r) {
             $nm = trim(($r['first_name'] ?? '') . ' ' . ($r['last_name'] ?? ''));
-            $names[(string)$r['id']] = $nm !== '' ? $nm : 'Психолог';
+            $psyInfo[(string)$r['id']] = [
+                'name' => $nm !== '' ? $nm : 'Психолог',
+                'available' => !empty($r['first_name']) && empty($r['is_frozen']) && !empty($r['is_approved'])
+            ];
         }
     } catch (Exception $e) {}
 
     foreach ($rows as &$r) {
         $r['remaining'] = max(0, (int)$r['total_sessions'] - (int)$r['used_sessions']);
-        $r['psychologist_name'] = $names[(string)$r['psychologist_id']] ?? 'Психолог';
+        $info = $psyInfo[(string)$r['psychologist_id']] ?? null;
+        $r['psychologist_name'] = $info ? $info['name'] : 'Психолог';
+        $r['psychologist_unavailable'] = !$info || !$info['available'];
         $expired = !empty($r['expires_at']) && strtotime($r['expires_at']) < time();
         if ($r['remaining'] <= 0) $r['state'] = 'used';
         elseif ($expired) $r['state'] = 'expired';
@@ -202,6 +208,43 @@ if ($action === 'book' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     } catch (Exception $e) {}
 
     echo json_encode(['ok' => true, 'appointment_id' => $apptId, 'remaining' => $remaining - 1]);
+    exit;
+}
+
+// ── Переназначение абонемента на другого психолога ──────────────────────────────
+if ($action === 'reassign' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    $body = json_decode(file_get_contents('php://input'), true) ?: [];
+    $pkgId = $body['package_id'] ?? null;
+    $newPsyId = $body['psychologist_id'] ?? null;
+    if (!$pkgId || !$newPsyId) { http_response_code(400); echo json_encode(['error' => 'Нужны package_id и psychologist_id']); exit; }
+
+    try {
+        $st = $pdo->prepare("SELECT * FROM session_packages WHERE id = ? LIMIT 1");
+        $st->execute([$pkgId]);
+        $pkg = $st->fetch(PDO::FETCH_ASSOC);
+    } catch (Exception $e) { $pkg = null; }
+    if (!$pkg) { http_response_code(404); echo json_encode(['error' => 'Абонемент не найден']); exit; }
+    if ((string)$pkg['client_user_id'] !== (string)$userId) { http_response_code(403); echo json_encode(['error' => 'Это не ваш абонемент']); exit; }
+    $remaining = (int)$pkg['total_sessions'] - (int)$pkg['used_sessions'];
+    if ($remaining <= 0) { http_response_code(400); echo json_encode(['error' => 'В абонементе не осталось сессий']); exit; }
+    if (!empty($pkg['expires_at']) && strtotime($pkg['expires_at']) < time()) { http_response_code(400); echo json_encode(['error' => 'Срок абонемента истёк']); exit; }
+
+    try {
+        $st = $pdo->prepare("SELECT p.id, p.user_id, p.is_approved, u.is_frozen FROM psychologists p LEFT JOIN users u ON u.id = p.user_id WHERE p.id = ? LIMIT 1");
+        $st->execute([$newPsyId]);
+        $newPsy = $st->fetch(PDO::FETCH_ASSOC);
+    } catch (Exception $e) { $newPsy = null; }
+    if (!$newPsy || !$newPsy['is_approved'] || !empty($newPsy['is_frozen'])) {
+        http_response_code(400); echo json_encode(['error' => 'Выбранный психолог недоступен']); exit;
+    }
+
+    try {
+        $st = $pdo->prepare("UPDATE session_packages SET psychologist_id = ?, psychologist_user_id = ? WHERE id = ?");
+        $st->execute([$newPsyId, $newPsy['user_id'], $pkgId]);
+    } catch (Exception $e) {
+        http_response_code(500); echo json_encode(['error' => 'Не удалось переназначить абонемент']); exit;
+    }
+    echo json_encode(['ok' => true]);
     exit;
 }
 

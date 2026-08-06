@@ -376,13 +376,25 @@
 
     /* ── Загрузка реального психолога, затем построение страницы ── */
     function showLoadError() {
-      document.getElementById('bookContent').innerHTML =
-        '<div style="text-align:center;padding:3rem 1rem;">' +
-          '<div style="font-size:2.5rem;margin-bottom:0.75rem;">😕</div>' +
-          '<h2 style="font-size:1.25rem;color:#1A1A1A;margin-bottom:0.5rem;">Специалист не найден</h2>' +
-          '<p style="color:#6B7280;margin-bottom:1.5rem;">Возможно, профиль был удалён или ссылка устарела.</p>' +
-          '<a href="/search.html" style="display:inline-block;padding:0.75rem 1.5rem;background:linear-gradient(135deg,#7C3AED,#9F67FA);color:white;text-decoration:none;border-radius:0.75rem;font-weight:600;">← Вернуться в каталог</a>' +
-        '</div>';
+      var html;
+      if (pkg) {
+        html =
+          '<div style="text-align:center;padding:3rem 1rem;">' +
+            '<div style="font-size:2.5rem;margin-bottom:0.75rem;">😕</div>' +
+            '<h2 style="font-size:1.25rem;color:var(--d-text,#1A1A1A);margin-bottom:0.5rem;">Специалист больше недоступен</h2>' +
+            '<p style="color:var(--d-muted,#6B7280);margin-bottom:1.5rem;">Ваш абонемент по-прежнему действует. Выберите другого психолога, чтобы продолжить использовать оставшиеся сессии.</p>' +
+            '<a href="/search.html?pkg=' + encodeURIComponent(pkg) + '" style="display:inline-block;padding:0.75rem 1.5rem;background:linear-gradient(135deg,#7C3AED,#9F67FA);color:white;text-decoration:none;border-radius:0.75rem;font-weight:600;">🔄 Выбрать другого психолога</a>' +
+          '</div>';
+      } else {
+        html =
+          '<div style="text-align:center;padding:3rem 1rem;">' +
+            '<div style="font-size:2.5rem;margin-bottom:0.75rem;">😕</div>' +
+            '<h2 style="font-size:1.25rem;color:var(--d-text,#1A1A1A);margin-bottom:0.5rem;">Специалист не найден</h2>' +
+            '<p style="color:var(--d-muted,#6B7280);margin-bottom:1.5rem;">Возможно, профиль был удалён или ссылка устарела.</p>' +
+            '<a href="/search.html" style="display:inline-block;padding:0.75rem 1.5rem;background:linear-gradient(135deg,#7C3AED,#9F67FA);color:white;text-decoration:none;border-radius:0.75rem;font-weight:600;">← Вернуться в каталог</a>' +
+          '</div>';
+      }
+      document.getElementById('bookContent').innerHTML = html;
     }
 
     (function loadAndBuild() {
@@ -397,10 +409,22 @@
             .then(function(r) { return r.ok ? r.json() : null; })
             .then(function(s) { if (s && s.ok && s.slots) psychSchedule = s.slots; })
             .catch(function() {})
-            .finally(function() { buildPage(); checkSelfBooking(); showNoScheduleNotice(); });
+            .finally(function() {
+              buildPage(); checkSelfBooking(); showNoScheduleNotice();
+              if (pkg) reassignPackageIfNeeded();
+            });
         })
         .catch(function() { showLoadError(); });
     })();
+
+    function reassignPackageIfNeeded() {
+      if (!pkg || !psych) return;
+      fetch('/api/packages.php?action=reassign', {
+        method: 'POST', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ package_id: pkg, psychologist_id: psych.id })
+      }).catch(function() {});
+    }
 
     /* ── Self-booking prevention ──
        If the logged-in user IS this psychologist, disable booking and show a warning.

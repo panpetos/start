@@ -723,8 +723,12 @@
           : '';
         const delay = idx < 4 ? ' anim-delay-' + (idx+1) : '';
 
+        const pkgParam = new URLSearchParams(location.search).get('pkg');
+        const cardHref = pkgParam
+          ? '/book.html?id=' + p.id + '&pkg=' + pkgParam
+          : '/psychologist-profile.html?id=' + p.id;
         return (
-          '<a href="/psychologist-profile.html?id=' + p.id + '" data-psych-id="' + p.id + '" style="display:grid;grid-template-columns:auto 1fr auto;gap:1.5rem;align-items:start;background:white;border-radius:1.25rem;padding:1.75rem;border:1px solid #F0F0F0;box-shadow:0 2px 8px rgba(0,0,0,0.04);text-decoration:none;color:inherit;transition:box-shadow 0.2s,transform 0.2s;cursor:pointer;" class="anim-fade-up' + delay + '" onmouseover="this.style.boxShadow=\'0 8px 32px rgba(124,58,237,0.12)\';this.style.transform=\'translateY(-2px)\'" onmouseout="this.style.boxShadow=\'0 2px 8px rgba(0,0,0,0.04)\';this.style.transform=\'\'">' +
+          '<a href="' + cardHref + '" data-psych-id="' + p.id + '" style="display:grid;grid-template-columns:auto 1fr auto;gap:1.5rem;align-items:start;background:white;border-radius:1.25rem;padding:1.75rem;border:1px solid #F0F0F0;box-shadow:0 2px 8px rgba(0,0,0,0.04);text-decoration:none;color:inherit;transition:box-shadow 0.2s,transform 0.2s;cursor:pointer;" class="anim-fade-up' + delay + '" onmouseover="this.style.boxShadow=\'0 8px 32px rgba(124,58,237,0.12)\';this.style.transform=\'translateY(-2px)\'" onmouseout="this.style.boxShadow=\'0 2px 8px rgba(0,0,0,0.04)\';this.style.transform=\'\'">' +
             '<div style="width:88px;height:88px;min-width:88px;max-width:88px;border-radius:50%;background:' + (p.color||'#7C3AED') + ';display:flex;align-items:center;justify-content:center;color:white;font-size:1.75rem;font-weight:700;border:3px solid #F3E8FF;overflow:hidden;flex-shrink:0;">' + avatarHtml + '</div>' +
             '<div style="min-width:0;">' +
               '<div style="display:flex;align-items:center;gap:0.625rem;flex-wrap:wrap;margin-bottom:0.25rem;">' +
@@ -747,7 +751,7 @@
                   ? '<div style="font-size:1.375rem;font-weight:800;color:#1A1A1A;letter-spacing:-0.02em;">' + p.price.toLocaleString('ru-RU') + ' ₽</div><div style="font-size:0.8125rem;color:#6B7280;">за сессию</div>'
                   : '<div style="font-size:1rem;font-weight:700;color:#9CA3AF;">Цена уточняется</div>') +
               '</div>' +
-              '<span style="display:inline-flex;align-items:center;justify-content:center;padding:0.625rem 1.25rem;background:linear-gradient(135deg,#7C3AED,#9F67FA);color:white;border-radius:0.75rem;font-size:0.9375rem;font-weight:600;text-decoration:none;white-space:nowrap;box-shadow:0 3px 10px rgba(124,58,237,0.3);">Профиль и запись →</span>' +
+              '<span style="display:inline-flex;align-items:center;justify-content:center;padding:0.625rem 1.25rem;background:linear-gradient(135deg,#7C3AED,#9F67FA);color:white;border-radius:0.75rem;font-size:0.9375rem;font-weight:600;text-decoration:none;white-space:nowrap;box-shadow:0 3px 10px rgba(124,58,237,0.3);">' + (pkgParam ? '🔄 Записаться по абонементу' : 'Профиль и запись →') + '</span>' +
             '</div>' +
           '</a>'
         );
@@ -796,6 +800,16 @@
       if (fmt === 'video') { const e = document.getElementById('fmtVideo'); if (e) e.checked = true; }
       if (fmt === 'chat')  { const e = document.getElementById('fmtChat');  if (e) e.checked = true; }
       if (fmt === 'phone') { const e = document.getElementById('fmtPhone'); if (e) e.checked = true; }
+
+      /* ── Package reassign mode ── */
+      const pkgReassign = up.get('pkg');
+      if (pkgReassign) {
+        const banner = document.createElement('div');
+        banner.style.cssText = 'background:linear-gradient(135deg,#7C3AED 0%,#9F67FA 100%);color:white;padding:1rem 1.5rem;border-radius:1rem;margin:0 auto 1.5rem;max-width:900px;font-size:.95rem;display:flex;align-items:center;gap:.75rem;';
+        banner.innerHTML = '<span style="font-size:1.5rem;">🔄</span><span>Выберите нового психолога для вашего абонемента. Нажмите на карточку специалиста, чтобы перейти к записи.</span>';
+        const heroSection = document.querySelector('.search-hero');
+        if (heroSection) heroSection.parentNode.insertBefore(banner, heroSection.nextSibling);
+      }
 
       loadPsychologists();
 
