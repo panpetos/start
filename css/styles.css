@@ -662,7 +662,7 @@ p { margin-bottom: var(--spacing-md); }
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 1px;
-  background: rgba(255,255,255,0.15);
+  background: none;
   border-radius: 1.25rem;
   overflow: hidden;
 }
