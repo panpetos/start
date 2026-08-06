@@ -54,7 +54,8 @@
             width: 320px;
             background: white;
             border-right: 1px solid #e0e0e0;
-            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
         }
 
         .conversation-item {
@@ -599,6 +600,8 @@
         /* ── Dark theme ── */
         body.dark { background: #191919 !important; color: #E6E6E6 !important; }
         body.dark .conversations-list { background: #252525; border-right-color: #333; }
+        body.dark #chatSearchInput { background: #1E1E1E; border-color: #444; color: #E6E6E6; }
+        body.dark #chatSearchInput::placeholder { color: #777; }
         body.dark .conversation-item { border-bottom-color: #333; }
         body.dark .conversation-item:hover { background: #2D2D2D; }
         body.dark .conversation-item.active { background: #2D1F4E; }
@@ -664,8 +667,13 @@
 
 <body>
     <div class="chat-container" style="height:100vh;">
-        <div class="conversations-list" id="conversationsList">
-            <div class="no-conversations">Загрузка...</div>
+        <div class="conversations-list">
+            <div style="padding:0.75rem;border-bottom:1px solid #e0e0e0;flex-shrink:0;">
+                <input id="chatSearchInput" type="text" placeholder="🔍 Поиск по имени или телефону..." style="width:100%;padding:0.5rem 0.75rem;border:1.5px solid #e0e0e0;border-radius:0.5rem;font-family:inherit;font-size:0.875rem;outline:none;background:#f9fafb;" oninput="filterConversations()">
+            </div>
+            <div id="conversationsList" style="overflow-y:auto;flex:1;">
+                <div class="no-conversations">Загрузка...</div>
+            </div>
         </div>
 
         <div class="chat-area" id="chatArea">
@@ -1122,34 +1130,61 @@
                     return;
                 }
 
-                container.innerHTML = conversations.map(c => {
-                    const name = `${c.first_name || ''} ${c.last_name || ''}`.trim() || 'Пользователь';
-                    const initial = name.charAt(0).toUpperCase();
-                    const lastMsg = (c.last_message || '').replace(/^\[ORDER#\d+\]\s*/, '');
-                    const preview = c.is_mine ? `Вы: ${lastMsg}` : lastMsg;
-                    const time = formatTime(c.last_message_time);
-
-                    return `
-                        <div class="conversation-item ${c.user_id === selectedUserId ? 'active' : ''}" 
-                             onclick="openChat('${c.user_id}')">
-                            <div class="conversation-avatar">
-                                ${c.avatar ? `<img src="${c.avatar}" alt="${name}">` : initial}
-                            </div>
-                            <div class="conversation-info">
-                                <div class="conversation-name">${name}</div>
-                                <div class="conversation-preview">${preview.substring(0, 40)}${preview.length > 40 ? '...' : ''}</div>
-                            </div>
-                            <div class="conversation-meta">
-                                <div class="conversation-time">${time}</div>
-                                ${c.unread_count > 0 ? `<span class="unread-badge">${c.unread_count}</span>` : ''}
-                            </div>
-                        </div>
-                    `;
-                }).join('');
+                allConversations = conversations;
+                renderConversationList(conversations);
 
             } catch (error) {
                 console.error('Load conversations error:', error);
             }
+        }
+
+        let allConversations = [];
+
+        function renderConversationList(conversations) {
+            const container = document.getElementById('conversationsList');
+            if (!conversations || conversations.length === 0) {
+                container.innerHTML = `
+                    <div class="no-conversations">
+                        <p>Ничего не найдено</p>
+                    </div>
+                `;
+                return;
+            }
+            container.innerHTML = conversations.map(c => {
+                const name = `${c.first_name || ''} ${c.last_name || ''}`.trim() || 'Пользователь';
+                const initial = name.charAt(0).toUpperCase();
+                const lastMsg = (c.last_message || '').replace(/^\[ORDER#\d+\]\s*/, '');
+                const preview = c.is_mine ? `Вы: ${lastMsg}` : lastMsg;
+                const time = formatTime(c.last_message_time);
+                return `
+                    <div class="conversation-item ${c.user_id === selectedUserId ? 'active' : ''}"
+                         onclick="openChat('${c.user_id}')">
+                        <div class="conversation-avatar">
+                            ${c.avatar ? `<img src="${c.avatar}" alt="${name}">` : initial}
+                        </div>
+                        <div class="conversation-info">
+                            <div class="conversation-name">${name}</div>
+                            <div class="conversation-preview">${preview.substring(0, 40)}${preview.length > 40 ? '...' : ''}</div>
+                        </div>
+                        <div class="conversation-meta">
+                            <div class="conversation-time">${time}</div>
+                            ${c.unread_count > 0 ? `<span class="unread-badge">${c.unread_count}</span>` : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function filterConversations() {
+            const q = (document.getElementById('chatSearchInput').value || '').trim().toLowerCase();
+            if (!q) { renderConversationList(allConversations); return; }
+            const filtered = allConversations.filter(c => {
+                const name = `${c.first_name || ''} ${c.last_name || ''}`.trim().toLowerCase();
+                const phone = (c.phone || '').toLowerCase();
+                const email = (c.email || '').toLowerCase();
+                return name.includes(q) || phone.includes(q) || email.includes(q);
+            });
+            renderConversationList(filtered);
         }
 
         function goBackToList() {

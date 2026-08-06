@@ -169,7 +169,7 @@
         </p>
       </div>
 
-      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1.5rem;">
+      <div class="idx-services-grid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:1.5rem;">
         <div class="card anim-fade-up" style="padding: 1.75rem; text-align: center; display: flex; flex-direction: column; align-items: center; border-radius: 1.25rem;">
           <div class="icon-3d" style="width: 3.75rem; height: 3.75rem; border-radius: 1rem; display: flex; align-items: center; justify-content: center; margin-bottom: 1.25rem;">
             <i data-lucide="flame" style="color: white; width: 1.75rem; height: 1.75rem;"></i>
@@ -216,7 +216,7 @@
   <!-- ═══════════════ STATS ═══════════════ -->
   <section style="padding: 4rem 0; background: linear-gradient(135deg, #6D28D9 0%, #7C3AED 50%, #8B5CF6 100%);">
     <div class="container">
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1px;border-radius:1.25rem;overflow:hidden;">
+      <div class="idx-stats-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:1px;border-radius:1.25rem;overflow:hidden;">
         <div style="padding:2rem;text-align:center;background:rgba(255,255,255,0.08);">
           <span style="display:block;font-size:2.75rem;font-weight:800;color:white;line-height:1;letter-spacing:-0.04em;margin-bottom:0.5rem;" data-count="200">0</span>
           <span style="font-size:0.9375rem;color:rgba(255,255,255,0.8);font-weight:400;">психологов подключено к сервису</span>
@@ -243,7 +243,7 @@
         </p>
       </div>
 
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1.5rem;">
+      <div class="idx-whom-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:1.5rem;">
         <div class="card anim-fade-up" style="padding: 1.75rem; border-radius: 1.25rem; border-left: 4px solid #7C3AED;">
           <div class="icon-3d" style="width: 3.25rem; height: 3.25rem; border-radius: 0.875rem; display: flex; align-items: center; justify-content: center; margin-bottom: 1rem;">
             <i data-lucide="code" style="color: white; width: 1.5rem; height: 1.5rem;"></i>
@@ -285,9 +285,8 @@
         <p style="color: #6B7280; font-size: 1.0625rem; margin: 0;">Три простых шага до первой сессии</p>
       </div>
 
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:2rem;position:relative;">
-        <!-- connector line -->
-        <div style="position:absolute;top:1.5rem;left:calc(16.7% + 2rem);right:calc(16.7% + 2rem);height:2px;background:linear-gradient(90deg,#7C3AED,#9F67FA);opacity:0.35;z-index:0;pointer-events:none;"></div>
+      <div class="idx-steps-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:2rem;position:relative;">
+        <div class="idx-steps-connector" style="position:absolute;top:1.5rem;left:calc(16.7% + 2rem);right:calc(16.7% + 2rem);height:2px;background:linear-gradient(90deg,#7C3AED,#9F67FA);opacity:0.35;z-index:0;pointer-events:none;"></div>
 
         <div style="background:white;border-radius:1.25rem;padding:2rem;border:1px solid #F0F0F0;box-shadow:0 2px 8px rgba(0,0,0,0.04);position:relative;z-index:1;">
           <div style="width:3rem;height:3rem;background:linear-gradient(135deg,#7C3AED,#9F67FA);border-radius:50%;display:flex;align-items:center;justify-content:center;color:white;font-weight:800;font-size:1.125rem;box-shadow:0 4px 12px rgba(124,58,237,0.35);margin-bottom:1.25rem;">1</div>
@@ -549,6 +548,16 @@
     @media (max-width: 900px) {
       .hero-main-grid { grid-template-columns: 1fr !important; gap: 2rem !important; }
       .hero-main-grid > div:last-child { display: none; }
+      .idx-services-grid { grid-template-columns: repeat(2, 1fr) !important; }
+      .idx-whom-grid { grid-template-columns: 1fr !important; }
+      .idx-steps-grid { grid-template-columns: 1fr !important; }
+      .idx-steps-connector { display: none !important; }
+      .sess-grid { grid-template-columns: 1fr !important; }
+    }
+    @media (max-width: 560px) {
+      .idx-services-grid { grid-template-columns: 1fr !important; }
+      .idx-stats-grid { grid-template-columns: 1fr !important; }
+      .hero-main-grid h1 { font-size: 2rem !important; }
     }
   </style>
 

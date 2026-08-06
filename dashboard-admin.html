@@ -104,6 +104,8 @@
             .sidebar.open { left: 0; }
             .sidebar-toggle { display: flex; }
             .admin-layout { display: block; }
+            .main-content { padding: 0.75rem !important; }
+            .panel-head { flex-direction: column; align-items: flex-start; gap: 0.5rem; }
         }
 
         /* ── Main content ────────────────────────────────────────── */
@@ -814,6 +816,33 @@
         let supMsgPollTimer = null;
         let supLastTotalUnread = 0;
         let supPendingFile = null;
+        let supAllThreadRows = [];
+
+        function filterSupportThreads() {
+            const q = (document.getElementById('supSearchInput')?.value || '').trim().toLowerCase();
+            const tbody = document.getElementById('supThreadsBody');
+            if (!tbody || !supAllThreadRows.length) return;
+            const roleBadge = (t) => {
+                const reg = t.registered ? '<span class="badge b-green">в системе</span>' : '<span class="badge b-amber">не зарегистрирован</span>';
+                const role = t.role ? `<span class="badge b-purple">${esc(t.role)}</span>` : '';
+                return role + ' ' + reg;
+            };
+            const filtered = q ? supAllThreadRows.filter(t => {
+                const name = (t.name || '').toLowerCase();
+                const email = (t.email || '').toLowerCase();
+                return name.includes(q) || email.includes(q);
+            }) : supAllThreadRows;
+            tbody.innerHTML = filtered.length ? filtered.map(t => {
+                const contact = [t.email].filter(Boolean).map(esc).join(' · ') || '<span class="muted">email не указан</span>';
+                const unread = t.unread > 0 ? `<span class="badge b-red">${t.unread} новых</span>` : '';
+                return `<tr style="cursor:pointer;" onclick="openSupportThread('${esc(t.id)}')">
+                    <td><b>${esc(t.name || 'Гость')}</b><br><span class="muted" style="font-size:0.78rem;">${contact}</span></td>
+                    <td>${roleBadge(t)}</td>
+                    <td style="max-width:280px;white-space:normal;">${esc((t.last_sender==='admin'?'Вы: ':'') + (t.last_message||''))}</td>
+                    <td class="muted">${fmtDateTime(t.last_at)} ${unread}</td>
+                </tr>`;
+            }).join('') : '<tr><td colspan="4" class="muted" style="padding:1.5rem;text-align:center;">Ничего не найдено</td></tr>';
+        }
 
         function supPlaySound() {
             try {
@@ -930,8 +959,9 @@
             }).join('') : '<tr><td colspan="4" class="muted" style="padding:1.5rem;text-align:center;">Обращений пока нет</td></tr>';
             document.getElementById('content').innerHTML =
                 '<div class="note">💬 Обращения обновляются автоматически. Нажмите на обращение для полноэкранного чата.</div>' +
-                `<div class="panel"><div class="panel-head"><h2>Обращения (${rows.length})</h2><button class="btn-sm btn-outline" onclick="supportThreadId=null;renderSupport()">↻ Обновить</button></div>
-                  <div class="tbl-wrap"><table><thead><tr><th>Контакт</th><th>Роль / статус</th><th>Последнее сообщение</th><th>Когда</th></tr></thead><tbody>${list}</tbody></table></div></div>`;
+                `<div class="panel"><div class="panel-head"><h2>Обращения (${rows.length})</h2><div style="display:flex;gap:0.5rem;align-items:center;"><input id="supSearchInput" placeholder="🔍 Поиск по имени / email..." style="padding:0.4rem 0.7rem;border:1.5px solid var(--a-input-border,#ddd);border-radius:0.5rem;font-family:inherit;font-size:0.8rem;background:var(--a-input-bg,#fff);color:var(--a-text,#1a1a1a);width:200px;" oninput="filterSupportThreads()"><button class="btn-sm btn-outline" onclick="supportThreadId=null;renderSupport()">↻ Обновить</button></div></div>
+                  <div class="tbl-wrap"><table><thead><tr><th>Контакт</th><th>Роль / статус</th><th>Последнее сообщение</th><th>Когда</th></tr></thead><tbody id="supThreadsBody">${list}</tbody></table></div></div>`;
+            supAllThreadRows = rows;
             if (supportThreadId) openSupportThread(supportThreadId);
         }
 
