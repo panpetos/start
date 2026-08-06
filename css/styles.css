@@ -1728,8 +1728,8 @@ details p {
    Dark Theme
    ============================================ */
 body.dark {
-  background-color: #191919;
-  color: #E6E6E6;
+  background-color: #191919 !important;
+  color: #E6E6E6 !important;
 }
 body.dark .card {
   background-color: var(--d-panel, #252525);
@@ -1942,6 +1942,284 @@ body.dark .card-footer {
 }
 body.dark .card-header {
   border-bottom-color: #333;
+}
+
+/* ── Extended Dark Theme: inline-style & cross-page overrides ── */
+
+body.dark section[style*="background: white"],
+body.dark section[style*="background:white"] {
+  background: #191919 !important;
+}
+body.dark section[style*="background: #FAFAFA"],
+body.dark section[style*="background:#FAFAFA"] {
+  background: #1F1F1F !important;
+}
+body.dark div[style*="background:white"],
+body.dark div[style*="background: white"],
+body.dark span[style*="background:#fff"],
+body.dark span[style*="background: #fff"],
+body.dark div[style*="background:#fff"],
+body.dark div[style*="background: #fff"] {
+  background: #252525 !important;
+}
+body.dark [style*="background-color: white"],
+body.dark [style*="background-color:white"],
+body.dark [style*="background-color: #FFFFFF"],
+body.dark [style*="background-color:#FFFFFF"],
+body.dark [style*="background-color: #ffffff"],
+body.dark [style*="background-color:#ffffff"] {
+  background-color: #252525 !important;
+}
+body.dark [style*="background: #F3E8FF"],
+body.dark [style*="background:#F3E8FF"] {
+  background: #2D1F4E !important;
+}
+body.dark [style*="background: #F3F4F6"],
+body.dark [style*="background:#F3F4F6"] {
+  background: #333 !important;
+}
+body.dark [style*="background: #F0FDF4"],
+body.dark [style*="background:#F0FDF4"] {
+  background: #1a2e1a !important;
+}
+
+body.dark [style*="color: #1A1A1A"],
+body.dark [style*="color:#1A1A1A"] {
+  color: #E6E6E6 !important;
+}
+body.dark [style*="color: #374151"],
+body.dark [style*="color:#374151"] {
+  color: #C0C0C0 !important;
+}
+body.dark [style*="color: #6B7280"],
+body.dark [style*="color:#6B7280"] {
+  color: #999 !important;
+}
+body.dark [style*="color:#666"],
+body.dark [style*="color: #666"] {
+  color: #999 !important;
+}
+body.dark [style*="color: #9CA3AF"],
+body.dark [style*="color:#9CA3AF"] {
+  color: #777 !important;
+}
+body.dark [style*="color: #92400E"],
+body.dark [style*="color:#92400E"] {
+  color: #D4A944 !important;
+}
+body.dark [style*="color:#999"] {
+  color: #888 !important;
+}
+
+body.dark [style*="border: 1px solid #F0F0F0"] {
+  border-color: #333 !important;
+}
+body.dark [style*="border: 1px solid #F0ECF8"],
+body.dark [style*="border:1px solid #F0ECF8"] {
+  border-color: #333 !important;
+}
+body.dark [style*="border: 1px solid #E5E7EB"],
+body.dark [style*="border: 2px solid #E5E7EB"] {
+  border-color: #444 !important;
+}
+body.dark [style*="border: 1px solid #e5e5e5"] {
+  border-color: #444 !important;
+}
+body.dark [style*="border: 2px solid #E5E5E5"],
+body.dark [style*="border: 2px solid #e5e5e5"] {
+  border-color: #444 !important;
+}
+body.dark [style*="border: 2px solid #C4B5FD"] {
+  border-color: #5B3D8F !important;
+}
+body.dark [style*="border: 1px solid #E9D5FF"] {
+  border-color: #5B3D8F !important;
+}
+body.dark [style*="border: 1px solid #EDE9FF"],
+body.dark [style*="border:1px solid #EDE9FF"] {
+  border-color: #37254A !important;
+}
+body.dark [style*="border: 1px solid rgba(124,58,237,0.15)"] {
+  border-color: rgba(124,58,237,0.3) !important;
+}
+body.dark [style*="border-bottom: 1px solid #F5F5F5"] {
+  border-bottom-color: #333 !important;
+}
+body.dark [style*="border-bottom: 1px solid #F9F9F9"] {
+  border-bottom-color: #333 !important;
+}
+
+body.dark p,
+body.dark li,
+body.dark span,
+body.dark label,
+body.dark td,
+body.dark th {
+  color: inherit;
+}
+body.dark b, body.dark strong {
+  color: inherit;
+}
+body.dark details {
+  background-color: #252525;
+  border-color: #333;
+}
+body.dark details summary {
+  color: #E6E6E6;
+}
+body.dark details p {
+  color: #C0C0C0;
+}
+body.dark .badge-success {
+  background-color: #1a2e1a;
+  color: #86efac;
+}
+body.dark .badge-warning {
+  background-color: #2e2a1a;
+  color: #fde68a;
+}
+body.dark .badge-danger {
+  background-color: #2e1a1a;
+  color: #f87171;
+}
+body.dark .badge-secondary {
+  background-color: #2D1F4E;
+  color: #B794F4;
+}
+body.dark .badge-outline {
+  border-color: #444;
+  color: #C0C0C0;
+}
+body.dark .skeleton {
+  background: linear-gradient(90deg, #2A2A2A 25%, #333 50%, #2A2A2A 75%);
+  background-size: 200% 100%;
+}
+body.dark .spinner {
+  border-color: #333;
+  border-top-color: #B794F4;
+}
+body.dark .btn-outline {
+  border-color: #444;
+  color: #C0C0C0;
+}
+body.dark .btn-outline:hover {
+  background-color: #333;
+  border-color: rgba(124, 58, 237, 0.4);
+}
+body.dark .btn-ghost {
+  color: #C0C0C0;
+}
+body.dark .btn-ghost:hover {
+  background-color: #333;
+}
+body.dark .btn-secondary {
+  background-color: #2D1F4E;
+  color: #B794F4;
+}
+body.dark .btn-secondary:hover {
+  background-color: #37254A;
+}
+body.dark .divider::before,
+body.dark .divider::after {
+  background: #444;
+}
+body.dark .divider {
+  color: #777;
+}
+body.dark .form-label {
+  color: #C0C0C0;
+}
+body.dark .form-description {
+  color: #888;
+}
+body.dark .psychologist-description {
+  color: #999;
+}
+body.dark .psychologist-credentials {
+  color: #999;
+}
+body.dark .psychologist-booking {
+  border-top-color: #333;
+}
+body.dark .article-tag {
+  background: #2D1F4E;
+  color: #B794F4;
+}
+body.dark [style*="background-color: #FAFAFA"],
+body.dark [style*="background-color:#FAFAFA"] {
+  background-color: #191919 !important;
+}
+body.dark [style*="background:#fff"],
+body.dark [style*="background: #fff"] {
+  background: #252525 !important;
+}
+body.dark [style*="border:1px solid #F0F0F0"],
+body.dark [style*="border: 1px solid #F0F0F0"] {
+  border-color: #333 !important;
+}
+body.dark [style*="border:2px solid #E5E7EB"],
+body.dark [style*="border: 2px solid #E5E7EB"] {
+  border-color: #444 !important;
+}
+body.dark [style*="border:1.5px solid #E5E7EB"],
+body.dark [style*="border: 1.5px solid #E5E7EB"] {
+  border-color: #444 !important;
+}
+body.dark [style*="border:1px solid #BBF7D0"],
+body.dark [style*="border: 1px solid #BBF7D0"] {
+  border-color: #2D5A2D !important;
+}
+body.dark [style*="border:1px solid #FCD34D"],
+body.dark [style*="border: 1px solid #FCD34D"] {
+  border-color: #5A4E2D !important;
+}
+body.dark [style*="border:1px solid #BFDBFE"],
+body.dark [style*="border: 1px solid #BFDBFE"] {
+  border-color: #2D4A6D !important;
+}
+body.dark [style*="background:#FFF8E7"],
+body.dark [style*="background: #FFF8E7"] {
+  background: #3D3520 !important;
+}
+body.dark [style*="border:1.5px dashed #F59E0B"],
+body.dark [style*="border: 1.5px dashed #F59E0B"] {
+  border-color: #5A4E2D !important;
+}
+body.dark [style*="color:#1D4ED8"],
+body.dark [style*="color: #1D4ED8"] {
+  color: #7AAFDD !important;
+}
+body.dark [style*="color:#4B5563"],
+body.dark [style*="color: #4B5563"] {
+  color: #AAAAAA !important;
+}
+body.dark [style*="color:#DC2626"],
+body.dark [style*="color: #DC2626"] {
+  color: #F87171 !important;
+}
+body.dark [style*="border-bottom:1px solid #eee"],
+body.dark [style*="border-bottom: 1px solid #eee"] {
+  border-bottom-color: #333 !important;
+}
+body.dark [style*="border-top:1px solid #eee"],
+body.dark [style*="border-top: 1px solid #eee"] {
+  border-top-color: #333 !important;
+}
+body.dark [style*="border:1.5px solid #E2E8F0"],
+body.dark [style*="border: 1.5px solid #E2E8F0"] {
+  border-color: #444 !important;
+}
+body.dark [style*="border:1.5px solid #FECACA"],
+body.dark [style*="border: 1.5px solid #FECACA"] {
+  border-color: #5A2D2D !important;
+}
+body.dark [style*="background:#F8FAFC"],
+body.dark [style*="background: #F8FAFC"] {
+  background: #2D2D2D !important;
+}
+body.dark [style*="border:1px solid #EEF2F7"],
+body.dark [style*="border: 1px solid #EEF2F7"] {
+  border-color: #444 !important;
 }
 
 /* ============================================

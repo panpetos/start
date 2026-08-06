@@ -7,6 +7,35 @@
   <link rel="stylesheet" href="/css/styles.css">
   <script src="/js/layout.js"></script>
   <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    body.dark .card[style*="background-color: white"],
+    body.dark .card[style*="background-color:white"] { background-color: #252525 !important; }
+    body.dark .role-option { background: #252525 !important; border-color: #444 !important; }
+    body.dark .role-option div[style*="color: #666"] { color: #999 !important; }
+    body.dark .role-option i[style*="color: #999"] { color: #777 !important; }
+    body.dark .role-option.active { background: #2D1F4E !important; border-color: #7C3AED !important; }
+    body.dark .role-option.active div[style*="color: #7C3AED"] { color: #B794F4 !important; }
+    body.dark h1[style*="color: #1A1A1A"] { color: #E6E6E6 !important; }
+    body.dark h3[style*="color: #1A1A1A"] { color: #E6E6E6 !important; }
+    body.dark p[style*="color: #666"],
+    body.dark span[style*="color: #666"] { color: #999 !important; }
+    body.dark span[style*="color: #999"] { color: #777 !important; }
+    body.dark [style*="border-top: 1px solid #F0F0F0"],
+    body.dark [style*="border:1px solid #F0F0F0"] { border-color: #333 !important; }
+    body.dark p[style*="color: #999"] { color: #777 !important; }
+    body.dark [style*="background:#EFF6FF"] { background: #1A2A3D !important; border-color: #2D4A6D !important; color: #7AAFDD !important; }
+    body.dark [style*="background:#F8F6FF"] { background: #2D1F4E !important; border-color: #3D2F5E !important; color: #CCCCCC !important; }
+    body.dark [style*="background:#FBF7EC"] { background: #3D3520 !important; border-color: #5A4E2D !important; }
+    body.dark [style*="color: #6B5A2E"],
+    body.dark [style*="color:#6B5A2E"] { color: #D4A844 !important; }
+    body.dark #foreignEmailModal > div,
+    body.dark #regErrorModal > div { background: #252525 !important; }
+    body.dark #foreignEmailModal h3,
+    body.dark #regErrorModal h3 { color: #E6E6E6 !important; }
+    body.dark #foreignEmailModal p,
+    body.dark #regErrorModal p { color: #AAAAAA !important; }
+    body.dark .text-center.mt-4[style*="color: #999"] { color: #777 !important; }
+  </style>
 </head>
 <body style="background-color: #FAFAFA;">
   <!-- Шапка (сквозная — js/layout.js) -->

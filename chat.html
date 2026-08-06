@@ -595,6 +595,70 @@
             .chat-container.mobile-chat-open .chat-area { display: flex; }
             .chat-back-btn { display: flex; }
         }
+
+        /* ── Dark theme ── */
+        body.dark { background: #191919 !important; color: #E6E6E6 !important; }
+        body.dark .conversations-list { background: #252525; border-right-color: #333; }
+        body.dark .conversation-item { border-bottom-color: #333; }
+        body.dark .conversation-item:hover { background: #2D2D2D; }
+        body.dark .conversation-item.active { background: #2D1F4E; }
+        body.dark .conversation-name { color: #E6E6E6; }
+        body.dark .conversation-preview { color: #999; }
+        body.dark .conversation-time { color: #777; }
+        body.dark .no-conversations { color: #777; }
+        body.dark .chat-area { background: #191919; }
+        body.dark .chat-header { background: #252525; border-bottom-color: #333; }
+        body.dark .chat-header .name { color: #E6E6E6; }
+        body.dark .chat-header .role { color: #999; }
+        body.dark .message.theirs { background: #252525; color: #E6E6E6; box-shadow: 0 2px 8px rgba(0,0,0,0.2); }
+        body.dark .chat-input { background: #252525; border-top-color: #333; }
+        body.dark .chat-input input { background: #1E1E1E; border-color: #444; color: #E6E6E6; }
+        body.dark .chat-input input::placeholder { color: #777; }
+        body.dark .icon-btn { background: #333; color: #E6E6E6; }
+        body.dark .icon-btn:hover { background: #444; }
+        body.dark .emoji-picker { background: #252525; box-shadow: 0 4px 25px rgba(0,0,0,0.5); }
+        body.dark .emoji-grid span:hover { background: #333; }
+        body.dark .file-preview { background: #2D2D2D; }
+        body.dark .voice-recording { background: #333; }
+        body.dark .voice-duration { color: #E6E6E6; }
+        body.dark .voice-info { color: #999; }
+        body.dark .empty-state { color: #777; }
+        body.dark .chat-back-btn { background: #333; color: #E6E6E6; }
+        body.dark .btn-cancel { background: #555; }
+        body.dark .message-time { color: rgba(255,255,255,0.5); }
+        body.dark .message.theirs .message-time { color: #777; }
+        /* Modal overrides (inline styles) */
+        body.dark #videoModal > div,
+        body.dark #orderModal > div,
+        body.dark #healthConsentModal > div > div { background: #252525 !important; color: #E6E6E6 !important; }
+        body.dark #notesDrawer { background: #252525 !important; }
+        body.dark #videoModal h3,
+        body.dark #orderModal h3,
+        body.dark #healthConsentModal h3 { color: #E6E6E6 !important; }
+        body.dark #videoModal p,
+        body.dark #orderModal p,
+        body.dark #healthConsentModal p { color: #AAAAAA !important; }
+        body.dark #videoModal label,
+        body.dark #orderModal label { color: #CCCCCC !important; }
+        body.dark #videoModal ol,
+        body.dark #orderModal ol { color: #CCCCCC !important; }
+        body.dark #videoModal input,
+        body.dark #orderModal input,
+        body.dark #orderModal textarea { background: #1E1E1E !important; border-color: #444 !important; color: #E6E6E6 !important; }
+        body.dark #videoModal input::placeholder,
+        body.dark #orderModal input::placeholder,
+        body.dark #orderModal textarea::placeholder { color: #777 !important; }
+        body.dark #orderPayout { background: #1A3A1A !important; border-color: #2D5A2D !important; color: #6BCB77 !important; }
+        body.dark [style*="background:#FFF8E7"],
+        body.dark [style*="background: #FFF8E7"] { background: #3D3520 !important; border-color: #5A4E2D !important; color: #D4A844 !important; }
+        body.dark [style*="background:#F3F4F6"],
+        body.dark [style*="background: #F3F4F6"] { background: #333 !important; color: #CCC !important; }
+        body.dark [style*="background:#EFF6FF"] { background: #1A2A3D !important; border-color: #2D4A6D !important; color: #7AAFDD !important; }
+        body.dark #notesDrawer [style*="border-bottom:1px solid #eee"] { border-bottom-color: #333 !important; }
+        body.dark #notesDrawer [style*="border-top:1px solid #eee"] { border-top-color: #333 !important; }
+        body.dark #noteText { background: #1E1E1E !important; border-color: #444 !important; color: #E6E6E6 !important; }
+        body.dark #notesList [style*="background:#F8FAFC"] { background: #2D2D2D !important; border-color: #444 !important; }
+        body.dark #notesList [style*="color:#1A1A1A"] { color: #E6E6E6 !important; }
     </style>
 </head>
 
