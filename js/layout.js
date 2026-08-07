@@ -573,6 +573,22 @@
     document.head.appendChild(link);
   }
 
+  // Собственная лёгкая аналитика (задача #39): анонимный просмотр страницы —
+  // без сторонних сервисов, без сбора ПД (id устройства в httpOnly-cookie,
+  // ставится сервером). Админку не считаем, чтобы не раздувать статистику
+  // собственными проверками.
+  function trackPageview() {
+    try {
+      if (location.pathname.indexOf('/dashboard-admin') === 0) return;
+      var payload = JSON.stringify({ path: location.pathname, referrer: document.referrer || '' });
+      if (navigator.sendBeacon) {
+        navigator.sendBeacon('/api/analytics.php?action=track', new Blob([payload], { type: 'application/json' }));
+      } else {
+        fetch('/api/analytics.php?action=track', { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: payload, keepalive: true }).catch(function () {});
+      }
+    } catch (e) {}
+  }
+
   function onReady() {
     injectFavicon();
     fillPlaceholders();
@@ -582,6 +598,7 @@
     // showDevNotice(); — отключено: оверлей «сайт в разработке» мешает проверке эквайринга
     showConsentBanner();
     buildSupportWidget();
+    trackPageview();
     if (window.lucide && lucide.createIcons) lucide.createIcons();
     updateLoginCircle();
   }

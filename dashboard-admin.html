@@ -321,6 +321,9 @@
 
                 <div class="sidebar-group">
                     <div class="sidebar-group-label">Аналитика</div>
+                    <button class="sidebar-item" data-tab="metrics" onclick="switchTab('metrics')">
+                        <span class="sidebar-item-icon">📊</span> Метрики
+                    </button>
                     <button class="sidebar-item" data-tab="subscribers" onclick="switchTab('subscribers')">
                         <span class="sidebar-item-icon">📧</span> Подписки
                     </button>
@@ -481,7 +484,7 @@
             // Close mobile sidebar
             document.getElementById('sidebar').classList.remove('open');
             document.getElementById('sidebarOverlay').classList.remove('open');
-            ({ overview:renderOverview, support:renderSupport, users:renderUsers, psychologists:renderPsych, tariffs:renderTariffs, robokassa:renderRobokassa, yookassa:renderYookassa, devtasks:renderDevTasks, appointments:renderAppointments, replacements:renderReplacements, supervision:renderSupervision, calls:renderCalls, payments:renderPayments, subscribers:renderSubscribers, referrals:renderReferrals, activity:renderActivity, notes:renderNotes, notifications:renderNotifications, adminperms:renderAdminPerms }[tab])();
+            ({ overview:renderOverview, support:renderSupport, users:renderUsers, psychologists:renderPsych, tariffs:renderTariffs, robokassa:renderRobokassa, yookassa:renderYookassa, devtasks:renderDevTasks, appointments:renderAppointments, replacements:renderReplacements, supervision:renderSupervision, calls:renderCalls, payments:renderPayments, subscribers:renderSubscribers, referrals:renderReferrals, activity:renderActivity, notes:renderNotes, notifications:renderNotifications, adminperms:renderAdminPerms, metrics:renderMetrics }[tab])();
         }
 
         // ── Overview ────────────────────────────────────────────────────────
@@ -735,6 +738,54 @@
             const body = `<table id="dataTable"><thead><tr><th>Источник</th><th>Email</th><th>Роль</th><th>Дата</th></tr></thead><tbody>` +
                 rows.map(r => `<tr><td><b>${esc(r.source)}</b></td><td>${esc(r.email||'—')}</td><td>${esc(r.role||'—')}</td><td class="muted">${fmtDateTime(r.created_at)}</td></tr>`).join('') + '</tbody></table>';
             document.getElementById('content').innerHTML = sumHtml + panel('Как нас находят ('+rows.length+')','sRef',body);
+        }
+
+        // ── Метрики: посетители, просмотры, целевые действия (задача #39) ────
+        let metricsDays = 7;
+        async function renderMetrics(){
+            document.getElementById('content').innerHTML = '<div class="loading">Загрузка...</div>';
+            let res;
+            try { res = await (await fetch('/api/analytics.php?action=summary&days=' + metricsDays, { credentials:'include' })).json(); }
+            catch(e){ return fail(); }
+            if (!res || !res.ok) return fail();
+
+            const t = res.totals || {};
+            const goals = res.goals || {};
+            const byDay = res.by_day || [];
+            const topPages = res.top_pages || [];
+            const topRef = res.top_referrers || [];
+
+            const periods = [1,7,30,90];
+            const tabs = periods.map(d => `<button class="btn-sm ${d===metricsDays?'btn-purple':'btn-outline'}" onclick="metricsDays=${d};renderMetrics()">${d===1?'сутки':d+' дн.'}</button>`).join(' ');
+
+            const statsHtml = '<div class="stats-grid">' +
+                `<div class="stat"><div class="v">${t.pageviews||0}</div><div class="l">Просмотров страниц</div></div>` +
+                `<div class="stat"><div class="v">${t.visitors||0}</div><div class="l">Уникальных посетителей</div></div>` +
+                Object.entries(goals).map(([k,v]) => `<div class="stat"><div class="v">${v}</div><div class="l">${esc(k)}</div></div>`).join('') +
+                '</div>';
+
+            const dayRows = byDay.length
+                ? `<table id="dataTable"><thead><tr><th>Дата</th><th>Просмотры</th><th>Посетители</th></tr></thead><tbody>` +
+                  byDay.slice().reverse().map(r => `<tr><td>${esc(r.d)}</td><td>${r.pv}</td><td>${r.uv}</td></tr>`).join('') + '</tbody></table>'
+                : '<div class="note">Данных пока нет — счётчик начал собирать статистику только что.</div>';
+
+            const pagesRows = topPages.length
+                ? `<table id="dataTable"><thead><tr><th>Страница</th><th>Просмотров</th></tr></thead><tbody>` +
+                  topPages.map(r => `<tr><td><code>${esc(r.path)}</code></td><td>${r.c}</td></tr>`).join('') + '</tbody></table>'
+                : '<div class="empty">Нет данных</div>';
+
+            const refRows = topRef.length
+                ? `<table id="dataTable"><thead><tr><th>Источник перехода</th><th>Переходов</th></tr></thead><tbody>` +
+                  topRef.map(r => `<tr><td>${esc(r.referrer)}</td><td>${r.c}</td></tr>`).join('') + '</tbody></table>'
+                : '<div class="empty">Прямых переходов с других сайтов не было</div>';
+
+            document.getElementById('content').innerHTML =
+                '<div class="note">📊 Собственная аналитика сайта (без сторонних сервисов, без сбора персональных данных — только анонимный счётчик устройства). Просмотры админки в счётчик не попадают. Целевые действия считаются по реальным данным системы, не по трекеру.</div>' +
+                `<div style="margin:0.75rem 0;">${tabs}</div>` +
+                statsHtml +
+                panel('По дням', 'mDays', dayRows) +
+                panel('Популярные страницы', 'mPages', pagesRows) +
+                panel('Источники переходов', 'mRef', refRows);
         }
 
         // ── Activity + IP journal (объединённый журнал, задача #31) ──────────
@@ -2151,7 +2202,7 @@
             calls:'📞 Звонки', replacements:'🔄 Замены', supervision:'🎓 Супервизия', payments:'💳 Оплаты',
             tariffs:'💰 Тарифы', robokassa:'🏦 Робокасса', yookassa:'🏦 ЮKassa', subscribers:'📧 Подписчики',
             referrals:'🔗 Источники', activity:'📜 Журнал', support:'💬 Поддержка', devtasks:'🤖 Задачи Клоду',
-            notifications:'🔔 Уведомления', notes:'📝 Записки', adminperms:'🔐 Права админов'
+            notifications:'🔔 Уведомления', notes:'📝 Записки', adminperms:'🔐 Права админов', metrics:'📊 Метрики'
         };
         async function renderAdminPerms(){
             let res;

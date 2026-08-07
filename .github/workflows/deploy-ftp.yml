@@ -97,6 +97,7 @@ jobs:
             put api/admin_permissions.php -o api/admin_permissions.php;
             put api/favorites.php -o api/favorites.php;
             put api/channels.php -o api/channels.php;
+            put api/analytics.php -o api/analytics.php;
             bye;
           "
           echo "Deployment complete"
