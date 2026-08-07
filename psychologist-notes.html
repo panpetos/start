@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Записки - psytalk.pro</title>
+    <link rel="stylesheet" href="/css/styles.css">
+    <script src="/js/layout.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+        :root {
+            --d-bg: #F4F0FF; --d-panel: #FFFFFF; --d-panel-alt: #FAFAFA;
+            --d-border: #F0ECF8; --d-border-light: #F0F0F0; --d-border-accent: #EDE9FF;
+            --d-text: #1A1A1A; --d-text-sec: #6B7280; --d-text-muted: #9CA3AF; --d-text-dark: #374151;
+            --d-accent: #7C3AED; --d-accent-bg: #F3E8FF; --d-accent-hover: #FAF5FF;
+        }
+        body.dark {
+            --d-bg: #191919; --d-panel: #252525; --d-panel-alt: #2A2A2A;
+            --d-border: #333; --d-border-light: #333; --d-border-accent: #37254A;
+            --d-text: #E6E6E6; --d-text-sec: #A0A0A0; --d-text-muted: #707070; --d-text-dark: #C0C0C0;
+            --d-accent: #B794F4; --d-accent-bg: #2D1F4E; --d-accent-hover: #37254A;
+        }
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--d-bg); color: var(--d-text); min-height: 100vh; padding-top: 84px; transition: background 0.2s, color 0.2s; }
+        body.dark input, body.dark textarea, body.dark select { background: var(--d-panel-alt) !important; border-color: var(--d-border) !important; color: var(--d-text) !important; }
+        body.dark .nav { background: #1E1E1E !important; border-color: #333 !important; }
+        body.dark .nav-brand span:first-child { color: #E6E6E6 !important; }
+        body.dark .nav a.nav-link { color: #A0A0A0 !important; }
+
+        .dash-layout { display: flex; min-height: calc(100vh - 84px); }
+        .dash-sidebar { width: 240px; background: var(--d-panel); border-right: 1px solid var(--d-border); display: flex; flex-direction: column; position: sticky; top: 84px; height: calc(100vh - 84px); flex-shrink: 0; transition: background 0.2s, border-color 0.2s; z-index: 10; }
+        .dash-sidebar-header { padding: 1rem 1rem 0.75rem; border-bottom: 1px solid var(--d-border); }
+        .dash-sidebar-header h2 { font-size: 0.95rem; font-weight: 700; color: var(--d-text); margin-bottom: 0.15rem; }
+        .dash-sidebar-header p { font-size: 0.75rem; color: var(--d-text-muted); }
+        .dash-sidebar-nav { flex: 1; padding: 0.5rem 0; overflow-y: auto; }
+        .dash-sidebar-group { padding: 0.5rem 0 0.15rem; }
+        .dash-sidebar-group-label { padding: 0.25rem 1rem 0.35rem; font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--d-text-muted); user-select: none; }
+        .dash-sidebar-item { display: flex; align-items: center; gap: 0.55rem; padding: 0.45rem 0.75rem; margin: 0.06rem 0.5rem; border-radius: 0.45rem; font-size: 0.875rem; color: var(--d-text-sec); cursor: pointer; transition: background 0.12s, color 0.12s; font-weight: 500; text-decoration: none; border: none; background: none; width: calc(100% - 1rem); text-align: left; font-family: inherit; line-height: 1.4; }
+        .dash-sidebar-item:hover { background: var(--d-accent-hover); color: var(--d-text); }
+        .dash-sidebar-item.active { background: var(--d-accent-bg); color: var(--d-accent); font-weight: 600; }
+        .dash-sidebar-icon { font-size: 1rem; width: 1.35rem; text-align: center; flex-shrink: 0; }
+        .dash-sidebar-footer { padding: 0.6rem 0.5rem; border-top: 1px solid var(--d-border); display: flex; flex-direction: column; gap: 0.15rem; }
+        .dash-sidebar-footer .dash-sidebar-item { margin: 0.06rem 0; }
+        .dash-sidebar-toggle { display: none; position: fixed; top: 92px; left: 0.75rem; z-index: 1001; width: 38px; height: 38px; border-radius: 0.5rem; border: 1px solid var(--d-border); background: var(--d-panel); color: var(--d-text); font-size: 1.2rem; cursor: pointer; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+        .dash-sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.35); z-index: 999; }
+        .dash-sidebar-overlay.open { display: block; }
+        @media (max-width: 768px) {
+            .dash-sidebar { position: fixed; left: -260px; top: 0; height: 100vh; transition: left 0.2s; }
+            .dash-sidebar.open { left: 0; }
+            .dash-sidebar-toggle { display: flex; }
+        }
+
+        .np-wrap { flex: 1; min-width: 0; max-width: 760px; margin: 0 auto; padding: 1.75rem 1.5rem 3rem; width: 100%; }
+        .np-note { background: var(--d-accent-bg); color: var(--d-text); border-radius: 0.7rem; padding: 0.8rem 1rem; font-size: 0.86rem; margin-bottom: 1.25rem; }
+        .np-panel { background: var(--d-panel); border: 1px solid var(--d-border); border-radius: 0.9rem; margin-bottom: 1.25rem; }
+        .np-panel-head { padding: 0.9rem 1.1rem; border-bottom: 1px solid var(--d-border); font-weight: 700; }
+        .np-panel-body { padding: 1rem 1.1rem; }
+        .np-panel-body input, .np-panel-body textarea { width: 100%; padding: 0.55rem 0.8rem; border: 1.5px solid var(--d-border); border-radius: 0.6rem; font-family: inherit; background: var(--d-panel-alt); color: var(--d-text); margin-bottom: 0.5rem; }
+        .np-panel-body textarea { resize: vertical; font-size: 0.9rem; }
+        .btn-sm { display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.4rem 0.9rem; border-radius: 0.5rem; font-size: 0.82rem; font-weight: 600; border: none; cursor: pointer; font-family: inherit; }
+        .btn-purple { background: #7C3AED; color: #fff; }
+        .btn-outline { background: var(--d-panel); border: 1.5px solid var(--d-border); color: var(--d-text-dark); }
+
+        .note-card { display: flex; gap: 0.75rem; padding: 0.85rem 1rem; background: var(--d-panel); border: 1px solid var(--d-border); border-radius: 0.7rem; margin-bottom: 0.5rem; align-items: flex-start; transition: all 0.15s; }
+        .note-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+        .note-card.is-done { opacity: 0.5; }
+        .note-card.is-done .note-card-title { text-decoration: line-through; }
+        .note-card.is-overdue { border-color: #FCA5A5; background: #FEF2F2; }
+        body.dark .note-card.is-overdue { border-color: #7F1D1D; background: #2E1A1A; }
+        .note-card-check { flex-shrink: 0; padding-top: 0.15rem; }
+        .note-card-check input[type="checkbox"] { width: 18px; height: 18px; accent-color: #7C3AED; cursor: pointer; }
+        .note-card-content { flex: 1; min-width: 0; }
+        .note-card-title { font-weight: 600; font-size: 0.93rem; margin-bottom: 0.15rem; word-break: break-word; }
+        .note-card-text { font-size: 0.84rem; color: var(--d-text-sec); white-space: pre-wrap; word-break: break-word; }
+        .note-card-meta { font-size: 0.73rem; color: var(--d-text-muted); margin-top: 0.25rem; }
+        .note-card-due { display: inline-block; font-size: 0.72rem; font-weight: 700; padding: 0.1rem 0.5rem; border-radius: 1rem; margin-top: 0.3rem; }
+        .note-card-due.due-ok { background: var(--d-accent-bg); color: var(--d-text-sec); }
+        .note-card-due.due-over { background: #FEE2E2; color: #B91C1C; }
+        body.dark .note-card-due.due-over { background: #3A1F1F; color: #F87171; }
+        .note-card-delete, .note-card-edit-btn { flex-shrink: 0; width: 26px; height: 26px; border-radius: 0.35rem; border: none; background: transparent; color: var(--d-text-muted); font-size: 1.1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.15s; }
+        .note-card:hover .note-card-delete, .note-card:hover .note-card-edit-btn { opacity: 1; }
+        .note-card-delete:hover { background: #FEF2F2; color: #DC2626; }
+        body.dark .note-card-delete:hover { background: #3A2020; color: #F87171; }
+        .note-card-edit-btn:hover { background: var(--d-accent-hover); color: #7C3AED; }
+        .empty { text-align: center; color: var(--d-text-muted); padding: 1.5rem; }
+    </style>
+    <script>(function(){ if (localStorage.getItem('psy-theme') === 'dark' || (!localStorage.getItem('psy-theme') && window.matchMedia('(prefers-color-scheme:dark)').matches)) document.documentElement.style.colorScheme = 'dark'; })();</script>
+</head>
+
+<body>
+    <script>(function(){ var t = localStorage.getItem('psy-theme'); if (t === 'dark' || (!t && window.matchMedia('(prefers-color-scheme:dark)').matches)) document.body.classList.add('dark'); })();</script>
+    <script>psyWriteHeader();</script>
+    <button class="dash-sidebar-toggle" onclick="document.querySelector('.dash-sidebar').classList.toggle('open');document.querySelector('.dash-sidebar-overlay').classList.toggle('open')">☰</button>
+    <div class="dash-sidebar-overlay" onclick="document.querySelector('.dash-sidebar').classList.remove('open');this.classList.remove('open')"></div>
+    <div class="dash-layout">
+        <aside class="dash-sidebar">
+            <div class="dash-sidebar-header">
+                <h2>Кабинет психолога</h2>
+                <p id="sidebarName">Загрузка...</p>
+            </div>
+            <nav class="dash-sidebar-nav">
+                <div class="dash-sidebar-group">
+                    <div class="dash-sidebar-group-label">Основное</div>
+                    <a class="dash-sidebar-item" href="/psychologist-dashboard.html">
+                        <span class="dash-sidebar-icon">🏠</span> Главная
+                    </a>
+                    <a class="dash-sidebar-item" href="/schedule.html">
+                        <span class="dash-sidebar-icon">📅</span> Расписание
+                    </a>
+                    <a class="dash-sidebar-item" href="/supervision.html">
+                        <span class="dash-sidebar-icon">🎓</span> Супервизия
+                    </a>
+                    <a class="dash-sidebar-item" href="/chat.html">
+                        <span class="dash-sidebar-icon">💬</span> Чаты
+                    </a>
+                </div>
+                <div class="dash-sidebar-group">
+                    <div class="dash-sidebar-group-label">Инструменты</div>
+                    <a class="dash-sidebar-item" href="/ai-chat.html">
+                        <span class="dash-sidebar-icon">🤖</span> ИИ Ассистент
+                    </a>
+                    <a class="dash-sidebar-item active" href="/psychologist-notes.html">
+                        <span class="dash-sidebar-icon">📝</span> Записки
+                    </a>
+                </div>
+                <div class="dash-sidebar-group">
+                    <div class="dash-sidebar-group-label">Профиль</div>
+                    <a class="dash-sidebar-item" href="/edit-profile.html">
+                        <span class="dash-sidebar-icon">⚙️</span> Настройки
+                    </a>
+                </div>
+            </nav>
+            <div class="dash-sidebar-footer">
+                <button class="dash-sidebar-item" onclick="toggleDashTheme()" id="themeBtn" title="Сменить тему">
+                    <span class="dash-sidebar-icon">🌙</span> <span id="themeBtnLabel">Тёмная тема</span>
+                </button>
+                <button class="dash-sidebar-item" onclick="psyLogout()">
+                    <span class="dash-sidebar-icon">🚪</span> Выйти
+                </button>
+            </div>
+        </aside>
+        <div class="np-wrap">
+            <div class="np-note">📝 Личная записная книжка. Записки видите только вы. Удобно для TODO, наблюдений по практике, идей.</div>
+            <div class="np-panel">
+                <div class="np-panel-head">Новая записка</div>
+                <div class="np-panel-body">
+                    <input id="noteTitle" placeholder="Заголовок">
+                    <textarea id="noteBody" rows="3" placeholder="Текст записки..."></textarea>
+                    <div style="display:flex;gap:0.5rem;align-items:center;margin-top:0.5rem;flex-wrap:wrap;">
+                        <label style="font-size:0.82rem;color:var(--d-text-sec);display:flex;align-items:center;gap:0.35rem;">Срок:
+                            <input id="noteDueDate" type="date" style="width:auto;margin-bottom:0;">
+                        </label>
+                        <button class="btn-sm btn-purple" onclick="addNote(this)">Добавить</button>
+                        <span id="noteMsg" style="font-size:0.85rem;"></span>
+                    </div>
+                </div>
+            </div>
+            <div id="notesList"></div>
+        </div>
+    </div>
+
+    <script src="/js/api.js"></script>
+    <script src="/js/auth.js"></script>
+    <script>
+        function esc(s){ const d=document.createElement('div'); d.textContent=(s==null?'':String(s)); return d.innerHTML; }
+        function fmtDateTime(s){ if(!s) return ''; const d=new Date(String(s).replace(' ','T')); if(isNaN(d)) return s; return d.toLocaleDateString('ru-RU')+' '+d.toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'}); }
+
+        async function psyLogout() {
+            try { sessionStorage.removeItem('psy_user'); } catch(e) {}
+            try {
+                if (window.Auth && window.Auth.logout) { await window.Auth.logout(); return; }
+                await fetch('/api/auth.php?action=logout', { method: 'POST', credentials: 'include' });
+            } catch (e) {}
+            window.location.href = '/';
+        }
+        window.psyLogout = psyLogout;
+
+        function toggleDashTheme(){
+            document.body.classList.toggle('dark');
+            const isDark = document.body.classList.contains('dark');
+            localStorage.setItem('psy-theme', isDark ? 'dark' : 'light');
+            updateThemeBtn();
+        }
+        function updateThemeBtn(){
+            const isDark = document.body.classList.contains('dark');
+            const icon = document.querySelector('#themeBtn .dash-sidebar-icon');
+            const label = document.getElementById('themeBtnLabel');
+            if (icon) icon.textContent = isDark ? '☀️' : '🌙';
+            if (label) label.textContent = isDark ? 'Светлая тема' : 'Тёмная тема';
+        }
+        updateThemeBtn();
+
+        let notesCache = [];
+
+        async function renderNotes(){
+            let res;
+            try { res = await (await fetch('/api/admin_notes.php?action=list', { credentials:'include' })).json(); }
+            catch(e){ document.getElementById('notesList').innerHTML = '<div class="empty">Не удалось загрузить записки</div>'; return; }
+            const notes = (res && res.ok) ? (res.data || []) : [];
+            notesCache = notes;
+            const active = notes.filter(n => !parseInt(n.is_done));
+            const done = notes.filter(n => parseInt(n.is_done));
+            const overdueCount = active.filter(n => n.is_overdue == 1 || n.is_overdue === true).length;
+            const npNote = document.querySelector('.np-note');
+            if (npNote) npNote.innerHTML = '📝 Личная записная книжка. Записки видите только вы. Удобно для TODO, наблюдений по практике, идей.' + (overdueCount ? ` <b style="color:#DC2626;">⏰ Просрочено: ${overdueCount}</b>` : '');
+            renderNotesList(active, done);
+        }
+
+        function noteDueBadge(n){
+            if (!n.due_date) return '';
+            const over = n.is_overdue == 1 || n.is_overdue === true;
+            return `<span class="note-card-due ${over ? 'due-over' : 'due-ok'}">${over ? '⏰ просрочено · ' : '📅 срок: '}${esc(n.due_date)}</span>`;
+        }
+
+        function noteCardHtml(n){
+            const isDone = parseInt(n.is_done);
+            const over = !isDone && (n.is_overdue == 1 || n.is_overdue === true);
+            return `<div class="note-card ${isDone ? 'is-done' : ''} ${over ? 'is-overdue' : ''}">
+                <div class="note-card-check">
+                    <input type="checkbox" ${isDone ? 'checked' : ''} onchange="toggleNoteDone(${n.id}, this.checked)">
+                </div>
+                <div class="note-card-content">
+                    <div class="note-view-${n.id}">
+                        ${n.title ? `<div class="note-card-title">${esc(n.title)}</div>` : ''}
+                        ${n.body ? `<div class="note-card-text">${esc(n.body)}</div>` : ''}
+                        <div class="note-card-meta">${fmtDateTime(n.created_at)}</div>
+                        ${noteDueBadge(n)}
+                    </div>
+                    <div class="note-edit-${n.id}" style="display:none;margin-top:0.3rem;">
+                        <input id="noteEditTitle-${n.id}" value="${esc(n.title||'')}" placeholder="Заголовок" style="width:100%;padding:0.4rem 0.6rem;border:1.5px solid #7C3AED;border-radius:0.5rem;font-family:inherit;margin-bottom:0.4rem;background:var(--d-panel-alt);color:var(--d-text);">
+                        <textarea id="noteEditBody-${n.id}" rows="3" placeholder="Текст" style="width:100%;padding:0.4rem 0.6rem;border:1.5px solid #7C3AED;border-radius:0.5rem;font-family:inherit;font-size:0.88rem;resize:vertical;background:var(--d-panel-alt);color:var(--d-text);">${esc(n.body||'')}</textarea>
+                        <div style="display:flex;gap:0.5rem;align-items:center;margin-top:0.4rem;flex-wrap:wrap;">
+                            <label style="font-size:0.78rem;color:var(--d-text-sec);display:flex;align-items:center;gap:0.3rem;">Срок:
+                                <input id="noteEditDue-${n.id}" type="date" value="${esc(n.due_date||'')}" style="padding:0.3rem 0.45rem;border:1.5px solid var(--d-border);border-radius:0.4rem;font-family:inherit;background:var(--d-panel-alt);color:var(--d-text);">
+                            </label>
+                            <button class="btn-sm btn-purple" onclick="saveNoteEdit(${n.id})">Сохранить</button>
+                            <button class="btn-sm btn-outline" onclick="cancelNoteEdit(${n.id})">Отмена</button>
+                        </div>
+                    </div>
+                </div>
+                <button class="note-card-edit-btn" onclick="startNoteEdit(${n.id})" title="Редактировать">✏️</button>
+                <button class="note-card-delete" onclick="deleteNote(${n.id})" title="Удалить">×</button>
+            </div>`;
+        }
+
+        function renderNotesList(active, done){
+            const el = document.getElementById('notesList');
+            if (!el) return;
+            el.innerHTML =
+                (active.length ? active.map(noteCardHtml).join('') : '<div class="empty">Записок пока нет — добавьте выше.</div>') +
+                (done.length ? `<details style="margin-top:1rem;"><summary style="cursor:pointer;color:var(--d-text-muted);font-size:0.9rem;">Завершённые (${done.length})</summary><div style="margin-top:0.5rem;">${done.map(noteCardHtml).join('')}</div></details>` : '');
+        }
+
+        function startNoteEdit(id){
+            const view = document.querySelector('.note-view-' + id);
+            const edit = document.querySelector('.note-edit-' + id);
+            if (!view || !edit) return;
+            view.style.display = 'none';
+            edit.style.display = 'block';
+        }
+        function cancelNoteEdit(id){
+            const view = document.querySelector('.note-view-' + id);
+            const edit = document.querySelector('.note-edit-' + id);
+            if (!view || !edit) return;
+            view.style.display = 'block';
+            edit.style.display = 'none';
+        }
+        async function saveNoteEdit(id){
+            const title = document.getElementById('noteEditTitle-' + id).value.trim();
+            const body = document.getElementById('noteEditBody-' + id).value.trim();
+            const due = document.getElementById('noteEditDue-' + id).value;
+            if (!title && !body) { alert('Введите заголовок или текст'); return; }
+            try {
+                await fetch('/api/admin_notes.php?action=update', { method:'POST', headers:{'Content-Type':'application/json'}, credentials:'include', body:JSON.stringify({id, title, body, due_date: due || ''}) });
+                renderNotes();
+            } catch(e){ alert('Не удалось сохранить'); }
+        }
+
+        async function addNote(btn){
+            const title = document.getElementById('noteTitle').value.trim();
+            const body = document.getElementById('noteBody').value.trim();
+            const due = document.getElementById('noteDueDate').value;
+            const msg = document.getElementById('noteMsg');
+            if (!title && !body){ if(msg){msg.textContent='Введите заголовок или текст';msg.style.color='#DC2626';} return; }
+            btn.disabled = true;
+            try {
+                const r = await (await fetch('/api/admin_notes.php?action=add', { method:'POST', headers:{'Content-Type':'application/json'}, credentials:'include', body:JSON.stringify({title, body, due_date: due || ''}) })).json();
+                btn.disabled = false;
+                document.getElementById('noteTitle').value = '';
+                document.getElementById('noteBody').value = '';
+                document.getElementById('noteDueDate').value = '';
+                if (r.ok) { if(msg) msg.textContent=''; renderNotes(); }
+                else { if(msg){msg.textContent=r.error||'Ошибка';msg.style.color='#DC2626';} }
+            } catch(e){ btn.disabled=false; if(msg){msg.textContent='Ошибка сети';msg.style.color='#DC2626';} }
+        }
+
+        async function toggleNoteDone(id, checked){
+            try {
+                await fetch('/api/admin_notes.php?action=update', { method:'POST', headers:{'Content-Type':'application/json'}, credentials:'include', body:JSON.stringify({id, is_done:checked?1:0}) });
+                renderNotes();
+            } catch(e){}
+        }
+
+        async function deleteNote(id){
+            if (!confirm('Удалить записку?')) return;
+            try {
+                await fetch('/api/admin_notes.php?action=delete', { method:'POST', headers:{'Content-Type':'application/json'}, credentials:'include', body:JSON.stringify({id}) });
+                renderNotes();
+            } catch(e){}
+        }
+
+        async function init(){
+            if (!window.Auth || !window.Auth.getCurrentUser) { window.location.href = '/login.html'; return; }
+            const user = await window.Auth.getCurrentUser();
+            if (!user) { window.location.href = '/login.html'; return; }
+            if (user.role !== 'psychologist' && user.role !== 'admin') { window.location.href = '/client-dashboard.html'; return; }
+            const sn = document.getElementById('sidebarName');
+            if (sn) sn.textContent = ((user.first_name||'') + ' ' + (user.last_name||'')).trim() || user.email || '';
+            await renderNotes();
+        }
+        init();
+    </script>
+</body>
+
+</html>
