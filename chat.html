@@ -1519,12 +1519,44 @@
         }
         window.acceptHealthConsent = acceptHealthConsent;
 
+        // Лёгкая защита от увода клиентов с платформы: не блокируем отправку, но
+        // предупреждаем при похожих на телефон/email/мессенджер фразах и, если
+        // пользователь всё равно отправляет, тихо помечаем это для админа в журнале.
+        function detectContactShare(text) {
+            const patterns = [
+                /\+?\d[\d\-\s()]{8,14}\d/,
+                /[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/i,
+                /(telegram|телеграм|ватсап|whatsapp|вотсап|viber|вайбер|инстаграм|instagram|вк\.com|vk\.com)/i,
+                /@[a-zа-я0-9_]{4,}/i,
+                /(вне\s*платформ|в\s*обход\s*сервис|напиши(?:те)?\s*мне\s*в\s|созвонимся\s*в\s)/i
+            ];
+            return patterns.some(re => re.test(text));
+        }
+        function flagContactShare(snippet){
+            try {
+                fetch('/api/consent.php?action=flag-contact', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+                    body: JSON.stringify({ with_user: selectedUserId, snippet: snippet.slice(0, 200) })
+                }).catch(() => {});
+            } catch (e) {}
+        }
+
         async function sendMessage() {
             const input = document.getElementById('messageInput');
             const content = input.value.trim();
 
             if (!content || !selectedUserId) return;
             if (!requireHealthConsent()) return;
+
+            if (detectContactShare(content)) {
+                const proceed = confirm(
+                    'Похоже, вы делитесь контактами для связи вне платформы (телефон/почта/мессенджер).\n\n' +
+                    'Ради вашей безопасности (гарантии оплаты и защиты от мошенничества) продолжайте общение и запись через psytalk.pro.\n\n' +
+                    'Всё равно отправить сообщение?'
+                );
+                if (!proceed) return;
+                flagContactShare(content);
+            }
 
             input.value = '';
 

@@ -753,9 +753,9 @@
             document.getElementById('content').innerHTML =
                 '<div class="note">🧾 Журнал собран из реальных событий системы (регистрации, записи, оплаты, звонки).</div>' +
                 eventsPanel +
-                `<div class="panel" style="margin-top:1rem;"><div class="panel-head"><h2>🔐 Вход по IP (для юридического подтверждения)</h2></div>
+                `<div class="panel" style="margin-top:1rem;"><div class="panel-head"><h2>🔐 Журнал аудита: вход по IP и попытки уйти с платформы</h2></div>
                     <div style="padding:1rem 1.1rem;">
-                        <div class="note" style="margin-bottom:0.8rem;">С каких IP-адресов заходили пользователи в личный кабинет. Фиксируется автоматически (не чаще раза в 30 мин на пользователя).</div>
+                        <div class="note" style="margin-bottom:0.8rem;">Вход: с каких IP заходили пользователи (не чаще раза в 30 мин на юзера, для юридического подтверждения). Строки с ⚠️ — сообщения в чате, похожие на попытку обменяться контактами в обход платформы (телефон/почта/мессенджер) — отправитель получил предупреждение, но всё равно отправил.</div>
                         <div style="display:flex;gap:0.5rem;flex-wrap:wrap;align-items:end;margin-bottom:0.8rem;">
                             <label style="font-size:0.8rem;color:var(--a-text-sec);">С даты<br>
                                 <input id="auditFrom" type="date" style="margin-top:0.25rem;padding:0.4rem 0.6rem;border:1.5px solid var(--a-input-border);border-radius:0.5rem;font-family:inherit;background:var(--a-input-bg);color:var(--a-text);"></label>
@@ -781,20 +781,25 @@
             if (!box) return;
             auditLogCache = (res && res.data) || [];
             if (!auditLogCache.length){ box.innerHTML = '<div class="empty">Записей не найдено</div>'; return; }
-            box.innerHTML = `<table id="auditTable"><thead><tr><th>Дата/время</th><th>Пользователь</th><th>Роль</th><th>IP</th><th>Устройство</th></tr></thead><tbody>` +
+            const ACTION_LABELS = { session: '🔐 Вход', contact_share_warning: '⚠️ Попытка уйти с платформы', consent_given: '✅ Согласие', consent_revoked: '⛔ Отзыв согласия' };
+            box.innerHTML = `<table id="auditTable"><thead><tr><th>Дата/время</th><th>Пользователь</th><th>Роль</th><th>Действие</th><th>IP</th><th>Устройство</th></tr></thead><tbody>` +
                 auditLogCache.map(r => {
                     const name = `${r.first_name||''} ${r.last_name||''}`.trim() || (r.email || r.user_id || '—');
-                    return `<tr><td class="muted">${fmtDateTime(r.created_at)}</td><td>${esc(name)}</td><td>${esc(r.role||'—')}</td><td><code>${esc(r.ip||'—')}</code></td><td class="muted" style="font-size:0.78rem;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(r.user_agent||'—')}</td></tr>`;
+                    const isRisk = r.action === 'contact_share_warning';
+                    let meta = {}; try { meta = r.meta ? JSON.parse(r.meta) : {}; } catch(e){}
+                    const actionLabel = ACTION_LABELS[r.action] || esc(r.action || '—');
+                    const snippet = isRisk && meta.snippet ? `<div class="muted" style="font-size:0.76rem;margin-top:0.15rem;max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">«${esc(meta.snippet)}»</div>` : '';
+                    return `<tr style="${isRisk ? 'background:#FFF1F2;' : ''}"><td class="muted">${fmtDateTime(r.created_at)}</td><td>${esc(name)}</td><td>${esc(r.role||'—')}</td><td>${actionLabel}${snippet}</td><td><code>${esc(r.ip||'—')}</code></td><td class="muted" style="font-size:0.78rem;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(r.user_agent||'—')}</td></tr>`;
                 }).join('') + '</tbody></table>';
         }
         function exportAuditLogCsv(){
             if (!auditLogCache.length){ alert('Нет данных для экспорта'); return; }
             const esc2 = v => '"' + String(v==null?'':v).replace(/"/g,'""') + '"';
-            const header = ['Дата/время','Пользователь','Email','Роль','IP','User-Agent'];
+            const header = ['Дата/время','Пользователь','Email','Роль','Действие','IP','User-Agent'];
             const lines = [header.map(esc2).join(';')];
             auditLogCache.forEach(r => {
                 const name = `${r.first_name||''} ${r.last_name||''}`.trim();
-                lines.push([r.created_at, name, r.email||'', r.role||'', r.ip||'', r.user_agent||''].map(esc2).join(';'));
+                lines.push([r.created_at, name, r.email||'', r.role||'', r.action||'', r.ip||'', r.user_agent||''].map(esc2).join(';'));
             });
             const blob = new Blob(['﻿' + lines.join('\r\n')], { type:'text/csv;charset=utf-8;' });
             const url = URL.createObjectURL(blob);

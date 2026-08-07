@@ -157,6 +157,19 @@ if ($action === 'log-session') {
     exit;
 }
 
+// Пометка сообщения, похожего на попытку увести переписку с платформы
+// (телефон/почта/мессенджер в тексте) — не блокирует отправку, только
+// логирует для администратора (см. Журнал → Вход по IP → действие contact_share_warning).
+if ($action === 'flag-contact') {
+    try {
+        $withUser = trim((string)($body['with_user'] ?? ''));
+        $snippet = mb_substr(trim((string)($body['snippet'] ?? '')), 0, 200);
+        audit($pdo, $userId, 'contact_share_warning', ['with_user' => $withUser, 'snippet' => $snippet]);
+        echo json_encode(['ok' => true]);
+    } catch (Exception $e) { echo json_encode(['ok' => true]); }
+    exit;
+}
+
 // Список журнала аудита (вход/IP) — только для администратора, с фильтром по датам.
 if ($action === 'audit-list') {
     $isAdmin = false;
