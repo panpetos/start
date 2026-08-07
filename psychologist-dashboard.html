@@ -267,6 +267,24 @@
                     Перейти к супервизии
                 </a>
             </div>
+
+            <div class="card">
+                <h2>
+                    <i data-lucide="megaphone" style="width: 24px; height: 24px;"></i>
+                    Мой канал
+                </h2>
+                <p style="margin-bottom: 1rem;">Публичная лента постов на вашей странице в каталоге — клиенты могут подписаться и следить за новостями (задача #29, MVP).</p>
+                <textarea id="channelPostText" placeholder="Текст поста..." style="width:100%;min-height:70px;border:1.5px solid var(--d-border);border-radius:0.625rem;padding:0.6rem;font-family:inherit;font-size:0.9rem;resize:vertical;outline:none;background:var(--d-panel);color:var(--d-text);margin-bottom:0.5rem;"></textarea>
+                <div id="channelPostImagePreview" style="display:none;margin-bottom:0.6rem;"></div>
+                <div style="display:flex;gap:0.5rem;margin-bottom:1rem;flex-wrap:wrap;">
+                    <label class="btn" style="background:var(--d-panel-alt);color:var(--d-text);border:1.5px solid var(--d-border);cursor:pointer;">
+                        📎 Фото
+                        <input type="file" id="channelPostImage" accept="image/*" style="display:none;" onchange="channelImageSelected(event)">
+                    </label>
+                    <button type="button" class="btn" onclick="publishChannelPost()">Опубликовать</button>
+                </div>
+                <div id="channelPostsList" style="display:flex;flex-direction:column;gap:0.6rem;"></div>
+            </div>
         </div>
 
         <script src="/js/api.js"></script>
@@ -340,6 +358,7 @@
                     // Load commission, then appointments and stats
                     await loadCommission();
                     await loadAppointments();
+                    await initChannel();
 
                     if (typeof lucide !== 'undefined') {
                         lucide.createIcons();
@@ -349,6 +368,93 @@
                     window.location.href = '/login.html';
                 }
             }
+
+            // ── Мой канал (задача #29, MVP) ──
+            let myPsychId = null;
+            let channelPendingImageUrl = null;
+
+            async function initChannel() {
+                try {
+                    const r = await fetch('/api/my_profile.php?action=get', { credentials: 'include' });
+                    const d = await r.json();
+                    if (d && d.ok && d.profile) myPsychId = d.profile.id;
+                } catch (e) {}
+                if (myPsychId) await loadChannelPosts();
+            }
+
+            async function channelImageSelected(event) {
+                const file = event.target.files[0];
+                if (!file) return;
+                const fd = new FormData();
+                fd.append('file', file);
+                try {
+                    const r = await fetch('/api/upload.php', { method: 'POST', credentials: 'include', body: fd });
+                    const d = await r.json();
+                    if (d.error) { alert(d.error); return; }
+                    channelPendingImageUrl = d.url;
+                    const prev = document.getElementById('channelPostImagePreview');
+                    prev.style.display = 'block';
+                    prev.innerHTML = `<img src="${d.url}" style="max-height:100px;border-radius:0.5rem;"> <button type="button" onclick="channelPendingImageUrl=null;document.getElementById('channelPostImagePreview').style.display='none';" style="margin-left:0.5rem;border:none;background:none;color:#EF4444;cursor:pointer;">✕ убрать</button>`;
+                } catch (e) { alert('Не удалось загрузить фото'); }
+            }
+
+            async function publishChannelPost() {
+                if (!myPsychId) { alert('Ваш профиль психолога ещё не создан'); return; }
+                const ta = document.getElementById('channelPostText');
+                const text = ta.value.trim();
+                if (!text && !channelPendingImageUrl) return;
+                try {
+                    await fetch('/api/channels.php?action=post', {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+                        body: JSON.stringify({ text, image_url: channelPendingImageUrl })
+                    });
+                    ta.value = '';
+                    channelPendingImageUrl = null;
+                    const prev = document.getElementById('channelPostImagePreview');
+                    if (prev) { prev.style.display = 'none'; prev.innerHTML = ''; }
+                    await loadChannelPosts();
+                } catch (e) { alert('Не удалось опубликовать пост'); }
+            }
+
+            function escapeChannelHtml(s) { const d = document.createElement('div'); d.textContent = s == null ? '' : String(s); return d.innerHTML; }
+
+            function channelPostHtml(p) {
+                const img = p.image_url ? `<img src="${p.image_url}" style="max-width:100%;border-radius:0.5rem;margin-top:0.4rem;">` : '';
+                const text = p.text ? `<div style="white-space:pre-wrap;">${escapeChannelHtml(p.text)}</div>` : '';
+                const date = new Date(p.created_at).toLocaleString('ru', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+                return `<div style="border:1px solid var(--d-border);border-radius:0.625rem;padding:0.7rem 0.85rem;">
+                    ${text}${img}
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:0.4rem;">
+                        <span style="font-size:0.75rem;color:var(--d-text-sec);">${date}</span>
+                        <button type="button" onclick="deleteChannelPost(${p.id})" style="background:none;border:none;color:#EF4444;cursor:pointer;font-size:0.78rem;font-family:inherit;">Удалить</button>
+                    </div>
+                </div>`;
+            }
+
+            async function loadChannelPosts() {
+                const list = document.getElementById('channelPostsList');
+                if (!list || !myPsychId) return;
+                try {
+                    const r = await fetch('/api/channels.php?action=posts&psychologist_id=' + encodeURIComponent(myPsychId));
+                    const d = await r.json();
+                    const rows = (d && d.data) || [];
+                    list.innerHTML = rows.length ? rows.map(channelPostHtml).join('') : '<div style="color:var(--d-text-sec);font-size:0.85rem;">Постов пока нет — напишите первый, клиенты увидят его на вашей странице в каталоге.</div>';
+                } catch (e) {}
+            }
+
+            async function deleteChannelPost(id) {
+                if (!confirm('Удалить пост?')) return;
+                try {
+                    await fetch('/api/channels.php?action=delete-post', {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+                        body: JSON.stringify({ id })
+                    });
+                    await loadChannelPosts();
+                } catch (e) {}
+            }
+            window.channelImageSelected = channelImageSelected;
+            window.publishChannelPost = publishChannelPost;
+            window.deleteChannelPost = deleteChannelPost;
 
             async function loadAppointments() {
                 const container = document.getElementById('appointments');

@@ -217,6 +217,14 @@
                 <div id="packagesList" class="appointments-list"></div>
             </div>
 
+            <div class="card" id="channelsCard" style="grid-column: 1 / -1; display: none;">
+                <h2>
+                    <i data-lucide="megaphone" style="width: 24px; height: 24px;"></i>
+                    Мои каналы
+                </h2>
+                <div id="channelsList" class="appointments-list"></div>
+            </div>
+
             <div class="card" style="grid-column: 1 / -1;">
                 <h2>
                     <i data-lucide="calendar" style="width: 24px; height: 24px;"></i>
@@ -371,12 +379,38 @@
 
                     await loadPackages();
                     await loadAppointments();
+                    await loadMyChannels();
 
                     if (typeof lucide !== 'undefined') { try { lucide.createIcons(); } catch(e) {} }
                 } catch (error) {
                     console.error('Init error:', error);
                     window.location.href = '/login.html';
                 }
+            }
+
+            async function loadMyChannels() {
+                const card = document.getElementById('channelsCard');
+                const list = document.getElementById('channelsList');
+                if (!card || !list) return;
+                try {
+                    const r = await fetch('/api/channels.php?action=my-subscriptions', { credentials: 'include' });
+                    const d = await r.json();
+                    const rows = (d && d.data) || [];
+                    if (!rows.length) { card.style.display = 'none'; return; }
+                    card.style.display = 'block';
+                    list.innerHTML = rows.map(c => {
+                        const name = `${c.first_name || ''} ${c.last_name || ''}`.trim() || 'Психолог';
+                        const preview = c.last_post_text ? c.last_post_text.slice(0, 80) : 'Постов пока нет';
+                        return `
+                        <div class="appointment-item">
+                            <div class="appointment-info">
+                                <div style="font-weight:600;">📢 ${name}</div>
+                                <div style="color:var(--d-text-sec,#6B7280);font-size:0.85rem;">${preview}</div>
+                            </div>
+                            <a href="/psychologist-profile.html?id=${encodeURIComponent(c.psychologist_id)}" class="btn btn-small">Открыть канал</a>
+                        </div>`;
+                    }).join('');
+                } catch (e) { card.style.display = 'none'; }
             }
 
             async function loadPackages() {
