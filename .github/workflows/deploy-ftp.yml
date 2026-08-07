@@ -92,6 +92,7 @@ jobs:
             put api/consent.php -o api/consent.php;
             put api/admin_notes.php -o api/admin_notes.php;
             put api/user_search.php -o api/user_search.php;
+            put api/server_stats.php -o api/server_stats.php;
             bye;
           "
           echo "Deployment complete"

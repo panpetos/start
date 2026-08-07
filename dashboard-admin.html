@@ -480,7 +480,41 @@
             ];
             document.getElementById('content').innerHTML =
                 '<div class="stats-grid">' + cards.map(c => `<div class="stat"><div class="v">${esc(c[1])}</div><div class="l">${esc(c[0])}</div></div>`).join('') + '</div>' +
-                '<div class="note">📊 Сводка по реальным данным БД. Раздел «Журнал активности» собирает события (регистрации, записи, оплаты, звонки) в единую ленту — это аудит на основе данных. Детальный аудит действий (входы, правки полей) требует логирующих хуков в бэкенде — добавлю, когда дашь доступ к серверной части.</div>';
+                '<div class="note">📊 Сводка по реальным данным БД. Раздел «Журнал активности» собирает события (регистрации, записи, оплаты, звонки) в единую ленту — это аудит на основе данных. Детальный аудит действий (входы, правки полей) требует логирующих хуков в бэкенде — добавлю, когда дашь доступ к серверной части.</div>' +
+                '<div id="serverStats" style="margin-top:1.25rem;"></div>';
+            renderServerStats();
+        }
+
+        // ── Диагностика сервера (диск/память/БД) ───────────────────────────────
+        function fmtBytes(n){
+            n = Number(n) || 0;
+            if (n >= 1073741824) return (n / 1073741824).toFixed(2) + ' ГБ';
+            if (n >= 1048576) return (n / 1048576).toFixed(1) + ' МБ';
+            if (n >= 1024) return (n / 1024).toFixed(1) + ' КБ';
+            return n + ' Б';
+        }
+        async function renderServerStats(){
+            const el = document.getElementById('serverStats');
+            if (!el) return;
+            let d;
+            try { d = await (await fetch('/api/server_stats.php?action=overview', { credentials:'include' })).json(); }
+            catch(e){ return; }
+            if (!d || !d.ok) return;
+            const disk = d.disk;
+            const diskPct = disk ? disk.used_percent : null;
+            const diskColor = diskPct == null ? 'var(--a-text-sec)' : diskPct > 90 ? '#DC2626' : diskPct > 75 ? '#D97706' : '#16A34A';
+            const load = d.load_avg ? d.load_avg.map(v => v.toFixed(2)).join(' / ') : '—';
+            el.innerHTML = `<div class="panel"><div class="panel-head"><h2>🖥️ Диагностика сервера</h2><button class="btn-sm btn-outline" onclick="renderServerStats()">↻ Обновить</button></div>
+                <div style="padding:1.1rem;">
+                    <div class="stats-grid">
+                        <div class="stat"><div class="v" style="color:${diskColor};">${disk ? disk.used_percent + '%' : '—'}</div><div class="l">Диск занят${disk ? ' (' + fmtBytes(disk.used_bytes) + ' из ' + fmtBytes(disk.total_bytes) + ')' : ' — недоступно на этом хостинге'}</div></div>
+                        <div class="stat"><div class="v">${fmtBytes((d.uploads||{}).size_bytes)}</div><div class="l">Папка /uploads (${(d.uploads||{}).files||0} файлов)</div></div>
+                        <div class="stat"><div class="v">${fmtBytes((d.database||{}).size_bytes)}</div><div class="l">Размер БД (${(d.database||{}).tables||0} таблиц)</div></div>
+                        <div class="stat"><div class="v" style="font-size:1rem;">${load}</div><div class="l">Load average (1/5/15 мин)${d.load_avg ? '' : ' — недоступно'}</div></div>
+                        <div class="stat"><div class="v" style="font-size:1rem;">${esc((d.php||{}).memory_limit||'—')}</div><div class="l">Лимит памяти PHP (текущий процесс: ${fmtBytes((d.php||{}).memory_usage_bytes)})</div></div>
+                    </div>
+                    <div class="muted" style="font-size:0.78rem;margin-top:0.6rem;">На шаред-хостинге системная память процессора недоступна из PHP напрямую — показатели диска, БД и load average дают достаточный сигнал, когда пора расширять тариф на reg.ru.</div>
+                </div></div>`;
         }
 
         // ── Table search ────────────────────────────────────────────────────
