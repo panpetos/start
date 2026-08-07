@@ -144,11 +144,16 @@
         .b-red { background: #FFF1F2; color: #BE123C; border: 1px solid #FECDD3; }
         .b-amber { background: #FFF8E7; color: #92400E; border: 1px solid #FCD34D; }
         .b-gray { background: #F3F4F6; color: #6B7280; border: 1px solid #E5E7EB; }
+        .b-blue { background: #EFF6FF; color: #2563EB; border: 1px solid #BFDBFE; }
         body.dark .b-green { background: #1A2E1A; color: #4ADE80; border-color: #2D5A2D; }
         body.dark .b-purple { background: #2D1F4E; color: #B794F4; border-color: #4A3670; }
         body.dark .b-red { background: #2E1A1A; color: #F87171; border-color: #5C2020; }
         body.dark .b-amber { background: #2E2A1A; color: #FBBF24; border-color: #5C4B1A; }
         body.dark .b-gray { background: #2A2A2A; color: #A0A0A0; border-color: #444; }
+        body.dark .b-blue { background: #1A2438; color: #93C5FD; border-color: #2A3F63; }
+        .dev-tab { padding: 0.4rem 0.85rem; border-radius: 2rem; font-size: 0.82rem; font-weight: 600; border: 1.5px solid var(--a-input-border); background: var(--a-input-bg); color: var(--a-text-sec); cursor: pointer; white-space: nowrap; }
+        .dev-tab.active { background: #7C3AED; color: #fff; border-color: #7C3AED; }
+        .dev-bulkbar { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; background: var(--a-sidebar-active-bg); border-radius: 0.6rem; padding: 0.6rem 0.8rem; margin-bottom: 0.75rem; }
 
         /* ── Buttons ─────────────────────────────────────────────── */
         .btn-sm { padding: 0.35rem 0.7rem; border-radius: 0.5rem; border: none; font-size: 0.78rem; font-weight: 600; cursor: pointer; font-family: inherit; transition: all 0.15s; }
@@ -1126,7 +1131,20 @@
         let devNewFiles = [];
         let devReworkFiles = [];
         let devTasksCache = [];
-        const DEV_STMAP = { new:['b-amber','новая'], in_progress:['b-purple','в работе у Клода'], done:['b-green','готово — проверьте'], rework:['b-red','на доработку'], closed:['b-gray','закрыто ✓'] };
+        const DEV_STMAP = { new:['b-amber','новая'], in_progress:['b-purple','в работе у Клода'], paused:['b-blue','на паузе'], done:['b-green','готово — проверьте'], rework:['b-red','на доработку'], closed:['b-gray','закрыто ✓'] };
+        const DEV_TABS = [
+            {key:'open', label:'В работе', match:t => t.status !== 'closed'},
+            {key:'new', label:'Новые', match:t => t.status === 'new'},
+            {key:'in_progress', label:'У Клода', match:t => t.status === 'in_progress'},
+            {key:'paused', label:'На паузе', match:t => t.status === 'paused'},
+            {key:'rework', label:'На доработку', match:t => t.status === 'rework'},
+            {key:'done', label:'Готово', match:t => t.status === 'done'},
+            {key:'closed', label:'Архив', match:t => t.status === 'closed'},
+            {key:'all', label:'Все', match:() => true},
+        ];
+        let devActiveTab = 'open';
+        let devSearchQuery = '';
+        let devSelectedIds = new Set();
 
         function devImgs(json, label){
             let arr = []; try { arr = json ? JSON.parse(json) : []; } catch(e){}
@@ -1148,15 +1166,26 @@
                 ? `<button class="btn-sm btn-outline" onclick="devSet(${t.id},'new')">↩ Вернуть в работу</button>`
                 : `<button class="btn-sm btn-outline" onclick="devSet(${t.id},'closed')">✓ Закрыть</button>
                    <button class="btn-sm btn-red" onclick="devOpenRework(${t.id})">↩ На доработку</button>`;
+            const manualStatuses = ['new','in_progress','paused','rework','closed'];
+            const statusSelect = `<select onchange="devSet(${t.id}, this.value)" style="padding:0.3rem 0.5rem;border:1.5px solid var(--a-input-border);border-radius:0.4rem;font-size:0.78rem;background:var(--a-input-bg);color:var(--a-text);" title="Изменить статус">
+                ${manualStatuses.map(k => `<option value="${k}" ${t.status===k?'selected':''}>${(DEV_STMAP[k]||[,k])[1]}</option>`).join('')}
+                ${t.status==='done' ? `<option value="done" selected>${DEV_STMAP.done[1]}</option>` : ''}
+            </select>`;
+            const checked = devSelectedIds.has(t.id) ? 'checked' : '';
             return `<div class="panel" style="margin-bottom:0.75rem;${closed ? 'opacity:0.65;' : ''}"><div style="padding:0.9rem 1.1rem;">
                 <div style="display:flex;justify-content:space-between;gap:0.75rem;align-items:center;flex-wrap:wrap;">
-                    <b>${esc(t.title || ('Задача #' + t.id))}</b>
+                    <label style="display:flex;align-items:center;gap:0.6rem;cursor:pointer;">
+                        <input type="checkbox" ${checked} onchange="devToggleSelect(${t.id}, this.checked)">
+                        <b>${esc(t.title || ('Задача #' + t.id))}</b>
+                    </label>
                     <span class="badge ${s[0]}">${s[1]}</span>
                 </div>
                 <div style="white-space:pre-wrap;color:var(--a-text-sec);font-size:0.9rem;margin-top:0.4rem;">${esc(t.body)}</div>
                 ${devImgs(t.attachments, '')}${cc}${ac}${devImgs(t.admin_attachments, '📎 к доработке:')}
                 <div style="margin-top:0.6rem;display:flex;gap:0.4rem;flex-wrap:wrap;align-items:center;">
                     ${btns}
+                    ${statusSelect}
+                    <button class="btn-sm btn-outline" style="color:#BE123C;" onclick="devDelete(${t.id})" title="Удалить задачу">🗑 Удалить</button>
                     <span class="muted" style="font-size:0.75rem;align-self:center;">обновлено ${fmtDateTime(t.updated_at)}</span>
                 </div>
             </div></div>`;
@@ -1177,15 +1206,75 @@
                      <div class="stat"><div class="v">${c.done||0}</div><div class="l">Готово к проверке</div></div>
                      <div class="stat"><div class="v" style="font-size:0.95rem;">${stateLbl}</div><div class="l">Статус Клода${lr?(' · '+fmtDateTime(lr.created_at)):''}</div></div>`;
             }
+            devRenderTabs(list);
+            devRenderList(list);
+        }
+
+        function devRenderTabs(list){
+            const tabsEl = document.getElementById('devTabs');
+            if (!tabsEl) return;
+            tabsEl.innerHTML = DEV_TABS.map(tb => {
+                const count = list.filter(tb.match).length;
+                return `<button class="dev-tab ${devActiveTab===tb.key?'active':''}" onclick="devSetTab('${tb.key}')">${tb.label} (${count})</button>`;
+            }).join('');
+        }
+
+        function devSetTab(key){
+            devActiveTab = key;
+            devRenderTabs(devTasksCache);
+            devRenderList(devTasksCache);
+        }
+
+        function devFilteredTasks(list){
+            const tab = DEV_TABS.find(t => t.key === devActiveTab) || DEV_TABS[0];
+            let out = list.filter(tab.match);
+            const q = devSearchQuery.trim().toLowerCase();
+            if (q) out = out.filter(t => (t.title||'').toLowerCase().includes(q) || (t.body||'').toLowerCase().includes(q));
+            return out;
+        }
+
+        function devRenderList(list){
             const listEl = document.getElementById('devTaskList');
-            if (listEl){
-                const wasOpen = !!(listEl.querySelector('details') && listEl.querySelector('details').open);
-                const active = list.filter(t => t.status !== 'closed');
-                const closed = list.filter(t => t.status === 'closed');
-                listEl.innerHTML =
-                    (active.length ? active.map(devTaskRow).join('') : '<div class="empty">Активных задач нет — добавьте новую выше.</div>')
-                    + (closed.length ? `<details ${wasOpen?'open':''} style="margin-top:1rem;"><summary style="cursor:pointer;color:var(--a-text-muted);font-size:0.9rem;">Архив закрытых (${closed.length})</summary><div style="margin-top:0.75rem;">${closed.map(devTaskRow).join('')}</div></details>` : '');
-            }
+            if (!listEl) return;
+            const filtered = devFilteredTasks(list);
+            const bulkBar = devSelectedIds.size > 0 ? `
+                <div class="dev-bulkbar">
+                    <span style="font-size:0.85rem;font-weight:600;">Выбрано: ${devSelectedIds.size}</span>
+                    <select id="devBulkStatus" style="padding:0.35rem 0.6rem;border:1.5px solid var(--a-input-border);border-radius:0.4rem;font-size:0.82rem;background:var(--a-input-bg);color:var(--a-text);">
+                        ${['new','in_progress','paused','rework','closed'].map(k => `<option value="${k}">${DEV_STMAP[k][1]}</option>`).join('')}
+                    </select>
+                    <button class="btn-sm btn-outline" onclick="devBulkApplyStatus()">Применить статус</button>
+                    <button class="btn-sm btn-outline" style="color:#BE123C;" onclick="devBulkDelete()">🗑 Удалить выбранные</button>
+                    <button class="btn-sm btn-outline" onclick="devSelectedIds.clear();devRenderList(devTasksCache);">Отменить выбор</button>
+                </div>` : '';
+            listEl.innerHTML = bulkBar + (filtered.length ? filtered.map(devTaskRow).join('') : '<div class="empty">Ничего не найдено по этому фильтру.</div>');
+        }
+
+        function devToggleSelect(id, checked){
+            if (checked) devSelectedIds.add(id); else devSelectedIds.delete(id);
+            devRenderList(devTasksCache);
+        }
+
+        async function devBulkApplyStatus(){
+            const status = document.getElementById('devBulkStatus').value;
+            const ids = Array.from(devSelectedIds);
+            if (!ids.length) return;
+            const r = await apiPostTo(DEV_API, 'bulk-status', {ids, status});
+            if (r.ok){ devSelectedIds.clear(); devRefresh(); } else alert(r.error || 'Ошибка');
+        }
+
+        async function devBulkDelete(){
+            const ids = Array.from(devSelectedIds);
+            if (!ids.length) return;
+            if (!confirm(`Удалить ${ids.length} задач(и)? Это необратимо.`)) return;
+            const r = await apiPostTo(DEV_API, 'bulk-delete', {ids});
+            if (r.ok){ devSelectedIds.clear(); devRefresh(); } else alert(r.error || 'Ошибка');
+        }
+
+        async function devDelete(id){
+            if (!confirm('Удалить эту задачу? Это необратимо.')) return;
+            const r = await apiPostTo(DEV_API, 'delete', {id});
+            if (r.ok){ devSelectedIds.delete(id); devRefresh(); } else alert(r.error || 'Ошибка');
         }
         async function renderDevTasks(){
             if (devPollTimer){ clearInterval(devPollTimer); devPollTimer = null; }
@@ -1222,7 +1311,10 @@
                         </div>
                         <span id="devTokMsg" style="font-size:0.85rem;"></span>
                     </div></div>`) +
-                '<h3 style="margin:0.5rem 0;font-size:1rem;">Задачи</h3><div id="devTaskList"><div class="loading">Загрузка...</div></div>';
+                `<h3 style="margin:0.5rem 0;font-size:1rem;">Задачи</h3>
+                 <div id="devTabs" style="display:flex;gap:0.4rem;flex-wrap:wrap;margin-bottom:0.6rem;"></div>
+                 <input id="devSearch" placeholder="🔍 Поиск по заголовку и тексту задачи..." value="${esc(devSearchQuery)}" oninput="devSearchQuery=this.value;devRenderList(devTasksCache);" style="width:100%;max-width:420px;padding:0.5rem 0.75rem;border:1.5px solid var(--a-input-border);border-radius:0.5rem;font-family:inherit;font-size:0.85rem;margin-bottom:0.75rem;background:var(--a-input-bg);color:var(--a-text);">` +
+                '<div id="devTaskList"><div class="loading">Загрузка...</div></div>';
             devSetupDropzone(document.getElementById('devDrop'), document.getElementById('devFiles'), 'new');
             await devRefresh();
             devPollTimer = setInterval(() => {

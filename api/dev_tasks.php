@@ -16,7 +16,10 @@
  *   GET  ?action=list[&status=pending|all]           — список задач
  *   GET  ?action=status                              — сводка + последний/тек. запуск
  *   POST ?action=add            {title, body}         (админ)
- *   POST ?action=set-status     {id, status, admin_comment}  (админ: done|rework|new)
+ *   POST ?action=set-status     {id, status, admin_comment}  (админ: new|in_progress|paused|done|rework|closed)
+ *   POST ?action=delete         {id}                         (админ)
+ *   POST ?action=bulk-status    {ids[], status}              (админ)
+ *   POST ?action=bulk-delete    {ids[]}                      (админ)
  *   POST ?action=claude-update  {id, status, claude_comment} (токен/админ)
  *   POST ?action=heartbeat      {state, note, processed}     (токен/админ)
  *   POST ?action=save-token     {token}                      (админ) — записать секрет
@@ -43,7 +46,7 @@ try {
         id INT AUTO_INCREMENT PRIMARY KEY,
         title VARCHAR(255) NULL,
         body MEDIUMTEXT NOT NULL,
-        status VARCHAR(20) NOT NULL DEFAULT 'new',      -- new | in_progress | done | rework
+        status VARCHAR(20) NOT NULL DEFAULT 'new',      -- new | in_progress | paused | done | rework | closed
         author VARCHAR(20) NOT NULL DEFAULT 'admin',    -- admin | claude
         claude_comment MEDIUMTEXT NULL,
         admin_comment MEDIUMTEXT NULL,
@@ -162,7 +165,7 @@ if ($action === 'set-status') {
     if (!$isAdmin) out(['error' => 'Только для администратора'], 403);
     $id = $body['id'] ?? null;
     $status = (string)($body['status'] ?? '');
-    if (!$id || !in_array($status, ['new', 'in_progress', 'done', 'rework', 'closed'], true)) out(['error' => 'Нужны id и корректный статус'], 400);
+    if (!$id || !in_array($status, ['new', 'in_progress', 'paused', 'done', 'rework', 'closed'], true)) out(['error' => 'Нужны id и корректный статус'], 400);
     // Строим UPDATE динамически: admin_comment/admin_attachments трогаем только если переданы
     $fields = ['status=?']; $params = [$status];
     if (array_key_exists('admin_comment', $body)) { $fields[] = 'admin_comment=?'; $params[] = trim((string)$body['admin_comment']); }
@@ -175,6 +178,41 @@ if ($action === 'set-status') {
         $st->execute($params);
         out(['ok' => true]);
     } catch (Exception $e) { out(['error' => 'Не удалось обновить'], 500); }
+}
+
+if ($action === 'delete') {
+    if (!$isAdmin) out(['error' => 'Только для администратора'], 403);
+    $id = $body['id'] ?? null;
+    if (!$id) out(['error' => 'Нужен id'], 400);
+    try {
+        $pdo->prepare("DELETE FROM dev_tasks WHERE id=?")->execute([$id]);
+        out(['ok' => true]);
+    } catch (Exception $e) { out(['error' => 'Не удалось удалить'], 500); }
+}
+
+if ($action === 'bulk-status') {
+    if (!$isAdmin) out(['error' => 'Только для администратора'], 403);
+    $ids = array_values(array_filter(array_map('intval', is_array($body['ids'] ?? null) ? $body['ids'] : [])));
+    $status = (string)($body['status'] ?? '');
+    if (!$ids || !in_array($status, ['new', 'in_progress', 'paused', 'done', 'rework', 'closed'], true)) out(['error' => 'Нужны ids и корректный статус'], 400);
+    $placeholders = implode(',', array_fill(0, count($ids), '?'));
+    try {
+        $st = $pdo->prepare("UPDATE dev_tasks SET status=?, updated_at=NOW() WHERE id IN ($placeholders)");
+        $st->execute(array_merge([$status], $ids));
+        out(['ok' => true, 'count' => count($ids)]);
+    } catch (Exception $e) { out(['error' => 'Не удалось обновить'], 500); }
+}
+
+if ($action === 'bulk-delete') {
+    if (!$isAdmin) out(['error' => 'Только для администратора'], 403);
+    $ids = array_values(array_filter(array_map('intval', is_array($body['ids'] ?? null) ? $body['ids'] : [])));
+    if (!$ids) out(['error' => 'Нужны ids'], 400);
+    $placeholders = implode(',', array_fill(0, count($ids), '?'));
+    try {
+        $st = $pdo->prepare("DELETE FROM dev_tasks WHERE id IN ($placeholders)");
+        $st->execute($ids);
+        out(['ok' => true, 'count' => count($ids)]);
+    } catch (Exception $e) { out(['error' => 'Не удалось удалить'], 500); }
 }
 
 if ($action === 'save-token') {
