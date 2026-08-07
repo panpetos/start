@@ -15,6 +15,11 @@
  * GET  ?action=feed&limit=20&before_id=X       — общая лента постов ВСЕХ психологов (для всех ролей)
  * POST ?action=like   {post_id}                — поставить/снять лайк (toggle, авторизованный пользователь)
  * POST ?action=view   {post_id}                — засчитать просмотр (раз на посетителя, можно анонимно)
+ *
+ * Доработка (рефок #2 задачи #29) — канал как раздел чата + комментарии к постам:
+ * GET  ?action=comments&post_id=X               — комментарии к посту (публично)
+ * POST ?action=comment       {post_id, text}     — добавить комментарий (авторизованный пользователь)
+ * POST ?action=delete-comment {id}               — удалить свой комментарий ИЛИ автор канала удаляет любой
  */
 
 header('Content-Type: application/json; charset=utf-8');
@@ -67,6 +72,14 @@ function ensureChannelTables(PDO $pdo) {
         created_at DATETIME NOT NULL,
         UNIQUE KEY uniq_view (post_id, viewer_key)
     ) DEFAULT CHARSET=utf8mb4");
+    $pdo->exec("CREATE TABLE IF NOT EXISTS channel_post_comments (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        post_id INT NOT NULL,
+        user_id VARCHAR(64) NOT NULL,
+        text TEXT NOT NULL,
+        created_at DATETIME NOT NULL,
+        INDEX idx_post (post_id)
+    ) DEFAULT CHARSET=utf8mb4");
 }
 
 /** Анонимный ключ просмотра для гостей — тот же приём, что и в analytics.php (без ПД). */
@@ -82,7 +95,7 @@ function attachPostStats(PDO $pdo, array $posts, $userId) {
     if (!$posts) return $posts;
     $ids = array_column($posts, 'id');
     $in = implode(',', array_fill(0, count($ids), '?'));
-    $likes = []; $views = []; $mine = [];
+    $likes = []; $views = []; $mine = []; $comments = [];
     try {
         $st = $pdo->prepare("SELECT post_id, COUNT(*) c FROM channel_post_likes WHERE post_id IN ($in) GROUP BY post_id");
         $st->execute($ids);
@@ -92,6 +105,11 @@ function attachPostStats(PDO $pdo, array $posts, $userId) {
         $st = $pdo->prepare("SELECT post_id, COUNT(*) c FROM channel_post_views WHERE post_id IN ($in) GROUP BY post_id");
         $st->execute($ids);
         foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $r) $views[$r['post_id']] = (int)$r['c'];
+    } catch (Exception $e) {}
+    try {
+        $st = $pdo->prepare("SELECT post_id, COUNT(*) c FROM channel_post_comments WHERE post_id IN ($in) GROUP BY post_id");
+        $st->execute($ids);
+        foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $r) $comments[$r['post_id']] = (int)$r['c'];
     } catch (Exception $e) {}
     if ($userId) {
         try {
@@ -103,6 +121,7 @@ function attachPostStats(PDO $pdo, array $posts, $userId) {
     foreach ($posts as &$p) {
         $p['likes_count'] = $likes[$p['id']] ?? 0;
         $p['views_count'] = $views[$p['id']] ?? 0;
+        $p['comments_count'] = $comments[$p['id']] ?? 0;
         $p['liked_by_me'] = isset($mine[$p['id']]);
     }
     return $posts;
@@ -221,7 +240,7 @@ if ($action === 'my-subscriptions') {
     if (!$userId) { http_response_code(401); echo json_encode(['error' => 'Требуется авторизация']); exit; }
     try {
         $st = $pdo->prepare("
-            SELECT p.id AS psychologist_id, u.first_name, u.last_name, u.avatar,
+            SELECT p.id AS psychologist_id, u.id AS user_id, u.first_name, u.last_name, u.avatar,
                    (SELECT text FROM channel_posts cp WHERE cp.psychologist_id = p.id ORDER BY cp.created_at DESC, cp.id DESC LIMIT 1) AS last_post_text,
                    (SELECT created_at FROM channel_posts cp WHERE cp.psychologist_id = p.id ORDER BY cp.created_at DESC, cp.id DESC LIMIT 1) AS last_post_at
             FROM channel_subscriptions s
@@ -285,6 +304,53 @@ if ($action === 'unsubscribe' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         $st->execute([$userId, $psychId]);
         echo json_encode(['ok' => true]);
     } catch (Exception $e) { http_response_code(500); echo json_encode(['error' => 'Не удалось отписаться']); }
+    exit;
+}
+
+if ($action === 'comments') {
+    $postId = (int)($_GET['post_id'] ?? 0);
+    if (!$postId) { http_response_code(400); echo json_encode(['error' => 'post_id обязателен']); exit; }
+    try {
+        $st = $pdo->prepare("SELECT c.id, c.user_id, c.text, c.created_at, u.first_name, u.last_name, u.avatar
+                              FROM channel_post_comments c JOIN users u ON u.id = c.user_id
+                              WHERE c.post_id = ? ORDER BY c.created_at ASC, c.id ASC LIMIT 500");
+        $st->execute([$postId]);
+        echo json_encode(['ok' => true, 'data' => $st->fetchAll(PDO::FETCH_ASSOC)]);
+    } catch (Exception $e) { echo json_encode(['ok' => true, 'data' => []]); }
+    exit;
+}
+
+if ($action === 'comment' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (!$userId) { http_response_code(401); echo json_encode(['error' => 'Требуется авторизация']); exit; }
+    $postId = (int)($body['post_id'] ?? 0);
+    $text = trim((string)($body['text'] ?? ''));
+    if (!$postId || $text === '') { http_response_code(400); echo json_encode(['error' => 'post_id и text обязательны']); exit; }
+    if (mb_strlen($text) > 2000) $text = mb_substr($text, 0, 2000);
+    try {
+        $st = $pdo->prepare("INSERT INTO channel_post_comments (post_id, user_id, text, created_at) VALUES (?, ?, ?, NOW())");
+        $st->execute([$postId, $userId, $text]);
+        echo json_encode(['ok' => true, 'id' => $pdo->lastInsertId()]);
+    } catch (Exception $e) { http_response_code(500); echo json_encode(['error' => 'Не удалось отправить комментарий']); }
+    exit;
+}
+
+if ($action === 'delete-comment' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (!$userId) { http_response_code(401); echo json_encode(['error' => 'Требуется авторизация']); exit; }
+    $id = (int)($body['id'] ?? 0);
+    if (!$id) { http_response_code(400); echo json_encode(['error' => 'id обязателен']); exit; }
+    $myPsychId = myPsychologistId($pdo, $userId);
+    try {
+        if ($myPsychId) {
+            // Автор канала может удалить любой комментарий под СВОИМ постом (модерация)
+            $st = $pdo->prepare("DELETE c FROM channel_post_comments c JOIN channel_posts p ON p.id = c.post_id
+                                  WHERE c.id = ? AND (c.user_id = ? OR p.psychologist_id = ?)");
+            $st->execute([$id, $userId, $myPsychId]);
+        } else {
+            $st = $pdo->prepare("DELETE FROM channel_post_comments WHERE id = ? AND user_id = ?");
+            $st->execute([$id, $userId]);
+        }
+        echo json_encode(['ok' => true]);
+    } catch (Exception $e) { http_response_code(500); echo json_encode(['error' => 'Не удалось удалить']); }
     exit;
 }
 

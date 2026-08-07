@@ -174,12 +174,53 @@
         .chat-header .name {
             font-weight: 600;
             color: #333;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
 
         .chat-header .role {
             font-size: 0.9rem;
             color: #666;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
+
+        .chat-header-actions {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        /* ── Канал как раздел чата (задача #29, рефок): read-only лента постов вместо диалога ── */
+        .ch-post { background: white; border-radius: 1rem; padding: 1rem 1.1rem; margin-bottom: 0.85rem; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+        .ch-post-text { white-space: pre-wrap; line-height: 1.55; color: #333; }
+        .ch-post-img { max-width: 100%; border-radius: 0.7rem; margin-top: 0.5rem; display: block; }
+        .ch-post-date { color: #999; font-size: 0.75rem; margin-bottom: 0.4rem; }
+        .ch-post-actions { display: flex; align-items: center; gap: 0.3rem; margin-top: 0.7rem; padding-top: 0.6rem; border-top: 1px solid #eee; }
+        .ch-pbtn { display: inline-flex; align-items: center; gap: 0.3rem; background: none; border: none; cursor: pointer; color: #666; font-size: 0.85rem; font-family: inherit; padding: 0.3rem 0.55rem; border-radius: 0.5rem; }
+        .ch-pbtn:hover { background: #f0f0f0; }
+        .ch-pbtn.liked { color: #DC2626; font-weight: 700; }
+        .ch-comments-box { margin-top: 0.6rem; padding-top: 0.6rem; border-top: 1px solid #eee; }
+        .ch-comment-item { display: flex; gap: 0.5rem; margin-bottom: 0.5rem; }
+        .ch-comment-ava { width: 26px; height: 26px; border-radius: 50%; background: linear-gradient(135deg,#7C3AED,#6D28D9); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; font-weight: 700; overflow: hidden; flex-shrink: 0; }
+        .ch-comment-ava img { width: 100%; height: 100%; object-fit: cover; }
+        .ch-comment-body { flex: 1; min-width: 0; background: #f5f5f5; border-radius: 0.65rem; padding: 0.4rem 0.65rem; }
+        .ch-comment-author { font-weight: 700; font-size: 0.78rem; }
+        .ch-comment-text { font-size: 0.83rem; line-height: 1.4; white-space: pre-wrap; word-wrap: break-word; }
+        .ch-comment-form { display: flex; gap: 0.4rem; margin-top: 0.4rem; }
+        .ch-comment-form input { flex: 1; min-width: 0; padding: 0.45rem 0.75rem; border-radius: 1.1rem; border: 1.5px solid #e0e0e0; font-size: 0.83rem; font-family: inherit; outline: none; }
+        .ch-comment-form button { padding: 0.45rem 0.8rem; border-radius: 1.1rem; border: none; background: #7C3AED; color: #fff; font-weight: 600; font-size: 0.8rem; cursor: pointer; font-family: inherit; }
+        body.dark .ch-post { background: #252525; box-shadow: 0 2px 8px rgba(0,0,0,0.25); }
+        body.dark .ch-post-text { color: #E6E6E6; }
+        body.dark .ch-post-actions { border-top-color: #333; }
+        body.dark .ch-pbtn { color: #999; }
+        body.dark .ch-pbtn:hover { background: #333; }
+        body.dark .ch-comments-box { border-top-color: #333; }
+        body.dark .ch-comment-body { background: #1E1E1E; }
+        body.dark .ch-comment-form input { background: #1E1E1E; border-color: #444; color: #E6E6E6; }
 
         .messages-container {
             flex: 1;
@@ -629,6 +670,12 @@
                 gap: 0.2rem;
             }
             .chat-header .video-call-btn { width: 36px; height: 36px; padding: 0; }
+            /* Кнопки действий переносятся в отдельную строку под именем — не сжимают и не перекрывают имя/фамилию/фото (задача #36, доработка) */
+            .chat-header-actions {
+                flex: 1 1 100%;
+                justify-content: flex-end;
+                gap: 0.35rem;
+            }
 
             .conversation-item { padding: 0.75rem; gap: 0.65rem; }
             .conversation-avatar { width: 44px; height: 44px; }
@@ -639,14 +686,14 @@
             .message { max-width: 85%; padding: 0.6rem 0.85rem; font-size: 0.95rem; }
 
             .chat-input {
-                padding: 0.6rem;
-                gap: 0.5rem;
-                padding-bottom: max(0.6rem, env(safe-area-inset-bottom));
+                padding: 0.5rem;
+                gap: 0.35rem;
+                padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
                 position: sticky;
                 bottom: 0;
             }
-            .chat-input input { font-size: 16px; padding: 0.65rem 0.9rem; }
-            .chat-input button, .icon-btn { width: 40px; height: 40px; }
+            .chat-input input { font-size: 16px; padding: 0.6rem 0.75rem; }
+            .chat-input button, .icon-btn { width: 36px; height: 36px; font-size: 1.05rem; }
 
             .emoji-picker { width: 92vw; max-width: 340px; left: 4vw; bottom: 64px; }
             #chatSearchInput { font-size: 16px !important; }
@@ -765,7 +812,7 @@
             <div id="chatContent" style="display: none; flex-direction: column; height: 100%;">
                 <div class="chat-header" id="chatHeader"></div>
                 <div class="messages-container" id="messagesContainer"></div>
-                <div class="chat-input">
+                <div class="chat-input" id="chatInputBar">
                     <button type="button" onclick="toggleEmojiPicker()" class="icon-btn" title="Эмодзи">😊</button>
                     <label class="icon-btn" title="Прикрепить файл">
                         📎
@@ -964,12 +1011,209 @@
         let ordersMap = {};       // id ордера -> объект (живое состояние для карточек в чате)
         let platformCommission = 40; // % комиссии сервиса (для предпросмотра выплаты психологу)
         let bookPsychId = null;   // id профиля психолога (из ?pid=) — для кнопки «Записаться» у клиента
+        const CHANNEL_PREFIX = 'channel:'; // псевдо-собеседник «Канал» — раздел чата с лентой постов вместо переписки (задача #29, рефок)
+        let myChannels = [];      // клиент: список подписок; психолог: свой канал (массив из одного элемента)
+        let myOwnPsychId = null;  // id профиля психолога текущего пользователя (для «Мой канал»)
 
         function getDashboardUrl() {
             if (!currentUser) return '/login.html';
             if (currentUser.role === 'psychologist') return '/psychologist-dashboard.html';
             if (currentUser.role === 'admin') return '/dashboard-admin.html';
             return '/client-dashboard.html';
+        }
+
+        // ── Каналы в списке диалогов (задача #29, рефок): психологу — «Мой канал», клиенту — подписки ──
+        async function loadMyChannels() {
+            try {
+                if (currentUser.role === 'psychologist') {
+                    const r = await fetch('/api/my_profile.php?action=get', { credentials: 'include' });
+                    const d = await r.json();
+                    myOwnPsychId = (d && d.ok && d.profile) ? d.profile.id : null;
+                    myChannels = myOwnPsychId ? [{
+                        psychologist_id: myOwnPsychId, user_id: currentUser.id,
+                        first_name: currentUser.first_name, last_name: currentUser.last_name,
+                        avatar: currentUser.avatar, _own: true
+                    }] : [];
+                } else if (currentUser.role === 'client') {
+                    const r = await fetch('/api/channels.php?action=my-subscriptions', { credentials: 'include' });
+                    const d = await r.json();
+                    myChannels = (d && d.data) || [];
+                }
+            } catch (e) { myChannels = []; }
+        }
+
+        function channelsRowsHtml() {
+            if (!myChannels.length) return '';
+            return myChannels.map(c => {
+                const name = `${c.first_name || ''} ${c.last_name || ''}`.trim() || 'Канал';
+                const initial = name.charAt(0).toUpperCase();
+                const activeId = CHANNEL_PREFIX + c.psychologist_id;
+                const label = c._own ? 'Мой канал' : 'Канал';
+                const preview = c.last_post_text ? (label + ' · ' + c.last_post_text.slice(0, 30)) : (label + ' · публикации психолога');
+                return `
+                    <div class="conversation-item ${activeId === selectedUserId ? 'active' : ''}" onclick="openChannel('${c.psychologist_id}')">
+                        <div class="conversation-avatar" style="position:relative;">
+                            ${c.avatar ? `<img src="${c.avatar}" alt="${name}">` : initial}
+                            <span style="position:absolute;bottom:-2px;right:-2px;background:#7C3AED;color:#fff;border-radius:50%;width:16px;height:16px;font-size:0.62rem;line-height:14px;text-align:center;border:2px solid #fff;">📡</span>
+                        </div>
+                        <div class="conversation-info">
+                            <div class="conversation-name">${name}</div>
+                            <div class="conversation-preview">${preview}</div>
+                        </div>
+                    </div>`;
+            }).join('');
+        }
+
+        // ── Канал как раздел чата: лента постов психолога вместо переписки — писать этому человеку отсюда нельзя,
+        // можно только читать и комментировать посты (как канал в Телеграм). Задача #29, рефок.
+        async function openChannel(psychId) {
+            selectedUserId = CHANNEL_PREFIX + psychId;
+            headerRenderedFor = selectedUserId;
+
+            document.querySelectorAll('.conversation-item').forEach(el => {
+                el.classList.toggle('active', el.getAttribute('onclick') === `openChannel('${psychId}')`);
+            });
+
+            document.getElementById('emptyState').style.display = 'none';
+            document.getElementById('chatContent').style.display = 'flex';
+            document.querySelector('.chat-container').classList.add('mobile-chat-open');
+            const inputBar = document.getElementById('chatInputBar');
+            if (inputBar) inputBar.style.display = 'none';
+            if (pollInterval) { clearInterval(pollInterval); pollInterval = null; }
+
+            const c = myChannels.find(x => String(x.psychologist_id) === String(psychId)) || {};
+            const name = `${c.first_name || ''} ${c.last_name || ''}`.trim() || 'Канал';
+            const isOwn = !!c._own;
+            let info = { subscribers_count: 0, is_subscribed: false };
+            try {
+                const r = await fetch('/api/channels.php?action=info&psychologist_id=' + encodeURIComponent(psychId), { credentials: 'include' });
+                const d = await r.json();
+                if (d && d.ok) info = d;
+            } catch (e) {}
+
+            const writeBtn = (!isOwn && c.user_id)
+                ? `<a href="/chat.html?user=${encodeURIComponent(c.user_id)}" class="session-btn" style="background:#16A34A;text-decoration:none;" title="Написать психологу лично">✉️ Написать</a>`
+                : (isOwn ? `<a href="/psychologist-dashboard.html" class="session-btn" style="background:#7C3AED;text-decoration:none;" title="Опубликовать пост">✍️ Мой канал</a>` : '');
+            document.getElementById('chatHeader').innerHTML = `
+                <button class="chat-back-btn" onclick="goBackToList()" title="Назад к диалогам">←</button>
+                <div class="avatar">${c.avatar ? `<img src="${c.avatar}" alt="${name}">` : name.charAt(0)}</div>
+                <div style="flex:1;min-width:0;">
+                    <div class="name">${escapeHtml(name)}</div>
+                    <div class="role">📡 Канал · ${info.subscribers_count || 0} подписчиков</div>
+                </div>
+                <div class="chat-header-actions">
+                    ${writeBtn}
+                    <a href="/psychologist-profile.html?id=${encodeURIComponent(psychId)}" class="session-btn" style="background:#0EA5E9;text-decoration:none;" title="Профиль психолога">Профиль</a>
+                    <a href="${getDashboardUrl()}" class="session-btn" style="background:#6B7280;text-decoration:none;" title="Вернуться в личный кабинет">← В кабинет</a>
+                </div>`;
+
+            await loadChannelPosts(psychId);
+        }
+
+        async function loadChannelPosts(psychId) {
+            const container = document.getElementById('messagesContainer');
+            container.innerHTML = '<div class="empty-state"><p style="color:#9CA3AF;">Загрузка постов…</p></div>';
+            let rows = [];
+            try {
+                const r = await fetch('/api/channels.php?action=posts&psychologist_id=' + encodeURIComponent(psychId), { credentials: 'include' });
+                const d = await r.json();
+                rows = (d && d.data) || [];
+            } catch (e) {}
+            if (!rows.length) {
+                container.innerHTML = `<div class="empty-state"><div><p style="color:#9CA3AF;">📡 Здесь появятся публикации психолога — писать в этот раздел нельзя, это только чтение и комментарии к постам.</p></div></div>`;
+                return;
+            }
+            container.innerHTML = rows.map(chPostHtml).join('');
+        }
+
+        function chPostHtml(p) {
+            const date = new Date(p.created_at).toLocaleString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+            const img = p.image_url ? `<img class="ch-post-img" src="${escapeHtml(p.image_url)}" alt="">` : '';
+            const text = p.text ? `<div class="ch-post-text">${escapeHtml(p.text)}</div>` : '';
+            return `
+                <div class="ch-post" data-post-id="${p.id}">
+                    <div class="ch-post-date">${date}</div>
+                    ${text}${img}
+                    <div class="ch-post-actions">
+                        <button class="ch-pbtn ${p.liked_by_me ? 'liked' : ''}" onclick="chToggleLike(${p.id}, this)">${p.liked_by_me ? '❤️' : '🤍'} <span>${p.likes_count || 0}</span></button>
+                        <span class="ch-pbtn" style="cursor:default;">👁 ${p.views_count || 0}</span>
+                        <button class="ch-pbtn" onclick="chToggleComments(${p.id}, this)">💬 <span>${p.comments_count || 0}</span></button>
+                    </div>
+                    <div class="ch-comments-box" id="chComments-${p.id}" style="display:none;"></div>
+                </div>`;
+        }
+
+        async function chToggleLike(postId, btn) {
+            try {
+                const r = await fetch('/api/channels.php?action=like', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+                    body: JSON.stringify({ post_id: postId })
+                });
+                const d = await r.json();
+                if (!d.ok) return;
+                btn.classList.toggle('liked', d.liked);
+                btn.innerHTML = (d.liked ? '❤️' : '🤍') + ' <span>' + d.likes_count + '</span>';
+            } catch (e) {}
+        }
+
+        function chCommentItemHtml(c) {
+            const name = `${c.first_name || ''} ${c.last_name || ''}`.trim() || 'Пользователь';
+            const init = name.charAt(0).toUpperCase();
+            const date = new Date(c.created_at).toLocaleString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+            return `<div class="ch-comment-item">
+                <div class="ch-comment-ava">${c.avatar ? `<img src="${escapeHtml(c.avatar)}">` : init}</div>
+                <div class="ch-comment-body">
+                    <div class="ch-comment-author">${escapeHtml(name)} <span style="font-weight:400;color:#9CA3AF;font-size:0.7rem;">${date}</span></div>
+                    <div class="ch-comment-text">${escapeHtml(c.text)}</div>
+                </div>
+            </div>`;
+        }
+
+        async function chToggleComments(postId, btn) {
+            const box = document.getElementById('chComments-' + postId);
+            if (!box) return;
+            const opening = box.style.display === 'none';
+            box.style.display = opening ? 'block' : 'none';
+            if (!opening || box.dataset.loaded) return;
+            box.dataset.loaded = '1';
+            box.innerHTML = '<div style="color:#9CA3AF;font-size:0.82rem;">Загрузка…</div>';
+            let rows = [];
+            try {
+                const r = await fetch('/api/channels.php?action=comments&post_id=' + postId);
+                const d = await r.json();
+                rows = (d && d.data) || [];
+            } catch (e) {}
+            const list = rows.length ? rows.map(chCommentItemHtml).join('') : '<div style="color:#9CA3AF;font-size:0.82rem;">Пока нет комментариев.</div>';
+            const form = `<div class="ch-comment-form"><input type="text" id="chCinput-${postId}" placeholder="Написать комментарий..." maxlength="2000" onkeypress="if(event.key==='Enter')chSubmitComment(${postId})"><button onclick="chSubmitComment(${postId})">➤</button></div>`;
+            box.innerHTML = `<div id="chClist-${postId}">${list}</div>${form}`;
+        }
+
+        async function chSubmitComment(postId) {
+            const input = document.getElementById('chCinput-' + postId);
+            const text = (input.value || '').trim();
+            if (!text) return;
+            input.disabled = true;
+            try {
+                const r = await fetch('/api/channels.php?action=comment', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+                    body: JSON.stringify({ post_id: postId, text })
+                });
+                const d = await r.json();
+                if (d.ok) {
+                    input.value = '';
+                    const list = document.getElementById('chClist-' + postId);
+                    if (list.children.length === 1 && list.children[0].tagName === 'DIV' && !list.children[0].classList.contains('ch-comment-item')) list.innerHTML = '';
+                    list.insertAdjacentHTML('beforeend', chCommentItemHtml({
+                        first_name: currentUser.first_name, last_name: currentUser.last_name,
+                        avatar: currentUser.avatar, text, created_at: new Date().toISOString()
+                    }));
+                    const countEl = document.querySelector(`.ch-post[data-post-id="${postId}"] .ch-pbtn[onclick*="chToggleComments"] span`);
+                    if (countEl) countEl.textContent = (parseInt(countEl.textContent, 10) || 0) + 1;
+                } else if (d.error) {
+                    alert(d.error);
+                }
+            } catch (e) {}
+            input.disabled = false;
         }
 
         // ── Единая шапка диалога (роле-зависимая) ──
@@ -1001,12 +1245,14 @@
                     <div class="name">${name}</div>
                     <div class="role">${roleText}</div>
                 </div>
-                ${sessionBtn}
-                ${orderBtn}
-                ${notesBtn}
-                ${bookBtn}
-                ${videoBtn}
-                <a href="${getDashboardUrl()}" class="session-btn" style="background:#6B7280;text-decoration:none;display:inline-flex;align-items:center;gap:0.3rem;" title="Вернуться в личный кабинет">← В кабинет</a>`;
+                <div class="chat-header-actions">
+                    ${sessionBtn}
+                    ${orderBtn}
+                    ${notesBtn}
+                    ${bookBtn}
+                    ${videoBtn}
+                    <a href="${getDashboardUrl()}" class="session-btn" style="background:#6B7280;text-decoration:none;display:inline-flex;align-items:center;gap:0.3rem;" title="Вернуться в личный кабинет">← В кабинет</a>
+                </div>`;
         }
 
         // ── Мини-карточка собеседника (клик по аватару/имени в шапке чата) ──
@@ -1342,6 +1588,7 @@
             const themeToggle = document.getElementById('chatThemeToggle');
             if (themeToggle) themeToggle.textContent = document.body.classList.contains('dark') ? '☀️' : '🌙';
 
+            await loadMyChannels();
             await loadConversations();
 
             // Автоматически открыть чат если есть user в URL
@@ -1484,7 +1731,7 @@
                 const container = document.getElementById('conversationsList');
 
                 if (!conversations || conversations.length === 0) {
-                    container.innerHTML = favoritesRowHtml() + `
+                    container.innerHTML = favoritesRowHtml() + channelsRowsHtml() + `
                         <div class="no-conversations">
                             <p>У вас пока нет диалогов</p>
                             <p style="font-size: 0.9rem; margin-top: 0.5rem;">Диалоги появятся после записи на консультацию</p>
@@ -1519,14 +1766,14 @@
         function renderConversationList(conversations) {
             const container = document.getElementById('conversationsList');
             if (!conversations || conversations.length === 0) {
-                container.innerHTML = favoritesRowHtml() + `
+                container.innerHTML = favoritesRowHtml() + channelsRowsHtml() + `
                     <div class="no-conversations">
                         <p>Ничего не найдено</p>
                     </div>
                 `;
                 return;
             }
-            container.innerHTML = favoritesRowHtml() + conversations.map(c => {
+            container.innerHTML = favoritesRowHtml() + channelsRowsHtml() + conversations.map(c => {
                 const name = `${c.first_name || ''} ${c.last_name || ''}`.trim() || 'Пользователь';
                 const initial = name.charAt(0).toUpperCase();
                 const isNew = !!c._isNew;
@@ -1852,6 +2099,9 @@
 
         async function loadMessages() {
             if (!selectedUserId) return;
+            // Реальная переписка (в отличие от read-only канала) — вернуть панель ввода сообщений, если она была скрыта.
+            const inputBar = document.getElementById('chatInputBar');
+            if (inputBar && inputBar.style.display === 'none') inputBar.style.display = '';
             if (selectedUserId === FAVORITES_ID) { await loadFavoritesMessages(); return; }
             if (isSupportMode()) { await loadSupportThreadMessages(); return; }
 

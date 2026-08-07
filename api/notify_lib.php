@@ -16,7 +16,12 @@
 function notify_channels_config() {
     $f = __DIR__ . '/notifications_config.php';
     $c = file_exists($f) ? (include $f) : [];
-    return is_array($c) ? $c : [];
+    if (!is_array($c)) return [];
+    // Токены копипастятся вручную в UI — обрезаем случайные пробелы/переносы, иначе Telegram отвечает 401 Unauthorized.
+    foreach (['telegram_token', 'max_token'] as $k) {
+        if (isset($c[$k])) $c[$k] = trim((string)$c[$k]);
+    }
+    return $c;
 }
 
 function notify_ensure_links_table(PDO $pdo) {
@@ -57,6 +62,9 @@ function notify_tg_send($token, $chatId, $text) {
 }
 /** Последние входящие через long-polling getUpdates — чтобы найти chat_id тех, кто написал боту /start. */
 function notify_tg_recent_chats($token) {
+    // getUpdates отвечает "409 Conflict: can't use getUpdates method while webhook is active", если на боте
+    // когда-либо был установлен вебхук (даже случайно) — снимаем его перед каждым опросом, это безопасно и идемпотентно.
+    notify_tg_request($token, 'deleteWebhook', ['drop_pending_updates' => false]);
     $r = notify_tg_request($token, 'getUpdates', ['limit' => 50, 'timeout' => 0]);
     if (empty($r['ok'])) return $r;
     $seen = [];

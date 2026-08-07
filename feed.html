@@ -37,6 +37,18 @@
         .sub-btn.subscribed { background: var(--fd-border); color: var(--fd-text-sec); border-color: var(--fd-border); }
         .load-more { display: block; width: 100%; padding: 0.8rem; margin-top: 0.5rem; border-radius: 0.8rem; border: 1.5px solid var(--fd-card-border); background: var(--fd-card); color: var(--fd-text); font-weight: 600; cursor: pointer; font-family: inherit; }
         .empty { text-align: center; color: var(--fd-text-sec); padding: 3rem 1rem; }
+        .comments-box { margin-top: 0.7rem; padding-top: 0.7rem; border-top: 1px solid var(--fd-border); }
+        .comment-item { display: flex; gap: 0.55rem; margin-bottom: 0.6rem; }
+        .comment-ava { width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 700; font-size: 0.75rem; overflow: hidden; flex-shrink: 0; }
+        .comment-ava img { width: 100%; height: 100%; object-fit: cover; }
+        .comment-body { flex: 1; min-width: 0; background: var(--fd-bg); border-radius: 0.7rem; padding: 0.45rem 0.7rem; }
+        .comment-author { font-weight: 700; font-size: 0.8rem; }
+        .comment-text { font-size: 0.85rem; line-height: 1.4; white-space: pre-wrap; word-wrap: break-word; }
+        .comment-form { display: flex; gap: 0.5rem; margin-top: 0.5rem; }
+        .comment-form input { flex: 1; min-width: 0; padding: 0.5rem 0.8rem; border-radius: 1.2rem; border: 1.5px solid var(--fd-card-border); background: var(--fd-card); color: var(--fd-text); font-size: 0.85rem; font-family: inherit; outline: none; }
+        .comment-form input:focus { border-color: #7C3AED; }
+        .comment-form button { padding: 0.5rem 0.9rem; border-radius: 1.2rem; border: none; background: #7C3AED; color: #fff; font-weight: 600; font-size: 0.82rem; cursor: pointer; font-family: inherit; }
+        .comments-empty { color: var(--fd-text-sec); font-size: 0.82rem; }
     </style>
 </head>
 <body>
@@ -102,11 +114,69 @@
                     <div class="post-actions">
                         <button class="pbtn ${p.liked_by_me ? 'liked' : ''}" onclick="toggleLike(${p.id}, this)">${p.liked_by_me ? '❤️' : '🤍'} <span>${p.likes_count || 0}</span></button>
                         <span class="pbtn" style="cursor:default;">👁 ${p.views_count || 0}</span>
+                        <button class="pbtn" onclick="toggleComments(${p.id}, this)">💬 <span>${p.comments_count || 0}</span></button>
                         <button class="pbtn" onclick="sharePost(${p.id}, '${encodeURIComponent(p.psychologist_id)}')">↗ Поделиться</button>
                         <button class="sub-btn ${p.is_subscribed ? 'subscribed' : ''}" onclick="toggleSub('${p.psychologist_id}', this)">${p.is_subscribed ? '✓ Подписан' : 'Подписаться'}</button>
                     </div>
+                    <div class="comments-box" id="comments-${p.id}" style="display:none;"></div>
                 </div>`;
         }
+
+        function commentItemHtml(c) {
+            const name = `${c.first_name || ''} ${c.last_name || ''}`.trim() || 'Пользователь';
+            const init = name.charAt(0).toUpperCase();
+            const date = new Date(c.created_at).toLocaleDateString('ru', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+            return `<div class="comment-item">
+                <div class="comment-ava" style="background:${colorFor(c.user_id)};">${c.avatar ? `<img src="${esc(c.avatar)}">` : init}</div>
+                <div class="comment-body">
+                    <div class="comment-author">${esc(name)} <span style="font-weight:400;color:var(--fd-text-sec);font-size:0.72rem;">${date}</span></div>
+                    <div class="comment-text">${esc(c.text)}</div>
+                </div>
+            </div>`;
+        }
+
+        async function toggleComments(postId, btn) {
+            const box = document.getElementById('comments-' + postId);
+            if (!box) return;
+            const opening = box.style.display === 'none';
+            box.style.display = opening ? 'block' : 'none';
+            if (!opening || box.dataset.loaded) return;
+            box.dataset.loaded = '1';
+            box.innerHTML = '<div class="comments-empty">Загрузка…</div>';
+            let rows = [];
+            try { const r = await fetch('/api/channels.php?action=comments&post_id=' + postId); const d = await r.json(); rows = (d && d.data) || []; } catch (e) {}
+            const list = rows.length ? rows.map(commentItemHtml).join('') : '<div class="comments-empty">Пока нет комментариев — будьте первым.</div>';
+            const form = currentUser
+                ? `<div class="comment-form"><input type="text" id="cinput-${postId}" placeholder="Написать комментарий..." maxlength="2000" onkeypress="if(event.key==='Enter')submitComment(${postId})"><button onclick="submitComment(${postId})">➤</button></div>`
+                : `<div class="comments-empty"><a href="/login.html?redirect=${encodeURIComponent(location.pathname)}">Войдите</a>, чтобы оставить комментарий.</div>`;
+            box.innerHTML = `<div id="clist-${postId}">${list}</div>${form}`;
+        }
+        window.toggleComments = toggleComments;
+
+        async function submitComment(postId) {
+            const input = document.getElementById('cinput-' + postId);
+            const text = (input.value || '').trim();
+            if (!text) return;
+            input.disabled = true;
+            try {
+                const r = await fetch('/api/channels.php?action=comment', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+                    body: JSON.stringify({ post_id: postId, text })
+                });
+                const d = await r.json();
+                if (d.ok) {
+                    input.value = '';
+                    const list = document.getElementById('clist-' + postId);
+                    const empty = list.querySelector('.comments-empty');
+                    if (empty) empty.remove();
+                    list.insertAdjacentHTML('beforeend', commentItemHtml({ user_id: currentUser.id, first_name: currentUser.first_name, last_name: currentUser.last_name, avatar: currentUser.avatar, text, created_at: new Date().toISOString() }));
+                    const countEl = document.querySelector(`.post-card[data-post-id="${postId}"] .pbtn[onclick*="toggleComments"] span`);
+                    if (countEl) countEl.textContent = (parseInt(countEl.textContent, 10) || 0) + 1;
+                }
+            } catch (e) {}
+            input.disabled = false;
+        }
+        window.submitComment = submitComment;
 
         async function toggleLike(postId, btn) {
             if (!currentUser) { window.location.href = '/login.html?redirect=' + encodeURIComponent(location.pathname); return; }

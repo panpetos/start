@@ -265,7 +265,7 @@ if ($action === 'telegram-updates' || $action === 'max-updates') {
     $token = $action === 'telegram-updates' ? ($ch['telegram_token'] ?? '') : ($ch['max_token'] ?? '');
     if (!$token) out(['error' => 'Токен бота не настроен — сначала сохраните его в разделе «Каналы доставки»'], 400);
     $r = $action === 'telegram-updates' ? notify_tg_recent_chats($token) : notify_max_recent_chats($token);
-    if (empty($r['ok'])) out(['error' => $r['error'] ?? 'Не удалось получить обновления от бота'], 502);
+    if (empty($r['ok'])) out(['error' => $r['description'] ?? $r['error'] ?? 'Не удалось получить обновления от бота'], 502);
     out(['ok' => true, 'data' => $r['data'] ?? []]);
 }
 

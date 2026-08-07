@@ -782,13 +782,14 @@
                   topRef.map(r => `<tr><td>${esc(r.referrer)}</td><td>${r.c}</td></tr>`).join('') + '</tbody></table>'
                 : '<div class="empty">Прямых переходов с других сайтов не было</div>';
 
+            const spaced = (html) => `<div style="margin-top:1.25rem;">${html}</div>`;
             document.getElementById('content').innerHTML =
                 '<div class="note">📊 Собственная аналитика сайта (без сторонних сервисов, без сбора персональных данных — только анонимный счётчик устройства). Просмотры админки в счётчик не попадают. Целевые действия считаются по реальным данным системы, не по трекеру.</div>' +
                 `<div style="margin:0.75rem 0;">${tabs}</div>` +
                 statsHtml +
-                panel('По дням', 'mDays', dayRows) +
-                panel('Популярные страницы', 'mPages', pagesRows) +
-                panel('Источники переходов', 'mRef', refRows);
+                spaced(panel('По дням', 'mDays', dayRows)) +
+                spaced(panel('Популярные страницы', 'mPages', pagesRows)) +
+                spaced(panel('Источники переходов', 'mRef', refRows));
         }
 
         // ── Карта сайта: майнд-мэп структуры проекта (задача #38) ────────────
