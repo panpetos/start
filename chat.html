@@ -675,8 +675,11 @@
         /* Modal overrides (inline styles) */
         body.dark #videoModal > div,
         body.dark #orderModal > div,
+        body.dark #forwardModal > div,
         body.dark #healthConsentModal > div > div { background: #252525 !important; color: #E6E6E6 !important; }
         body.dark #notesDrawer { background: #252525 !important; }
+        body.dark #forwardModal [style*="border-bottom:1px solid #eee"] { border-bottom-color: #333 !important; }
+        body.dark #forwardSearchInput { background: #1E1E1E !important; border-color: #444 !important; color: #E6E6E6 !important; }
         body.dark #videoModal h3,
         body.dark #orderModal h3,
         body.dark #healthConsentModal h3 { color: #E6E6E6 !important; }
@@ -870,6 +873,20 @@
         </div>
     </div>
 
+    <!-- Forward message modal (any role) -->
+    <div id="forwardModal" style="display:none;position:fixed;inset:0;background:rgba(26,26,46,0.6);z-index:1300;align-items:center;justify-content:center;padding:1rem;">
+        <div style="background:#fff;border-radius:1rem;max-width:400px;width:100%;max-height:80vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+            <div style="padding:1rem 1.25rem;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;">
+                <div style="font-weight:700;">↪ Переслать сообщение</div>
+                <button onclick="closeForwardModal()" style="background:none;border:none;font-size:1.2rem;cursor:pointer;color:#6B7280;">✕</button>
+            </div>
+            <div style="padding:0.75rem 1rem;border-bottom:1px solid #eee;flex-shrink:0;">
+                <input id="forwardSearchInput" type="text" placeholder="🔍 Поиск получателя..." oninput="filterForwardTargets()" style="width:100%;padding:0.5rem 0.75rem;border:1.5px solid #e0e0e0;border-radius:0.5rem;font-size:0.875rem;outline:none;font-family:inherit;">
+            </div>
+            <div id="forwardTargets" style="overflow-y:auto;flex:1;"></div>
+        </div>
+    </div>
+
     <!-- Notes drawer (psychologist only) -->
     <div id="notesDrawer" style="display:none;position:fixed;top:0;right:0;bottom:0;width:380px;max-width:90vw;background:#fff;box-shadow:-8px 0 30px rgba(0,0,0,0.18);z-index:1100;flex-direction:column;">
         <div style="padding:1rem 1.25rem;background:linear-gradient(135deg,#0EA5E9,#0284C7);color:#fff;display:flex;align-items:center;justify-content:space-between;">
@@ -906,6 +923,10 @@
     <script src="/js/auth.js"></script>
     <script src="/js/header.js"></script>
     <script>
+        const FAVORITES_ID = '__fav__'; // псевдо-собеседник «Избранное» (свой личный диалог)
+        let msgCache = {};   // id сообщения -> {content, attachment_*} — для пересылки
+        let favMessagesCache = [];
+        let pendingForward = null;
         let currentUser = null;
         let healthConsentGranted = true; // клиенты — до подтверждения false
         let selectedUserId = null;
@@ -1115,6 +1136,20 @@
                     method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
                     body: JSON.stringify({ id, is_favorite: isFav })
                 });
+                // При пометке звёздочкой — дублируем заметку в личное «Избранное» психолога,
+                // помечая, из какого диалога клиента она пришла (просьба из задачи #28).
+                if (isFav) {
+                    const viewEl = document.getElementById('noteView-' + id);
+                    const noteText = viewEl ? viewEl.textContent : '';
+                    const clientNameEl = document.getElementById('notesClientName');
+                    const clientName = clientNameEl ? clientNameEl.textContent.replace(/^Избранное.*$/, '') : '';
+                    if (noteText) {
+                        fetch('/api/favorites.php?action=add', {
+                            method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+                            body: JSON.stringify({ content: noteText, source_label: '⭐ Заметка' + (clientName ? ' — из диалога с ' + clientName : '') })
+                        }).catch(() => {});
+                    }
+                }
                 await refreshNotesView();
             } catch (e) {}
         }
@@ -1285,7 +1320,7 @@
                 const container = document.getElementById('conversationsList');
 
                 if (!conversations || conversations.length === 0) {
-                    container.innerHTML = `
+                    container.innerHTML = favoritesRowHtml() + `
                         <div class="no-conversations">
                             <p>У вас пока нет диалогов</p>
                             <p style="font-size: 0.9rem; margin-top: 0.5rem;">Диалоги появятся после записи на консультацию</p>
@@ -1304,17 +1339,30 @@
 
         let allConversations = [];
 
+        // Пункт «⭐ Избранное» — личный диалог с самим собой, всегда закреплён сверху
+        // списка диалогов, доступен в любой роли (задача #28).
+        function favoritesRowHtml() {
+            return `
+                <div class="conversation-item ${selectedUserId === FAVORITES_ID ? 'active' : ''}" onclick="openFavorites()" style="border-bottom:2px solid #F3E8FF;">
+                    <div class="conversation-avatar" style="background:linear-gradient(135deg,#F59E0B,#FBBF24);">⭐</div>
+                    <div class="conversation-info">
+                        <div class="conversation-name">Избранное</div>
+                        <div class="conversation-preview">Заметки себе, файлы, пересланные сообщения</div>
+                    </div>
+                </div>`;
+        }
+
         function renderConversationList(conversations) {
             const container = document.getElementById('conversationsList');
             if (!conversations || conversations.length === 0) {
-                container.innerHTML = `
+                container.innerHTML = favoritesRowHtml() + `
                     <div class="no-conversations">
                         <p>Ничего не найдено</p>
                     </div>
                 `;
                 return;
             }
-            container.innerHTML = conversations.map(c => {
+            container.innerHTML = favoritesRowHtml() + conversations.map(c => {
                 const name = `${c.first_name || ''} ${c.last_name || ''}`.trim() || 'Пользователь';
                 const initial = name.charAt(0).toUpperCase();
                 const isNew = !!c._isNew;
@@ -1388,13 +1436,42 @@
             if (btn) btn.textContent = dark ? '☀️' : '🌙';
         }
 
+        // Личный диалог «Избранное» — доступен в любой роли, пишет сам себе (задача #28).
+        async function openFavorites() {
+            selectedUserId = FAVORITES_ID;
+            headerRenderedFor = FAVORITES_ID;
+
+            document.querySelectorAll('.conversation-item').forEach(el => {
+                el.classList.toggle('active', el.getAttribute('onclick') === 'openFavorites()');
+            });
+
+            document.getElementById('emptyState').style.display = 'none';
+            document.getElementById('chatContent').style.display = 'flex';
+            document.querySelector('.chat-container').classList.add('mobile-chat-open');
+
+            document.getElementById('chatHeader').innerHTML = `
+                <button class="chat-back-btn" onclick="goBackToList()" title="Назад к диалогам">←</button>
+                <div class="avatar" style="background:linear-gradient(135deg,#F59E0B,#FBBF24);">⭐</div>
+                <div style="flex:1;min-width:0;">
+                    <div class="name">Избранное</div>
+                    <div class="role">Заметки для себя</div>
+                </div>
+                <a href="${getDashboardUrl()}" class="session-btn" style="background:#6B7280;text-decoration:none;display:inline-flex;align-items:center;gap:0.3rem;" title="Вернуться в личный кабинет">← В кабинет</a>`;
+            try { if (window.lucide) lucide.createIcons(); } catch (e) {}
+
+            await loadMessages();
+
+            if (pollInterval) clearInterval(pollInterval);
+            pollInterval = setInterval(loadMessages, 5000);
+        }
+
         async function openChat(userId) {
             selectedUserId = userId;
             headerRenderedFor = null; // пересобрать шапку под нового собеседника
 
             // Обновить активный элемент
             document.querySelectorAll('.conversation-item').forEach(el => {
-                el.classList.toggle('active', el.onclick.toString().includes(userId));
+                el.classList.toggle('active', el.onclick && el.onclick.toString().includes(userId));
             });
 
             document.getElementById('emptyState').style.display = 'none';
@@ -1408,8 +1485,146 @@
             pollInterval = setInterval(loadMessages, 5000);
         }
 
+        // ── Заметки для себя (личное «Избранное») ──
+        async function loadFavoritesMessages() {
+            try {
+                const r = await fetch('/api/favorites.php?action=list', { credentials: 'include' });
+                const d = await r.json();
+                const rows = (d && d.data) || [];
+                favMessagesCache = rows;
+                const container = document.getElementById('messagesContainer');
+                const wasScrolledToBottom = container.scrollHeight - container.scrollTop <= container.clientHeight + 50;
+                if (!rows.length) {
+                    container.innerHTML = `<div class="empty-state"><div><p style="color:#9CA3AF;">⭐ Тут будут ваши заметки, файлы и пересланные сообщения — видны только вам</p></div></div>`;
+                } else {
+                    container.innerHTML = rows.map(favMessageBubbleHtml).join('');
+                }
+                if (wasScrolledToBottom) container.scrollTop = container.scrollHeight;
+            } catch (e) { console.error('Load favorites error:', e); }
+        }
+
+        function favMessageBubbleHtml(m) {
+            const time = formatTime(m.created_at);
+            let attachmentHtml = '';
+            if (m.attachment_url) {
+                if (m.attachment_type === 'voice') {
+                    const msgId = 'fav-' + m.id;
+                    attachmentHtml = `
+                        <div class="voice-message" data-audio="${m.attachment_url}" data-id="${msgId}">
+                            <button class="voice-play-btn" onclick="toggleVoicePlay('${msgId}', '${m.attachment_url}')">▶</button>
+                            <div class="voice-waveform" id="waveform-${msgId}">${generateWaveform()}</div>
+                            <div class="voice-info"><span class="voice-duration">${m.attachment_name || '00:00'}</span></div>
+                        </div>`;
+                } else if (m.attachment_type === 'image') {
+                    attachmentHtml = `<div class="message-attachment"><a href="${m.attachment_url}" target="_blank"><img src="${m.attachment_url}" alt="${m.attachment_name || 'Изображение'}"></a></div>`;
+                } else {
+                    attachmentHtml = `<div class="message-attachment"><a href="${m.attachment_url}" target="_blank" download="${m.attachment_name || 'file'}">📄 ${m.attachment_name || 'Скачать файл'}</a></div>`;
+                }
+            }
+            const sourceLine = m.source_label ? `<div style="font-size:0.72rem;font-weight:700;opacity:0.85;margin-bottom:0.25rem;">${escapeHtml(m.source_label)}</div>` : '';
+            const content = m.content ? `<div>${escapeHtml(m.content)}</div>` : '';
+            return `
+                <div class="message mine" data-fav-id="${m.id}">
+                    ${sourceLine}
+                    ${content}
+                    ${attachmentHtml}
+                    <div class="message-time">${time} <span onclick="openForwardMenu(event,'fav','${m.id}')" style="cursor:pointer;opacity:0.75;margin-right:0.35rem;" title="Переслать">↪</span><span onclick="deleteFavorite(${m.id})" style="cursor:pointer;opacity:0.7;" title="Удалить">🗑</span></div>
+                </div>`;
+        }
+
+        async function deleteFavorite(id) {
+            if (!confirm('Удалить из избранного?')) return;
+            try {
+                await fetch('/api/favorites.php?action=delete', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+                    body: JSON.stringify({ id })
+                });
+                await loadFavoritesMessages();
+            } catch (e) {}
+        }
+
+        // ── Пересылка сообщения: в Избранное или другому пользователю (любая роль/чат) ──
+        function openForwardMenu(evt, type, id) {
+            if (evt) evt.stopPropagation();
+            const data = type === 'fav' ? favMessagesCache.find(x => String(x.id) === String(id)) : msgCache[id];
+            if (!data) return;
+            const partnerName = selectedUserId !== FAVORITES_ID
+                ? ((document.querySelector('#chatHeader .name') || {}).textContent || '')
+                : '';
+            pendingForward = {
+                content: data.content, attachment_url: data.attachment_url,
+                attachment_type: data.attachment_type, attachment_name: data.attachment_name,
+                partnerName
+            };
+            document.getElementById('forwardModal').style.display = 'flex';
+            const si = document.getElementById('forwardSearchInput');
+            if (si) si.value = '';
+            renderForwardTargets(allConversations);
+        }
+
+        function closeForwardModal() {
+            document.getElementById('forwardModal').style.display = 'none';
+            pendingForward = null;
+        }
+
+        function renderForwardTargets(list) {
+            const el = document.getElementById('forwardTargets');
+            if (!el) return;
+            const favRow = `<div class="conversation-item" onclick="forwardToFavorites()">
+                <div class="conversation-avatar" style="background:linear-gradient(135deg,#F59E0B,#FBBF24);">⭐</div>
+                <div class="conversation-info"><div class="conversation-name">Избранное</div></div>
+            </div>`;
+            const rows = (list || []).filter(c => !c._isNew).map(c => {
+                const name = `${c.first_name || ''} ${c.last_name || ''}`.trim() || 'Пользователь';
+                return `<div class="conversation-item" onclick="forwardToUser('${c.user_id}')">
+                    <div class="conversation-avatar">${c.avatar ? `<img src="${c.avatar}" alt="${name}">` : name.charAt(0)}</div>
+                    <div class="conversation-info"><div class="conversation-name">${name}</div></div>
+                </div>`;
+            }).join('');
+            el.innerHTML = favRow + rows;
+        }
+
+        function filterForwardTargets() {
+            const q = ((document.getElementById('forwardSearchInput') || {}).value || '').trim().toLowerCase();
+            if (!q) { renderForwardTargets(allConversations); return; }
+            renderForwardTargets(allConversations.filter(c => `${c.first_name || ''} ${c.last_name || ''}`.toLowerCase().includes(q)));
+        }
+
+        async function forwardToFavorites() {
+            if (!pendingForward) return;
+            try {
+                await fetch('/api/favorites.php?action=add', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+                    body: JSON.stringify({
+                        content: pendingForward.content, attachment_url: pendingForward.attachment_url,
+                        attachment_type: pendingForward.attachment_type, attachment_name: pendingForward.attachment_name,
+                        source_label: '↪ Переслано' + (pendingForward.partnerName ? ' из диалога с ' + pendingForward.partnerName : '')
+                    })
+                });
+                closeForwardModal();
+                if (selectedUserId === FAVORITES_ID) await loadFavoritesMessages();
+            } catch (e) { alert('Не удалось переслать в избранное'); }
+        }
+
+        async function forwardToUser(uid) {
+            if (!pendingForward) return;
+            try {
+                await fetch('/api/messages.php?action=send', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+                    body: JSON.stringify({
+                        receiver_id: uid, content: pendingForward.content,
+                        attachment_url: pendingForward.attachment_url, attachment_type: pendingForward.attachment_type,
+                        attachment_name: pendingForward.attachment_name
+                    })
+                });
+                closeForwardModal();
+                if (String(selectedUserId) === String(uid)) await loadMessages();
+            } catch (e) { alert('Не удалось переслать'); }
+        }
+
         async function loadMessages() {
             if (!selectedUserId) return;
+            if (selectedUserId === FAVORITES_ID) { await loadFavoritesMessages(); return; }
 
             try {
                 // Загрузить данные пользователя
@@ -1445,6 +1660,10 @@
                     const isMine = m.sender_id === currentUser.id ||
                         (isAdminMode && (m.sender_id === 'support' || m.sender_first_name === 'Техподдержка'));
                     const time = formatTime(m.created_at);
+                    if (m.id) {
+                        msgCache[m.id] = { content: m.content, attachment_url: m.attachment_url, attachment_type: m.attachment_type, attachment_name: m.attachment_name };
+                    }
+                    const forwardBtn = m.id ? ` <span onclick="openForwardMenu(event,'msg','${m.id}')" style="cursor:pointer;opacity:0.75;margin-left:0.35rem;" title="Переслать">↪</span>` : '';
 
                     // Рендер вложения
                     let attachmentHtml = '';
@@ -1513,7 +1732,7 @@
                             ${callBtn}
                             ${content ? `<div>${content}</div>` : ''}
                             ${attachmentHtml}
-                            <div class="message-time">${time}</div>
+                            <div class="message-time">${time}${forwardBtn}</div>
                         </div>
                     `;
                 }).join('');
@@ -1588,6 +1807,21 @@
             const content = input.value.trim();
 
             if (!content || !selectedUserId) return;
+
+            if (selectedUserId === FAVORITES_ID) {
+                input.value = '';
+                try {
+                    await fetch('/api/favorites.php?action=add', {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+                        body: JSON.stringify({ content })
+                    });
+                    await loadFavoritesMessages();
+                    const container = document.getElementById('messagesContainer');
+                    container.scrollTop = container.scrollHeight;
+                } catch (e) { console.error('Send favorite error:', e); }
+                return;
+            }
+
             if (!requireHealthConsent()) return;
 
             if (detectContactShare(content)) {
@@ -1685,7 +1919,7 @@
                 mediaRecorder.stop();
                 return;
             }
-            if (!requireHealthConsent()) return;
+            if (selectedUserId !== FAVORITES_ID && !requireHealthConsent()) return;
 
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -1790,6 +2024,21 @@
 
                 if (uploadResult.error) {
                     alert(uploadResult.error);
+                    return;
+                }
+
+                if (selectedUserId === FAVORITES_ID) {
+                    await fetch('/api/favorites.php?action=add', {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+                        body: JSON.stringify({
+                            content: `[Голосовое сообщение: ${formatDuration(duration)}]`,
+                            attachment_url: uploadResult.url, attachment_type: 'voice',
+                            attachment_name: `${formatDuration(duration)}`
+                        })
+                    });
+                    await loadFavoritesMessages();
+                    const c = document.getElementById('messagesContainer');
+                    c.scrollTop = c.scrollHeight;
                     return;
                 }
 
@@ -1928,7 +2177,7 @@
         async function handleFileSelect(event) {
             const file = event.target.files[0];
             if (!file) return;
-            if (!requireHealthConsent()) { event.target.value = ''; return; }
+            if (selectedUserId !== FAVORITES_ID && !requireHealthConsent()) { event.target.value = ''; return; }
 
             // Проверка размера (5MB max)
             if (file.size > 5 * 1024 * 1024) {
@@ -1951,6 +2200,22 @@
 
                 if (result.error) {
                     alert(result.error);
+                    return;
+                }
+
+                if (selectedUserId === FAVORITES_ID) {
+                    await fetch('/api/favorites.php?action=add', {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+                        body: JSON.stringify({
+                            content: `[Файл: ${file.name}]`, attachment_url: result.url,
+                            attachment_type: file.type.startsWith('image/') ? 'image' : 'file',
+                            attachment_name: file.name
+                        })
+                    });
+                    await loadFavoritesMessages();
+                    const c = document.getElementById('messagesContainer');
+                    c.scrollTop = c.scrollHeight;
+                    event.target.value = '';
                     return;
                 }
 
