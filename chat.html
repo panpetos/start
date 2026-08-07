@@ -693,7 +693,10 @@
                 <div>
                     <i data-lucide="message-square" style="width: 64px; height: 64px; opacity: 0.3;"></i>
                     <p style="margin-top: 1rem;">Выберите диалог для начала общения</p>
-                    <a href="#" id="emptyStateBackLink" style="display:inline-flex;align-items:center;gap:0.3rem;margin-top:1rem;color:#6B7280;text-decoration:none;font-size:0.875rem;" title="Вернуться в личный кабинет">← В кабинет</a>
+                    <div style="display:flex;gap:0.5rem;justify-content:center;flex-wrap:wrap;margin-top:1rem;">
+                        <a href="#" onclick="goBackToList();return false;" style="display:inline-flex;align-items:center;gap:0.3rem;color:#7C3AED;text-decoration:none;font-size:0.875rem;font-weight:600;" title="К списку чатов">← К списку чатов</a>
+                        <a href="#" id="emptyStateBackLink" style="display:inline-flex;align-items:center;gap:0.3rem;color:#6B7280;text-decoration:none;font-size:0.875rem;" title="Вернуться в личный кабинет">В кабинет →</a>
+                    </div>
                 </div>
             </div>
 
@@ -1414,7 +1417,6 @@
                                     <div class="voice-info">
                                         <span class="voice-duration">${m.attachment_name || '00:00'}</span>
                                     </div>
-                                    <audio id="audio-${msgId}" src="${m.attachment_url}" style="display:none;"></audio>
                                 </div>
                             `;
                         } else if (m.attachment_type === 'image') {
@@ -1763,58 +1765,87 @@
             return bars;
         }
 
-        // Воспроизведение голосового сообщения
-        let currentPlayingAudio = null;
+        // Воспроизведение голосового сообщения через Web Audio API.
+        // Записи MediaRecorder в webm — это поток без корректной duration в заголовке,
+        // из-за чего <audio>.play() у части браузеров обрывает воспроизведение раньше
+        // конца записи (примерно на трети трека). decodeAudioData() декодирует реальные
+        // сэмплы независимо от метаданных контейнера, поэтому проигрывается запись целиком.
+        let voiceCtx = null;
+        let voicePlayers = {}; // msgId -> {buffer, offset, playing, source, startCtxTime, manualStop}
+        let currentPlayingVoiceId = null;
 
-        function toggleVoicePlay(msgId, audioUrl) {
-            const audio = document.getElementById(`audio-${msgId}`);
-            const btn = document.querySelector(`[onclick="toggleVoicePlay('${msgId}', '${audioUrl}')"]`);
+        function getVoiceCtx() {
+            if (!voiceCtx) voiceCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if (voiceCtx.state === 'suspended') voiceCtx.resume();
+            return voiceCtx;
+        }
 
-            if (!audio) return;
+        function stopVoicePlayer(msgId, resetOffset) {
+            const p = voicePlayers[msgId];
+            if (!p || !p.source) return;
+            const ctx = getVoiceCtx();
+            if (!resetOffset) p.offset = ctx.currentTime - p.startCtxTime;
+            else p.offset = 0;
+            p.manualStop = true;
+            try { p.source.stop(); } catch (e) {}
+            p.playing = false;
+            const btn = document.querySelector(`.voice-message[data-id="${msgId}"] .voice-play-btn`);
+            if (btn) btn.textContent = '▶';
+            if (currentPlayingVoiceId === msgId) currentPlayingVoiceId = null;
+        }
 
-            if (currentPlayingAudio && currentPlayingAudio !== audio) {
-                currentPlayingAudio.pause();
-                currentPlayingAudio.currentTime = 0;
-                // Reset previous button
-                document.querySelectorAll('.voice-play-btn').forEach(b => b.textContent = '▶');
-            }
-
-            if (audio.paused) {
-                const startPlayback = () => {
-                    audio.play();
-                    btn.textContent = '⏸';
-                    currentPlayingAudio = audio;
-                };
-
-                // Записи MediaRecorder в webm не содержат duration в заголовке (поток, не файл),
-                // из-за чего Chrome иногда сообщает Infinity/некорректную длительность и
-                // обрывает воспроизведение раньше конца записи. Пересчитываем duration принудительно.
-                if (!isFinite(audio.duration) || audio.duration === 0) {
-                    const fixDuration = () => {
-                        audio.removeEventListener('timeupdate', fixDuration);
-                        audio.currentTime = 0;
-                        startPlayback();
-                    };
-                    audio.addEventListener('timeupdate', fixDuration);
-                    audio.currentTime = 1e101;
-                } else {
-                    startPlayback();
-                }
-
-                audio.onended = () => {
-                    btn.textContent = '▶';
-                    currentPlayingAudio = null;
-                };
-                audio.onerror = () => {
-                    btn.textContent = '▶';
-                    currentPlayingAudio = null;
-                    alert('Не удалось воспроизвести голосовое сообщение');
-                };
-            } else {
-                audio.pause();
+        function startVoicePlayer(msgId, btn) {
+            const ctx = getVoiceCtx();
+            const p = voicePlayers[msgId];
+            const source = ctx.createBufferSource();
+            source.buffer = p.buffer;
+            source.connect(ctx.destination);
+            const offset = (p.offset && p.offset < p.buffer.duration) ? p.offset : 0;
+            source.start(0, offset);
+            p.source = source;
+            p.startCtxTime = ctx.currentTime - offset;
+            p.playing = true;
+            p.manualStop = false;
+            currentPlayingVoiceId = msgId;
+            btn.textContent = '⏸';
+            source.onended = () => {
+                if (p.manualStop) { p.manualStop = false; return; }
+                p.playing = false;
+                p.offset = 0;
                 btn.textContent = '▶';
-                currentPlayingAudio = null;
+                if (currentPlayingVoiceId === msgId) currentPlayingVoiceId = null;
+            };
+        }
+
+        async function toggleVoicePlay(msgId, audioUrl) {
+            const btn = document.querySelector(`.voice-message[data-id="${msgId}"] .voice-play-btn`);
+            if (!btn) return;
+
+            if (currentPlayingVoiceId && currentPlayingVoiceId !== msgId) {
+                stopVoicePlayer(currentPlayingVoiceId, false);
             }
+
+            let p = voicePlayers[msgId];
+            if (p && p.playing) {
+                stopVoicePlayer(msgId, false);
+                return;
+            }
+
+            if (!p) {
+                btn.textContent = '⏳';
+                try {
+                    const resp = await fetch(audioUrl, { credentials: 'include' });
+                    const arrBuf = await resp.arrayBuffer();
+                    const buffer = await getVoiceCtx().decodeAudioData(arrBuf);
+                    p = voicePlayers[msgId] = { buffer, offset: 0, playing: false, source: null };
+                } catch (e) {
+                    console.error('Voice decode error:', e);
+                    btn.textContent = '▶';
+                    alert('Не удалось воспроизвести голосовое сообщение');
+                    return;
+                }
+            }
+            startVoicePlayer(msgId, btn);
         }
 
         // === ЗАГРУЗКА ФАЙЛОВ ===
