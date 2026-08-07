@@ -100,7 +100,7 @@ jobs:
             put api/channels.php -o api/channels.php;
             put api/analytics.php -o api/analytics.php;
             put api/user_card.php -o api/user_card.php;
-            put api/sitemap.php -o api/sitemap.php;
+            put api/site_structure.php -o api/site_structure.php;
             bye;
           "
           echo "Deployment complete"

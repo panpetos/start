@@ -818,7 +818,7 @@
                     </div>
                 </div>`;
             let res;
-            try { res = await (await fetch('/api/sitemap.php?action=get', { credentials:'include' })).json(); }
+            try { res = await (await fetch('/api/site_structure.php?action=get', { credentials:'include' })).json(); }
             catch(e){ return fail(); }
             if (!res || !res.ok) return fail();
             smNodes = (res.data && res.data.nodes) || [];
@@ -952,7 +952,7 @@
 
         async function smSave(){
             try {
-                const r = await fetch('/api/sitemap.php?action=save', {
+                const r = await fetch('/api/site_structure.php?action=save', {
                     method:'POST', headers:{'Content-Type':'application/json'}, credentials:'include',
                     body: JSON.stringify({ nodes: smNodes, edges: smEdges })
                 });
