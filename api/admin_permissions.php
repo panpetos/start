@@ -50,8 +50,8 @@ try {
 } catch (Exception $e) {}
 
 const ADMIN_SECTIONS = ['overview','users','psychologists','appointments','calls','replacements','supervision',
-    'payments','tariffs','robokassa','yookassa','subscribers','referrals','activity','support','devtasks',
-    'notifications','notes','adminperms'];
+    'payments','tariffs','robokassa','yookassa','metrics','subscribers','referrals','activity','support','devtasks',
+    'notifications','notes','adminperms','sitemap'];
 
 function getMySections(PDO $pdo, $uid) {
     try {

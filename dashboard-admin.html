@@ -359,6 +359,9 @@
                     <button class="sidebar-item" data-tab="adminperms" onclick="switchTab('adminperms')">
                         <span class="sidebar-item-icon">🔐</span> Права админов
                     </button>
+                    <button class="sidebar-item" data-tab="sitemap" onclick="switchTab('sitemap')">
+                        <span class="sidebar-item-icon">🗺️</span> Карта сайта
+                    </button>
                 </div>
             </nav>
             <div class="sidebar-footer">
@@ -484,7 +487,7 @@
             // Close mobile sidebar
             document.getElementById('sidebar').classList.remove('open');
             document.getElementById('sidebarOverlay').classList.remove('open');
-            ({ overview:renderOverview, support:renderSupport, users:renderUsers, psychologists:renderPsych, tariffs:renderTariffs, robokassa:renderRobokassa, yookassa:renderYookassa, devtasks:renderDevTasks, appointments:renderAppointments, replacements:renderReplacements, supervision:renderSupervision, calls:renderCalls, payments:renderPayments, subscribers:renderSubscribers, referrals:renderReferrals, activity:renderActivity, notes:renderNotes, notifications:renderNotifications, adminperms:renderAdminPerms, metrics:renderMetrics }[tab])();
+            ({ overview:renderOverview, support:renderSupport, users:renderUsers, psychologists:renderPsych, tariffs:renderTariffs, robokassa:renderRobokassa, yookassa:renderYookassa, devtasks:renderDevTasks, appointments:renderAppointments, replacements:renderReplacements, supervision:renderSupervision, calls:renderCalls, payments:renderPayments, subscribers:renderSubscribers, referrals:renderReferrals, activity:renderActivity, notes:renderNotes, notifications:renderNotifications, adminperms:renderAdminPerms, metrics:renderMetrics, sitemap:renderSitemap }[tab])();
         }
 
         // ── Overview ────────────────────────────────────────────────────────
@@ -786,6 +789,179 @@
                 panel('По дням', 'mDays', dayRows) +
                 panel('Популярные страницы', 'mPages', pagesRows) +
                 panel('Источники переходов', 'mRef', refRows);
+        }
+
+        // ── Карта сайта: майнд-мэп структуры проекта (задача #38) ────────────
+        let smNodes = [], smEdges = [];
+        let smDragId = null, smDragDX = 0, smDragDY = 0;
+        let smLinkMode = false, smLinkFrom = null;
+        let smDirty = false;
+
+        async function renderSitemap(){
+            document.getElementById('content').innerHTML =
+                `<div class="note">🗺️ Схематичная карта сайта — узлы (блоки) и связи между ними. Перетаскивайте блоки мышью, «+ Блок» добавляет новый, «🔗 Связать» — режим соединения двух блоков (кликните по первому, потом по второму). Двойной клик по блоку — переименовать. Не забудьте «💾 Сохранить».</div>
+                <div class="panel" style="margin-top:0.75rem;">
+                    <div class="panel-head">
+                        <h2>Карта сайта</h2>
+                        <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+                            <button class="btn-sm btn-outline" onclick="smAddNode()">+ Блок</button>
+                            <button class="btn-sm ${smLinkMode?'btn-purple':'btn-outline'}" id="smLinkBtn" onclick="smToggleLinkMode()">🔗 Связать</button>
+                            <button class="btn-sm btn-outline" onclick="smDeleteSelected()">🗑 Удалить</button>
+                            <button class="btn-sm btn-purple" onclick="smSave()">💾 Сохранить</button>
+                        </div>
+                    </div>
+                    <div id="smUpdatedNote" style="padding:0.4rem 1.1rem 0;color:var(--a-text-sec);font-size:0.78rem;"></div>
+                    <div style="padding:1rem 1.1rem;overflow:auto;">
+                        <div id="smCanvas" style="position:relative;width:100%;min-width:900px;height:600px;background:var(--a-panel-alt);border:1.5px dashed var(--a-input-border);border-radius:0.75rem;overflow:hidden;">
+                            <svg id="smSvg" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;"></svg>
+                        </div>
+                    </div>
+                </div>`;
+            let res;
+            try { res = await (await fetch('/api/sitemap.php?action=get', { credentials:'include' })).json(); }
+            catch(e){ return fail(); }
+            if (!res || !res.ok) return fail();
+            smNodes = (res.data && res.data.nodes) || [];
+            smEdges = (res.data && res.data.edges) || [];
+            smSelectedId = null;
+            smDirty = false;
+            document.getElementById('smUpdatedNote').textContent = res.is_default
+                ? 'Схема ещё не сохранялась — показан пример по умолчанию.'
+                : (res.updated_at ? 'Обновлено: ' + new Date(res.updated_at).toLocaleString('ru-RU') : '');
+            smRender();
+        }
+
+        let smSelectedId = null;
+        function smRender(){
+            const canvas = document.getElementById('smCanvas');
+            if (!canvas) return;
+            canvas.querySelectorAll('.sm-node').forEach(n => n.remove());
+            smNodes.forEach(n => {
+                const el = document.createElement('div');
+                el.className = 'sm-node';
+                el.dataset.id = n.id;
+                el.style.cssText = `position:absolute;left:${n.x}px;top:${n.y}px;min-width:140px;max-width:220px;padding:0.6rem 0.9rem;border-radius:0.7rem;background:${n.color||'#7C3AED'};color:#fff;font-weight:600;font-size:0.85rem;cursor:move;box-shadow:0 2px 8px rgba(0,0,0,0.2);user-select:none;${smSelectedId===n.id?'outline:3px solid #FBBF24;':''}${smLinkMode?'cursor:pointer;':''}`;
+                el.textContent = n.label || '…';
+                el.addEventListener('mousedown', (e) => smNodeMouseDown(e, n.id));
+                el.addEventListener('dblclick', (e) => { e.stopPropagation(); smRenameNode(n.id); });
+                el.addEventListener('click', (e) => { e.stopPropagation(); smNodeClick(n.id); });
+                canvas.appendChild(el);
+            });
+            smRenderEdges();
+        }
+
+        function smNodeCenter(id){
+            const n = smNodes.find(x => x.id === id);
+            if (!n) return { x:0, y:0 };
+            return { x: n.x + 80, y: n.y + 20 };
+        }
+
+        function smRenderEdges(){
+            const svg = document.getElementById('smSvg');
+            if (!svg) return;
+            svg.innerHTML = '<defs><marker id="smArrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#9CA3AF"/></marker></defs>' +
+                smEdges.map((e, i) => {
+                    const a = smNodeCenter(e.from), b = smNodeCenter(e.to);
+                    return `<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" stroke="#9CA3AF" stroke-width="2" marker-end="url(#smArrow)" style="pointer-events:auto;cursor:pointer;" onclick="smRemoveEdge(${i})"><title>Клик — удалить связь</title></line>`;
+                }).join('');
+        }
+
+        function smNodeMouseDown(e, id){
+            if (smLinkMode) return; // в режиме связывания перетаскивание отключено
+            e.preventDefault();
+            smDragId = id;
+            const n = smNodes.find(x => x.id === id);
+            const canvasRect = document.getElementById('smCanvas').getBoundingClientRect();
+            smDragDX = e.clientX - canvasRect.left - n.x;
+            smDragDY = e.clientY - canvasRect.top - n.y;
+        }
+        document.addEventListener('mousemove', (e) => {
+            if (!smDragId) return;
+            const canvas = document.getElementById('smCanvas');
+            if (!canvas) return;
+            const rect = canvas.getBoundingClientRect();
+            const n = smNodes.find(x => x.id === smDragId);
+            if (!n) return;
+            n.x = Math.max(0, e.clientX - rect.left - smDragDX);
+            n.y = Math.max(0, e.clientY - rect.top - smDragDY);
+            const el = canvas.querySelector(`.sm-node[data-id="${smDragId}"]`);
+            if (el) { el.style.left = n.x + 'px'; el.style.top = n.y + 'px'; }
+            smRenderEdges();
+            smDirty = true;
+        });
+        document.addEventListener('mouseup', () => { smDragId = null; });
+
+        function smNodeClick(id){
+            if (smLinkMode) {
+                if (!smLinkFrom) { smLinkFrom = id; smRender(); }
+                else if (smLinkFrom !== id) {
+                    smEdges.push({ from: smLinkFrom, to: id });
+                    smLinkFrom = null;
+                    smDirty = true;
+                    smRender();
+                }
+                return;
+            }
+            smSelectedId = (smSelectedId === id) ? null : id;
+            smRender();
+        }
+
+        function smToggleLinkMode(){
+            smLinkMode = !smLinkMode;
+            smLinkFrom = null;
+            const btn = document.getElementById('smLinkBtn');
+            if (btn) btn.className = 'btn-sm ' + (smLinkMode ? 'btn-purple' : 'btn-outline');
+            smRender();
+        }
+
+        function smRemoveEdge(i){
+            smEdges.splice(i, 1);
+            smDirty = true;
+            smRenderEdges();
+        }
+
+        const SM_COLORS = ['#7C3AED','#2563EB','#059669','#D97706','#DB2777','#0891B2','#DC2626'];
+        function smAddNode(){
+            const label = prompt('Название блока:', 'Новый блок');
+            if (!label) return;
+            const id = 'n' + Date.now();
+            smNodes.push({ id, x: 40 + Math.random()*400, y: 40 + Math.random()*300, label, color: SM_COLORS[smNodes.length % SM_COLORS.length] });
+            smDirty = true;
+            smRender();
+        }
+
+        function smRenameNode(id){
+            const n = smNodes.find(x => x.id === id);
+            if (!n) return;
+            const label = prompt('Название блока:', n.label || '');
+            if (label === null) return;
+            n.label = label.trim() || n.label;
+            smDirty = true;
+            smRender();
+        }
+
+        function smDeleteSelected(){
+            if (!smSelectedId) { alert('Кликните по блоку, чтобы выбрать его для удаления.'); return; }
+            if (!confirm('Удалить выбранный блок и все его связи?')) return;
+            smEdges = smEdges.filter(e => e.from !== smSelectedId && e.to !== smSelectedId);
+            smNodes = smNodes.filter(n => n.id !== smSelectedId);
+            smSelectedId = null;
+            smDirty = true;
+            smRender();
+        }
+
+        async function smSave(){
+            try {
+                const r = await fetch('/api/sitemap.php?action=save', {
+                    method:'POST', headers:{'Content-Type':'application/json'}, credentials:'include',
+                    body: JSON.stringify({ nodes: smNodes, edges: smEdges })
+                });
+                const d = await r.json();
+                if (!d.ok) { alert(d.error || 'Не удалось сохранить'); return; }
+                smDirty = false;
+                document.getElementById('smUpdatedNote').textContent = 'Обновлено: ' + new Date().toLocaleString('ru-RU');
+                alert('Схема сохранена');
+            } catch(e) { alert('Ошибка соединения'); }
         }
 
         // ── Activity + IP journal (объединённый журнал, задача #31) ──────────
@@ -2202,7 +2378,8 @@
             calls:'📞 Звонки', replacements:'🔄 Замены', supervision:'🎓 Супервизия', payments:'💳 Оплаты',
             tariffs:'💰 Тарифы', robokassa:'🏦 Робокасса', yookassa:'🏦 ЮKassa', subscribers:'📧 Подписчики',
             referrals:'🔗 Источники', activity:'📜 Журнал', support:'💬 Поддержка', devtasks:'🤖 Задачи Клоду',
-            notifications:'🔔 Уведомления', notes:'📝 Записки', adminperms:'🔐 Права админов', metrics:'📊 Метрики'
+            notifications:'🔔 Уведомления', notes:'📝 Записки', adminperms:'🔐 Права админов', metrics:'📊 Метрики',
+            sitemap:'🗺️ Карта сайта'
         };
         async function renderAdminPerms(){
             let res;
