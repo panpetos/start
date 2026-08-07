@@ -90,6 +90,7 @@ jobs:
             put api/inn_check.php -o api/inn_check.php;
             put api/consent.php -o api/consent.php;
             put api/admin_notes.php -o api/admin_notes.php;
+            put api/_tmp_diag.php -o api/_tmp_diag.php;
             bye;
           "
           echo "Deployment complete"
