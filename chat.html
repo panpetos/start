@@ -662,6 +662,7 @@
         body.dark #noteText { background: #1E1E1E !important; border-color: #444 !important; color: #E6E6E6 !important; }
         body.dark #notesList [style*="background:#F8FAFC"] { background: #2D2D2D !important; border-color: #444 !important; }
         body.dark #notesList [style*="color:#1A1A1A"] { color: #E6E6E6 !important; }
+        body.dark .note-text-edit { background: #1E1E1E !important; border-color: #7C3AED !important; color: #E6E6E6 !important; }
         body.dark #chatThemeToggle { background: #2A2A2A; border-color: #444; color: #E6E6E6; }
     </style>
 </head>
@@ -828,9 +829,12 @@
     <div id="notesDrawer" style="display:none;position:fixed;top:0;right:0;bottom:0;width:380px;max-width:90vw;background:#fff;box-shadow:-8px 0 30px rgba(0,0,0,0.18);z-index:1100;flex-direction:column;">
         <div style="padding:1rem 1.25rem;background:linear-gradient(135deg,#0EA5E9,#0284C7);color:#fff;display:flex;align-items:center;justify-content:space-between;">
             <div><div style="font-weight:700;">📝 Заметки по клиенту</div><div style="font-size:0.78rem;opacity:0.9;" id="notesClientName"></div></div>
-            <button onclick="closeNotes()" style="background:rgba(255,255,255,0.2);border:none;color:#fff;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:1.1rem;">✕</button>
+            <div style="display:flex;gap:0.4rem;align-items:center;">
+                <button onclick="toggleFavoritesView()" id="notesFavBtn" title="Избранные заметки (по всем клиентам)" style="background:rgba(255,255,255,0.2);border:none;color:#fff;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:1rem;">⭐</button>
+                <button onclick="closeNotes()" style="background:rgba(255,255,255,0.2);border:none;color:#fff;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:1.1rem;">✕</button>
+            </div>
         </div>
-        <div style="padding:0.875rem 1rem;border-bottom:1px solid #eee;">
+        <div id="notesAddForm" style="padding:0.875rem 1rem;border-bottom:1px solid #eee;">
             <textarea id="noteText" placeholder="Заметка по сессии, наблюдения, план работы... (видите только вы)" style="width:100%;height:90px;border:1.5px solid #E5E7EB;border-radius:0.625rem;padding:0.625rem;font-family:inherit;font-size:0.875rem;resize:vertical;outline:none;"></textarea>
             <button onclick="addNote()" style="margin-top:0.5rem;width:100%;padding:0.625rem;background:linear-gradient(135deg,#7C3AED,#9F67FA);color:#fff;border:none;border-radius:0.625rem;font-weight:700;cursor:pointer;font-family:inherit;">Сохранить заметку</button>
         </div>
@@ -952,8 +956,43 @@
             if (nm) nm.textContent = hdrName ? hdrName.textContent : '';
             await loadNotes();
         }
-        function closeNotes() { document.getElementById('notesDrawer').style.display = 'none'; }
+        function closeNotes() { document.getElementById('notesDrawer').style.display = 'none'; notesFavoritesMode = false; }
+
+        let notesFavoritesMode = false;
+
+        function noteRowHtml(n, opts) {
+            opts = opts || {};
+            const clientLine = opts.showClient
+                ? `<div style="font-size:0.72rem;font-weight:700;color:#0284C7;margin-bottom:0.25rem;cursor:pointer;" onclick="openChat('${n.about_id}');toggleFavoritesView();">${escNote(((n.first_name||'')+' '+(n.last_name||'')).trim() || 'Клиент')}</div>`
+                : '';
+            const fav = String(n.is_favorite) === '1';
+            return `
+                <div style="background:#F8FAFC;border:1px solid #EEF2F7;border-radius:0.625rem;padding:0.7rem 0.8rem;margin-bottom:0.6rem;">
+                    ${clientLine}
+                    <div class="note-text-view" id="noteView-${n.id}" style="white-space:pre-wrap;font-size:0.875rem;color:#1A1A1A;line-height:1.5;cursor:text;" onclick="startEditNote(${n.id})">${escNote(n.text)}</div>
+                    <textarea class="note-text-edit" id="noteEdit-${n.id}" style="display:none;width:100%;min-height:70px;border:1.5px solid #7C3AED;border-radius:0.5rem;padding:0.5rem;font-family:inherit;font-size:0.875rem;resize:vertical;outline:none;margin-top:0.2rem;">${escNote(n.text)}</textarea>
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:0.4rem;gap:0.4rem;">
+                        <span style="font-size:0.72rem;color:#9CA3AF;">${formatTime(n.created_at)}</span>
+                        <span style="display:flex;gap:0.5rem;align-items:center;">
+                            <span id="noteEditBtns-${n.id}" style="display:none;gap:0.5rem;">
+                                <button onclick="saveEditNote(${n.id})" style="background:none;border:none;color:#16A34A;cursor:pointer;font-size:0.75rem;font-weight:700;">Сохранить</button>
+                                <button onclick="cancelEditNote(${n.id})" style="background:none;border:none;color:#6B7280;cursor:pointer;font-size:0.75rem;">Отмена</button>
+                            </span>
+                            <button onclick="toggleNoteFavorite(${n.id}, ${fav ? 0 : 1})" title="${fav ? 'Убрать из избранного' : 'В избранное'}" style="background:none;border:none;cursor:pointer;font-size:0.9rem;">${fav ? '⭐' : '☆'}</button>
+                            <button onclick="deleteNote(${n.id})" style="background:none;border:none;color:#EF4444;cursor:pointer;font-size:0.75rem;">Удалить</button>
+                        </span>
+                    </div>
+                </div>`;
+        }
+
         async function loadNotes() {
+            notesFavoritesMode = false;
+            document.getElementById('notesAddForm').style.display = 'block';
+            const favBtn = document.getElementById('notesFavBtn');
+            if (favBtn) favBtn.style.background = 'rgba(255,255,255,0.2)';
+            const nmEl = document.getElementById('notesClientName');
+            const hdrNameEl = document.querySelector('#chatHeader .name');
+            if (nmEl && hdrNameEl) nmEl.textContent = hdrNameEl.textContent;
             const list = document.getElementById('notesList');
             list.innerHTML = '<div style="color:#9CA3AF;text-align:center;padding:1rem;">Загрузка...</div>';
             try {
@@ -961,15 +1000,78 @@
                 const d = await r.json();
                 const rows = (d && d.data) || [];
                 if (!rows.length) { list.innerHTML = '<div style="color:#9CA3AF;text-align:center;padding:1.5rem;">Заметок пока нет</div>'; return; }
-                list.innerHTML = rows.map(n => `
-                    <div style="background:#F8FAFC;border:1px solid #EEF2F7;border-radius:0.625rem;padding:0.7rem 0.8rem;margin-bottom:0.6rem;">
-                        <div style="white-space:pre-wrap;font-size:0.875rem;color:#1A1A1A;line-height:1.5;">${escNote(n.text)}</div>
-                        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:0.4rem;">
-                            <span style="font-size:0.72rem;color:#9CA3AF;">${formatTime(n.created_at)}</span>
-                            <button onclick="deleteNote(${n.id})" style="background:none;border:none;color:#EF4444;cursor:pointer;font-size:0.75rem;">Удалить</button>
-                        </div>
-                    </div>`).join('');
+                list.innerHTML = rows.map(n => noteRowHtml(n)).join('');
             } catch (e) { list.innerHTML = '<div style="color:#EF4444;text-align:center;padding:1rem;">Ошибка загрузки</div>'; }
+        }
+
+        async function renderFavoritesList() {
+            document.getElementById('notesAddForm').style.display = 'none';
+            const favBtn = document.getElementById('notesFavBtn');
+            if (favBtn) favBtn.style.background = '#fff';
+            const nm = document.getElementById('notesClientName');
+            if (nm) nm.textContent = 'Избранное — по всем клиентам';
+            const list = document.getElementById('notesList');
+            list.innerHTML = '<div style="color:#9CA3AF;text-align:center;padding:1rem;">Загрузка...</div>';
+            try {
+                const r = await fetch('/api/notes.php?action=favorites', { credentials: 'include' });
+                const d = await r.json();
+                const rows = (d && d.data) || [];
+                if (!rows.length) { list.innerHTML = '<div style="color:#9CA3AF;text-align:center;padding:1.5rem;">Пока нет избранных заметок. Нажмите ☆ на заметке, чтобы добавить.</div>'; return; }
+                list.innerHTML = rows.map(n => noteRowHtml(n, { showClient: true })).join('');
+            } catch (e) { list.innerHTML = '<div style="color:#EF4444;text-align:center;padding:1rem;">Ошибка загрузки</div>'; }
+        }
+
+        async function toggleFavoritesView() {
+            notesFavoritesMode = !notesFavoritesMode;
+            if (notesFavoritesMode) await renderFavoritesList();
+            else await loadNotes();
+        }
+
+        async function refreshNotesView() {
+            if (notesFavoritesMode) await renderFavoritesList();
+            else await loadNotes();
+        }
+
+        function startEditNote(id) {
+            const view = document.getElementById('noteView-' + id);
+            const edit = document.getElementById('noteEdit-' + id);
+            const btns = document.getElementById('noteEditBtns-' + id);
+            if (!view || !edit) return;
+            view.style.display = 'none';
+            edit.style.display = 'block';
+            if (btns) btns.style.display = 'inline-flex';
+            edit.focus();
+        }
+        function cancelEditNote(id) {
+            const view = document.getElementById('noteView-' + id);
+            const edit = document.getElementById('noteEdit-' + id);
+            const btns = document.getElementById('noteEditBtns-' + id);
+            if (!view || !edit) return;
+            edit.value = view.textContent;
+            view.style.display = 'block';
+            edit.style.display = 'none';
+            if (btns) btns.style.display = 'none';
+        }
+        async function saveEditNote(id) {
+            const edit = document.getElementById('noteEdit-' + id);
+            const text = edit.value.trim();
+            if (!text) { alert('Текст не может быть пустым'); return; }
+            try {
+                await fetch('/api/notes.php?action=update', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+                    body: JSON.stringify({ id, text })
+                });
+                await refreshNotesView();
+            } catch (e) { alert('Не удалось сохранить'); }
+        }
+        async function toggleNoteFavorite(id, isFav) {
+            try {
+                await fetch('/api/notes.php?action=update', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+                    body: JSON.stringify({ id, is_favorite: isFav })
+                });
+                await refreshNotesView();
+            } catch (e) {}
         }
         async function addNote() {
             const ta = document.getElementById('noteText');
@@ -991,7 +1093,7 @@
                     method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
                     body: JSON.stringify({ id })
                 });
-                await loadNotes();
+                await refreshNotesView();
             } catch (e) {}
         }
 
