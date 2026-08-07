@@ -669,7 +669,7 @@
     <div class="chat-container" style="height:100vh;">
         <div class="conversations-list">
             <div style="padding:0.75rem;border-bottom:1px solid #e0e0e0;flex-shrink:0;">
-                <input id="chatSearchInput" type="text" placeholder="🔍 Поиск по имени или телефону..." style="width:100%;padding:0.5rem 0.75rem;border:1.5px solid #e0e0e0;border-radius:0.5rem;font-family:inherit;font-size:0.875rem;outline:none;background:#f9fafb;" oninput="filterConversations()">
+                <input id="chatSearchInput" type="text" placeholder="🔍 Поиск по всем пользователям..." style="width:100%;padding:0.5rem 0.75rem;border:1.5px solid #e0e0e0;border-radius:0.5rem;font-family:inherit;font-size:0.875rem;outline:none;background:#f9fafb;" oninput="filterConversations()">
             </div>
             <div id="conversationsList" style="overflow-y:auto;flex:1;">
                 <div class="no-conversations">Загрузка...</div>
@@ -681,6 +681,7 @@
                 <div>
                     <i data-lucide="message-square" style="width: 64px; height: 64px; opacity: 0.3;"></i>
                     <p style="margin-top: 1rem;">Выберите диалог для начала общения</p>
+                    <a href="#" id="emptyStateBackLink" style="display:inline-flex;align-items:center;gap:0.3rem;margin-top:1rem;color:#6B7280;text-decoration:none;font-size:0.875rem;" title="Вернуться в личный кабинет">← В кабинет</a>
                 </div>
             </div>
 
@@ -1066,6 +1067,9 @@
                 } catch (e) { healthConsentGranted = false; }
             }
 
+            const backLink = document.getElementById('emptyStateBackLink');
+            if (backLink) backLink.href = getDashboardUrl();
+
             await loadConversations();
 
             // Автоматически открыть чат если есть user в URL
@@ -1153,38 +1157,63 @@
             container.innerHTML = conversations.map(c => {
                 const name = `${c.first_name || ''} ${c.last_name || ''}`.trim() || 'Пользователь';
                 const initial = name.charAt(0).toUpperCase();
+                const isNew = !!c._isNew;
                 const lastMsg = (c.last_message || '').replace(/^\[ORDER#\d+\]\s*/, '');
-                const preview = c.is_mine ? `Вы: ${lastMsg}` : lastMsg;
-                const time = formatTime(c.last_message_time);
+                const preview = isNew
+                    ? `<span style="color:#7C3AED;">${c.role === 'psychologist' ? 'Психолог' : 'Клиент'} · начать переписку</span>`
+                    : (c.is_mine ? `Вы: ${lastMsg}` : lastMsg);
+                const time = isNew ? '' : formatTime(c.last_message_time);
+                const clickHandler = isNew ? `startNewChat('${c.id}')` : `openChat('${c.user_id}')`;
+                const activeId = isNew ? c.id : c.user_id;
                 return `
-                    <div class="conversation-item ${c.user_id === selectedUserId ? 'active' : ''}"
-                         onclick="openChat('${c.user_id}')">
+                    <div class="conversation-item ${activeId === selectedUserId ? 'active' : ''}"
+                         onclick="${clickHandler}">
                         <div class="conversation-avatar">
                             ${c.avatar ? `<img src="${c.avatar}" alt="${name}">` : initial}
                         </div>
                         <div class="conversation-info">
                             <div class="conversation-name">${name}</div>
-                            <div class="conversation-preview">${preview.substring(0, 40)}${preview.length > 40 ? '...' : ''}</div>
+                            <div class="conversation-preview">${isNew ? preview : (preview.substring(0, 40) + (preview.length > 40 ? '...' : ''))}</div>
                         </div>
                         <div class="conversation-meta">
                             <div class="conversation-time">${time}</div>
-                            ${c.unread_count > 0 ? `<span class="unread-badge">${c.unread_count}</span>` : ''}
+                            ${!isNew && c.unread_count > 0 ? `<span class="unread-badge">${c.unread_count}</span>` : ''}
                         </div>
                     </div>
                 `;
             }).join('');
         }
 
-        function filterConversations() {
+        let userSearchDebounce = null;
+
+        async function filterConversations() {
             const q = (document.getElementById('chatSearchInput').value || '').trim().toLowerCase();
             if (!q) { renderConversationList(allConversations); return; }
-            const filtered = allConversations.filter(c => {
+            const localFiltered = allConversations.filter(c => {
                 const name = `${c.first_name || ''} ${c.last_name || ''}`.trim().toLowerCase();
                 const phone = (c.phone || '').toLowerCase();
                 const email = (c.email || '').toLowerCase();
                 return name.includes(q) || phone.includes(q) || email.includes(q);
             });
-            renderConversationList(filtered);
+            renderConversationList(localFiltered);
+
+            if (q.length < 2) return;
+
+            clearTimeout(userSearchDebounce);
+            userSearchDebounce = setTimeout(async () => {
+                const currentQ = (document.getElementById('chatSearchInput').value || '').trim().toLowerCase();
+                if (currentQ !== q) return; // запрос устарел, пользователь печатает дальше
+                try {
+                    const res = await fetch(`/api/user_search.php?action=search&q=${encodeURIComponent(q)}`, { credentials: 'include' });
+                    const result = await res.json();
+                    const found = (result && result.data) || [];
+                    const existingIds = new Set(localFiltered.map(c => String(c.user_id)));
+                    const extra = found
+                        .filter(u => !existingIds.has(String(u.id)))
+                        .map(u => Object.assign({}, u, { _isNew: true }));
+                    renderConversationList(localFiltered.concat(extra));
+                } catch (e) { /* поиск по базе недоступен — остаёмся с локальным результатом */ }
+            }, 300);
         }
 
         function goBackToList() {
@@ -1461,11 +1490,13 @@
 
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                mediaRecorder = new MediaRecorder(stream);
+                const mimeCandidates = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg;codecs=opus'];
+                const supportedMime = mimeCandidates.find(m => window.MediaRecorder && MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(m));
+                mediaRecorder = supportedMime ? new MediaRecorder(stream, { mimeType: supportedMime }) : new MediaRecorder(stream);
                 audioChunks = [];
 
                 mediaRecorder.ondataavailable = (e) => {
-                    audioChunks.push(e.data);
+                    if (e.data && e.data.size > 0) audioChunks.push(e.data);
                 };
 
                 mediaRecorder.onstop = () => {
@@ -1473,7 +1504,8 @@
                     clearInterval(recordingTimer);
                 };
 
-                mediaRecorder.start();
+                // Периодические чанки (каждые 500мс), чтобы не терять данные при долгой записи
+                mediaRecorder.start(500);
                 recordingStartTime = Date.now();
 
                 // Показать UI записи
@@ -1535,14 +1567,18 @@
                 return;
             }
 
-            const audioBlob = new Blob(audioChunks, { type: 'audio/webm;codecs=opus' });
+            // Используем реальный mimeType рекордера, а не захардкоженный - иначе браузер
+            // может неверно распознать контейнер и оборвать воспроизведение раньше конца записи
+            const recordedMime = (mediaRecorder && mediaRecorder.mimeType) || 'audio/webm';
+            const audioBlob = new Blob(audioChunks, { type: recordedMime });
             const duration = Math.floor((Date.now() - recordingStartTime) / 1000);
+            const ext = recordedMime.includes('mp4') ? 'm4a' : (recordedMime.includes('ogg') ? 'ogg' : 'webm');
 
             hideVoiceRecording();
 
             // Загрузить аудио файл
             const formData = new FormData();
-            formData.append('file', audioBlob, `voice_${Date.now()}.webm`);
+            formData.append('file', audioBlob, `voice_${Date.now()}.${ext}`);
 
             try {
                 const uploadResponse = await fetch('/api/upload.php', {
@@ -1621,13 +1657,35 @@
             }
 
             if (audio.paused) {
-                audio.play();
-                btn.textContent = '⏸';
-                currentPlayingAudio = audio;
+                const startPlayback = () => {
+                    audio.play();
+                    btn.textContent = '⏸';
+                    currentPlayingAudio = audio;
+                };
+
+                // Записи MediaRecorder в webm не содержат duration в заголовке (поток, не файл),
+                // из-за чего Chrome иногда сообщает Infinity/некорректную длительность и
+                // обрывает воспроизведение раньше конца записи. Пересчитываем duration принудительно.
+                if (!isFinite(audio.duration) || audio.duration === 0) {
+                    const fixDuration = () => {
+                        audio.removeEventListener('timeupdate', fixDuration);
+                        audio.currentTime = 0;
+                        startPlayback();
+                    };
+                    audio.addEventListener('timeupdate', fixDuration);
+                    audio.currentTime = 1e101;
+                } else {
+                    startPlayback();
+                }
 
                 audio.onended = () => {
                     btn.textContent = '▶';
                     currentPlayingAudio = null;
+                };
+                audio.onerror = () => {
+                    btn.textContent = '▶';
+                    currentPlayingAudio = null;
+                    alert('Не удалось воспроизвести голосовое сообщение');
                 };
             } else {
                 audio.pause();
