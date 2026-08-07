@@ -1642,15 +1642,35 @@
         // ── Уведомления: каналы + шаблоны сообщений ──────────────────────────
         const NOTIF_API = '/api/notifications.php';
         function nid(field, code){ return 'nt_'+field+'_'+code.replace(/[^a-z0-9]/gi,'_'); }
+        let notifLinksCache = [];
         async function renderNotifications(){
-            let tpl = {}, ch = {};
+            let tpl = {}, ch = {}, links = {};
             try { tpl = await (await fetch(NOTIF_API + '?action=templates', { credentials:'include' })).json(); } catch(e){}
             try { ch = await (await fetch(NOTIF_API + '?action=channels-status', { credentials:'include' })).json(); } catch(e){}
+            try { links = await (await fetch(NOTIF_API + '?action=my-links', { credentials:'include' })).json(); } catch(e){}
             if (!tpl.ok) { document.getElementById('content').innerHTML = '<div class="empty">Не удалось загрузить (нужны права администратора)</div>'; return; }
             const c = (ch && ch.data) || {};
             const list = tpl.data || [];
             const ph = tpl.placeholders || [];
+            notifLinksCache = (links && links.data) || [];
             const yn = (v) => v ? '<span class="badge b-green">подключён</span>' : '<span class="badge b-gray">не подключён</span>';
+            const linkOf = (channel) => notifLinksCache.find(l => l.channel === channel);
+            const testBotBlock = (channel, configured) => {
+                if (!configured) return '<div class="muted" style="font-size:0.8rem;margin-top:0.5rem;">Сохраните токен, чтобы протестировать бота.</div>';
+                const link = linkOf(channel);
+                return `<div style="margin-top:0.6rem;padding:0.7rem 0.85rem;background:var(--a-sidebar-active-bg,#F8F7FF);border-radius:0.6rem;">
+                    <div style="font-size:0.8rem;font-weight:600;margin-bottom:0.4rem;">🧪 Тест отправки</div>
+                    ${link
+                        ? `<div style="font-size:0.82rem;margin-bottom:0.5rem;">✅ Привязан чат: <code>${esc(link.chat_id)}</code>${link.label ? ' — ' + esc(link.label) : ''}
+                             <span onclick="notifUnlink('${channel}')" style="cursor:pointer;color:#DC2626;margin-left:0.4rem;" title="Отвязать">✕</span></div>
+                           <button class="btn-sm btn-purple" onclick="notifTestSend('${channel}')">📨 Отправить тестовое себе</button>`
+                        : `<div class="muted" style="font-size:0.78rem;margin-bottom:0.5rem;">Напишите боту «/start» в ${channel === 'telegram' ? 'Telegram' : 'MAX'}, затем нажмите — найдём ваш чат по недавним сообщениям.</div>
+                           <button class="btn-sm btn-outline" onclick="notifFindChats('${channel}')">🔍 Найти мои чаты</button>`
+                    }
+                    <div id="notifChats_${channel}" style="margin-top:0.5rem;"></div>
+                    <div id="notifMsg_${channel}" style="font-size:0.8rem;margin-top:0.4rem;"></div>
+                </div>`;
+            };
 
             // — Каналы —
             const smtp = (c.email_method === 'smtp');
@@ -1661,10 +1681,12 @@
                 <div>
                   <div style="font-weight:600;margin-bottom:0.4rem;">✈️ Telegram-бот ${yn(c.telegram_configured)}</div>
                   <input id="ntlg" type="password" placeholder="${c.telegram_configured?'•••• (задан, введите новый чтобы заменить)':'токен бота от @BotFather'}" style="width:100%;padding:0.55rem 0.75rem;border:1.5px solid #E5E7EB;border-radius:0.6rem;font-family:monospace;">
+                  ${testBotBlock('telegram', c.telegram_configured)}
                 </div>
                 <div>
                   <div style="font-weight:600;margin-bottom:0.4rem;">Ⓜ️ MAX-бот ${yn(c.max_configured)}</div>
                   <input id="nmax" type="password" placeholder="${c.max_configured?'•••• (задан, введите новый чтобы заменить)':'токен бота MAX'}" style="width:100%;padding:0.55rem 0.75rem;border:1.5px solid #E5E7EB;border-radius:0.6rem;font-family:monospace;">
+                  ${testBotBlock('max', c.max_configured)}
                 </div>
                 <div>
                   <div style="font-weight:600;margin-bottom:0.4rem;">✉️ Email</div>
@@ -1730,7 +1752,7 @@
             }
 
             document.getElementById('content').innerHTML =
-                '<div class="note">🔔 Здесь вы настраиваете каналы доставки и редактируете тексты всех уведомлений. Сама рассылка подключается следующим этапом. Маркетинговые рассылки пока не включены.</div>'
+                '<div class="note">🔔 Здесь вы настраиваете каналы доставки и редактируете тексты всех уведомлений. Реальная отправка в Telegram/MAX уже работает для события «Новое обращение в поддержку» — привяжите свой чат кнопкой «🧪 Тест отправки» ниже, чтобы получать эти уведомления. Остальные события (записи, оплаты и т.д.) пока не отправляют — под них нужно решить, писать ли всем админам или конкретным людям, заведите отдельной задачей какие именно события нужны в первую очередь. Email и push пока не подключены. Маркетинговые рассылки не включены.</div>'
                 + channels + phBox
                 + '<h2 style="margin:1.2rem 0 0.3rem;">✍️ Шаблоны сообщений</h2>'
                 + '<div class="muted" style="font-size:0.83rem;margin-bottom:0.5rem;">Тексты можно менять как угодно, используя переменные выше. Обязательные (транзакционные) уведомления выключить нельзя — только отредактировать.</div>'
@@ -1739,6 +1761,37 @@
         function notifToggleEmail(v){
             document.getElementById('nsmtp').style.display   = (v==='smtp')   ? 'grid' : 'none';
             document.getElementById('nresend').style.display = (v==='resend') ? 'grid' : 'none';
+        }
+        async function notifFindChats(channel){
+            const box = document.getElementById('notifChats_' + channel);
+            const msg = document.getElementById('notifMsg_' + channel);
+            box.innerHTML = '<div class="muted" style="font-size:0.8rem;">Ищу...</div>'; msg.textContent = '';
+            try {
+                const r = await (await fetch(NOTIF_API + '?action=' + channel + '-updates', { credentials:'include' })).json();
+                if (!r.ok) { box.innerHTML = ''; msg.textContent = '⚠️ ' + (r.error || 'ошибка'); msg.style.color = '#DC2626'; return; }
+                const rows = r.data || [];
+                if (!rows.length) { box.innerHTML = '<div class="muted" style="font-size:0.8rem;">Пока не нашли ни одного /start. Напишите боту и попробуйте снова.</div>'; return; }
+                box.innerHTML = rows.map(row => `<div style="display:flex;justify-content:space-between;align-items:center;gap:0.5rem;padding:0.35rem 0;border-top:1px solid var(--a-panel-border,#eee);font-size:0.82rem;">
+                    <div><b>${esc(row.name)}</b> <span class="muted">(${esc(row.chat_id)})</span>${row.text ? '<div class="muted" style="font-size:0.76rem;">«' + esc(row.text.slice(0,60)) + '»</div>' : ''}</div>
+                    <button class="btn-sm btn-purple" onclick="notifLinkChat('${channel}','${esc(row.chat_id)}','${esc(row.name).replace(/'/g,"\\'")}')">Привязать</button>
+                </div>`).join('');
+            } catch(e) { box.innerHTML = ''; msg.textContent = '⚠️ сбой запроса'; msg.style.color = '#DC2626'; }
+        }
+        async function notifLinkChat(channel, chatId, label){
+            const r = await apiPostTo(NOTIF_API, channel + '-link', { chat_id: chatId, label });
+            if (r.ok) renderNotifications();
+            else { const msg = document.getElementById('notifMsg_' + channel); if (msg) { msg.textContent = '⚠️ ' + (r.error||'не удалось привязать'); msg.style.color = '#DC2626'; } }
+        }
+        async function notifUnlink(channel){
+            await apiPostTo(NOTIF_API, 'unlink', { channel });
+            renderNotifications();
+        }
+        async function notifTestSend(channel){
+            const msg = document.getElementById('notifMsg_' + channel);
+            msg.textContent = ' отправляю...'; msg.style.color = '#6B7280';
+            const r = await apiPostTo(NOTIF_API, channel + '-test', {});
+            if (r.ok) { msg.textContent = '✅ отправлено — проверьте бота'; msg.style.color = '#16A34A'; }
+            else { msg.textContent = '⚠️ ' + (r.error || 'не удалось отправить'); msg.style.color = '#DC2626'; }
         }
         async function notifSaveChannels(btn){
             const m = document.getElementById('nchMsg');

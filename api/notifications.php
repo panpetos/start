@@ -15,6 +15,13 @@
  *   POST ?action=template-save    {code, title, body, enabled}
  *   POST ?action=template-reset   {code}                 — вернуть текст по умолчанию
  *   POST ?action=channels-save    {telegram_token, max_token, email_method, smtp_*}
+ *
+ * Задача #40 — тестовая отправка в уже подключённые боты (движок — notify_lib.php):
+ *   GET  ?action=telegram-updates / max-updates   — недавние /start от бота (chat_id для привязки)
+ *   POST ?action=telegram-link / max-link  {chat_id, label}   — привязать чат к текущему админу
+ *   POST ?action=telegram-test / max-test  {chat_id?, text?}  — тестовое сообщение (по умолчанию — в свой привязанный чат)
+ *   GET  ?action=my-links          — какие каналы привязаны у текущего админа
+ *   POST ?action=unlink   {channel}
  */
 
 header('Content-Type: application/json; charset=utf-8');
@@ -25,6 +32,7 @@ header('Access-Control-Allow-Headers: Content-Type');
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') { http_response_code(204); exit; }
 
 require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/notify_lib.php';
 if (!function_exists('getDB') && !function_exists('getDbConnection') && !function_exists('getPDO')) {
     require_once __DIR__ . '/db.php';
 }
@@ -248,6 +256,68 @@ if ($action === 'channels-save') {
     $php = "<?php\n// Конфиг каналов уведомлений — НЕ в git. Заполняется из админки.\nreturn " . var_export($c, true) . ";\n";
     if (@file_put_contents($cfgFile, $php) === false) out(['error' => 'Не удалось записать notifications_config.php (проверьте права на /api)'], 500);
     @chmod($cfgFile, 0640);
+    out(['ok' => true]);
+}
+
+// ── Задача #40: тестовая отправка в уже подключённые боты ─────────────────────────
+if ($action === 'telegram-updates' || $action === 'max-updates') {
+    $ch = load_channels($cfgFile);
+    $token = $action === 'telegram-updates' ? ($ch['telegram_token'] ?? '') : ($ch['max_token'] ?? '');
+    if (!$token) out(['error' => 'Токен бота не настроен — сначала сохраните его в разделе «Каналы доставки»'], 400);
+    $r = $action === 'telegram-updates' ? notify_tg_recent_chats($token) : notify_max_recent_chats($token);
+    if (empty($r['ok'])) out(['error' => $r['error'] ?? 'Не удалось получить обновления от бота'], 502);
+    out(['ok' => true, 'data' => $r['data'] ?? []]);
+}
+
+if ($action === 'telegram-link' || $action === 'max-link') {
+    notify_ensure_links_table($pdo);
+    $chatId = trim((string)($body['chat_id'] ?? ''));
+    $label = trim((string)($body['label'] ?? ''));
+    if ($chatId === '') out(['error' => 'chat_id обязателен'], 400);
+    $channel = $action === 'telegram-link' ? 'telegram' : 'max';
+    try {
+        $pdo->prepare("INSERT INTO notify_bot_links (user_id, channel, chat_id, label) VALUES (?, ?, ?, ?)
+                       ON DUPLICATE KEY UPDATE chat_id = VALUES(chat_id), label = VALUES(label)")
+            ->execute([$uid, $channel, $chatId, $label ?: null]);
+        out(['ok' => true]);
+    } catch (Exception $e) { out(['error' => 'Не удалось привязать чат'], 500); }
+}
+
+if ($action === 'my-links') {
+    notify_ensure_links_table($pdo);
+    try {
+        $st = $pdo->prepare("SELECT channel, chat_id, label, created_at FROM notify_bot_links WHERE user_id = ?");
+        $st->execute([$uid]);
+        out(['ok' => true, 'data' => $st->fetchAll(PDO::FETCH_ASSOC)]);
+    } catch (Exception $e) { out(['ok' => true, 'data' => []]); }
+}
+
+if ($action === 'unlink') {
+    notify_ensure_links_table($pdo);
+    $channel = trim((string)($body['channel'] ?? ''));
+    if (!in_array($channel, ['telegram', 'max'], true)) out(['error' => 'Неизвестный канал'], 400);
+    try { $pdo->prepare("DELETE FROM notify_bot_links WHERE user_id = ? AND channel = ?")->execute([$uid, $channel]); out(['ok' => true]); }
+    catch (Exception $e) { out(['error' => 'Не удалось отвязать'], 500); }
+}
+
+if ($action === 'telegram-test' || $action === 'max-test') {
+    $channel = $action === 'telegram-test' ? 'telegram' : 'max';
+    $ch = load_channels($cfgFile);
+    $token = $channel === 'telegram' ? ($ch['telegram_token'] ?? '') : ($ch['max_token'] ?? '');
+    if (!$token) out(['error' => 'Токен бота не настроен — сначала сохраните его в разделе «Каналы доставки»'], 400);
+    notify_ensure_links_table($pdo);
+    $chatId = trim((string)($body['chat_id'] ?? ''));
+    if ($chatId === '') {
+        try {
+            $st = $pdo->prepare("SELECT chat_id FROM notify_bot_links WHERE user_id = ? AND channel = ? LIMIT 1");
+            $st->execute([$uid, $channel]);
+            $chatId = (string)$st->fetchColumn();
+        } catch (Exception $e) {}
+    }
+    if ($chatId === '') out(['error' => 'Нет привязанного чата — сначала найдите свой чат через «Найти мои чаты» и привяжите его'], 400);
+    $text = trim((string)($body['text'] ?? '')) ?: 'Тестовое сообщение с psytalk.pro ✅ Если вы это читаете — бот настроен верно.';
+    $r = $channel === 'telegram' ? notify_tg_send($token, $chatId, $text) : notify_max_send($token, $chatId, $text);
+    if (empty($r['ok'])) out(['error' => $r['description'] ?? $r['error'] ?? 'Бот вернул ошибку'], 502);
     out(['ok' => true]);
 }
 

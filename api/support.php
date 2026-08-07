@@ -29,6 +29,7 @@ header('Access-Control-Allow-Headers: Content-Type');
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') { http_response_code(204); exit; }
 
 require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/notify_lib.php';
 if (!function_exists('getDB') && !function_exists('getDbConnection') && !function_exists('getPDO')) {
     require_once __DIR__ . '/db.php';
 }
@@ -115,7 +116,8 @@ if ($action === 'start') {
     }
 
     $thread = threadByToken($pdo, $token);
-    if (!$thread) {
+    $isNewThread = !$thread;
+    if ($isNewThread) {
         $token = bin2hex(random_bytes(16));
         try {
             $st = $pdo->prepare("INSERT INTO support_threads (token, user_id, name, email, role) VALUES (?, ?, ?, ?, ?)");
@@ -131,6 +133,11 @@ if ($action === 'start') {
         $st->execute([$threadId, $message]);
         $pdo->prepare("UPDATE support_threads SET last_at = NOW(), status = 'open' WHERE id = ?")->execute([$threadId]);
     } catch (Exception $e) {}
+
+    if ($isNewThread) {
+        try { notify_admins($pdo, 'admin.support_new', ['user_name' => $name, 'message_preview' => mb_substr($message, 0, 150)]); }
+        catch (Exception $e) {}
+    }
 
     echo json_encode(['ok' => true, 'token' => $token]);
     exit;
