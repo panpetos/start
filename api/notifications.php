@@ -217,23 +217,32 @@ if ($action === 'channels-status') {
         'telegram_configured' => !empty($c['telegram_token']),
         'max_configured'      => !empty($c['max_token']),
         'email_method'        => $c['email_method'] ?? '',
-        'email_configured'    => ($c['email_method'] ?? '') === 'smtp' ? !empty($c['smtp_host']) : (($c['email_method'] ?? '') === 'mail'),
+        'email_configured'    => (function ($c) {
+            $m = $c['email_method'] ?? '';
+            if ($m === 'smtp')   return !empty($c['smtp_host']) && !empty($c['smtp_pass']);
+            if ($m === 'resend') return !empty($c['resend_key']);
+            if ($m === 'mail')   return true;
+            return false;
+        })($c),
         'smtp_host'           => $c['smtp_host'] ?? '',
         'smtp_port'           => $c['smtp_port'] ?? '',
         'smtp_user'           => $c['smtp_user'] ?? '',
         'smtp_from'           => $c['smtp_from'] ?? '',
+        'resend_configured'   => !empty($c['resend_key']),
+        'resend_from'         => $c['resend_from'] ?? '',
+        'resend_replyto'      => $c['resend_replyto'] ?? '',
     ]]);
 }
 
 if ($action === 'channels-save') {
     $c = load_channels($cfgFile);
     // Секретные поля перезаписываем только если пришло непустое значение (иначе сохраняем прежнее)
-    foreach (['telegram_token', 'max_token', 'smtp_pass'] as $secret) {
+    foreach (['telegram_token', 'max_token', 'smtp_pass', 'resend_key'] as $secret) {
         $v = trim((string)($body[$secret] ?? ''));
         if ($v !== '') $c[$secret] = $v;
     }
     // Несекретные поля — перезаписываем как пришли
-    foreach (['email_method', 'smtp_host', 'smtp_port', 'smtp_user', 'smtp_from'] as $field) {
+    foreach (['email_method', 'smtp_host', 'smtp_port', 'smtp_user', 'smtp_from', 'resend_from', 'resend_replyto'] as $field) {
         if (array_key_exists($field, $body)) $c[$field] = trim((string)$body[$field]);
     }
     $php = "<?php\n// Конфиг каналов уведомлений — НЕ в git. Заполняется из админки.\nreturn " . var_export($c, true) . ";\n";

@@ -1412,17 +1412,24 @@
                 </div>
                 <div>
                   <div style="font-weight:600;margin-bottom:0.4rem;">✉️ Email</div>
-                  <select id="nemeth" onchange="document.getElementById('nsmtp').style.display=this.value==='smtp'?'grid':'none'" style="padding:0.5rem 0.75rem;border:1.5px solid #E5E7EB;border-radius:0.6rem;font-family:inherit;">
+                  <select id="nemeth" onchange="notifToggleEmail(this.value)" style="padding:0.5rem 0.75rem;border:1.5px solid #E5E7EB;border-radius:0.6rem;font-family:inherit;">
                     <option value="" ${!c.email_method?'selected':''}>— не настроено —</option>
-                    <option value="smtp" ${c.email_method==='smtp'?'selected':''}>SMTP через ящик на домене (рекомендуется)</option>
+                    <option value="resend" ${c.email_method==='resend'?'selected':''}>Resend API (лучшая доставляемость, рекомендуется)</option>
+                    <option value="smtp" ${c.email_method==='smtp'?'selected':''}>SMTP через ящик на домене</option>
                     <option value="mail" ${c.email_method==='mail'?'selected':''}>PHP mail() (просто, но часто спам)</option>
                   </select>
+                  <div id="nresend" style="display:${c.email_method==='resend'?'grid':'none'};margin-top:0.6rem;grid-template-columns:1fr 1fr;gap:0.5rem;">
+                    <input id="nrskey" type="password" placeholder="${c.resend_configured?'•••• (ключ задан)':'API-ключ Resend (re_...)'}" style="grid-column:1/3;padding:0.55rem 0.75rem;border:1.5px solid #E5E7EB;border-radius:0.6rem;font-family:monospace;">
+                    <input id="nrsfrom" placeholder="От кого (psytalk.pro &lt;noreply@psytalk.pro&gt;)" value="${esc(c.resend_from||'')}" style="padding:0.55rem 0.75rem;border:1.5px solid #E5E7EB;border-radius:0.6rem;font-family:inherit;">
+                    <input id="nrsreply" placeholder="Reply-To (support@psytalk.pro)" value="${esc(c.resend_replyto||'')}" style="padding:0.55rem 0.75rem;border:1.5px solid #E5E7EB;border-radius:0.6rem;font-family:inherit;">
+                    <div class="muted" style="grid-column:1/3;font-size:0.78rem;">Домен psytalk.pro должен быть подтверждён в Resend (DNS-записи). Reply-To = ваш ящик на reg.ru — туда придут ответы.</div>
+                  </div>
                   <div id="nsmtp" style="display:${smtp?'grid':'none'};margin-top:0.6rem;grid-template-columns:1fr 1fr;gap:0.5rem;">
-                    <input id="nsmtphost" placeholder="SMTP-хост (mail.hosting.reg.ru)" value="${esc(c.smtp_host||'')}" style="padding:0.55rem 0.75rem;border:1.5px solid #E5E7EB;border-radius:0.6rem;font-family:inherit;">
+                    <input id="nsmtphost" placeholder="SMTP-хост (smtp.hosting.reg.ru)" value="${esc(c.smtp_host||'')}" style="padding:0.55rem 0.75rem;border:1.5px solid #E5E7EB;border-radius:0.6rem;font-family:inherit;">
                     <input id="nsmtpport" placeholder="порт (465)" value="${esc(c.smtp_port||'465')}" style="padding:0.55rem 0.75rem;border:1.5px solid #E5E7EB;border-radius:0.6rem;font-family:inherit;">
-                    <input id="nsmtpuser" placeholder="логин (noreply@psytalk.pro)" value="${esc(c.smtp_user||'')}" style="padding:0.55rem 0.75rem;border:1.5px solid #E5E7EB;border-radius:0.6rem;font-family:inherit;">
-                    <input id="nsmtppass" type="password" placeholder="${c.email_configured?'•••• (задан)':'пароль ящика'}" style="padding:0.55rem 0.75rem;border:1.5px solid #E5E7EB;border-radius:0.6rem;font-family:inherit;">
-                    <input id="nsmtpfrom" placeholder="От кого (psytalk.pro &lt;noreply@psytalk.pro&gt;)" value="${esc(c.smtp_from||'')}" style="grid-column:1/3;padding:0.55rem 0.75rem;border:1.5px solid #E5E7EB;border-radius:0.6rem;font-family:inherit;">
+                    <input id="nsmtpuser" placeholder="логин (support@psytalk.pro)" value="${esc(c.smtp_user||'')}" style="padding:0.55rem 0.75rem;border:1.5px solid #E5E7EB;border-radius:0.6rem;font-family:inherit;">
+                    <input id="nsmtppass" type="password" placeholder="${c.email_configured&&c.email_method==='smtp'?'•••• (задан)':'пароль ящика'}" style="padding:0.55rem 0.75rem;border:1.5px solid #E5E7EB;border-radius:0.6rem;font-family:inherit;">
+                    <input id="nsmtpfrom" placeholder="От кого (psytalk.pro &lt;support@psytalk.pro&gt;)" value="${esc(c.smtp_from||'')}" style="grid-column:1/3;padding:0.55rem 0.75rem;border:1.5px solid #E5E7EB;border-radius:0.6rem;font-family:inherit;">
                   </div>
                 </div>
                 <div>
@@ -1473,6 +1480,10 @@
                 + '<div class="muted" style="font-size:0.83rem;margin-bottom:0.5rem;">Тексты можно менять как угодно, используя переменные выше. Обязательные (транзакционные) уведомления выключить нельзя — только отредактировать.</div>'
                 + tplHtml;
         }
+        function notifToggleEmail(v){
+            document.getElementById('nsmtp').style.display   = (v==='smtp')   ? 'grid' : 'none';
+            document.getElementById('nresend').style.display = (v==='resend') ? 'grid' : 'none';
+        }
         async function notifSaveChannels(btn){
             const m = document.getElementById('nchMsg');
             btn.disabled = true; m.textContent = ' сохраняю...'; m.style.color = '#6B7280';
@@ -1487,6 +1498,10 @@
                 payload.smtp_user = document.getElementById('nsmtpuser').value;
                 payload.smtp_pass = document.getElementById('nsmtppass').value;
                 payload.smtp_from = document.getElementById('nsmtpfrom').value;
+            } else if (payload.email_method === 'resend') {
+                payload.resend_key = document.getElementById('nrskey').value;
+                payload.resend_from = document.getElementById('nrsfrom').value;
+                payload.resend_replyto = document.getElementById('nrsreply').value;
             }
             const r = await apiPostTo(NOTIF_API, 'channels-save', payload);
             btn.disabled = false;
