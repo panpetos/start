@@ -8,6 +8,7 @@
     <script src="/js/layout.js"></script>
     <script src="/js/api.js"></script>
     <script src="/js/auth.js"></script>
+    <script src="/js/post-format.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
         *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
@@ -99,7 +100,7 @@
             const init = name.charAt(0).toUpperCase();
             const date = new Date(p.created_at).toLocaleDateString('ru', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
             const img = p.image_url ? `<img class="post-img" src="${esc(p.image_url)}" alt="">` : '';
-            const text = p.text ? `<div class="post-text">${esc(p.text)}</div>` : '';
+            const text = p.text ? `<div class="post-text">${formatPostText(p.text)}</div>` : '';
             return `
                 <div class="post-card" data-post-id="${p.id}">
                     <div class="post-head">

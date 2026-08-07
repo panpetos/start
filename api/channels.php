@@ -7,6 +7,7 @@
  * GET  ?action=info&psychologist_id=X         — {subscribers_count, is_subscribed}
  * GET  ?action=my-subscriptions                — каналы, на которые подписан текущий пользователь
  * POST ?action=post   {text?, image_url?}      — добавить пост в СВОЙ канал (только психолог)
+ * POST ?action=edit-post   {id, text?, image_url?} — отредактировать свой пост (доработка по фидбэку админа)
  * POST ?action=delete-post {id}                — удалить свой пост
  * POST ?action=subscribe   {psychologist_id}   — подписаться (авторизованный пользователь)
  * POST ?action=unsubscribe {psychologist_id}   — отписаться
@@ -267,6 +268,27 @@ if ($action === 'post' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         $st->execute([$psychId, $text !== '' ? $text : null, $imageUrl]);
         echo json_encode(['ok' => true, 'id' => $pdo->lastInsertId()]);
     } catch (Exception $e) { http_response_code(500); echo json_encode(['error' => 'Не удалось опубликовать']); }
+    exit;
+}
+
+if ($action === 'edit-post' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (!$userId) { http_response_code(401); echo json_encode(['error' => 'Требуется авторизация']); exit; }
+    $psychId = myPsychologistId($pdo, $userId);
+    $id = (int)($body['id'] ?? 0);
+    if (!$psychId || !$id) { http_response_code(400); echo json_encode(['error' => 'Некорректный запрос']); exit; }
+    $text = isset($body['text']) ? trim((string)$body['text']) : '';
+    if ($text === '') { http_response_code(400); echo json_encode(['error' => 'Текст не может быть пустым']); exit; }
+    try {
+        // image_url меняем, только если поле явно прислали (иначе картинка поста остаётся прежней)
+        if (array_key_exists('image_url', $body)) {
+            $st = $pdo->prepare("UPDATE channel_posts SET text = ?, image_url = ? WHERE id = ? AND psychologist_id = ?");
+            $st->execute([$text, ((string)$body['image_url']) ?: null, $id, $psychId]);
+        } else {
+            $st = $pdo->prepare("UPDATE channel_posts SET text = ? WHERE id = ? AND psychologist_id = ?");
+            $st->execute([$text, $id, $psychId]);
+        }
+        echo json_encode(['ok' => true]);
+    } catch (Exception $e) { http_response_code(500); echo json_encode(['error' => 'Не удалось сохранить']); }
     exit;
 }
 

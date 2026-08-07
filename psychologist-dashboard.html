@@ -277,7 +277,12 @@
                     Мой канал <span id="channelSubsCount" style="font-size:0.8rem;font-weight:500;color:var(--d-text-sec);"></span>
                 </h2>
                 <p style="margin-bottom: 1rem;">Публичная лента постов на вашей странице в каталоге и в общей <a href="/feed.html" style="color:#7C3AED;font-weight:600;">Ленте</a> сайта — клиенты могут подписаться, ставить лайки и делиться постами.</p>
-                <textarea id="channelPostText" placeholder="Текст поста..." style="width:100%;min-height:70px;border:1.5px solid var(--d-border);border-radius:0.625rem;padding:0.6rem;font-family:inherit;font-size:0.9rem;resize:vertical;outline:none;background:var(--d-panel);color:var(--d-text);margin-bottom:0.5rem;"></textarea>
+                <div style="display:flex;gap:0.35rem;margin-bottom:0.35rem;">
+                    <button type="button" title="Жирный" onclick="wrapPostSelection(document.getElementById('channelPostText'),'**')" style="width:2rem;height:2rem;border:1.5px solid var(--d-border);border-radius:0.4rem;background:var(--d-panel);color:var(--d-text);cursor:pointer;font-weight:700;">Ж</button>
+                    <button type="button" title="Курсив" onclick="wrapPostSelection(document.getElementById('channelPostText'),'_')" style="width:2rem;height:2rem;border:1.5px solid var(--d-border);border-radius:0.4rem;background:var(--d-panel);color:var(--d-text);cursor:pointer;font-style:italic;">К</button>
+                    <button type="button" title="Список" onclick="prefixPostLine(document.getElementById('channelPostText'),'- ')" style="width:2rem;height:2rem;border:1.5px solid var(--d-border);border-radius:0.4rem;background:var(--d-panel);color:var(--d-text);cursor:pointer;">☰</button>
+                </div>
+                <textarea id="channelPostText" placeholder="Текст поста... Выделите текст и нажмите Ж/К для форматирования" style="width:100%;min-height:70px;border:1.5px solid var(--d-border);border-radius:0.625rem;padding:0.6rem;font-family:inherit;font-size:0.9rem;resize:vertical;outline:none;background:var(--d-panel);color:var(--d-text);margin-bottom:0.5rem;"></textarea>
                 <div id="channelPostImagePreview" style="display:none;margin-bottom:0.6rem;"></div>
                 <div style="display:flex;gap:0.5rem;margin-bottom:1rem;flex-wrap:wrap;">
                     <label class="btn" style="background:var(--d-panel-alt);color:var(--d-text);border:1.5px solid var(--d-border);cursor:pointer;">
@@ -293,6 +298,7 @@
         <script src="/js/api.js"></script>
         <script src="/js/auth.js"></script>
         <script src="/js/header.js"></script>
+        <script src="/js/post-format.js"></script>
         <script>
             const MONTHS = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня',
                 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
@@ -428,19 +434,71 @@
             }
 
             function escapeChannelHtml(s) { const d = document.createElement('div'); d.textContent = s == null ? '' : String(s); return d.innerHTML; }
+            let channelPostsCache = {};
 
             function channelPostHtml(p) {
+                channelPostsCache[p.id] = p;
                 const img = p.image_url ? `<img src="${p.image_url}" style="max-width:100%;border-radius:0.5rem;margin-top:0.4rem;">` : '';
-                const text = p.text ? `<div style="white-space:pre-wrap;">${escapeChannelHtml(p.text)}</div>` : '';
+                const text = p.text ? `<div style="line-height:1.5;">${formatPostText(p.text)}</div>` : '';
                 const date = new Date(p.created_at).toLocaleString('ru', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
-                return `<div style="border:1px solid var(--d-border);border-radius:0.625rem;padding:0.7rem 0.85rem;">
-                    ${text}${img}
-                    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:0.4rem;gap:0.5rem;flex-wrap:wrap;">
-                        <span style="font-size:0.75rem;color:var(--d-text-sec);">${date} · ❤️ ${p.likes_count||0} · 👁 ${p.views_count||0}</span>
-                        <button type="button" onclick="deleteChannelPost(${p.id})" style="background:none;border:none;color:#EF4444;cursor:pointer;font-size:0.78rem;font-family:inherit;">Удалить</button>
+                return `<div style="border:1px solid var(--d-border);border-radius:0.625rem;padding:0.7rem 0.85rem;" id="cpost-${p.id}">
+                    <div id="cpost-view-${p.id}">
+                        ${text}${img}
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:0.4rem;gap:0.5rem;flex-wrap:wrap;">
+                            <span style="font-size:0.75rem;color:var(--d-text-sec);">${date} · ❤️ ${p.likes_count||0} · 👁 ${p.views_count||0}</span>
+                            <span>
+                                <button type="button" onclick="startEditChannelPost(${p.id})" style="background:none;border:none;color:var(--d-text-sec);cursor:pointer;font-size:0.78rem;font-family:inherit;">Изменить</button>
+                                <button type="button" onclick="deleteChannelPost(${p.id})" style="background:none;border:none;color:#EF4444;cursor:pointer;font-size:0.78rem;font-family:inherit;">Удалить</button>
+                            </span>
+                        </div>
+                    </div>
+                    <div id="cpost-edit-${p.id}" style="display:none;">
+                        <div style="display:flex;gap:0.3rem;margin-bottom:0.3rem;">
+                            <button type="button" onclick="wrapPostSelection(document.getElementById('cpostEditText-${p.id}'),'**')" style="width:1.8rem;height:1.8rem;border:1.5px solid var(--d-border);border-radius:0.35rem;background:var(--d-panel);color:var(--d-text);cursor:pointer;font-weight:700;font-size:0.8rem;">Ж</button>
+                            <button type="button" onclick="wrapPostSelection(document.getElementById('cpostEditText-${p.id}'),'_')" style="width:1.8rem;height:1.8rem;border:1.5px solid var(--d-border);border-radius:0.35rem;background:var(--d-panel);color:var(--d-text);cursor:pointer;font-style:italic;font-size:0.8rem;">К</button>
+                            <button type="button" onclick="prefixPostLine(document.getElementById('cpostEditText-${p.id}'),'- ')" style="width:1.8rem;height:1.8rem;border:1.5px solid var(--d-border);border-radius:0.35rem;background:var(--d-panel);color:var(--d-text);cursor:pointer;font-size:0.8rem;">☰</button>
+                        </div>
+                        <textarea id="cpostEditText-${p.id}" style="width:100%;min-height:60px;border:1.5px solid #7C3AED;border-radius:0.5rem;padding:0.5rem;font-family:inherit;font-size:0.88rem;resize:vertical;background:var(--d-panel);color:var(--d-text);"></textarea>
+                        <div style="display:flex;gap:0.4rem;margin-top:0.3rem;">
+                            <button type="button" class="btn" style="padding:0.35rem 0.8rem;font-size:0.8rem;" onclick="saveChannelPostEdit(${p.id})">Сохранить</button>
+                            <button type="button" class="btn" style="padding:0.35rem 0.8rem;font-size:0.8rem;background:var(--d-panel-alt);color:var(--d-text);border:1.5px solid var(--d-border);" onclick="cancelEditChannelPost(${p.id})">Отмена</button>
+                        </div>
                     </div>
                 </div>`;
             }
+
+            function startEditChannelPost(id) {
+                const p = channelPostsCache[id];
+                const view = document.getElementById('cpost-view-' + id);
+                const edit = document.getElementById('cpost-edit-' + id);
+                if (!p || !view || !edit) return;
+                view.style.display = 'none';
+                edit.style.display = 'block';
+                const ta = document.getElementById('cpostEditText-' + id);
+                if (ta) { ta.value = p.text || ''; ta.focus(); }
+            }
+            function cancelEditChannelPost(id) {
+                const view = document.getElementById('cpost-view-' + id);
+                const edit = document.getElementById('cpost-edit-' + id);
+                if (view) view.style.display = 'block';
+                if (edit) edit.style.display = 'none';
+            }
+            async function saveChannelPostEdit(id) {
+                const ta = document.getElementById('cpostEditText-' + id);
+                const text = ta ? ta.value.trim() : '';
+                if (!text) { alert('Текст не может быть пустым'); return; }
+                try {
+                    const r = await (await fetch('/api/channels.php?action=edit-post', {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+                        body: JSON.stringify({ id, text })
+                    })).json();
+                    if (!r.ok) { alert(r.error || 'Не удалось сохранить'); return; }
+                    await loadChannelPosts();
+                } catch (e) { alert('Ошибка сети'); }
+            }
+            window.startEditChannelPost = startEditChannelPost;
+            window.cancelEditChannelPost = cancelEditChannelPost;
+            window.saveChannelPostEdit = saveChannelPostEdit;
 
             async function loadChannelPosts() {
                 const list = document.getElementById('channelPostsList');

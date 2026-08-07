@@ -253,6 +253,9 @@
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
         }
 
+        .message.editing { max-width: 90%; }
+        .msg-edit-textarea { width: 100%; min-width: 220px; font-size: 0.92rem; }
+
         .message-time {
             font-size: 0.75rem;
             opacity: 0.7;
@@ -697,6 +700,10 @@
 
             .emoji-picker { width: 92vw; max-width: 340px; left: 4vw; bottom: 64px; }
             #chatSearchInput { font-size: 16px !important; }
+            /* Инпут редактирования сообщения — font-size ниже 16px триггерит авто-зум iOS Safari при фокусе,
+               из-за этого на телефоне вёрстка "разъезжалась", а на ПК (без авто-зума) выглядело нормально. */
+            .msg-edit-textarea { font-size: 16px !important; min-width: 0 !important; width: 100% !important; }
+            .message.editing { max-width: 92% !important; }
             .voice-message { min-width: 0; width: 100%; }
             .message-attachment img { max-width: 200px; max-height: 160px; }
 
@@ -790,6 +797,7 @@
         <div class="conversations-list">
             <div style="padding:0.75rem;border-bottom:1px solid #e0e0e0;flex-shrink:0;display:flex;gap:0.5rem;align-items:center;">
                 <input id="chatSearchInput" type="text" placeholder="🔍 Поиск по всем пользователям..." style="flex:1;min-width:0;padding:0.5rem 0.75rem;border:1.5px solid #e0e0e0;border-radius:0.5rem;font-family:inherit;font-size:0.875rem;outline:none;background:#f9fafb;" oninput="filterConversations()">
+                <button onclick="openCreateGroupModal()" title="Создать группу" style="flex-shrink:0;width:36px;height:36px;border-radius:50%;border:1.5px solid #e0e0e0;background:#f9fafb;cursor:pointer;font-size:1.1rem;display:flex;align-items:center;justify-content:center;">👥➕</button>
                 <button id="chatThemeToggle" onclick="toggleChatTheme()" title="Светлая/тёмная тема" style="flex-shrink:0;width:36px;height:36px;border-radius:50%;border:1.5px solid #e0e0e0;background:#f9fafb;cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center;">🌙</button>
             </div>
             <div id="conversationsList" style="overflow-y:auto;flex:1;">
@@ -951,6 +959,29 @@
         </div>
     </div>
 
+    <!-- Создание группового чата / добавление участников (любая роль) -->
+    <div id="createGroupModal" style="display:none;position:fixed;inset:0;background:rgba(26,26,46,0.6);z-index:1300;align-items:center;justify-content:center;padding:1rem;">
+        <div style="background:#fff;border-radius:1rem;max-width:420px;width:100%;max-height:85vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+            <div style="padding:1rem 1.25rem;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;">
+                <div style="font-weight:700;" id="createGroupModalTitle">Новая группа</div>
+                <button onclick="closeCreateGroupModal()" style="background:none;border:none;font-size:1.2rem;cursor:pointer;color:#6B7280;">✕</button>
+            </div>
+            <div style="padding:1rem 1.25rem;overflow-y:auto;flex:1;">
+                <div id="groupNameRow" style="margin-bottom:0.75rem;">
+                    <label style="font-size:0.82rem;color:#6B7280;display:block;margin-bottom:0.3rem;">Название группы</label>
+                    <input id="groupNameInput" type="text" placeholder="Например: Группа поддержки" style="width:100%;padding:0.6rem 0.8rem;border:1.5px solid #e0e0e0;border-radius:0.5rem;font-family:inherit;font-size:0.9rem;outline:none;">
+                </div>
+                <label style="font-size:0.82rem;color:#6B7280;display:block;margin-bottom:0.3rem;">Добавить участников</label>
+                <input id="groupMemberSearch" type="text" placeholder="🔍 Введите имя, email или телефон..." oninput="searchGroupMembers()" style="width:100%;padding:0.6rem 0.8rem;border:1.5px solid #e0e0e0;border-radius:0.5rem;font-family:inherit;font-size:0.9rem;outline:none;margin-bottom:0.4rem;">
+                <div id="groupMemberResults" style="max-height:180px;overflow-y:auto;margin-bottom:0.5rem;"></div>
+                <div id="groupSelectedMembers"></div>
+            </div>
+            <div style="padding:0.9rem 1.25rem;border-top:1px solid #eee;flex-shrink:0;">
+                <button id="createGroupSubmitBtn" onclick="submitCreateGroup()" style="width:100%;padding:0.65rem;background:linear-gradient(135deg,#7C3AED,#9F67FA);color:#fff;border:none;border-radius:0.625rem;font-weight:700;cursor:pointer;font-family:inherit;">Создать</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Мини-карточка собеседника (клик по аватару в шапке чата) -->
     <div id="userCardModal" style="display:none;position:fixed;inset:0;background:rgba(26,26,46,0.6);z-index:1300;align-items:center;justify-content:center;padding:1rem;">
         <div style="background:#fff;border-radius:1rem;max-width:420px;width:100%;max-height:85vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
@@ -996,6 +1027,7 @@
 
     <script src="/js/api.js"></script>
     <script src="/js/auth.js"></script>
+    <script src="/js/post-format.js"></script>
     <script src="/js/header.js"></script>
     <script>
         const FAVORITES_ID = '__fav__'; // псевдо-собеседник «Избранное» (свой личный диалог)
@@ -1014,6 +1046,10 @@
         const CHANNEL_PREFIX = 'channel:'; // псевдо-собеседник «Канал» — раздел чата с лентой постов вместо переписки (задача #29, рефок)
         let myChannels = [];      // клиент: список подписок; психолог: свой канал (массив из одного элемента)
         let myOwnPsychId = null;  // id профиля психолога текущего пользователя (для «Мой канал»)
+        const GROUP_PREFIX = 'group:'; // групповой чат — общий чат на несколько человек, как в Telegram
+        let myGroups = [];
+        let groupMembersCache = [];
+        let pendingGroupMembers = [];  // выбранные участники в модалке создания группы
 
         function getDashboardUrl() {
             if (!currentUser) return '/login.html';
@@ -1063,6 +1099,279 @@
                     </div>`;
             }).join('');
         }
+
+        // ── Групповые чаты — общий чат на несколько человек, доступно любой роли ──
+        async function loadMyGroups() {
+            try {
+                const r = await fetch('/api/group_chat.php?action=list', { credentials: 'include' });
+                const d = await r.json();
+                myGroups = (d && d.ok) ? (d.data || []) : [];
+            } catch (e) { myGroups = []; }
+        }
+
+        function groupsRowsHtml() {
+            if (!myGroups.length) return '';
+            return myGroups.map(g => {
+                const initial = (g.name || '#').charAt(0).toUpperCase();
+                const activeId = GROUP_PREFIX + g.id;
+                const lastMsg = g.last_message ? g.last_message.slice(0, 34) : 'Группа создана — напишите первым';
+                return `
+                    <div class="conversation-item ${activeId === selectedUserId ? 'active' : ''}" onclick="openGroupChat(${g.id})">
+                        <div class="conversation-avatar" style="background:linear-gradient(135deg,#059669,#10B981);">👥</div>
+                        <div class="conversation-info">
+                            <div class="conversation-name">${escapeHtml(g.name)} <span style="color:#9CA3AF;font-weight:400;font-size:0.78rem;">· ${g.members_count}</span></div>
+                            <div class="conversation-preview">${escapeHtml(lastMsg)}</div>
+                        </div>
+                        <div class="conversation-meta">
+                            ${g.unread_count > 0 ? `<span class="unread-badge">${g.unread_count}</span>` : ''}
+                        </div>
+                    </div>`;
+            }).join('');
+        }
+
+        // ── Групповой чат: обычная переписка на несколько человек ──
+        let groupMsgCache = {}; // id -> {content}, для редактирования своих сообщений в группе
+
+        async function openGroupChat(groupId) {
+            selectedUserId = GROUP_PREFIX + groupId;
+            headerRenderedFor = selectedUserId;
+
+            document.querySelectorAll('.conversation-item').forEach(el => {
+                el.classList.toggle('active', el.getAttribute('onclick') === `openGroupChat(${groupId})`);
+            });
+
+            document.getElementById('emptyState').style.display = 'none';
+            document.getElementById('chatContent').style.display = 'flex';
+            document.querySelector('.chat-container').classList.add('mobile-chat-open');
+            const inputBar = document.getElementById('chatInputBar');
+            if (inputBar) inputBar.style.display = '';
+            if (pollInterval) clearInterval(pollInterval);
+
+            const g = myGroups.find(x => String(x.id) === String(groupId)) || { name: 'Группа', members_count: 0 };
+            document.getElementById('chatHeader').innerHTML = `
+                <button class="chat-back-btn" onclick="goBackToList()" title="Назад к диалогам">←</button>
+                <div class="avatar" style="background:linear-gradient(135deg,#059669,#10B981);">👥</div>
+                <div style="flex:1;min-width:0;cursor:pointer;" onclick="showGroupMembers(${groupId})">
+                    <div class="name">${escapeHtml(g.name)}</div>
+                    <div class="role">${g.members_count} участников · нажмите, чтобы посмотреть</div>
+                </div>
+                <div class="chat-header-actions">
+                    <button class="session-btn" style="background:#16A34A;" onclick="openAddGroupMembers(${groupId})" title="Добавить участников">➕ Участники</button>
+                    <button class="session-btn" style="background:#DC2626;" onclick="leaveGroupChat(${groupId})" title="Выйти из группы">🚪 Выйти</button>
+                    <a href="${getDashboardUrl()}" class="session-btn" style="background:#6B7280;text-decoration:none;" title="Вернуться в личный кабинет">← В кабинет</a>
+                </div>`;
+
+            await loadMessages();
+            pollInterval = setInterval(loadMessages, 5000);
+        }
+
+        function groupBubbleHtml(m) {
+            const isMine = m.sender_id === currentUser.id;
+            const name = `${m.first_name || ''} ${m.last_name || ''}`.trim() || 'Участник';
+            const time = formatTime(m.created_at);
+            groupMsgCache[m.id] = { content: m.content };
+            const editedTag = m.edited_at ? ` <span style="opacity:0.65;font-style:italic;" title="Отредактировано ${escapeHtml(formatTime(m.edited_at))}">(ред.)</span>` : '';
+            const editBtn = isMine ? ` <span onclick="startEditGroupMessage(event,'${m.id}')" style="cursor:pointer;opacity:0.75;margin-left:0.35rem;" title="Редактировать">✏️</span>` : '';
+            return `
+                <div class="message ${isMine ? 'mine' : 'theirs'}" data-msg-id="${m.id}">
+                    ${!isMine ? `<div style="font-size:0.75rem;font-weight:700;opacity:0.75;margin-bottom:0.15rem;">${escapeHtml(name)}</div>` : ''}
+                    <div id="gmsg-body-${m.id}"><div>${escapeHtml(m.content)}</div></div>
+                    <div class="message-time">${time}${editedTag}${editBtn}</div>
+                </div>`;
+        }
+
+        async function loadGroupMessages() {
+            const groupId = selectedUserId.slice(GROUP_PREFIX.length);
+            let rows = [];
+            try {
+                const r = await fetch('/api/group_chat.php?action=messages&group_id=' + encodeURIComponent(groupId), { credentials: 'include' });
+                const d = await r.json();
+                rows = (d && d.ok) ? (d.data || []) : [];
+            } catch (e) {}
+            const container = document.getElementById('messagesContainer');
+            const wasScrolledToBottom = container.scrollHeight - container.scrollTop <= container.clientHeight + 50;
+            container.innerHTML = rows.length ? rows.map(groupBubbleHtml).join('')
+                : `<div class="empty-state"><div><p style="color:#9CA3AF;">👥 Группа создана — напишите первое сообщение.</p></div></div>`;
+            if (wasScrolledToBottom) container.scrollTop = container.scrollHeight;
+        }
+
+        function startEditGroupMessage(evt, id) {
+            if (evt) evt.stopPropagation();
+            const cached = groupMsgCache[id];
+            const body = document.getElementById('gmsg-body-' + id);
+            if (!cached || !body) return;
+            const bubble = body.closest('.message');
+            if (bubble) bubble.classList.add('editing');
+            body.innerHTML = `
+                <textarea id="gmsg-edit-input-${id}" class="msg-edit-textarea" rows="2" style="padding:0.4rem 0.6rem;border:1.5px solid #7C3AED;border-radius:0.5rem;font-family:inherit;resize:vertical;color:inherit;background:rgba(255,255,255,0.15);box-sizing:border-box;">${escapeHtml(cached.content || '')}</textarea>
+                <div style="display:flex;gap:0.5rem;margin-top:0.3rem;">
+                    <button onclick="saveEditGroupMessage(event,'${id}')" style="cursor:pointer;border:none;background:#7C3AED;color:#fff;border-radius:0.4rem;padding:0.25rem 0.6rem;font-size:0.8rem;">Сохранить</button>
+                    <button onclick="loadGroupMessages()" style="cursor:pointer;border:1px solid currentColor;background:transparent;color:inherit;border-radius:0.4rem;padding:0.25rem 0.6rem;font-size:0.8rem;opacity:0.85;">Отмена</button>
+                </div>`;
+            const ta = document.getElementById('gmsg-edit-input-' + id);
+            if (ta) { ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); }
+        }
+        async function saveEditGroupMessage(evt, id) {
+            if (evt) evt.stopPropagation();
+            const ta = document.getElementById('gmsg-edit-input-' + id);
+            if (!ta) return;
+            const content = ta.value.trim();
+            if (!content) { alert('Текст не может быть пустым'); return; }
+            try {
+                const r = await (await fetch('/api/group_chat.php?action=edit-message', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+                    body: JSON.stringify({ message_id: id, content })
+                })).json();
+                if (!r.ok) { alert(r.error || 'Не удалось сохранить'); return; }
+                await loadGroupMessages();
+            } catch (e) { alert('Ошибка сети'); }
+        }
+        window.startEditGroupMessage = startEditGroupMessage;
+        window.saveEditGroupMessage = saveEditGroupMessage;
+        window.openGroupChat = openGroupChat;
+
+        // ── Создание группы + управление участниками ──
+        async function openCreateGroupModal() {
+            pendingGroupMembers = [];
+            addMembersToGroupId = null;
+            document.getElementById('groupNameInput').value = '';
+            document.getElementById('groupMemberSearch').value = '';
+            document.getElementById('groupMemberResults').innerHTML = '';
+            document.getElementById('groupSelectedMembers').innerHTML = '';
+            document.getElementById('createGroupModal').dataset.mode = 'create';
+            document.getElementById('createGroupModal').dataset.existingIds = '[]';
+            document.getElementById('groupNameRow').style.display = '';
+            document.getElementById('createGroupModalTitle').textContent = 'Новая группа';
+            document.getElementById('createGroupSubmitBtn').textContent = 'Создать';
+            document.getElementById('createGroupModal').style.display = 'flex';
+        }
+        function closeCreateGroupModal() { document.getElementById('createGroupModal').style.display = 'none'; }
+
+        let groupMemberSearchDebounce = null;
+        async function searchGroupMembers() {
+            const q = (document.getElementById('groupMemberSearch').value || '').trim();
+            clearTimeout(groupMemberSearchDebounce);
+            if (q.length < 2) { document.getElementById('groupMemberResults').innerHTML = ''; return; }
+            groupMemberSearchDebounce = setTimeout(async () => {
+                try {
+                    const r = await fetch('/api/user_search.php?action=search&q=' + encodeURIComponent(q), { credentials: 'include' });
+                    const d = await r.json();
+                    let found = (d && d.data) || [];
+                    let existingIds = [];
+                    try { existingIds = JSON.parse(document.getElementById('createGroupModal').dataset.existingIds || '[]'); } catch (e) {}
+                    if (existingIds.length) found = found.filter(u => !existingIds.includes(String(u.id)));
+                    const box = document.getElementById('groupMemberResults');
+                    box.innerHTML = found.map(u => {
+                        const name = `${u.first_name || ''} ${u.last_name || ''}`.trim() || 'Пользователь';
+                        const already = pendingGroupMembers.some(m => String(m.id) === String(u.id));
+                        return `<div style="display:flex;justify-content:space-between;align-items:center;padding:0.4rem 0.2rem;border-bottom:1px solid var(--d-border,#eee);font-size:0.85rem;">
+                            <span>${escapeHtml(name)} <span style="color:#9CA3AF;font-size:0.75rem;">(${u.role === 'psychologist' ? 'психолог' : 'клиент'})</span></span>
+                            <button type="button" onclick='addPendingGroupMember(${JSON.stringify(u).replace(/'/g, "&#39;")})' ${already ? 'disabled' : ''} style="border:none;background:${already ? '#D1D5DB' : '#7C3AED'};color:#fff;border-radius:0.4rem;padding:0.25rem 0.6rem;font-size:0.78rem;cursor:pointer;">${already ? '✓' : '+'}</button>
+                        </div>`;
+                    }).join('') || '<div style="color:#9CA3AF;font-size:0.82rem;padding:0.3rem 0;">Никого не найдено</div>';
+                } catch (e) {}
+            }, 300);
+        }
+        function addPendingGroupMember(u) {
+            if (pendingGroupMembers.some(m => String(m.id) === String(u.id))) return;
+            pendingGroupMembers.push(u);
+            renderPendingGroupMembers();
+            searchGroupMembers();
+        }
+        function removePendingGroupMember(id) {
+            pendingGroupMembers = pendingGroupMembers.filter(m => String(m.id) !== String(id));
+            renderPendingGroupMembers();
+        }
+        function renderPendingGroupMembers() {
+            const box = document.getElementById('groupSelectedMembers');
+            box.innerHTML = pendingGroupMembers.map(u => {
+                const name = `${u.first_name || ''} ${u.last_name || ''}`.trim() || 'Пользователь';
+                return `<span style="display:inline-flex;align-items:center;gap:0.3rem;background:#F3E8FF;color:#6D28D9;border-radius:1rem;padding:0.25rem 0.6rem 0.25rem 0.75rem;font-size:0.8rem;margin:0.2rem 0.3rem 0.2rem 0;">${escapeHtml(name)} <span onclick="removePendingGroupMember('${u.id}')" style="cursor:pointer;font-weight:700;">✕</span></span>`;
+            }).join('');
+        }
+        async function submitCreateGroup() {
+            const mode = document.getElementById('createGroupModal').dataset.mode || 'create';
+            if (mode === 'add') {
+                if (!pendingGroupMembers.length) { alert('Выберите хотя бы одного человека'); return; }
+                try {
+                    const r = await (await fetch('/api/group_chat.php?action=add-members', {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+                        body: JSON.stringify({ group_id: addMembersToGroupId, member_ids: pendingGroupMembers.map(m => m.id) })
+                    })).json();
+                    if (!r.ok) { alert(r.error || 'Не удалось добавить участников'); return; }
+                    closeCreateGroupModal();
+                    await loadMyGroups();
+                    if (selectedUserId === GROUP_PREFIX + addMembersToGroupId) await openGroupChat(addMembersToGroupId);
+                } catch (e) { alert('Ошибка сети'); }
+                return;
+            }
+            const name = document.getElementById('groupNameInput').value.trim();
+            if (!name) { alert('Введите название группы'); return; }
+            try {
+                const r = await (await fetch('/api/group_chat.php?action=create', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+                    body: JSON.stringify({ name, member_ids: pendingGroupMembers.map(m => m.id) })
+                })).json();
+                if (!r.ok) { alert(r.error || 'Не удалось создать группу'); return; }
+                closeCreateGroupModal();
+                await loadMyGroups();
+                renderConversationList(allConversations);
+                await openGroupChat(r.group_id);
+            } catch (e) { alert('Ошибка сети'); }
+        }
+        window.openCreateGroupModal = openCreateGroupModal;
+        window.closeCreateGroupModal = closeCreateGroupModal;
+        window.searchGroupMembers = searchGroupMembers;
+        window.addPendingGroupMember = addPendingGroupMember;
+        window.removePendingGroupMember = removePendingGroupMember;
+        window.submitCreateGroup = submitCreateGroup;
+
+        async function fetchGroupMembers(groupId) {
+            try {
+                const r = await fetch('/api/group_chat.php?action=members&group_id=' + encodeURIComponent(groupId), { credentials: 'include' });
+                const d = await r.json();
+                return (d && d.ok) ? (d.data || []) : [];
+            } catch (e) { return []; }
+        }
+        async function showGroupMembers(groupId) {
+            const members = await fetchGroupMembers(groupId);
+            const text = members.map(m => (`${m.first_name || ''} ${m.last_name || ''}`.trim() || 'Пользователь') + (m.role === 'owner' ? ' (владелец)' : '')).join('\n') || 'Нет участников';
+            alert(`Участники группы (${members.length}):\n\n${text}`);
+        }
+        async function leaveGroupChat(groupId) {
+            if (!confirm('Выйти из этой группы? Вы перестанете получать сообщения.')) return;
+            try {
+                await fetch('/api/group_chat.php?action=leave', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+                    body: JSON.stringify({ group_id: groupId })
+                });
+                if (pollInterval) { clearInterval(pollInterval); pollInterval = null; }
+                selectedUserId = null;
+                document.getElementById('chatContent').style.display = 'none';
+                document.getElementById('emptyState').style.display = 'flex';
+                await loadMyGroups();
+                renderConversationList(allConversations);
+            } catch (e) {}
+        }
+        let addMembersToGroupId = null;
+        async function openAddGroupMembers(groupId) {
+            addMembersToGroupId = groupId;
+            pendingGroupMembers = [];
+            const existing = await fetchGroupMembers(groupId);
+            const existingIds = new Set(existing.map(m => String(m.user_id)));
+            document.getElementById('groupMemberSearch').value = '';
+            document.getElementById('groupMemberResults').innerHTML = '';
+            document.getElementById('groupSelectedMembers').innerHTML = '';
+            document.getElementById('createGroupModal').dataset.mode = 'add';
+            document.getElementById('createGroupModal').dataset.existingIds = JSON.stringify([...existingIds]);
+            document.getElementById('groupNameRow').style.display = 'none';
+            document.getElementById('createGroupModalTitle').textContent = 'Добавить участников';
+            document.getElementById('createGroupSubmitBtn').textContent = 'Добавить';
+            document.getElementById('createGroupModal').style.display = 'flex';
+        }
+        window.showGroupMembers = showGroupMembers;
+        window.leaveGroupChat = leaveGroupChat;
+        window.openAddGroupMembers = openAddGroupMembers;
 
         // ── Канал как раздел чата: лента постов психолога вместо переписки — писать этому человеку отсюда нельзя,
         // можно только читать и комментировать посты (как канал в Телеграм). Задача #29, рефок.
@@ -1129,7 +1438,7 @@
         function chPostHtml(p) {
             const date = new Date(p.created_at).toLocaleString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
             const img = p.image_url ? `<img class="ch-post-img" src="${escapeHtml(p.image_url)}" alt="">` : '';
-            const text = p.text ? `<div class="ch-post-text">${escapeHtml(p.text)}</div>` : '';
+            const text = p.text ? `<div class="ch-post-text">${formatPostText(p.text)}</div>` : '';
             return `
                 <div class="ch-post" data-post-id="${p.id}">
                     <div class="ch-post-date">${date}</div>
@@ -1589,6 +1898,7 @@
             if (themeToggle) themeToggle.textContent = document.body.classList.contains('dark') ? '☀️' : '🌙';
 
             await loadMyChannels();
+            await loadMyGroups();
             await loadConversations();
 
             // Автоматически открыть чат если есть user в URL
@@ -1731,7 +2041,7 @@
                 const container = document.getElementById('conversationsList');
 
                 if (!conversations || conversations.length === 0) {
-                    container.innerHTML = favoritesRowHtml() + channelsRowsHtml() + `
+                    container.innerHTML = favoritesRowHtml() + channelsRowsHtml() + groupsRowsHtml() + `
                         <div class="no-conversations">
                             <p>У вас пока нет диалогов</p>
                             <p style="font-size: 0.9rem; margin-top: 0.5rem;">Диалоги появятся после записи на консультацию</p>
@@ -1766,14 +2076,14 @@
         function renderConversationList(conversations) {
             const container = document.getElementById('conversationsList');
             if (!conversations || conversations.length === 0) {
-                container.innerHTML = favoritesRowHtml() + channelsRowsHtml() + `
+                container.innerHTML = favoritesRowHtml() + channelsRowsHtml() + groupsRowsHtml() + `
                     <div class="no-conversations">
                         <p>Ничего не найдено</p>
                     </div>
                 `;
                 return;
             }
-            container.innerHTML = favoritesRowHtml() + channelsRowsHtml() + conversations.map(c => {
+            container.innerHTML = favoritesRowHtml() + channelsRowsHtml() + groupsRowsHtml() + conversations.map(c => {
                 const name = `${c.first_name || ''} ${c.last_name || ''}`.trim() || 'Пользователь';
                 const initial = name.charAt(0).toUpperCase();
                 const isNew = !!c._isNew;
@@ -2048,8 +2358,10 @@
             const cached = msgCache[id];
             const body = document.getElementById('msg-body-' + id);
             if (!cached || !body) return;
+            const bubble = body.closest('.message');
+            if (bubble) bubble.classList.add('editing');
             body.innerHTML = `
-                <textarea id="msg-edit-input-${id}" rows="2" style="width:100%;min-width:220px;padding:0.4rem 0.6rem;border:1.5px solid #7C3AED;border-radius:0.5rem;font-family:inherit;font-size:0.92rem;resize:vertical;color:inherit;background:rgba(255,255,255,0.15);">${escapeHtml(cached.content || '')}</textarea>
+                <textarea id="msg-edit-input-${id}" class="msg-edit-textarea" rows="2" style="padding:0.4rem 0.6rem;border:1.5px solid #7C3AED;border-radius:0.5rem;font-family:inherit;resize:vertical;color:inherit;background:rgba(255,255,255,0.15);box-sizing:border-box;">${escapeHtml(cached.content || '')}</textarea>
                 <div style="display:flex;gap:0.5rem;margin-top:0.3rem;">
                     <button onclick="saveEditMessage(event,'${id}')" style="cursor:pointer;border:none;background:#7C3AED;color:#fff;border-radius:0.4rem;padding:0.25rem 0.6rem;font-size:0.8rem;">Сохранить</button>
                     <button onclick="cancelEditMessage(event,'${id}')" style="cursor:pointer;border:1px solid currentColor;background:transparent;color:inherit;border-radius:0.4rem;padding:0.25rem 0.6rem;font-size:0.8rem;opacity:0.85;">Отмена</button>
@@ -2143,6 +2455,7 @@
             if (inputBar && inputBar.style.display === 'none') inputBar.style.display = '';
             if (selectedUserId === FAVORITES_ID) { await loadFavoritesMessages(); return; }
             if (isSupportMode()) { await loadSupportThreadMessages(); return; }
+            if (selectedUserId.indexOf(GROUP_PREFIX) === 0) { await loadGroupMessages(); return; }
 
             try {
                 // Загрузить данные пользователя
@@ -2339,6 +2652,20 @@
             const content = input.value.trim();
 
             if (!content || !selectedUserId) return;
+
+            if (typeof selectedUserId === 'string' && selectedUserId.indexOf(GROUP_PREFIX) === 0) {
+                input.value = '';
+                try {
+                    await fetch('/api/group_chat.php?action=send', {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+                        body: JSON.stringify({ group_id: selectedUserId.slice(GROUP_PREFIX.length), content })
+                    });
+                    await loadMessages();
+                    const container = document.getElementById('messagesContainer');
+                    container.scrollTop = container.scrollHeight;
+                } catch (e) { console.error('Send group message error:', e); }
+                return;
+            }
 
             if (isSupportMode()) {
                 input.value = '';

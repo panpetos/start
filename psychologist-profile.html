@@ -8,6 +8,7 @@
     <script src="/js/layout.js"></script>
     <script src="/js/api.js"></script>
     <script src="/js/auth.js"></script>
+    <script src="/js/post-format.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
         *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
@@ -121,13 +122,25 @@
             if (!card) return;
             let posts = [], info = { subscribers_count: 0, is_subscribed: false };
             try { const r = await fetch('/api/channels.php?action=posts&psychologist_id=' + encodeURIComponent(id)); const d = await r.json(); posts = (d && d.data) || []; } catch(e){}
-            if (!posts.length) { card.style.display = 'none'; return; }
             try { const r = await fetch('/api/channels.php?action=info&psychologist_id=' + encodeURIComponent(id), { credentials:'include' }); info = await r.json(); } catch(e){}
             channelSubscribed = !!info.is_subscribed;
+            // Раньше карточка (вместе с кнопкой «Подписаться») полностью пряталась, если психолог ещё не
+            // опубликовал ни одного поста — это был единственный способ подписаться на сайте, и он был
+            // недоступен именно тогда, когда клиент впервые заходит на новый профиль. Теперь карточка канала
+            // видна всегда, чтобы можно было подписаться заранее и увидеть посты, когда они появятся.
             card.style.display = 'block';
+            if (!posts.length) {
+                card.innerHTML = `
+                    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.6rem;">
+                        <h2 style="margin:0;">📢 Канал ${info.subscribers_count ? `<span style="color:var(--pp-text-sec);font-weight:500;font-size:0.85rem;">· ${info.subscribers_count} подписчиков</span>` : ''}</h2>
+                        <button class="btn-sec" style="padding:0.5rem 1.1rem;font-size:0.85rem;${channelSubscribed ? 'background:var(--pp-review-bg);color:var(--pp-text);border:1.5px solid var(--pp-border);' : ''}" onclick="toggleChannelSubscribe()">${channelSubscribed ? '✓ Вы подписаны' : 'Подписаться'}</button>
+                    </div>
+                    <div style="margin-top:0.5rem;color:var(--pp-text-sec);font-size:0.88rem;">Специалист пока не публиковал посты. Подпишитесь, чтобы не пропустить, когда появятся.</div>`;
+                return;
+            }
             const postsHtml = posts.map(p => {
                 const img = p.image_url ? `<img src="${esc(p.image_url)}" style="max-width:100%;border-radius:0.6rem;margin-top:0.5rem;">` : '';
-                const text = p.text ? `<div style="white-space:pre-wrap;color:var(--pp-text-desc);line-height:1.6;">${esc(p.text)}</div>` : '';
+                const text = p.text ? `<div style="color:var(--pp-text-desc);line-height:1.6;">${formatPostText(p.text)}</div>` : '';
                 const date = new Date(p.created_at).toLocaleDateString('ru', { day:'numeric', month:'short' });
                 return `<div id="post-${p.id}" style="border-bottom:1px solid var(--pp-border);padding:0.9rem 0;">
                     ${text}${img}

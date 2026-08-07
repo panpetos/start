@@ -65,6 +65,7 @@ jobs:
             put js/auth.js -o js/auth.js;
             put js/articles.js -o js/articles.js;
             put js/header-init.js -o js/header-init.js;
+            put js/post-format.js -o js/post-format.js;
             put api/admin_ext.php -o api/admin_ext.php;
             put api/subscribe.php -o api/subscribe.php;
             put api/my_profile.php -o api/my_profile.php;
@@ -102,6 +103,7 @@ jobs:
             put api/user_card.php -o api/user_card.php;
             put api/site_structure.php -o api/site_structure.php;
             put api/message_edit.php -o api/message_edit.php;
+            put api/group_chat.php -o api/group_chat.php;
             bye;
           "
           echo "Deployment complete"
