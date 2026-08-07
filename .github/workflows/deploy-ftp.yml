@@ -101,6 +101,7 @@ jobs:
             put api/analytics.php -o api/analytics.php;
             put api/user_card.php -o api/user_card.php;
             put api/site_structure.php -o api/site_structure.php;
+            put api/message_edit.php -o api/message_edit.php;
             bye;
           "
           echo "Deployment complete"

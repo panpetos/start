@@ -18,7 +18,7 @@ function notify_channels_config() {
     $c = file_exists($f) ? (include $f) : [];
     if (!is_array($c)) return [];
     // Токены копипастятся вручную в UI — обрезаем случайные пробелы/переносы, иначе Telegram отвечает 401 Unauthorized.
-    foreach (['telegram_token', 'max_token'] as $k) {
+    foreach (['telegram_token', 'max_token', 'telegram_proxy', 'max_proxy'] as $k) {
         if (isset($c[$k])) $c[$k] = trim((string)$c[$k]);
     }
     return $c;
@@ -39,33 +39,53 @@ function notify_ensure_links_table(PDO $pdo) {
 }
 
 // ── Telegram Bot API (https://core.telegram.org/bots/api) ─────────────────────────
-function notify_tg_request($token, $method, $params = []) {
+/**
+ * $proxy — необязательный прокси для curl (например "socks5h://host:1080" или
+ * "http://user:pass@host:3128") — на случай если у хостинга проблемы с прямым
+ * доступом к api.telegram.org (задача #40: подозрение на блокировку/санкции).
+ * Транспортные ошибки (не достучались до Telegram) и API-ошибки Telegram (плохой
+ * токен и т.п.) возвращаются с явной меткой transport_error, чтобы не путать их —
+ * раньше обе выглядели одинаково как {ok:false, error:"..."}.
+ */
+function notify_tg_request($token, $method, $params = [], $proxy = null) {
     $url = 'https://api.telegram.org/bot' . $token . '/' . $method;
     $ch = curl_init($url);
-    curl_setopt_array($ch, [
+    $opts = [
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_POST => true,
         CURLOPT_POSTFIELDS => json_encode($params),
         CURLOPT_HTTPHEADER => ['Content-Type: application/json'],
-        CURLOPT_TIMEOUT => 10,
+        CURLOPT_CONNECTTIMEOUT => 8,
+        CURLOPT_TIMEOUT => 12,
         CURLOPT_SSL_VERIFYPEER => true,
-    ]);
+    ];
+    if ($proxy) $opts[CURLOPT_PROXY] = $proxy;
+    curl_setopt_array($ch, $opts);
     $res = curl_exec($ch);
+    $errno = curl_errno($ch);
     $err = curl_error($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $totalTime = curl_getinfo($ch, CURLINFO_TOTAL_TIME);
     curl_close($ch);
-    if ($err) return ['ok' => false, 'error' => $err];
+    if ($errno) {
+        // Транспортный уровень не ответил вовсе — таймаут/DNS/SSL/сброс соединения.
+        // Именно такая картина ожидается при сетевой блокировке (DPI/файрвол хостера), не при неверном токене.
+        return ['ok' => false, 'transport_error' => true, 'error' => $err, 'curl_errno' => $errno, 'elapsed_s' => round($totalTime, 2)];
+    }
     $d = json_decode($res, true);
-    return is_array($d) ? $d : ['ok' => false, 'error' => 'Пустой/некорректный ответ Telegram', 'raw' => $res];
+    if (!is_array($d)) return ['ok' => false, 'transport_error' => false, 'error' => 'Пустой/некорректный ответ Telegram', 'http_code' => $httpCode, 'raw' => $res];
+    if (empty($d['ok'])) $d['transport_error'] = false; // ответ дошёл, но Telegram вернул ошибку (например 401 — неверный токен)
+    return $d;
 }
-function notify_tg_send($token, $chatId, $text) {
-    return notify_tg_request($token, 'sendMessage', ['chat_id' => $chatId, 'text' => $text]);
+function notify_tg_send($token, $chatId, $text, $proxy = null) {
+    return notify_tg_request($token, 'sendMessage', ['chat_id' => $chatId, 'text' => $text], $proxy);
 }
 /** Последние входящие через long-polling getUpdates — чтобы найти chat_id тех, кто написал боту /start. */
-function notify_tg_recent_chats($token) {
+function notify_tg_recent_chats($token, $proxy = null) {
     // getUpdates отвечает "409 Conflict: can't use getUpdates method while webhook is active", если на боте
     // когда-либо был установлен вебхук (даже случайно) — снимаем его перед каждым опросом, это безопасно и идемпотентно.
-    notify_tg_request($token, 'deleteWebhook', ['drop_pending_updates' => false]);
-    $r = notify_tg_request($token, 'getUpdates', ['limit' => 50, 'timeout' => 0]);
+    notify_tg_request($token, 'deleteWebhook', ['drop_pending_updates' => false], $proxy);
+    $r = notify_tg_request($token, 'getUpdates', ['limit' => 50, 'timeout' => 0], $proxy);
     if (empty($r['ok'])) return $r;
     $seen = [];
     foreach (($r['result'] ?? []) as $u) {
@@ -83,34 +103,37 @@ function notify_tg_recent_chats($token) {
 // ── MAX Bot API (https://dev.max.ru) — платформа-api2.max.ru, токен в заголовке Authorization, версия ?v= ──
 define('NOTIFY_MAX_BASE', 'https://platform-api2.max.ru');
 define('NOTIFY_MAX_VERSION', '1.2.5');
-function notify_max_request($token, $path, $httpMethod, $query = [], $body = null) {
+function notify_max_request($token, $path, $httpMethod, $query = [], $body = null, $proxy = null) {
     $url = NOTIFY_MAX_BASE . $path . '?' . http_build_query(array_merge(['v' => NOTIFY_MAX_VERSION], $query));
     $ch = curl_init($url);
     $opts = [
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_HTTPHEADER => ['Authorization: ' . $token, 'Content-Type: application/json'],
-        CURLOPT_TIMEOUT => 10,
+        CURLOPT_CONNECTTIMEOUT => 8,
+        CURLOPT_TIMEOUT => 12,
         CURLOPT_CUSTOMREQUEST => $httpMethod,
         CURLOPT_SSL_VERIFYPEER => true,
     ];
     if ($body !== null) $opts[CURLOPT_POSTFIELDS] = json_encode($body);
+    if ($proxy) $opts[CURLOPT_PROXY] = $proxy;
     curl_setopt_array($ch, $opts);
     $res = curl_exec($ch);
+    $errno = curl_errno($ch);
     $err = curl_error($ch);
     curl_close($ch);
-    if ($err) return ['ok' => false, 'error' => $err];
+    if ($errno) return ['ok' => false, 'transport_error' => true, 'error' => $err, 'curl_errno' => $errno];
     $d = json_decode($res, true);
-    return is_array($d) ? $d : ['ok' => false, 'error' => 'Пустой/некорректный ответ MAX', 'raw' => $res];
+    return is_array($d) ? $d : ['ok' => false, 'transport_error' => false, 'error' => 'Пустой/некорректный ответ MAX', 'raw' => $res];
 }
-function notify_max_send($token, $userId, $text) {
-    $r = notify_max_request($token, '/messages', 'POST', ['user_id' => $userId], ['text' => $text]);
+function notify_max_send($token, $userId, $text, $proxy = null) {
+    $r = notify_max_request($token, '/messages', 'POST', ['user_id' => $userId], ['text' => $text], $proxy);
     // MAX возвращает {"code":"...","message":"..."} при ошибке, иначе объект отправленного сообщения
     if (isset($r['code'])) return ['ok' => false, 'error' => $r['message'] ?? $r['code']];
     if (array_key_exists('ok', $r)) return $r;
     return array_merge(['ok' => true], $r);
 }
-function notify_max_recent_chats($token) {
-    $r = notify_max_request($token, '/updates', 'GET', ['limit' => 50, 'timeout' => 0]);
+function notify_max_recent_chats($token, $proxy = null) {
+    $r = notify_max_request($token, '/updates', 'GET', ['limit' => 50, 'timeout' => 0], null, $proxy);
     if (isset($r['code'])) return ['ok' => false, 'error' => $r['message'] ?? $r['code']];
     $seen = [];
     foreach (($r['updates'] ?? $r['result'] ?? []) as $u) {
@@ -162,10 +185,47 @@ function notify_admins(PDO $pdo, $code, $vars) {
     foreach ($links as $l) {
         try {
             if ($l['channel'] === 'telegram' && !empty($cfg['telegram_token'])) {
-                notify_tg_send($cfg['telegram_token'], $l['chat_id'], $text);
+                notify_tg_send($cfg['telegram_token'], $l['chat_id'], $text, $cfg['telegram_proxy'] ?? null);
             } elseif ($l['channel'] === 'max' && !empty($cfg['max_token'])) {
-                notify_max_send($cfg['max_token'], $l['chat_id'], $text);
+                notify_max_send($cfg['max_token'], $l['chat_id'], $text, $cfg['max_proxy'] ?? null);
             }
         } catch (Exception $e) {}
     }
+}
+
+/**
+ * Диагностика соединения с ботом (задача #40) — отдельно от getUpdates/sendMessage,
+ * чтобы явно показать администратору, ЧТО именно не работает: сеть не пускает хостинг
+ * до api.telegram.org / platform-api2.max.ru (transport_error — похоже на блокировку
+ * провайдером/файрволом хостера), или соединение проходит, но токен бота неверный
+ * (обычная 401 Unauthorized), или всё в порядке.
+ */
+function notify_tg_diag($token, $proxy = null) {
+    $r = notify_tg_request($token, 'getMe', [], $proxy);
+    return notify_diag_verdict($r);
+}
+function notify_max_diag($token, $proxy = null) {
+    $r = notify_max_request($token, '/me', 'GET', [], null, $proxy);
+    return notify_diag_verdict($r);
+}
+function notify_diag_verdict($r) {
+    if (!empty($r['ok'])) {
+        return ['verdict' => 'ok', 'message' => 'Соединение и токен в порядке — бот ответил.', 'raw' => $r];
+    }
+    if (!empty($r['transport_error'])) {
+        return [
+            'verdict' => 'transport',
+            'message' => 'Сервер не смог подключиться (cURL: ' . ($r['error'] ?? '?') . '). '
+                . 'Это похоже на сетевую блокировку/файрвол на стороне хостинга, а не на проблему с токеном — '
+                . 'токен вообще не успел проверяться. Если это стабильно повторяется, нужен исходящий прокси '
+                . '(поле "Прокси" рядом с токеном ниже) до Telegram/MAX из региона без блокировки.',
+            'raw' => $r,
+        ];
+    }
+    return [
+        'verdict' => 'api_error',
+        'message' => 'Сервер достучался до бота, но тот ответил ошибкой: ' . ($r['description'] ?? $r['error'] ?? 'неизвестно')
+            . '. Сеть здесь ни при чём — скорее всего неверный/отозванный токен, проверьте его в @BotFather (Telegram) или в кабинете MAX.',
+        'raw' => $r,
+    ];
 }

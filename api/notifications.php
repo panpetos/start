@@ -14,7 +14,7 @@
  *   GET  ?action=channels-status  — какие каналы настроены (без секретов)
  *   POST ?action=template-save    {code, title, body, enabled}
  *   POST ?action=template-reset   {code}                 — вернуть текст по умолчанию
- *   POST ?action=channels-save    {telegram_token, max_token, email_method, smtp_*}
+ *   POST ?action=channels-save    {telegram_token, max_token, telegram_proxy, max_proxy, email_method, smtp_*}
  *
  * Задача #40 — тестовая отправка в уже подключённые боты (движок — notify_lib.php):
  *   GET  ?action=telegram-updates / max-updates   — недавние /start от бота (chat_id для привязки)
@@ -22,6 +22,11 @@
  *   POST ?action=telegram-test / max-test  {chat_id?, text?}  — тестовое сообщение (по умолчанию — в свой привязанный чат)
  *   GET  ?action=my-links          — какие каналы привязаны у текущего админа
  *   POST ?action=unlink   {channel}
+ *
+ * Задача #40 (доработка) — диагностика связи с ботом, отдельно от «Найти чаты»/«Тест отправки»,
+ * чтобы отличить сетевую блокировку хостинга от неверного токена (админ сообщил, что Telegram
+ * не работает, предположительно из-за санкций/блокировки на сервере в РФ):
+ *   GET  ?action=telegram-diag / max-diag   — { verdict: 'ok'|'transport'|'api_error', message }
  */
 
 header('Content-Type: application/json; charset=utf-8');
@@ -224,6 +229,8 @@ if ($action === 'channels-status') {
     out(['ok' => true, 'data' => [
         'telegram_configured' => !empty($c['telegram_token']),
         'max_configured'      => !empty($c['max_token']),
+        'telegram_proxy'      => $c['telegram_proxy'] ?? '',
+        'max_proxy'           => $c['max_proxy'] ?? '',
         'email_method'        => $c['email_method'] ?? '',
         'email_configured'    => (function ($c) {
             $m = $c['email_method'] ?? '';
@@ -250,7 +257,7 @@ if ($action === 'channels-save') {
         if ($v !== '') $c[$secret] = $v;
     }
     // Несекретные поля — перезаписываем как пришли
-    foreach (['email_method', 'smtp_host', 'smtp_port', 'smtp_user', 'smtp_from', 'resend_from', 'resend_replyto'] as $field) {
+    foreach (['email_method', 'smtp_host', 'smtp_port', 'smtp_user', 'smtp_from', 'resend_from', 'resend_replyto', 'telegram_proxy', 'max_proxy'] as $field) {
         if (array_key_exists($field, $body)) $c[$field] = trim((string)$body[$field]);
     }
     $php = "<?php\n// Конфиг каналов уведомлений — НЕ в git. Заполняется из админки.\nreturn " . var_export($c, true) . ";\n";
@@ -263,10 +270,23 @@ if ($action === 'channels-save') {
 if ($action === 'telegram-updates' || $action === 'max-updates') {
     $ch = load_channels($cfgFile);
     $token = $action === 'telegram-updates' ? ($ch['telegram_token'] ?? '') : ($ch['max_token'] ?? '');
+    $proxy = $action === 'telegram-updates' ? ($ch['telegram_proxy'] ?? null) : ($ch['max_proxy'] ?? null);
     if (!$token) out(['error' => 'Токен бота не настроен — сначала сохраните его в разделе «Каналы доставки»'], 400);
-    $r = $action === 'telegram-updates' ? notify_tg_recent_chats($token) : notify_max_recent_chats($token);
-    if (empty($r['ok'])) out(['error' => $r['description'] ?? $r['error'] ?? 'Не удалось получить обновления от бота'], 502);
+    $r = $action === 'telegram-updates' ? notify_tg_recent_chats($token, $proxy) : notify_max_recent_chats($token, $proxy);
+    if (empty($r['ok'])) {
+        $hint = !empty($r['transport_error']) ? ' (похоже на сетевую блокировку — см. «🔍 Диагностика соединения»)' : '';
+        out(['error' => ($r['description'] ?? $r['error'] ?? 'Не удалось получить обновления от бота') . $hint], 502);
+    }
     out(['ok' => true, 'data' => $r['data'] ?? []]);
+}
+
+if ($action === 'telegram-diag' || $action === 'max-diag') {
+    $ch = load_channels($cfgFile);
+    $token = $action === 'telegram-diag' ? ($ch['telegram_token'] ?? '') : ($ch['max_token'] ?? '');
+    $proxy = $action === 'telegram-diag' ? ($ch['telegram_proxy'] ?? null) : ($ch['max_proxy'] ?? null);
+    if (!$token) out(['error' => 'Токен бота не настроен — сначала сохраните его в разделе «Каналы доставки»'], 400);
+    $d = $action === 'telegram-diag' ? notify_tg_diag($token, $proxy) : notify_max_diag($token, $proxy);
+    out(['ok' => true, 'verdict' => $d['verdict'], 'message' => $d['message']]);
 }
 
 if ($action === 'telegram-link' || $action === 'max-link') {
@@ -304,6 +324,7 @@ if ($action === 'telegram-test' || $action === 'max-test') {
     $channel = $action === 'telegram-test' ? 'telegram' : 'max';
     $ch = load_channels($cfgFile);
     $token = $channel === 'telegram' ? ($ch['telegram_token'] ?? '') : ($ch['max_token'] ?? '');
+    $proxy = $channel === 'telegram' ? ($ch['telegram_proxy'] ?? null) : ($ch['max_proxy'] ?? null);
     if (!$token) out(['error' => 'Токен бота не настроен — сначала сохраните его в разделе «Каналы доставки»'], 400);
     notify_ensure_links_table($pdo);
     $chatId = trim((string)($body['chat_id'] ?? ''));
@@ -316,8 +337,11 @@ if ($action === 'telegram-test' || $action === 'max-test') {
     }
     if ($chatId === '') out(['error' => 'Нет привязанного чата — сначала найдите свой чат через «Найти мои чаты» и привяжите его'], 400);
     $text = trim((string)($body['text'] ?? '')) ?: 'Тестовое сообщение с psytalk.pro ✅ Если вы это читаете — бот настроен верно.';
-    $r = $channel === 'telegram' ? notify_tg_send($token, $chatId, $text) : notify_max_send($token, $chatId, $text);
-    if (empty($r['ok'])) out(['error' => $r['description'] ?? $r['error'] ?? 'Бот вернул ошибку'], 502);
+    $r = $channel === 'telegram' ? notify_tg_send($token, $chatId, $text, $proxy) : notify_max_send($token, $chatId, $text, $proxy);
+    if (empty($r['ok'])) {
+        $hint = !empty($r['transport_error']) ? ' (похоже на сетевую блокировку — см. «🔍 Диагностика соединения»)' : '';
+        out(['error' => ($r['description'] ?? $r['error'] ?? 'Бот вернул ошибку') . $hint], 502);
+    }
     out(['ok' => true]);
 }
 

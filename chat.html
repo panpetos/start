@@ -2042,6 +2042,45 @@
             pendingForward = null;
         }
 
+        // ── Редактирование своего сообщения (задачи #29, #42) — правки логируются на сервере для админа ──
+        function startEditMessage(evt, id) {
+            if (evt) evt.stopPropagation();
+            const cached = msgCache[id];
+            const body = document.getElementById('msg-body-' + id);
+            if (!cached || !body) return;
+            body.innerHTML = `
+                <textarea id="msg-edit-input-${id}" rows="2" style="width:100%;min-width:220px;padding:0.4rem 0.6rem;border:1.5px solid #7C3AED;border-radius:0.5rem;font-family:inherit;font-size:0.92rem;resize:vertical;color:inherit;background:rgba(255,255,255,0.15);">${escapeHtml(cached.content || '')}</textarea>
+                <div style="display:flex;gap:0.5rem;margin-top:0.3rem;">
+                    <button onclick="saveEditMessage(event,'${id}')" style="cursor:pointer;border:none;background:#7C3AED;color:#fff;border-radius:0.4rem;padding:0.25rem 0.6rem;font-size:0.8rem;">Сохранить</button>
+                    <button onclick="cancelEditMessage(event,'${id}')" style="cursor:pointer;border:1px solid currentColor;background:transparent;color:inherit;border-radius:0.4rem;padding:0.25rem 0.6rem;font-size:0.8rem;opacity:0.85;">Отмена</button>
+                </div>
+            `;
+            const ta = document.getElementById('msg-edit-input-' + id);
+            if (ta) { ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); }
+        }
+        async function saveEditMessage(evt, id) {
+            if (evt) evt.stopPropagation();
+            const ta = document.getElementById('msg-edit-input-' + id);
+            if (!ta) return;
+            const content = ta.value.trim();
+            if (!content) { alert('Текст не может быть пустым'); return; }
+            try {
+                const r = await (await fetch('/api/message_edit.php?action=edit', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+                    body: JSON.stringify({ message_id: id, content })
+                })).json();
+                if (!r.ok) { alert(r.error || 'Не удалось сохранить'); return; }
+                await loadMessages();
+            } catch (e) { alert('Ошибка сети'); }
+        }
+        function cancelEditMessage(evt, id) {
+            if (evt) evt.stopPropagation();
+            loadMessages();
+        }
+        window.startEditMessage = startEditMessage;
+        window.saveEditMessage = saveEditMessage;
+        window.cancelEditMessage = cancelEditMessage;
+
         function renderForwardTargets(list) {
             const el = document.getElementById('forwardTargets');
             if (!el) return;
@@ -2131,6 +2170,18 @@
                 // Живое состояние счетов для интерактивных карточек
                 await loadOrders();
 
+                // Отметки "отредактировано" — messages.php server-only и не отдаёт эту информацию,
+                // поэтому статус правок подтягивается отдельно из message_edit.php (задачи #29, #42).
+                let editedMap = {};
+                try {
+                    const ids = messages.filter(m => m.id).map(m => m.id).join(',');
+                    if (ids) {
+                        const er = await fetch(`/api/message_edit.php?action=edited-map&ids=${encodeURIComponent(ids)}`, { credentials: 'include' });
+                        const ed = await er.json();
+                        if (ed && ed.ok) editedMap = ed.data || {};
+                    }
+                } catch (e) {}
+
                 const container = document.getElementById('messagesContainer');
                 const wasScrolledToBottom = container.scrollHeight - container.scrollTop <= container.clientHeight + 50;
 
@@ -2143,6 +2194,8 @@
                         msgCache[m.id] = { content: m.content, attachment_url: m.attachment_url, attachment_type: m.attachment_type, attachment_name: m.attachment_name };
                     }
                     const forwardBtn = m.id ? ` <span onclick="openForwardMenu(event,'msg','${m.id}')" style="cursor:pointer;opacity:0.75;margin-left:0.35rem;" title="Переслать">↪</span>` : '';
+                    const editBtn = (m.id && isMine && !m.attachment_url) ? ` <span onclick="startEditMessage(event,'${m.id}')" style="cursor:pointer;opacity:0.75;margin-left:0.35rem;" title="Редактировать">✏️</span>` : '';
+                    const editedTag = (m.id && editedMap[m.id]) ? ` <span style="opacity:0.65;font-style:italic;" title="Отредактировано ${escapeHtml(formatTime(editedMap[m.id]))}">(ред.)</span>` : '';
 
                     // Рендер вложения
                     let attachmentHtml = '';
@@ -2207,11 +2260,11 @@
                     }
 
                     return `
-                        <div class="message ${isMine ? 'mine' : 'theirs'}">
+                        <div class="message ${isMine ? 'mine' : 'theirs'}" data-msg-id="${m.id || ''}">
                             ${callBtn}
-                            ${content ? `<div>${content}</div>` : ''}
+                            <div id="msg-body-${m.id || ''}">${content ? `<div id="msg-content-${m.id || ''}">${content}</div>` : ''}</div>
                             ${attachmentHtml}
-                            <div class="message-time">${time}${forwardBtn}</div>
+                            <div class="message-time">${time}${editedTag}${forwardBtn}${editBtn}</div>
                         </div>
                     `;
                 }).join('');

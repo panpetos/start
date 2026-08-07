@@ -985,8 +985,33 @@
                         </div>
                         <div id="auditLogBox"><div class="loading">Загрузка...</div></div>
                     </div>
+                </div>
+                <div class="panel" style="margin-top:0.75rem;"><div class="panel-head"><h2>Правки сообщений в чатах</h2></div>
+                    <div style="padding:1rem 1.1rem;">
+                        <div class="note" style="margin-bottom:0.6rem;">✏️ Все роли могут редактировать свои сообщения в чате — здесь видно, кто и когда это делал, и с какого текста на какой (задача #29/#42).</div>
+                        <div id="msgEditLogBox"><div class="loading">Загрузка...</div></div>
+                    </div>
                 </div>`;
             loadAuditLog();
+            loadMessageEditLog();
+        }
+
+        async function loadMessageEditLog(){
+            const box = document.getElementById('msgEditLogBox');
+            if (!box) return;
+            try {
+                const r = await (await fetch('/api/message_edit.php?action=recent-edits&limit=300', { credentials:'include' })).json();
+                const rows = (r && r.ok) ? (r.data || []) : [];
+                if (!rows.length) { box.innerHTML = '<div class="empty">Правок пока не было</div>'; return; }
+                box.innerHTML = `<table><thead><tr><th>Дата/время</th><th>Кто редактировал</th><th>Сообщение №</th><th>Было</th><th>Стало</th></tr></thead><tbody>` +
+                    rows.map(r => {
+                        const who = `${r.editor_first_name||''} ${r.editor_last_name||''}`.trim() || (r.editor_id || '—');
+                        const roleLabel = r.editor_role === 'psychologist' ? 'психолог' : (r.editor_role === 'admin' ? 'админ' : (r.editor_role === 'client' ? 'клиент' : (r.editor_role || '')));
+                        return `<tr><td class="muted">${fmtDateTime(r.edited_at)}</td><td>${esc(who)}${roleLabel ? ` <span class="muted">(${esc(roleLabel)})</span>` : ''}</td><td class="muted">#${esc(r.message_id)}</td>
+                            <td style="max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${esc(r.old_content||'')}">${esc(r.old_content||'')}</td>
+                            <td style="max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${esc(r.new_content||'')}">${esc(r.new_content||'')}</td></tr>`;
+                    }).join('') + '</tbody></table>';
+            } catch (e) { box.innerHTML = '<div class="empty">Не удалось загрузить</div>'; }
         }
 
         async function loadAuditLog(){
@@ -1909,12 +1934,16 @@
                 <div>
                   <div style="font-weight:600;margin-bottom:0.4rem;">✈️ Telegram-бот ${yn(c.telegram_configured)}</div>
                   <input id="ntlg" type="password" placeholder="${c.telegram_configured?'•••• (задан, введите новый чтобы заменить)':'токен бота от @BotFather'}" style="width:100%;padding:0.55rem 0.75rem;border:1.5px solid #E5E7EB;border-radius:0.6rem;font-family:monospace;">
+                  <input id="ntlgproxy" value="${esc(c.telegram_proxy||'')}" placeholder="Прокси (необязательно) — http://user:pass@host:port или socks5h://host:port" style="width:100%;margin-top:0.4rem;padding:0.5rem 0.7rem;border:1.5px solid #E5E7EB;border-radius:0.6rem;font-family:monospace;font-size:0.82rem;">
                   ${testBotBlock('telegram', c.telegram_configured)}
+                  ${c.telegram_configured ? `<button class="btn-sm btn-outline" style="margin-top:0.5rem;" onclick="notifDiag('telegram')">🔍 Диагностика соединения</button><div id="notifDiag_telegram" style="margin-top:0.4rem;font-size:0.82rem;"></div>` : ''}
                 </div>
                 <div>
                   <div style="font-weight:600;margin-bottom:0.4rem;">Ⓜ️ MAX-бот ${yn(c.max_configured)}</div>
                   <input id="nmax" type="password" placeholder="${c.max_configured?'•••• (задан, введите новый чтобы заменить)':'токен бота MAX'}" style="width:100%;padding:0.55rem 0.75rem;border:1.5px solid #E5E7EB;border-radius:0.6rem;font-family:monospace;">
+                  <input id="nmaxproxy" value="${esc(c.max_proxy||'')}" placeholder="Прокси (необязательно) — http://user:pass@host:port или socks5h://host:port" style="width:100%;margin-top:0.4rem;padding:0.5rem 0.7rem;border:1.5px solid #E5E7EB;border-radius:0.6rem;font-family:monospace;font-size:0.82rem;">
                   ${testBotBlock('max', c.max_configured)}
+                  ${c.max_configured ? `<button class="btn-sm btn-outline" style="margin-top:0.5rem;" onclick="notifDiag('max')">🔍 Диагностика соединения</button><div id="notifDiag_max" style="margin-top:0.4rem;font-size:0.82rem;"></div>` : ''}
                 </div>
                 <div>
                   <div style="font-weight:600;margin-bottom:0.4rem;">✉️ Email</div>
@@ -2014,6 +2043,18 @@
             await apiPostTo(NOTIF_API, 'unlink', { channel });
             renderNotifications();
         }
+        async function notifDiag(channel){
+            const box = document.getElementById('notifDiag_' + channel);
+            if (!box) return;
+            box.innerHTML = '<span class="muted">Проверяю соединение...</span>';
+            try {
+                const r = await (await fetch(NOTIF_API + '?action=' + channel + '-diag', { credentials:'include' })).json();
+                if (!r.ok) { box.innerHTML = '⚠️ ' + esc(r.error || 'ошибка'); return; }
+                const color = r.verdict === 'ok' ? '#16A34A' : (r.verdict === 'transport' ? '#DC2626' : '#D97706');
+                const icon = r.verdict === 'ok' ? '✅' : (r.verdict === 'transport' ? '🚫' : '⚠️');
+                box.innerHTML = `<div style="color:${color};">${icon} ${esc(r.message)}</div>`;
+            } catch(e) { box.innerHTML = '⚠️ сбой запроса'; }
+        }
         async function notifTestSend(channel){
             const msg = document.getElementById('notifMsg_' + channel);
             msg.textContent = ' отправляю...'; msg.style.color = '#6B7280';
@@ -2026,7 +2067,9 @@
             btn.disabled = true; m.textContent = ' сохраняю...'; m.style.color = '#6B7280';
             const payload = {
                 telegram_token: document.getElementById('ntlg').value,
+                telegram_proxy: document.getElementById('ntlgproxy').value,
                 max_token: document.getElementById('nmax').value,
+                max_proxy: document.getElementById('nmaxproxy').value,
                 email_method: document.getElementById('nemeth').value,
             };
             if (payload.email_method === 'smtp') {
@@ -2245,6 +2288,9 @@
                             <label style="font-size:0.82rem;color:var(--a-text-sec);display:flex;align-items:center;gap:0.35rem;">Срок:
                                 <input id="noteDueDate" type="date" style="padding:0.35rem 0.5rem;border:1.5px solid var(--a-input-border);border-radius:0.5rem;font-family:inherit;background:var(--a-input-bg);color:var(--a-text);">
                             </label>
+                            <label style="font-size:0.82rem;color:var(--a-text-sec);display:flex;align-items:center;gap:0.35rem;">Время:
+                                <input id="noteDueTime" type="time" style="padding:0.35rem 0.5rem;border:1.5px solid var(--a-input-border);border-radius:0.5rem;font-family:inherit;background:var(--a-input-bg);color:var(--a-text);">
+                            </label>
                             <button class="btn-sm btn-purple" onclick="addNote(this)">Добавить</button>
                             <span id="noteMsg" style="font-size:0.85rem;"></span>
                         </div>
@@ -2257,7 +2303,8 @@
         function noteDueBadge(n){
             if (!n.due_date) return '';
             const over = n.is_overdue == 1 || n.is_overdue === true;
-            return `<span class="note-card-due ${over ? 'due-over' : 'due-ok'}">${over ? '⏰ просрочено · ' : '📅 срок: '}${esc(n.due_date)}</span>`;
+            const when = esc(n.due_date) + (n.due_time ? ', ' + esc(String(n.due_time).slice(0,5)) : '');
+            return `<span class="note-card-due ${over ? 'due-over' : 'due-ok'}">${over ? '⏰ просрочено · ' : '📅 срок: '}${when}</span>`;
         }
 
         function noteCardHtml(n){
@@ -2280,6 +2327,9 @@
                         <div style="display:flex;gap:0.5rem;align-items:center;margin-top:0.4rem;flex-wrap:wrap;">
                             <label style="font-size:0.78rem;color:var(--a-text-sec);display:flex;align-items:center;gap:0.3rem;">Срок:
                                 <input id="noteEditDue-${n.id}" type="date" value="${esc(n.due_date||'')}" style="padding:0.3rem 0.45rem;border:1.5px solid var(--a-input-border);border-radius:0.4rem;font-family:inherit;background:var(--a-input-bg);color:var(--a-text);">
+                            </label>
+                            <label style="font-size:0.78rem;color:var(--a-text-sec);display:flex;align-items:center;gap:0.3rem;">Время:
+                                <input id="noteEditDueTime-${n.id}" type="time" value="${esc(n.due_time ? String(n.due_time).slice(0,5) : '')}" style="padding:0.3rem 0.45rem;border:1.5px solid var(--a-input-border);border-radius:0.4rem;font-family:inherit;background:var(--a-input-bg);color:var(--a-text);">
                             </label>
                             <button class="btn-sm btn-purple" onclick="saveNoteEdit(${n.id})">Сохранить</button>
                             <button class="btn-sm btn-outline" onclick="cancelNoteEdit(${n.id})">Отмена</button>
@@ -2318,9 +2368,10 @@
             const title = document.getElementById('noteEditTitle-' + id).value.trim();
             const body = document.getElementById('noteEditBody-' + id).value.trim();
             const due = document.getElementById('noteEditDue-' + id).value;
+            const dueTime = document.getElementById('noteEditDueTime-' + id).value;
             if (!title && !body) { alert('Введите заголовок или текст'); return; }
             try {
-                await fetch('/api/admin_notes.php?action=update', { method:'POST', headers:{'Content-Type':'application/json'}, credentials:'include', body:JSON.stringify({id, title, body, due_date: due || ''}) });
+                await fetch('/api/admin_notes.php?action=update', { method:'POST', headers:{'Content-Type':'application/json'}, credentials:'include', body:JSON.stringify({id, title, body, due_date: due || '', due_time: due ? (dueTime || '') : ''}) });
                 renderNotes();
             } catch(e){ alert('Не удалось сохранить'); }
         }
@@ -2329,13 +2380,14 @@
             const title = document.getElementById('noteTitle').value.trim();
             const body = document.getElementById('noteBody').value.trim();
             const due = document.getElementById('noteDueDate').value;
+            const dueTime = document.getElementById('noteDueTime').value;
             const msg = document.getElementById('noteMsg');
             if (!title && !body){ if(msg){msg.textContent='Введите заголовок или текст';msg.style.color='#DC2626';} return; }
             btn.disabled = true;
             try {
-                const r = await (await fetch('/api/admin_notes.php?action=add', { method:'POST', headers:{'Content-Type':'application/json'}, credentials:'include', body:JSON.stringify({title, body, due_date: due || ''}) })).json();
+                const r = await (await fetch('/api/admin_notes.php?action=add', { method:'POST', headers:{'Content-Type':'application/json'}, credentials:'include', body:JSON.stringify({title, body, due_date: due || '', due_time: due ? (dueTime || '') : ''}) })).json();
                 btn.disabled = false;
-                if (r.ok) renderNotes();
+                if (r.ok) { document.getElementById('noteDueTime').value=''; renderNotes(); }
                 else { if(msg){msg.textContent=r.error||'Ошибка';msg.style.color='#DC2626';} }
             } catch(e){ btn.disabled=false; if(msg){msg.textContent='Ошибка сети';msg.style.color='#DC2626';} }
         }

@@ -151,6 +151,9 @@
                         <label style="font-size:0.82rem;color:var(--d-text-sec);display:flex;align-items:center;gap:0.35rem;">Срок:
                             <input id="noteDueDate" type="date" style="width:auto;margin-bottom:0;">
                         </label>
+                        <label style="font-size:0.82rem;color:var(--d-text-sec);display:flex;align-items:center;gap:0.35rem;">Время:
+                            <input id="noteDueTime" type="time" style="width:auto;margin-bottom:0;">
+                        </label>
                         <button class="btn-sm btn-purple" onclick="addNote(this)">Добавить</button>
                         <span id="noteMsg" style="font-size:0.85rem;"></span>
                     </div>
@@ -210,7 +213,8 @@
         function noteDueBadge(n){
             if (!n.due_date) return '';
             const over = n.is_overdue == 1 || n.is_overdue === true;
-            return `<span class="note-card-due ${over ? 'due-over' : 'due-ok'}">${over ? '⏰ просрочено · ' : '📅 срок: '}${esc(n.due_date)}</span>`;
+            const when = esc(n.due_date) + (n.due_time ? ', ' + esc(String(n.due_time).slice(0,5)) : '');
+            return `<span class="note-card-due ${over ? 'due-over' : 'due-ok'}">${over ? '⏰ просрочено · ' : '📅 срок: '}${when}</span>`;
         }
 
         function noteCardHtml(n){
@@ -233,6 +237,9 @@
                         <div style="display:flex;gap:0.5rem;align-items:center;margin-top:0.4rem;flex-wrap:wrap;">
                             <label style="font-size:0.78rem;color:var(--d-text-sec);display:flex;align-items:center;gap:0.3rem;">Срок:
                                 <input id="noteEditDue-${n.id}" type="date" value="${esc(n.due_date||'')}" style="padding:0.3rem 0.45rem;border:1.5px solid var(--d-border);border-radius:0.4rem;font-family:inherit;background:var(--d-panel-alt);color:var(--d-text);">
+                            </label>
+                            <label style="font-size:0.78rem;color:var(--d-text-sec);display:flex;align-items:center;gap:0.3rem;">Время:
+                                <input id="noteEditDueTime-${n.id}" type="time" value="${esc(n.due_time ? String(n.due_time).slice(0,5) : '')}" style="padding:0.3rem 0.45rem;border:1.5px solid var(--d-border);border-radius:0.4rem;font-family:inherit;background:var(--d-panel-alt);color:var(--d-text);">
                             </label>
                             <button class="btn-sm btn-purple" onclick="saveNoteEdit(${n.id})">Сохранить</button>
                             <button class="btn-sm btn-outline" onclick="cancelNoteEdit(${n.id})">Отмена</button>
@@ -270,9 +277,10 @@
             const title = document.getElementById('noteEditTitle-' + id).value.trim();
             const body = document.getElementById('noteEditBody-' + id).value.trim();
             const due = document.getElementById('noteEditDue-' + id).value;
+            const dueTime = document.getElementById('noteEditDueTime-' + id).value;
             if (!title && !body) { alert('Введите заголовок или текст'); return; }
             try {
-                await fetch('/api/admin_notes.php?action=update', { method:'POST', headers:{'Content-Type':'application/json'}, credentials:'include', body:JSON.stringify({id, title, body, due_date: due || ''}) });
+                await fetch('/api/admin_notes.php?action=update', { method:'POST', headers:{'Content-Type':'application/json'}, credentials:'include', body:JSON.stringify({id, title, body, due_date: due || '', due_time: due ? (dueTime || '') : ''}) });
                 renderNotes();
             } catch(e){ alert('Не удалось сохранить'); }
         }
@@ -281,15 +289,17 @@
             const title = document.getElementById('noteTitle').value.trim();
             const body = document.getElementById('noteBody').value.trim();
             const due = document.getElementById('noteDueDate').value;
+            const dueTime = document.getElementById('noteDueTime').value;
             const msg = document.getElementById('noteMsg');
             if (!title && !body){ if(msg){msg.textContent='Введите заголовок или текст';msg.style.color='#DC2626';} return; }
             btn.disabled = true;
             try {
-                const r = await (await fetch('/api/admin_notes.php?action=add', { method:'POST', headers:{'Content-Type':'application/json'}, credentials:'include', body:JSON.stringify({title, body, due_date: due || ''}) })).json();
+                const r = await (await fetch('/api/admin_notes.php?action=add', { method:'POST', headers:{'Content-Type':'application/json'}, credentials:'include', body:JSON.stringify({title, body, due_date: due || '', due_time: due ? (dueTime || '') : ''}) })).json();
                 btn.disabled = false;
                 document.getElementById('noteTitle').value = '';
                 document.getElementById('noteBody').value = '';
                 document.getElementById('noteDueDate').value = '';
+                document.getElementById('noteDueTime').value = '';
                 if (r.ok) { if(msg) msg.textContent=''; renderNotes(); }
                 else { if(msg){msg.textContent=r.error||'Ошибка';msg.style.color='#DC2626';} }
             } catch(e){ btn.disabled=false; if(msg){msg.textContent='Ошибка сети';msg.style.color='#DC2626';} }
