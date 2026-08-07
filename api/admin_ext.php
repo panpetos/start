@@ -14,6 +14,7 @@
  * GET  ?action=activity      — единый журнал активности (аудит на основе данных)
  * POST ?action=set-frozen        {user_id, frozen:0|1}
  * POST ?action=set-approved      {psychologist_id, approved:0|1}
+ * POST ?action=set-role          {user_id, role: client|psychologist|admin}
  *
  * Доступ только для роли admin.
  */
@@ -410,6 +411,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             echo json_encode(['ok' => true]);
         } catch (Exception $e) {
             http_response_code(500); echo json_encode(['error' => 'Не удалось обновить (поле is_frozen?)']);
+        }
+        exit;
+    }
+
+    if ($action === 'set-role') {
+        $uid = $body['user_id'] ?? null;
+        $role = (string)($body['role'] ?? '');
+        if (!$uid || !in_array($role, ['client', 'psychologist', 'admin'], true)) {
+            http_response_code(400); echo json_encode(['error' => 'Нужны user_id и корректная роль']); exit;
+        }
+        try {
+            $st = $pdo->prepare("UPDATE users SET role = ? WHERE id = ?");
+            $st->execute([$role, $uid]);
+            if ($role === 'psychologist') {
+                // На случай если у пользователя ещё нет профиля психолога — создаём пустой заготовку
+                $chk = $pdo->prepare("SELECT id FROM psychologists WHERE user_id = ? LIMIT 1");
+                $chk->execute([$uid]);
+                if (!$chk->fetchColumn()) {
+                    try { $pdo->prepare("INSERT INTO psychologists (user_id, is_approved) VALUES (?, 0)")->execute([$uid]); } catch (Exception $e) {}
+                }
+            }
+            echo json_encode(['ok' => true]);
+        } catch (Exception $e) {
+            http_response_code(500); echo json_encode(['error' => 'Не удалось обновить роль (проверьте поле role)']);
         }
         exit;
     }

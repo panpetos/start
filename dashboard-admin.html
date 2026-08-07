@@ -499,18 +499,27 @@
                 <th>Имя</th><th>Email</th><th>Роль</th><th>Статус</th><th>Регистрация</th><th>Действия</th></tr></thead><tbody>` +
                 rows.map(u => {
                     const name = ((u.first_name||'')+' '+(u.last_name||'')).trim() || '—';
-                    const role = u.role==='admin'?'<span class="badge b-purple">админ</span>':u.role==='psychologist'?'<span class="badge b-green">психолог</span>':'<span class="badge b-gray">клиент</span>';
+                    const roleOpts = ['client','psychologist','admin'].map(r =>
+                        `<option value="${r}" ${u.role===r?'selected':''}>${r==='admin'?'админ':r==='psychologist'?'психолог':'клиент'}</option>`).join('');
+                    const roleSel = `<select onchange="changeRole('${esc(u.id)}', this.value, '${esc(u.role||'')}')" style="padding:0.25rem 0.4rem;border:1px solid var(--a-input-border);border-radius:0.4rem;font-size:0.8rem;background:var(--a-input-bg);color:var(--a-text);">${roleOpts}</select>`;
                     const frozen = String(u.is_frozen)==='1';
                     const status = frozen?'<span class="badge b-red">заморожен</span>':'<span class="badge b-green">активен</span>';
                     const btn = frozen
                         ? `<button class="btn-sm btn-outline" onclick="toggleFrozen('${esc(u.id)}',0)">Разморозить</button>`
                         : `<button class="btn-sm btn-red" onclick="toggleFrozen('${esc(u.id)}',1)">Заморозить</button>`;
                     const del = `<button class="btn-sm btn-red" style="margin-left:0.3rem;" onclick="deleteUser('${esc(u.id)}','${esc(u.email||'')}')" title="Полностью удалить аккаунт">🗑 Удалить</button>`;
-                    return `<tr><td>${esc(name)}</td><td>${esc(u.email||'—')}</td><td>${role}</td><td>${status}</td><td class="muted">${fmtDateTime(u.created_at)}</td><td style="white-space:nowrap;">${u.role!=='admin'?(btn+del):''}</td></tr>`;
+                    return `<tr><td>${esc(name)}</td><td>${esc(u.email||'—')}</td><td>${roleSel}</td><td>${status}</td><td class="muted">${fmtDateTime(u.created_at)}</td><td style="white-space:nowrap;">${u.role!=='admin'?(btn+del):''}</td></tr>`;
                 }).join('') + '</tbody></table>';
             document.getElementById('content').innerHTML = panel('Пользователи ('+rows.length+')','sUsers',body);
         }
 
+        async function changeRole(id, newRole, oldRole){
+            if (newRole === oldRole) return;
+            if (!confirm(`Сменить роль пользователя на «${newRole==='admin'?'админ':newRole==='psychologist'?'психолог':'клиент'}»?`)) { renderUsers(); return; }
+            const res = await apiPost('set-role', { user_id:id, role:newRole });
+            if (res.error) { alert('Не удалось: '+res.error); renderUsers(); return; }
+            renderUsers();
+        }
         async function toggleFrozen(id, frozen){
             const res = await apiPost('set-frozen', { user_id:id, frozen });
             if (res.error) return alert(res.error);
