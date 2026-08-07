@@ -141,6 +141,43 @@ if ($action === 'status') {
     exit;
 }
 
+// Лёгкая фиксация IP/устройства сессии — для журнала (юридически может понадобиться
+// подтвердить, с какого IP работал пользователь). Троттлинг: не чаще раза в 30 минут
+// на пользователя, чтобы не раздувать таблицу при каждом переходе по сайту.
+if ($action === 'log-session') {
+    try {
+        $recent = $pdo->prepare("SELECT id FROM audit_log WHERE user_id=? AND action='session' AND created_at > (NOW() - INTERVAL 30 MINUTE) LIMIT 1");
+        $recent->execute([$userId]);
+        if (!$recent->fetchColumn()) {
+            $page = mb_substr(trim((string)($body['page'] ?? '')), 0, 200);
+            audit($pdo, $userId, 'session', ['page' => $page]);
+        }
+        echo json_encode(['ok' => true]);
+    } catch (Exception $e) { echo json_encode(['ok' => true]); }
+    exit;
+}
+
+// Список журнала аудита (вход/IP) — только для администратора, с фильтром по датам.
+if ($action === 'audit-list') {
+    $isAdmin = false;
+    try { $st = $pdo->prepare("SELECT role FROM users WHERE id=? LIMIT 1"); $st->execute([$userId]); $isAdmin = ((string)$st->fetchColumn() === 'admin'); } catch (Exception $e) {}
+    if (!$isAdmin) { http_response_code(403); echo json_encode(['error' => 'Только для администратора']); exit; }
+    $from = trim((string)($_GET['from'] ?? ''));
+    $to = trim((string)($_GET['to'] ?? ''));
+    $where = "1=1"; $params = [];
+    if ($from !== '') { $where .= " AND a.created_at >= ?"; $params[] = $from . ' 00:00:00'; }
+    if ($to !== '') { $where .= " AND a.created_at <= ?"; $params[] = $to . ' 23:59:59'; }
+    try {
+        $st = $pdo->prepare("SELECT a.id, a.user_id, a.action, a.meta, a.ip, a.user_agent, a.created_at,
+                u.first_name, u.last_name, u.email, u.role
+            FROM audit_log a LEFT JOIN users u ON u.id = a.user_id
+            WHERE $where ORDER BY a.id DESC LIMIT 3000");
+        $st->execute($params);
+        echo json_encode(['ok' => true, 'data' => $st->fetchAll(PDO::FETCH_ASSOC)]);
+    } catch (Exception $e) { echo json_encode(['ok' => true, 'data' => []]); }
+    exit;
+}
+
 if ($action === 'mine') {
     try {
         $st = $pdo->prepare("SELECT id, consent_type, doc_version, status, ip, created_at, revoked_at FROM consents WHERE user_id=? ORDER BY id DESC");

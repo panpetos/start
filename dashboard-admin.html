@@ -687,18 +687,68 @@
         // ── Activity ────────────────────────────────────────────────────────
         async function renderActivity(){
             const res = await apiGet('activity');
-            if (!res.ok) return fail();
-            const rows = res.data || [];
-            if (!rows.length) return empty('Событий пока нет');
+            const rows = (res.ok ? res.data : []) || [];
             const ico = { register:['👤','#F3E8FF'], appointment:['📅','#EFF6FF'], payment:['💳','#F0FDF4'], call:['📹','#FFF1F2'] };
             const items = rows.map(e => {
                 const i = ico[e.type] || ['•','#F3F4F6'];
                 return `<div class="tl-item"><div class="tl-ico" style="background:${i[1]}">${i[0]}</div>
                     <div class="tl-body"><div class="tl-sum">${esc(e.summary)}</div><div class="tl-ts">${fmtDateTime(e.ts)}</div></div></div>`;
             }).join('');
+            const eventsPanel = rows.length
+                ? `<div class="panel"><div class="panel-head"><h2>Лента событий</h2></div><div class="timeline">${items}</div></div>`
+                : '<div class="note">Событий пока нет.</div>';
             document.getElementById('content').innerHTML =
-                '<div class="note">🧾 Журнал собран из реальных событий системы (регистрации, записи, оплаты, звонки). Это аудит на основе данных. Для детального аудита (входы, изменения профилей, действия админа) нужны логирующие хуки в бэкенде — подключу при доступе к серверной части.</div>' +
-                `<div class="panel"><div class="timeline">${items}</div></div>`;
+                '<div class="note">🧾 Журнал собран из реальных событий системы (регистрации, записи, оплаты, звонки).</div>' +
+                eventsPanel +
+                `<div class="panel" style="margin-top:1rem;"><div class="panel-head"><h2>🔐 Вход по IP (для юридического подтверждения)</h2></div>
+                    <div style="padding:1rem 1.1rem;">
+                        <div class="note" style="margin-bottom:0.8rem;">С каких IP-адресов заходили пользователи в личный кабинет. Фиксируется автоматически (не чаще раза в 30 мин на пользователя).</div>
+                        <div style="display:flex;gap:0.5rem;flex-wrap:wrap;align-items:end;margin-bottom:0.8rem;">
+                            <label style="font-size:0.8rem;color:var(--a-text-sec);">С даты<br>
+                                <input id="auditFrom" type="date" style="margin-top:0.25rem;padding:0.4rem 0.6rem;border:1.5px solid var(--a-input-border);border-radius:0.5rem;font-family:inherit;background:var(--a-input-bg);color:var(--a-text);"></label>
+                            <label style="font-size:0.8rem;color:var(--a-text-sec);">По дату<br>
+                                <input id="auditTo" type="date" style="margin-top:0.25rem;padding:0.4rem 0.6rem;border:1.5px solid var(--a-input-border);border-radius:0.5rem;font-family:inherit;background:var(--a-input-bg);color:var(--a-text);"></label>
+                            <button class="btn-sm btn-outline" onclick="loadAuditLog()">🔍 Показать</button>
+                            <button class="btn-sm btn-outline" onclick="exportAuditLogCsv()">⬇ Экспорт CSV</button>
+                        </div>
+                        <div id="auditLogBox"><div class="loading">Загрузка...</div></div>
+                    </div>
+                </div>`;
+            loadAuditLog();
+        }
+
+        let auditLogCache = [];
+        async function loadAuditLog(){
+            const from = document.getElementById('auditFrom').value;
+            const to = document.getElementById('auditTo').value;
+            const qs = new URLSearchParams(); if (from) qs.set('from', from); if (to) qs.set('to', to);
+            let res = {};
+            try { res = await (await fetch('/api/consent.php?action=audit-list&' + qs.toString(), { credentials:'include' })).json(); } catch(e){}
+            const box = document.getElementById('auditLogBox');
+            if (!box) return;
+            auditLogCache = (res && res.data) || [];
+            if (!auditLogCache.length){ box.innerHTML = '<div class="empty">Записей не найдено</div>'; return; }
+            box.innerHTML = `<table id="auditTable"><thead><tr><th>Дата/время</th><th>Пользователь</th><th>Роль</th><th>IP</th><th>Устройство</th></tr></thead><tbody>` +
+                auditLogCache.map(r => {
+                    const name = `${r.first_name||''} ${r.last_name||''}`.trim() || (r.email || r.user_id || '—');
+                    return `<tr><td class="muted">${fmtDateTime(r.created_at)}</td><td>${esc(name)}</td><td>${esc(r.role||'—')}</td><td><code>${esc(r.ip||'—')}</code></td><td class="muted" style="font-size:0.78rem;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(r.user_agent||'—')}</td></tr>`;
+                }).join('') + '</tbody></table>';
+        }
+        function exportAuditLogCsv(){
+            if (!auditLogCache.length){ alert('Нет данных для экспорта'); return; }
+            const esc2 = v => '"' + String(v==null?'':v).replace(/"/g,'""') + '"';
+            const header = ['Дата/время','Пользователь','Email','Роль','IP','User-Agent'];
+            const lines = [header.map(esc2).join(';')];
+            auditLogCache.forEach(r => {
+                const name = `${r.first_name||''} ${r.last_name||''}`.trim();
+                lines.push([r.created_at, name, r.email||'', r.role||'', r.ip||'', r.user_agent||''].map(esc2).join(';'));
+            });
+            const blob = new Blob(['﻿' + lines.join('\r\n')], { type:'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url; a.download = 'journal_ip_' + new Date().toISOString().slice(0,10) + '.csv';
+            document.body.appendChild(a); a.click(); a.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 2000);
         }
 
         // ── Tariffs ─────────────────────────────────────────────────────────

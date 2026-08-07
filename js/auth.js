@@ -72,6 +72,7 @@ window.Auth = {
 
             if (response.ok && response.data && response.data.user) {
                 try { sessionStorage.setItem('psy_user', JSON.stringify(response.data.user)); } catch (e) {}
+                this._logSessionIp();
                 return response.data.user;
             }
 
@@ -83,6 +84,23 @@ window.Auth = {
             try { const c = sessionStorage.getItem('psy_user'); if (c) return JSON.parse(c); } catch (e) {}
             return null;
         }
+    },
+
+    /** Зафиксировать IP/устройство текущей сессии в журнале аудита (для юр. отчётности).
+     *  Раз в браузерную вкладку — сервер дополнительно троттлит раз в 30 минут на юзера. */
+    _logSessionIp() {
+        try {
+            if (sessionStorage.getItem('psy_session_logged')) return;
+            sessionStorage.setItem('psy_session_logged', '1');
+        } catch (e) {}
+        try {
+            fetch('/api/consent.php?action=log-session', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({ page: location.pathname })
+            }).catch(() => {});
+        } catch (e) {}
     },
 
     /** Синхронно вернуть кэшированного пользователя (для мгновенного рендера). */
