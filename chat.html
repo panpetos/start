@@ -604,14 +604,27 @@
             .header { padding: 0.6rem 1rem; }
             .header h1 { font-size: 1.1rem; }
 
+            .chat-container, .chat-area, .messages-container { min-width: 0; overflow-x: hidden; }
+
             .chat-header {
                 padding: 0.6rem 0.75rem;
-                gap: 0.5rem;
+                gap: 0.4rem;
                 padding-top: max(0.6rem, env(safe-area-inset-top));
+                flex-wrap: wrap;
+                row-gap: 0.4rem;
+                max-width: 100%;
             }
             .chat-header .avatar { width: 38px; height: 38px; }
             .chat-header .name { font-size: 0.95rem; }
             .chat-header .role { font-size: 0.78rem; }
+            /* Кнопки действий (сессия/счёт/заметки/видео/кабинет) — компактнее и переносятся на новую строку, не толкая экран вправо */
+            .chat-header .session-btn,
+            .chat-header .video-call-btn {
+                font-size: 0.72rem;
+                padding: 0.4rem 0.6rem;
+                gap: 0.2rem;
+            }
+            .chat-header .video-call-btn { width: 36px; height: 36px; padding: 0; }
 
             .conversation-item { padding: 0.75rem; gap: 0.65rem; }
             .conversation-avatar { width: 44px; height: 44px; }

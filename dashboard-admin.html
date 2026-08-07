@@ -737,25 +737,16 @@
             document.getElementById('content').innerHTML = sumHtml + panel('Как нас находят ('+rows.length+')','sRef',body);
         }
 
-        // ── Activity ────────────────────────────────────────────────────────
+        // ── Activity + IP journal (объединённый журнал, задача #31) ──────────
+        const JOURNAL_ACTION_LABELS = { session: '🔐 Вход', contact_share_warning: '⚠️ Попытка уйти с платформы', consent_given: '✅ Согласие', consent_revoked: '⛔ Отзыв согласия', chat_erased_on_revoke: '🗑 Переписка стёрта (отзыв согласия)' };
+        const JOURNAL_TYPE_LABELS = { register: '👤 Регистрация', appointment: '📅 Запись', payment: '💳 Оплата', call: '📹 Звонок' };
+        let journalCache = [];
+
         async function renderActivity(){
-            const res = await apiGet('activity');
-            const rows = (res.ok ? res.data : []) || [];
-            const ico = { register:['👤','#F3E8FF'], appointment:['📅','#EFF6FF'], payment:['💳','#F0FDF4'], call:['📹','#FFF1F2'] };
-            const items = rows.map(e => {
-                const i = ico[e.type] || ['•','#F3F4F6'];
-                return `<div class="tl-item"><div class="tl-ico" style="background:${i[1]}">${i[0]}</div>
-                    <div class="tl-body"><div class="tl-sum">${esc(e.summary)}</div><div class="tl-ts">${fmtDateTime(e.ts)}</div></div></div>`;
-            }).join('');
-            const eventsPanel = rows.length
-                ? `<div class="panel"><div class="panel-head"><h2>Лента событий</h2></div><div class="timeline">${items}</div></div>`
-                : '<div class="note">Событий пока нет.</div>';
             document.getElementById('content').innerHTML =
-                '<div class="note">🧾 Журнал собран из реальных событий системы (регистрации, записи, оплаты, звонки).</div>' +
-                eventsPanel +
-                `<div class="panel" style="margin-top:1rem;"><div class="panel-head"><h2>🔐 Журнал аудита: вход по IP и попытки уйти с платформы</h2></div>
+                `<div class="note">🧾 Единый журнал: бизнес-события системы (регистрации, записи, оплаты, звонки) вместе с журналом входов по IP — в одной ленте, отсортированной по времени. Вход по IP пишется не чаще раза в 30 мин на юзера. Строки с ⚠️ — сообщения в чате, похожие на попытку обменяться контактами в обход платформы; отправитель получил предупреждение, но всё равно отправил.</div>
+                <div class="panel" style="margin-top:0.75rem;"><div class="panel-head"><h2>Журнал (события + вход по IP)</h2></div>
                     <div style="padding:1rem 1.1rem;">
-                        <div class="note" style="margin-bottom:0.8rem;">Вход: с каких IP заходили пользователи (не чаще раза в 30 мин на юзера, для юридического подтверждения). Строки с ⚠️ — сообщения в чате, похожие на попытку обменяться контактами в обход платформы (телефон/почта/мессенджер) — отправитель получил предупреждение, но всё равно отправил.</div>
                         <div style="display:flex;gap:0.5rem;flex-wrap:wrap;align-items:end;margin-bottom:0.8rem;">
                             <label style="font-size:0.8rem;color:var(--a-text-sec);">С даты<br>
                                 <input id="auditFrom" type="date" style="margin-top:0.25rem;padding:0.4rem 0.6rem;border:1.5px solid var(--a-input-border);border-radius:0.5rem;font-family:inherit;background:var(--a-input-bg);color:var(--a-text);"></label>
@@ -770,41 +761,64 @@
             loadAuditLog();
         }
 
-        let auditLogCache = [];
         async function loadAuditLog(){
             const from = document.getElementById('auditFrom').value;
             const to = document.getElementById('auditTo').value;
             const qs = new URLSearchParams(); if (from) qs.set('from', from); if (to) qs.set('to', to);
-            let res = {};
-            try { res = await (await fetch('/api/consent.php?action=audit-list&' + qs.toString(), { credentials:'include' })).json(); } catch(e){}
+
+            const [actRes, auditRes] = await Promise.all([
+                apiGet('activity').catch(() => ({ok:false})),
+                fetch('/api/consent.php?action=audit-list&' + qs.toString(), { credentials:'include' }).then(r => r.json()).catch(() => ({ok:false}))
+            ]);
+
+            const events = (actRes && actRes.ok ? actRes.data : []) || [];
+            const audits = (auditRes && auditRes.ok ? auditRes.data : []) || [];
+
+            let merged = [];
+            events.forEach(e => merged.push({
+                ts: e.ts, kind: 'event', typeLabel: JOURNAL_TYPE_LABELS[e.type] || e.type,
+                who: e.actor || '—', role: e.actor_role || '', ip: '', ua: '', risk: false, snippet: ''
+            }));
+            audits.forEach(r => {
+                const name = `${r.first_name||''} ${r.last_name||''}`.trim() || (r.email || r.user_id || '—');
+                let meta = {}; try { meta = r.meta ? JSON.parse(r.meta) : {}; } catch(e){}
+                const isRisk = r.action === 'contact_share_warning';
+                merged.push({
+                    ts: r.created_at, kind: 'audit', typeLabel: JOURNAL_ACTION_LABELS[r.action] || r.action || '—',
+                    who: name, role: r.role || '', ip: r.ip || '', ua: r.user_agent || '', risk: isRisk,
+                    snippet: isRisk && meta.snippet ? meta.snippet : ''
+                });
+            });
+
+            // Клиентский фильтр по датам для бизнес-событий (у activity нет серверного фильтра по датам)
+            if (from) merged = merged.filter(r => !r.ts || r.ts >= (from + ' 00:00:00'));
+            if (to) merged = merged.filter(r => !r.ts || r.ts <= (to + ' 23:59:59'));
+
+            merged.sort((a, b) => String(b.ts||'').localeCompare(String(a.ts||'')));
+            merged = merged.slice(0, 1000);
+            journalCache = merged;
+
             const box = document.getElementById('auditLogBox');
             if (!box) return;
-            auditLogCache = (res && res.data) || [];
-            if (!auditLogCache.length){ box.innerHTML = '<div class="empty">Записей не найдено</div>'; return; }
-            const ACTION_LABELS = { session: '🔐 Вход', contact_share_warning: '⚠️ Попытка уйти с платформы', consent_given: '✅ Согласие', consent_revoked: '⛔ Отзыв согласия' };
-            box.innerHTML = `<table id="auditTable"><thead><tr><th>Дата/время</th><th>Пользователь</th><th>Роль</th><th>Действие</th><th>IP</th><th>Устройство</th></tr></thead><tbody>` +
-                auditLogCache.map(r => {
-                    const name = `${r.first_name||''} ${r.last_name||''}`.trim() || (r.email || r.user_id || '—');
-                    const isRisk = r.action === 'contact_share_warning';
-                    let meta = {}; try { meta = r.meta ? JSON.parse(r.meta) : {}; } catch(e){}
-                    const actionLabel = ACTION_LABELS[r.action] || esc(r.action || '—');
-                    const snippet = isRisk && meta.snippet ? `<div class="muted" style="font-size:0.76rem;margin-top:0.15rem;max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">«${esc(meta.snippet)}»</div>` : '';
-                    return `<tr style="${isRisk ? 'background:#FFF1F2;' : ''}"><td class="muted">${fmtDateTime(r.created_at)}</td><td>${esc(name)}</td><td>${esc(r.role||'—')}</td><td>${actionLabel}${snippet}</td><td><code>${esc(r.ip||'—')}</code></td><td class="muted" style="font-size:0.78rem;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(r.user_agent||'—')}</td></tr>`;
+            if (!merged.length){ box.innerHTML = '<div class="empty">Записей не найдено</div>'; return; }
+            box.innerHTML = `<table id="auditTable"><thead><tr><th>Дата/время</th><th>Событие</th><th>Пользователь</th><th>Роль</th><th>IP</th><th>Устройство</th></tr></thead><tbody>` +
+                merged.map(r => {
+                    const snippetHtml = r.snippet ? `<div class="muted" style="font-size:0.76rem;margin-top:0.15rem;max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">«${esc(r.snippet)}»</div>` : '';
+                    return `<tr style="${r.risk ? 'background:#FFF1F2;' : ''}"><td class="muted">${fmtDateTime(r.ts)}</td><td>${esc(r.typeLabel)}${snippetHtml}</td><td>${esc(r.who)}</td><td>${esc(r.role||'—')}</td><td>${r.ip ? `<code>${esc(r.ip)}</code>` : '<span class="muted">—</span>'}</td><td class="muted" style="font-size:0.78rem;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(r.ua||'—')}</td></tr>`;
                 }).join('') + '</tbody></table>';
         }
         function exportAuditLogCsv(){
-            if (!auditLogCache.length){ alert('Нет данных для экспорта'); return; }
+            if (!journalCache.length){ alert('Нет данных для экспорта'); return; }
             const esc2 = v => '"' + String(v==null?'':v).replace(/"/g,'""') + '"';
-            const header = ['Дата/время','Пользователь','Email','Роль','Действие','IP','User-Agent'];
+            const header = ['Дата/время','Событие','Пользователь','Роль','IP','User-Agent'];
             const lines = [header.map(esc2).join(';')];
-            auditLogCache.forEach(r => {
-                const name = `${r.first_name||''} ${r.last_name||''}`.trim();
-                lines.push([r.created_at, name, r.email||'', r.role||'', r.action||'', r.ip||'', r.user_agent||''].map(esc2).join(';'));
+            journalCache.forEach(r => {
+                lines.push([r.ts, r.typeLabel, r.who, r.role, r.ip, r.ua].map(esc2).join(';'));
             });
             const blob = new Blob(['﻿' + lines.join('\r\n')], { type:'text/csv;charset=utf-8;' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
-            a.href = url; a.download = 'journal_ip_' + new Date().toISOString().slice(0,10) + '.csv';
+            a.href = url; a.download = 'journal_' + new Date().toISOString().slice(0,10) + '.csv';
             document.body.appendChild(a); a.click(); a.remove();
             setTimeout(() => URL.revokeObjectURL(url), 2000);
         }

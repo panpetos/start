@@ -18,6 +18,10 @@ window.Auth = {
 
             if (response.ok && response.data && response.data.user) {
                 try { sessionStorage.setItem('psy_user', JSON.stringify(response.data.user)); } catch (e) {}
+                // Новый вход (в т.ч. другим аккаунтом в той же вкладке) — сбрасываем флаг
+                // «уже залогировали IP в этой вкладке», чтобы журнал видел каждый реальный вход.
+                try { sessionStorage.removeItem('psy_session_logged'); } catch (e) {}
+                this._logSessionIp();
                 return response.data.user;
             }
 
@@ -54,6 +58,7 @@ window.Auth = {
      */
     async logout() {
         try { sessionStorage.removeItem('psy_user'); } catch (e) {}
+        try { sessionStorage.removeItem('psy_session_logged'); } catch (e) {}
         try {
             await window.API.auth.logout();
         } catch (error) {
