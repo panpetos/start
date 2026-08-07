@@ -154,6 +154,7 @@
         .chat-header .avatar {
             width: 45px;
             height: 45px;
+            flex-shrink: 0;
             border-radius: 50%;
             background: linear-gradient(135deg, #7C3AED 0%, #6D28D9 100%);
             display: flex;
@@ -227,6 +228,7 @@
 
         .chat-input input {
             flex: 1;
+            min-width: 0;
             padding: 0.75rem 1rem;
             border: 2px solid #e0e0e0;
             border-radius: 24px;
@@ -241,6 +243,7 @@
         .chat-input button {
             width: 48px;
             height: 48px;
+            flex-shrink: 0;
             border-radius: 50%;
             background: linear-gradient(135deg, #7C3AED 0%, #6D28D9 100%);
             color: white;
@@ -259,6 +262,7 @@
         .icon-btn {
             width: 40px;
             height: 40px;
+            flex-shrink: 0;
             border-radius: 50%;
             background: #f0f0f0;
             border: none;
@@ -900,6 +904,17 @@
         </div>
     </div>
 
+    <!-- Мини-карточка собеседника (клик по аватару в шапке чата) -->
+    <div id="userCardModal" style="display:none;position:fixed;inset:0;background:rgba(26,26,46,0.6);z-index:1300;align-items:center;justify-content:center;padding:1rem;">
+        <div style="background:#fff;border-radius:1rem;max-width:420px;width:100%;max-height:85vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+            <div style="padding:1rem 1.25rem;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center;">
+                <div style="font-weight:700;">Карточка собеседника</div>
+                <button onclick="closeUserCard()" style="background:none;border:none;font-size:1.2rem;cursor:pointer;color:#6B7280;">✕</button>
+            </div>
+            <div id="userCardBody" style="padding:1.25rem;"></div>
+        </div>
+    </div>
+
     <!-- Notes drawer (psychologist only) -->
     <div id="notesDrawer" style="display:none;position:fixed;top:0;right:0;bottom:0;width:380px;max-width:90vw;background:#fff;box-shadow:-8px 0 30px rgba(0,0,0,0.18);z-index:1100;flex-direction:column;">
         <div style="padding:1rem 1.25rem;background:linear-gradient(135deg,#0EA5E9,#0284C7);color:#fff;display:flex;align-items:center;justify-content:space-between;">
@@ -981,8 +996,8 @@
                 : '';
             return `
                 <button class="chat-back-btn" onclick="goBackToList()" title="Назад к диалогам">←</button>
-                <div class="avatar">${other.avatar ? `<img src="${other.avatar}" alt="${name}">` : name.charAt(0)}</div>
-                <div style="flex:1;min-width:0;">
+                <div class="avatar" onclick="openUserCard('${selectedUserId}')" style="cursor:pointer;" title="Открыть карточку">${other.avatar ? `<img src="${other.avatar}" alt="${name}">` : name.charAt(0)}</div>
+                <div style="flex:1;min-width:0;cursor:pointer;" onclick="openUserCard('${selectedUserId}')">
                     <div class="name">${name}</div>
                     <div class="role">${roleText}</div>
                 </div>
@@ -993,6 +1008,54 @@
                 ${videoBtn}
                 <a href="${getDashboardUrl()}" class="session-btn" style="background:#6B7280;text-decoration:none;display:inline-flex;align-items:center;gap:0.3rem;" title="Вернуться в личный кабинет">← В кабинет</a>`;
         }
+
+        // ── Мини-карточка собеседника (клик по аватару/имени в шапке чата) ──
+        async function openUserCard(userId) {
+            if (!userId || userId === FAVORITES_ID) return;
+            const modal = document.getElementById('userCardModal');
+            const body = document.getElementById('userCardBody');
+            modal.style.display = 'flex';
+            body.innerHTML = '<div style="padding:2rem;text-align:center;color:#9CA3AF;">Загрузка…</div>';
+            try {
+                const r = await fetch('/api/user_card.php?action=get&user_id=' + encodeURIComponent(userId), { credentials: 'include' });
+                const c = await r.json();
+                if (!c || !c.ok) { body.innerHTML = '<div style="padding:2rem;text-align:center;color:#DC2626;">Не удалось загрузить карточку</div>'; return; }
+                const name = `${c.first_name || ''} ${c.last_name || ''}`.trim() || 'Пользователь';
+                const avatarHtml = c.avatar ? `<img src="${c.avatar}" alt="${name}" style="width:100%;height:100%;object-fit:cover;">` : name.charAt(0);
+                const since = c.member_since ? new Date(c.member_since).toLocaleDateString('ru-RU', { year: 'numeric', month: 'long' }) : '';
+                if (c.role === 'psychologist' && c.psychologist_id) {
+                    const rating = c.rating ? `⭐ ${c.rating} (${c.reviews_count || 0})` : 'Пока нет отзывов';
+                    body.innerHTML = `
+                        <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1rem;">
+                            <div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#7C3AED,#6D28D9);color:#fff;display:flex;align-items:center;justify-content:center;font-size:1.5rem;font-weight:700;overflow:hidden;flex-shrink:0;">${avatarHtml}</div>
+                            <div style="min-width:0;">
+                                <div style="font-weight:700;font-size:1.1rem;">${escapeHtml(name)}</div>
+                                <div style="color:#6B7280;font-size:0.85rem;">${escapeHtml(c.specialization || 'Психолог')}</div>
+                                <div style="color:#6B7280;font-size:0.8rem;">${rating} · ${c.subscribers_count || 0} подписчиков</div>
+                            </div>
+                        </div>
+                        ${c.description ? `<div style="font-size:0.9rem;color:#374151;margin-bottom:1rem;line-height:1.5;">${escapeHtml(c.description)}</div>` : ''}
+                        <div style="display:flex;gap:0.6rem;flex-wrap:wrap;">
+                            ${c.price ? `<span style="background:#F3E8FF;color:#7C3AED;padding:0.35rem 0.7rem;border-radius:0.6rem;font-size:0.82rem;font-weight:600;">от ${c.price} ₽/сессия</span>` : ''}
+                            ${c.experience ? `<span style="background:#F3E8FF;color:#7C3AED;padding:0.35rem 0.7rem;border-radius:0.6rem;font-size:0.82rem;font-weight:600;">Опыт: ${escapeHtml(String(c.experience))}</span>` : ''}
+                        </div>
+                        <div style="display:flex;gap:0.6rem;margin-top:1.2rem;">
+                            <a href="/psychologist-profile.html?id=${encodeURIComponent(c.psychologist_id)}" target="_blank" class="session-btn" style="background:#7C3AED;text-decoration:none;">Открыть профиль и канал</a>
+                            <a href="/book.html?id=${encodeURIComponent(c.psychologist_id)}" class="session-btn" style="background:#16A34A;text-decoration:none;">📅 Записаться</a>
+                        </div>`;
+                } else {
+                    body.innerHTML = `
+                        <div style="display:flex;align-items:center;gap:1rem;">
+                            <div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#7C3AED,#6D28D9);color:#fff;display:flex;align-items:center;justify-content:center;font-size:1.5rem;font-weight:700;overflow:hidden;flex-shrink:0;">${avatarHtml}</div>
+                            <div style="min-width:0;">
+                                <div style="font-weight:700;font-size:1.1rem;">${escapeHtml(name)}</div>
+                                <div style="color:#6B7280;font-size:0.85rem;">Клиент${since ? ' · на платформе с ' + since : ''}</div>
+                            </div>
+                        </div>`;
+                }
+            } catch (e) { body.innerHTML = '<div style="padding:2rem;text-align:center;color:#DC2626;">Не удалось загрузить карточку</div>'; }
+        }
+        function closeUserCard() { document.getElementById('userCardModal').style.display = 'none'; }
 
         // ── Учёт реального времени консультации (логируется в /api/calls.php) ──
         let sessionCallId = null;
@@ -1291,6 +1354,54 @@
             if (typeof lucide !== 'undefined') {
                 try { lucide.createIcons(); } catch(e) {}
             }
+
+            // Звуковые уведомления о новых сообщениях — опрашиваем список диалогов
+            // всегда (не только когда открыт конкретный чат), как у админа в поддержке.
+            if (unreadPollTimer) clearInterval(unreadPollTimer);
+            unreadPollTimer = setInterval(loadConversations, 6000);
+        }
+
+        // ── Звук + тост при новом сообщении (во всех чатах, любая роль) ──
+        let unreadPollTimer = null;
+        let lastKnownUnreadTotal = -1; // -1 = ещё не замеряли, чтобы не пиликать при первой загрузке
+        function chatPlayBeep() {
+            try {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.connect(gain); gain.connect(ctx.destination);
+                osc.frequency.setValueAtTime(660, ctx.currentTime);
+                osc.frequency.setValueAtTime(880, ctx.currentTime + 0.12);
+                gain.gain.setValueAtTime(0.15, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
+                osc.start(ctx.currentTime);
+                osc.stop(ctx.currentTime + 0.5);
+            } catch (e) {}
+        }
+        function chatShowToast(text) {
+            let el = document.getElementById('chatNewMsgToast');
+            if (!el) {
+                el = document.createElement('div');
+                el.id = 'chatNewMsgToast';
+                el.style.cssText = 'position:fixed;top:14px;right:14px;z-index:3000;background:#fff;border:1px solid #E5E7EB;border-left:3px solid #7C3AED;border-radius:0.6rem;padding:0.6rem 1rem;box-shadow:0 8px 24px rgba(0,0,0,0.15);max-width:300px;font-size:0.85rem;cursor:pointer;color:#333;';
+                el.onclick = () => { el.style.display = 'none'; };
+                document.body.appendChild(el);
+            }
+            el.innerHTML = '<div style="font-weight:700;font-size:0.75rem;color:#7C3AED;margin-bottom:0.15rem;">💬 Новое сообщение</div>' + escapeHtml(text.length > 90 ? text.slice(0, 90) + '…' : text);
+            el.style.display = 'block';
+            setTimeout(() => { if (el) el.style.display = 'none'; }, 5000);
+        }
+        function checkUnreadForSound(conversations) {
+            const total = (conversations || []).reduce((s, c) => s + (c.unread_count || 0), 0);
+            if (lastKnownUnreadTotal >= 0 && total > lastKnownUnreadTotal) {
+                chatPlayBeep();
+                const withUnread = (conversations || []).find(c => (c.unread_count || 0) > 0);
+                if (withUnread) {
+                    const name = `${withUnread.first_name || ''} ${withUnread.last_name || ''}`.trim() || 'Пользователь';
+                    chatShowToast(name + ': ' + (withUnread.last_message || ''));
+                }
+            }
+            lastKnownUnreadTotal = total;
         }
 
         // Начать новый чат с пользователем (даже если нет истории)
@@ -1367,6 +1478,8 @@
                     conversations = conversations.concat(supportConvs)
                         .sort((a, b) => String(b.last_message_time || '').localeCompare(String(a.last_message_time || '')));
                 }
+
+                checkUnreadForSound(conversations);
 
                 const container = document.getElementById('conversationsList');
 

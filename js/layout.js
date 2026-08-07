@@ -18,6 +18,7 @@
   var links = [
     { href: '/search.html', text: 'Найти психолога' },
     { href: '/offers.html', text: 'Пакеты и цены' },
+    { href: '/feed.html', text: 'Лента' },
     { href: '/blog.html', text: 'блог' }
   ];
 

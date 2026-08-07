@@ -49,6 +49,7 @@ jobs:
             put supervision.html;
             put ai-chat.html;
             put psychologist-profile.html;
+            put feed.html;
             put dashboard-admin.html;
             put admin.html;
             put consultation.html;
@@ -98,6 +99,7 @@ jobs:
             put api/favorites.php -o api/favorites.php;
             put api/channels.php -o api/channels.php;
             put api/analytics.php -o api/analytics.php;
+            put api/user_card.php -o api/user_card.php;
             bye;
           "
           echo "Deployment complete"

@@ -10,6 +10,11 @@
  * POST ?action=delete-post {id}                — удалить свой пост
  * POST ?action=subscribe   {psychologist_id}   — подписаться (авторизованный пользователь)
  * POST ?action=unsubscribe {psychologist_id}   — отписаться
+ *
+ * Доработка по фидбэку админа (рефок задачи #29) — лайки/просмотры/шеринг/общая лента:
+ * GET  ?action=feed&limit=20&before_id=X       — общая лента постов ВСЕХ психологов (для всех ролей)
+ * POST ?action=like   {post_id}                — поставить/снять лайк (toggle, авторизованный пользователь)
+ * POST ?action=view   {post_id}                — засчитать просмотр (раз на посетителя, можно анонимно)
  */
 
 header('Content-Type: application/json; charset=utf-8');
@@ -48,6 +53,59 @@ function ensureChannelTables(PDO $pdo) {
         created_at DATETIME NOT NULL,
         UNIQUE KEY uniq_sub (client_id, psychologist_id)
     ) DEFAULT CHARSET=utf8mb4");
+    $pdo->exec("CREATE TABLE IF NOT EXISTS channel_post_likes (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        post_id INT NOT NULL,
+        user_id VARCHAR(64) NOT NULL,
+        created_at DATETIME NOT NULL,
+        UNIQUE KEY uniq_like (post_id, user_id)
+    ) DEFAULT CHARSET=utf8mb4");
+    $pdo->exec("CREATE TABLE IF NOT EXISTS channel_post_views (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        post_id INT NOT NULL,
+        viewer_key VARCHAR(64) NOT NULL,
+        created_at DATETIME NOT NULL,
+        UNIQUE KEY uniq_view (post_id, viewer_key)
+    ) DEFAULT CHARSET=utf8mb4");
+}
+
+/** Анонимный ключ просмотра для гостей — тот же приём, что и в analytics.php (без ПД). */
+function viewerKey() {
+    if (!empty($_SESSION['user_id'])) return 'u:' . $_SESSION['user_id'];
+    $vid = $_COOKIE['psy_vid'] ?? '';
+    if (preg_match('/^[a-f0-9]{32}$/', (string)$vid)) return 'v:' . $vid;
+    return 'ip:' . substr(md5(($_SERVER['REMOTE_ADDR'] ?? '') . ($_SERVER['HTTP_USER_AGENT'] ?? '')), 0, 24);
+}
+
+/** Долить лайки/просмотры/liked_by_me к массиву постов (по одному запросу на метрику). */
+function attachPostStats(PDO $pdo, array $posts, $userId) {
+    if (!$posts) return $posts;
+    $ids = array_column($posts, 'id');
+    $in = implode(',', array_fill(0, count($ids), '?'));
+    $likes = []; $views = []; $mine = [];
+    try {
+        $st = $pdo->prepare("SELECT post_id, COUNT(*) c FROM channel_post_likes WHERE post_id IN ($in) GROUP BY post_id");
+        $st->execute($ids);
+        foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $r) $likes[$r['post_id']] = (int)$r['c'];
+    } catch (Exception $e) {}
+    try {
+        $st = $pdo->prepare("SELECT post_id, COUNT(*) c FROM channel_post_views WHERE post_id IN ($in) GROUP BY post_id");
+        $st->execute($ids);
+        foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $r) $views[$r['post_id']] = (int)$r['c'];
+    } catch (Exception $e) {}
+    if ($userId) {
+        try {
+            $st = $pdo->prepare("SELECT post_id FROM channel_post_likes WHERE post_id IN ($in) AND user_id = ?");
+            $st->execute(array_merge($ids, [$userId]));
+            foreach ($st->fetchAll(PDO::FETCH_COLUMN) as $pid) $mine[$pid] = true;
+        } catch (Exception $e) {}
+    }
+    foreach ($posts as &$p) {
+        $p['likes_count'] = $likes[$p['id']] ?? 0;
+        $p['views_count'] = $views[$p['id']] ?? 0;
+        $p['liked_by_me'] = isset($mine[$p['id']]);
+    }
+    return $posts;
 }
 
 // Вернуть psychologists.id текущего пользователя (по сессии), либо null
@@ -72,8 +130,69 @@ if ($action === 'posts') {
     try {
         $st = $pdo->prepare("SELECT id, text, image_url, created_at FROM channel_posts WHERE psychologist_id = ? ORDER BY created_at DESC, id DESC LIMIT 200");
         $st->execute([$psychId]);
-        echo json_encode(['ok' => true, 'data' => $st->fetchAll(PDO::FETCH_ASSOC)]);
+        $rows = attachPostStats($pdo, $st->fetchAll(PDO::FETCH_ASSOC), $userId);
+        echo json_encode(['ok' => true, 'data' => $rows]);
     } catch (Exception $e) { echo json_encode(['ok' => true, 'data' => []]); }
+    exit;
+}
+
+if ($action === 'feed') {
+    $limit = max(1, min(50, (int)($_GET['limit'] ?? 20)));
+    $beforeId = (int)($_GET['before_id'] ?? 0);
+    try {
+        $sql = "SELECT cp.id, cp.psychologist_id, cp.text, cp.image_url, cp.created_at,
+                       u.first_name, u.last_name, u.avatar, p.specialization
+                FROM channel_posts cp
+                JOIN psychologists p ON p.id = cp.psychologist_id
+                JOIN users u ON u.id = p.user_id
+                " . ($beforeId > 0 ? "WHERE cp.id < ?" : "") . "
+                ORDER BY cp.created_at DESC, cp.id DESC LIMIT $limit";
+        $st = $pdo->prepare($sql);
+        $st->execute($beforeId > 0 ? [$beforeId] : []);
+        $rows = $st->fetchAll(PDO::FETCH_ASSOC);
+        $rows = attachPostStats($pdo, $rows, $userId);
+        // Подписки текущего пользователя — чтобы в ленте сразу показать кнопку "Отписаться"
+        $subscribed = [];
+        if ($userId) {
+            try {
+                $st2 = $pdo->prepare("SELECT psychologist_id FROM channel_subscriptions WHERE client_id = ?");
+                $st2->execute([$userId]);
+                $subscribed = array_flip($st2->fetchAll(PDO::FETCH_COLUMN));
+            } catch (Exception $e) {}
+        }
+        foreach ($rows as &$r) { $r['is_subscribed'] = isset($subscribed[$r['psychologist_id']]); }
+        echo json_encode(['ok' => true, 'data' => $rows]);
+    } catch (Exception $e) { echo json_encode(['ok' => true, 'data' => []]); }
+    exit;
+}
+
+if ($action === 'like' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (!$userId) { http_response_code(401); echo json_encode(['error' => 'Требуется авторизация']); exit; }
+    $postId = (int)($body['post_id'] ?? 0);
+    if (!$postId) { http_response_code(400); echo json_encode(['error' => 'post_id обязателен']); exit; }
+    try {
+        $st = $pdo->prepare("SELECT id FROM channel_post_likes WHERE post_id = ? AND user_id = ?");
+        $st->execute([$postId, $userId]);
+        $liked = $st->fetchColumn();
+        if ($liked) {
+            $pdo->prepare("DELETE FROM channel_post_likes WHERE post_id = ? AND user_id = ?")->execute([$postId, $userId]);
+        } else {
+            $pdo->prepare("INSERT IGNORE INTO channel_post_likes (post_id, user_id, created_at) VALUES (?, ?, NOW())")->execute([$postId, $userId]);
+        }
+        $count = (int)$pdo->query("SELECT COUNT(*) FROM channel_post_likes WHERE post_id = " . (int)$postId)->fetchColumn();
+        echo json_encode(['ok' => true, 'liked' => !$liked, 'likes_count' => $count]);
+    } catch (Exception $e) { http_response_code(500); echo json_encode(['error' => 'Не удалось поставить лайк']); }
+    exit;
+}
+
+if ($action === 'view' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    $postId = (int)($body['post_id'] ?? 0);
+    if (!$postId) { http_response_code(400); echo json_encode(['error' => 'post_id обязателен']); exit; }
+    try {
+        $pdo->prepare("INSERT IGNORE INTO channel_post_views (post_id, viewer_key, created_at) VALUES (?, ?, NOW())")->execute([$postId, viewerKey()]);
+        $count = (int)$pdo->query("SELECT COUNT(*) FROM channel_post_views WHERE post_id = " . (int)$postId)->fetchColumn();
+        echo json_encode(['ok' => true, 'views_count' => $count]);
+    } catch (Exception $e) { echo json_encode(['ok' => true, 'views_count' => 0]); }
     exit;
 }
 

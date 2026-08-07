@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Лента — psytalk.pro</title>
+    <link rel="stylesheet" href="/css/styles.css">
+    <script src="/js/layout.js"></script>
+    <script src="/js/api.js"></script>
+    <script src="/js/auth.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', -apple-system, sans-serif; background: var(--fd-bg); min-height: 100vh; display: flex; flex-direction: column; color: var(--fd-text); padding-top: 84px; transition: background 0.2s, color 0.2s; }
+        :root { --fd-bg:#FAFAFA; --fd-text:#1A1A1A; --fd-text-sec:#6B7280; --fd-card:#fff; --fd-card-border:#F0ECF8; --fd-border:#F0F0F0; }
+        body.dark { --fd-bg:#191919; --fd-text:#E6E6E6; --fd-text-sec:#A0A0A0; --fd-card:#252525; --fd-card-border:#333; --fd-border:#333; }
+        main { flex: 1; }
+        .wrap { max-width: 640px; margin: 0 auto; padding: 2rem 1.25rem 4rem; }
+        h1 { font-size: 1.5rem; font-weight: 800; margin-bottom: 0.25rem; }
+        .sub { color: var(--fd-text-sec); font-size: 0.9rem; margin-bottom: 1.5rem; }
+        .post-card { background: var(--fd-card); border: 1px solid var(--fd-card-border); border-radius: 1.1rem; padding: 1.1rem 1.25rem; margin-bottom: 1rem; box-shadow: 0 2px 12px rgba(0,0,0,0.04); }
+        .post-head { display: flex; align-items: center; gap: 0.7rem; }
+        .post-ava { width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 700; overflow: hidden; flex-shrink: 0; }
+        .post-ava img { width: 100%; height: 100%; object-fit: cover; }
+        .post-author { font-weight: 700; font-size: 0.95rem; }
+        .post-author a { color: inherit; text-decoration: none; }
+        .post-author a:hover { text-decoration: underline; }
+        .post-spec { color: #7C3AED; font-size: 0.8rem; }
+        .post-date { color: var(--fd-text-sec); font-size: 0.75rem; margin-left: auto; white-space: nowrap; }
+        .post-text { margin-top: 0.7rem; white-space: pre-wrap; line-height: 1.6; color: var(--fd-text); }
+        .post-text img, .post-img { max-width: 100%; border-radius: 0.7rem; margin-top: 0.6rem; display: block; }
+        .post-actions { display: flex; align-items: center; gap: 0.4rem; margin-top: 0.8rem; padding-top: 0.7rem; border-top: 1px solid var(--fd-border); }
+        .pbtn { display: inline-flex; align-items: center; gap: 0.3rem; background: none; border: none; cursor: pointer; color: var(--fd-text-sec); font-size: 0.85rem; font-family: inherit; padding: 0.35rem 0.6rem; border-radius: 0.5rem; transition: background 0.15s, color 0.15s; }
+        .pbtn:hover { background: var(--fd-border); }
+        .pbtn.liked { color: #DC2626; font-weight: 700; }
+        .sub-btn { margin-left: auto; padding: 0.35rem 0.8rem; border-radius: 2rem; border: 1.5px solid #7C3AED; background: none; color: #7C3AED; font-weight: 700; font-size: 0.78rem; cursor: pointer; font-family: inherit; }
+        .sub-btn.subscribed { background: var(--fd-border); color: var(--fd-text-sec); border-color: var(--fd-border); }
+        .load-more { display: block; width: 100%; padding: 0.8rem; margin-top: 0.5rem; border-radius: 0.8rem; border: 1.5px solid var(--fd-card-border); background: var(--fd-card); color: var(--fd-text); font-weight: 600; cursor: pointer; font-family: inherit; }
+        .empty { text-align: center; color: var(--fd-text-sec); padding: 3rem 1rem; }
+    </style>
+</head>
+<body>
+    <script>(function(){var t=localStorage.getItem('psy-theme')||'light';if(t==='dark'||(t==='system'&&matchMedia('(prefers-color-scheme:dark)').matches))document.body.classList.add('dark');})()</script>
+    <script>psyWriteHeader();</script>
+    <main>
+        <div class="wrap">
+            <h1>📰 Лента</h1>
+            <div class="sub">Посты из каналов психологов — подпишитесь, чтобы не пропускать новое.</div>
+            <div id="feedList"><div class="empty">Загрузка…</div></div>
+            <button id="loadMoreBtn" class="load-more" style="display:none;" onclick="loadFeed(false)">Показать ещё</button>
+        </div>
+    </main>
+    <script>psyWriteFooter();</script>
+    <script>
+        const AV = ['#7C3AED','#2563EB','#059669','#D97706','#DB2777','#0891B2','#9F67FA'];
+        function colorFor(x){ let h=0,s=String(x); for(let i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))>>>0; return AV[h%AV.length]; }
+        function esc(s){ const d=document.createElement('div'); d.textContent=(s==null?'':String(s)); return d.innerHTML; }
+
+        let currentUser = null;
+        let lastId = 0;
+        let busy = false;
+
+        async function loadFeed(reset) {
+            if (busy) return;
+            busy = true;
+            if (reset) lastId = 0;
+            const url = '/api/channels.php?action=feed&limit=20' + (lastId ? '&before_id=' + lastId : '');
+            let rows = [];
+            try { const r = await fetch(url, { credentials: 'include' }); const d = await r.json(); rows = (d && d.data) || []; } catch (e) {}
+            const list = document.getElementById('feedList');
+            const moreBtn = document.getElementById('loadMoreBtn');
+            if (reset && !rows.length) {
+                list.innerHTML = '<div class="empty">Пока нет постов в каналах психологов.<br>Загляните позже — специалисты уже начали делиться заметками и советами.</div>';
+                moreBtn.style.display = 'none';
+                busy = false;
+                return;
+            }
+            if (reset) list.innerHTML = '';
+            list.insertAdjacentHTML('beforeend', rows.map(postCardHtml).join(''));
+            if (rows.length) lastId = rows[rows.length - 1].id;
+            moreBtn.style.display = rows.length >= 20 ? 'block' : 'none';
+            busy = false;
+        }
+
+        function postCardHtml(p) {
+            const name = `${p.first_name || ''} ${p.last_name || ''}`.trim() || 'Психолог';
+            const init = name.charAt(0).toUpperCase();
+            const date = new Date(p.created_at).toLocaleDateString('ru', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+            const img = p.image_url ? `<img class="post-img" src="${esc(p.image_url)}" alt="">` : '';
+            const text = p.text ? `<div class="post-text">${esc(p.text)}</div>` : '';
+            return `
+                <div class="post-card" data-post-id="${p.id}">
+                    <div class="post-head">
+                        <div class="post-ava" style="background:${colorFor(p.psychologist_id)};">${p.avatar ? `<img src="${esc(p.avatar)}">` : init}</div>
+                        <div style="min-width:0;">
+                            <div class="post-author"><a href="/psychologist-profile.html?id=${encodeURIComponent(p.psychologist_id)}">${esc(name)}</a></div>
+                            <div class="post-spec">${esc(p.specialization || 'Психолог')}</div>
+                        </div>
+                        <div class="post-date">${date}</div>
+                    </div>
+                    ${text}${img}
+                    <div class="post-actions">
+                        <button class="pbtn ${p.liked_by_me ? 'liked' : ''}" onclick="toggleLike(${p.id}, this)">${p.liked_by_me ? '❤️' : '🤍'} <span>${p.likes_count || 0}</span></button>
+                        <span class="pbtn" style="cursor:default;">👁 ${p.views_count || 0}</span>
+                        <button class="pbtn" onclick="sharePost(${p.id}, '${encodeURIComponent(p.psychologist_id)}')">↗ Поделиться</button>
+                        <button class="sub-btn ${p.is_subscribed ? 'subscribed' : ''}" onclick="toggleSub('${p.psychologist_id}', this)">${p.is_subscribed ? '✓ Подписан' : 'Подписаться'}</button>
+                    </div>
+                </div>`;
+        }
+
+        async function toggleLike(postId, btn) {
+            if (!currentUser) { window.location.href = '/login.html?redirect=' + encodeURIComponent(location.pathname); return; }
+            try {
+                const r = await fetch('/api/channels.php?action=like', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+                    body: JSON.stringify({ post_id: postId })
+                });
+                const d = await r.json();
+                if (!d.ok) return;
+                btn.classList.toggle('liked', d.liked);
+                btn.innerHTML = (d.liked ? '❤️' : '🤍') + ' <span>' + d.likes_count + '</span>';
+            } catch (e) {}
+        }
+        window.toggleLike = toggleLike;
+
+        async function toggleSub(psychId, btn) {
+            if (!currentUser) { window.location.href = '/login.html?redirect=' + encodeURIComponent(location.pathname); return; }
+            const subscribed = btn.classList.contains('subscribed');
+            try {
+                await fetch('/api/channels.php?action=' + (subscribed ? 'unsubscribe' : 'subscribe'), {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+                    body: JSON.stringify({ psychologist_id: psychId })
+                });
+                btn.classList.toggle('subscribed', !subscribed);
+                btn.textContent = !subscribed ? '✓ Подписан' : 'Подписаться';
+                document.querySelectorAll(`.sub-btn[onclick*="'${psychId}'"]`).forEach(b => {
+                    b.classList.toggle('subscribed', !subscribed);
+                    b.textContent = !subscribed ? '✓ Подписан' : 'Подписаться';
+                });
+            } catch (e) {}
+        }
+        window.toggleSub = toggleSub;
+
+        function sharePost(postId, psychId) {
+            const url = location.origin + '/psychologist-profile.html?id=' + psychId + '#post-' + postId;
+            if (navigator.share) {
+                navigator.share({ title: 'psytalk.pro', url }).catch(() => {});
+            } else {
+                navigator.clipboard && navigator.clipboard.writeText(url).then(() => alert('Ссылка скопирована: ' + url)).catch(() => prompt('Скопируйте ссылку:', url));
+            }
+        }
+        window.sharePost = sharePost;
+
+        // Просмотры засчитываем один раз, когда карточка появляется в области видимости
+        const seenViews = new Set();
+        const viewObserver = ('IntersectionObserver' in window) ? new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (!entry.isIntersecting) return;
+                const id = entry.target.dataset.postId;
+                if (!id || seenViews.has(id)) return;
+                seenViews.add(id);
+                fetch('/api/channels.php?action=view', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+                    body: JSON.stringify({ post_id: parseInt(id, 10) })
+                }).catch(() => {});
+                viewObserver.unobserve(entry.target);
+            });
+        }, { threshold: 0.5 }) : null;
+
+        function observeNewPosts() {
+            if (!viewObserver) return;
+            document.querySelectorAll('.post-card').forEach(el => viewObserver.observe(el));
+        }
+
+        (async function init() {
+            try { if (window.Auth) currentUser = await window.Auth.getCurrentUser(); } catch (e) {}
+            await loadFeed(true);
+            observeNewPosts();
+            const mo = new MutationObserver(observeNewPosts);
+            mo.observe(document.getElementById('feedList'), { childList: true });
+        })();
+    </script>
+</body>
+</html>
