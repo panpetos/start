@@ -353,6 +353,9 @@
                     <button class="sidebar-item" data-tab="notes" onclick="switchTab('notes')">
                         <span class="sidebar-item-icon">📝</span> Записки
                     </button>
+                    <button class="sidebar-item" data-tab="adminperms" onclick="switchTab('adminperms')">
+                        <span class="sidebar-item-icon">🔐</span> Права админов
+                    </button>
                 </div>
             </nav>
             <div class="sidebar-footer">
@@ -437,6 +440,8 @@
         }
 
         // ── Init & navigation ───────────────────────────────────────────────
+        let myAdminSections = null; // null = полный доступ; иначе — массив разрешённых разделов
+        let myUserId = null;
         async function init(){
             let user = null;
             if (window.Auth && window.Auth.getCurrentUser) { try { user = await window.Auth.getCurrentUser(); } catch(e){} }
@@ -447,12 +452,26 @@
                 return;
             }
             document.getElementById('adminWho').textContent = ((user.first_name||'')+' '+(user.last_name||'')).trim() || 'Администратор';
+            myUserId = user.id;
+            try {
+                const p = await (await fetch('/api/admin_permissions.php?action=my', { credentials:'include' })).json();
+                myAdminSections = (p && p.ok) ? p.sections : null;
+            } catch(e){ myAdminSections = null; }
+            if (myAdminSections) {
+                document.querySelectorAll('.sidebar-item[data-tab]').forEach(t => {
+                    if (!myAdminSections.includes(t.dataset.tab)) t.style.display = 'none';
+                });
+            }
             supStartPolling();
-            switchTab('overview');
+            switchTab((myAdminSections && !myAdminSections.includes('overview')) ? myAdminSections[0] : 'overview');
         }
 
         let currentTab = 'overview';
         function switchTab(tab){
+            if (myAdminSections && !myAdminSections.includes(tab)) {
+                document.getElementById('content').innerHTML = '<div class="panel"><div class="empty">⛔ Этот раздел вам не доступен. Обратитесь к главному администратору.</div></div>';
+                return;
+            }
             currentTab = tab;
             if (supMsgPollTimer) { clearInterval(supMsgPollTimer); supMsgPollTimer = null; }
             supportThreadId = null;
@@ -462,7 +481,7 @@
             // Close mobile sidebar
             document.getElementById('sidebar').classList.remove('open');
             document.getElementById('sidebarOverlay').classList.remove('open');
-            ({ overview:renderOverview, support:renderSupport, users:renderUsers, psychologists:renderPsych, tariffs:renderTariffs, robokassa:renderRobokassa, yookassa:renderYookassa, devtasks:renderDevTasks, appointments:renderAppointments, replacements:renderReplacements, supervision:renderSupervision, calls:renderCalls, payments:renderPayments, subscribers:renderSubscribers, referrals:renderReferrals, activity:renderActivity, notes:renderNotes, notifications:renderNotifications }[tab])();
+            ({ overview:renderOverview, support:renderSupport, users:renderUsers, psychologists:renderPsych, tariffs:renderTariffs, robokassa:renderRobokassa, yookassa:renderYookassa, devtasks:renderDevTasks, appointments:renderAppointments, replacements:renderReplacements, supervision:renderSupervision, calls:renderCalls, payments:renderPayments, subscribers:renderSubscribers, referrals:renderReferrals, activity:renderActivity, notes:renderNotes, notifications:renderNotifications, adminperms:renderAdminPerms }[tab])();
         }
 
         // ── Overview ────────────────────────────────────────────────────────
@@ -2031,6 +2050,62 @@
                     alert(r.error || 'Не удалось перенести задачу');
                 }
             } catch(e) { alert('Ошибка сети'); }
+        }
+
+        // ── Права дополнительных акков админа ──────────────────────────────────
+        const SECTION_LABELS = {
+            overview:'📊 Обзор', users:'👤 Пользователи', psychologists:'🎓 Психологи', appointments:'📅 Записи',
+            calls:'📞 Звонки', replacements:'🔄 Замены', supervision:'🎓 Супервизия', payments:'💳 Оплаты',
+            tariffs:'💰 Тарифы', robokassa:'🏦 Робокасса', yookassa:'🏦 ЮKassa', subscribers:'📧 Подписчики',
+            referrals:'🔗 Источники', activity:'📜 Журнал', support:'💬 Поддержка', devtasks:'🤖 Задачи Клоду',
+            notifications:'🔔 Уведомления', notes:'📝 Записки', adminperms:'🔐 Права админов'
+        };
+        async function renderAdminPerms(){
+            let res;
+            try { res = await (await fetch('/api/admin_permissions.php?action=list', { credentials:'include' })).json(); }
+            catch(e){ return fail(); }
+            if (!res || !res.ok) {
+                document.getElementById('content').innerHTML = `<div class="panel"><div class="empty">${esc((res && res.error) || 'Доступно только администратору с полным доступом.')}</div></div>`;
+                return;
+            }
+            const admins = res.data || [];
+            const allSections = res.all_sections || Object.keys(SECTION_LABELS);
+            document.getElementById('content').innerHTML =
+                '<div class="note">🔐 По умолчанию у всех админов полный доступ. Отметьте галочками, какие разделы видит конкретный акк — остальные будут скрыты в его меню (например, для техподдержки или бухгалтера). Себя ограничить нельзя.</div>' +
+                admins.map(a => {
+                    const name = ((a.first_name||'')+' '+(a.last_name||'')).trim() || a.email || a.id;
+                    const isSelf = a.id === myUserId;
+                    const full = a.sections === null;
+                    const checked = (key) => full || (a.sections||[]).includes(key);
+                    return `<div class="panel" style="margin-bottom:0.9rem;"><div class="panel-head"><h2>${esc(name)}</h2><span class="badge ${full?'b-green':'b-amber'}">${full?'полный доступ':'ограничен: '+(a.sections||[]).length+' из '+allSections.length}</span></div>
+                        <div style="padding:1rem;">
+                            ${isSelf ? '<div class="muted" style="font-size:0.82rem;margin-bottom:0.5rem;">Это ваш аккаунт — себя ограничить нельзя.</div>' : ''}
+                            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:0.4rem;margin-bottom:0.7rem;">
+                                ${allSections.map(s => `<label style="display:flex;align-items:center;gap:0.4rem;font-size:0.85rem;${isSelf?'opacity:0.5;':''}">
+                                    <input type="checkbox" data-perm-admin="${esc(a.id)}" data-perm-section="${s}" ${checked(s)?'checked':''} ${isSelf?'disabled':''}> ${SECTION_LABELS[s]||s}
+                                </label>`).join('')}
+                            </div>
+                            ${isSelf ? '' : `<button class="btn-sm btn-purple" onclick="saveAdminPerms('${esc(a.id)}')">Сохранить</button>
+                            <button class="btn-sm btn-outline" onclick="grantFullAccess('${esc(a.id)}')">Дать полный доступ</button>
+                            <span id="permMsg-${esc(a.id)}" style="font-size:0.85rem;margin-left:0.5rem;"></span>`}
+                        </div></div>`;
+                }).join('');
+        }
+        async function saveAdminPerms(adminId){
+            const boxes = document.querySelectorAll(`input[data-perm-admin="${adminId}"]`);
+            const sections = Array.from(boxes).filter(b => b.checked).map(b => b.dataset.permSection);
+            const msg = document.getElementById('permMsg-' + adminId);
+            try {
+                const r = await (await fetch('/api/admin_permissions.php?action=set', { method:'POST', headers:{'Content-Type':'application/json'}, credentials:'include', body:JSON.stringify({user_id: adminId, sections}) })).json();
+                if (msg) { msg.textContent = r.ok ? '✅ Сохранено' : ('⚠️ ' + (r.error||'Ошибка')); msg.style.color = r.ok ? '#16A34A' : '#DC2626'; }
+                if (r.ok) setTimeout(renderAdminPerms, 700);
+            } catch(e){ if (msg) { msg.textContent = '⚠️ Ошибка сети'; msg.style.color = '#DC2626'; } }
+        }
+        async function grantFullAccess(adminId){
+            try {
+                await fetch('/api/admin_permissions.php?action=set', { method:'POST', headers:{'Content-Type':'application/json'}, credentials:'include', body:JSON.stringify({user_id: adminId, sections: []}) });
+                renderAdminPerms();
+            } catch(e){}
         }
 
         // ── Helpers ─────────────────────────────────────────────────────────
