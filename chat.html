@@ -1254,6 +1254,7 @@
             // Проверяем параметры URL
             const urlParams = new URLSearchParams(window.location.search);
             const userIdFromUrl = urlParams.get('user');
+            const supportIdFromUrl = urlParams.get('support');
             bookPsychId = urlParams.get('pid');
             isAdminMode = urlParams.get('admin') === '1' && currentUser.role === 'admin';
 
@@ -1283,6 +1284,8 @@
             // Автоматически открыть чат если есть user в URL
             if (userIdFromUrl) {
                 await startNewChat(userIdFromUrl);
+            } else if (supportIdFromUrl && currentUser.role === 'admin') {
+                await openSupportThread(supportIdFromUrl);
             }
 
             if (typeof lucide !== 'undefined') {
@@ -1323,12 +1326,47 @@
             pollInterval = setInterval(loadMessages, 5000);
         }
 
+        // Обращения в поддержку (виджет на сайте) — задача #37: показываем их в том же
+        // списке диалогов, что и обычные сообщения от психологов/клиентов, чтобы админ
+        // отвечал на них через ту же форму чата, а не отдельную панель.
+        const SUPPORT_PREFIX = 'support:';
+        function isSupportMode() { return typeof selectedUserId === 'string' && selectedUserId.indexOf(SUPPORT_PREFIX) === 0; }
+        function supportThreadIdOf() { return isSupportMode() ? selectedUserId.slice(SUPPORT_PREFIX.length) : null; }
+
+        async function loadSupportConversations() {
+            if (!currentUser || currentUser.role !== 'admin') return [];
+            try {
+                const res = await (await fetch('/api/support.php?action=threads', { credentials: 'include' })).json();
+                if (!res || !res.ok) return [];
+                return (res.data || []).map(t => ({
+                    user_id: SUPPORT_PREFIX + t.id,
+                    _support: true,
+                    _threadId: t.id,
+                    first_name: t.name || 'Гость',
+                    last_name: '',
+                    email: t.email || '',
+                    avatar: null,
+                    last_message: (t.last_sender === 'admin' ? 'Вы: ' : '') + (t.last_message || ''),
+                    is_mine: t.last_sender === 'admin',
+                    last_message_time: t.last_at,
+                    unread_count: t.unread || 0
+                }));
+            } catch (e) { return []; }
+        }
+
         async function loadConversations() {
             try {
                 const response = await fetch('/api/messages.php?action=conversations', {
                     credentials: 'include'
                 });
-                const conversations = await response.json();
+                let conversations = await response.json();
+                if (!Array.isArray(conversations)) conversations = [];
+
+                const supportConvs = await loadSupportConversations();
+                if (supportConvs.length) {
+                    conversations = conversations.concat(supportConvs)
+                        .sort((a, b) => String(b.last_message_time || '').localeCompare(String(a.last_message_time || '')));
+                }
 
                 const container = document.getElementById('conversationsList');
 
@@ -1379,18 +1417,19 @@
                 const name = `${c.first_name || ''} ${c.last_name || ''}`.trim() || 'Пользователь';
                 const initial = name.charAt(0).toUpperCase();
                 const isNew = !!c._isNew;
+                const isSupport = !!c._support;
                 const lastMsg = (c.last_message || '').replace(/^\[ORDER#\d+\]\s*/, '');
                 const preview = isNew
                     ? `<span style="color:#7C3AED;">${c.role === 'psychologist' ? 'Психолог' : 'Клиент'} · начать переписку</span>`
-                    : (c.is_mine ? `Вы: ${lastMsg}` : lastMsg);
+                    : (isSupport ? c.last_message : (c.is_mine ? `Вы: ${lastMsg}` : lastMsg));
                 const time = isNew ? '' : formatTime(c.last_message_time);
-                const clickHandler = isNew ? `startNewChat('${c.id}')` : `openChat('${c.user_id}')`;
+                const clickHandler = isSupport ? `openSupportThread('${c._threadId}')` : (isNew ? `startNewChat('${c.id}')` : `openChat('${c.user_id}')`);
                 const activeId = isNew ? c.id : c.user_id;
                 return `
                     <div class="conversation-item ${activeId === selectedUserId ? 'active' : ''}"
                          onclick="${clickHandler}">
-                        <div class="conversation-avatar">
-                            ${c.avatar ? `<img src="${c.avatar}" alt="${name}">` : initial}
+                        <div class="conversation-avatar" ${isSupport ? 'style="background:linear-gradient(135deg,#F59E0B,#EF4444);"' : ''}>
+                            ${c.avatar ? `<img src="${c.avatar}" alt="${name}">` : (isSupport ? '🆘' : initial)}
                         </div>
                         <div class="conversation-info">
                             <div class="conversation-name">${name}</div>
@@ -1476,6 +1515,69 @@
 
             if (pollInterval) clearInterval(pollInterval);
             pollInterval = setInterval(loadMessages, 5000);
+        }
+
+        async function openSupportThread(threadId) {
+            selectedUserId = SUPPORT_PREFIX + threadId;
+            headerRenderedFor = null;
+
+            document.querySelectorAll('.conversation-item').forEach(el => {
+                el.classList.toggle('active', el.getAttribute('onclick') === `openSupportThread('${threadId}')`);
+            });
+
+            document.getElementById('emptyState').style.display = 'none';
+            document.getElementById('chatContent').style.display = 'flex';
+            document.querySelector('.chat-container').classList.add('mobile-chat-open');
+
+            await loadMessages();
+
+            if (pollInterval) clearInterval(pollInterval);
+            pollInterval = setInterval(loadMessages, 5000);
+        }
+
+        async function loadSupportThreadMessages() {
+            const threadId = supportThreadIdOf();
+            if (!threadId) return;
+            try {
+                const res = await (await fetch('/api/support.php?action=messages&thread_id=' + encodeURIComponent(threadId), { credentials: 'include' })).json();
+                const t = res.thread || {};
+                const msgs = res.data || [];
+
+                if (headerRenderedFor !== selectedUserId) {
+                    const name = t.name || 'Гость';
+                    const statusText = (t.registered || t.user_id) ? 'зарегистрирован' : 'гость';
+                    document.getElementById('chatHeader').innerHTML = `
+                        <button class="chat-back-btn" onclick="goBackToList()" title="Назад к диалогам">←</button>
+                        <div class="avatar" style="background:linear-gradient(135deg,#F59E0B,#EF4444);">🆘</div>
+                        <div style="flex:1;min-width:0;">
+                            <div class="name">${escapeHtml(name)}</div>
+                            <div class="role">Обращение в поддержку · ${escapeHtml(t.role || '—')} · ${statusText}${t.email ? ' · ' + escapeHtml(t.email) : ''}</div>
+                        </div>
+                        <a href="${getDashboardUrl()}" class="session-btn" style="background:#6B7280;text-decoration:none;display:inline-flex;align-items:center;gap:0.3rem;" title="Вернуться в личный кабинет">← В кабинет</a>`;
+                    headerRenderedFor = selectedUserId;
+                }
+
+                const container = document.getElementById('messagesContainer');
+                const wasScrolledToBottom = container.scrollHeight - container.scrollTop <= container.clientHeight + 50;
+
+                container.innerHTML = msgs.map(m => {
+                    const isMine = m.sender === 'admin';
+                    const time = formatTime(m.created_at);
+                    let attachmentHtml = '';
+                    if (m.attachment_url) {
+                        const isImg = (m.attachment_type || '').indexOf('image') === 0;
+                        attachmentHtml = isImg
+                            ? `<div class="message-attachment"><a href="${m.attachment_url}" target="_blank"><img src="${m.attachment_url}" alt="${m.attachment_name || 'Изображение'}"></a></div>`
+                            : `<div class="message-attachment"><a href="${m.attachment_url}" target="_blank" download="${m.attachment_name || 'file'}">📄 ${m.attachment_name || 'Скачать файл'}</a></div>`;
+                    }
+                    const content = m.body ? escapeHtml(m.body) : '';
+                    return `<div class="message ${isMine ? 'mine' : 'theirs'}">${content ? `<div>${content}</div>` : ''}${attachmentHtml}<div class="message-time">${time}</div></div>`;
+                }).join('');
+
+                if (wasScrolledToBottom) container.scrollTop = container.scrollHeight;
+
+                await loadConversations();
+            } catch (e) { console.error('Load support thread error:', e); }
         }
 
         async function openChat(userId) {
@@ -1638,6 +1740,7 @@
         async function loadMessages() {
             if (!selectedUserId) return;
             if (selectedUserId === FAVORITES_ID) { await loadFavoritesMessages(); return; }
+            if (isSupportMode()) { await loadSupportThreadMessages(); return; }
 
             try {
                 // Загрузить данные пользователя
@@ -1820,6 +1923,20 @@
             const content = input.value.trim();
 
             if (!content || !selectedUserId) return;
+
+            if (isSupportMode()) {
+                input.value = '';
+                try {
+                    await fetch('/api/support.php?action=reply', {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+                        body: JSON.stringify({ thread_id: supportThreadIdOf(), message: content })
+                    });
+                    await loadMessages();
+                    const container = document.getElementById('messagesContainer');
+                    container.scrollTop = container.scrollHeight;
+                } catch (e) { console.error('Send support reply error:', e); }
+                return;
+            }
 
             if (selectedUserId === FAVORITES_ID) {
                 input.value = '';
@@ -2055,6 +2172,22 @@
                     return;
                 }
 
+                if (isSupportMode()) {
+                    await fetch('/api/support.php?action=reply', {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+                        body: JSON.stringify({
+                            thread_id: supportThreadIdOf(),
+                            message: `[Голосовое сообщение: ${formatDuration(duration)}]`,
+                            attachment_url: uploadResult.url, attachment_type: 'voice',
+                            attachment_name: `${formatDuration(duration)}`
+                        })
+                    });
+                    await loadMessages();
+                    const c = document.getElementById('messagesContainer');
+                    c.scrollTop = c.scrollHeight;
+                    return;
+                }
+
                 // Отправить сообщение с голосовым
                 const messageData = {
                     receiver_id: selectedUserId,
@@ -2190,7 +2323,7 @@
         async function handleFileSelect(event) {
             const file = event.target.files[0];
             if (!file) return;
-            if (selectedUserId !== FAVORITES_ID && !requireHealthConsent()) { event.target.value = ''; return; }
+            if (selectedUserId !== FAVORITES_ID && !isSupportMode() && !requireHealthConsent()) { event.target.value = ''; return; }
 
             // Проверка размера (5MB max)
             if (file.size > 5 * 1024 * 1024) {
@@ -2226,6 +2359,22 @@
                         })
                     });
                     await loadFavoritesMessages();
+                    const c = document.getElementById('messagesContainer');
+                    c.scrollTop = c.scrollHeight;
+                    event.target.value = '';
+                    return;
+                }
+
+                if (isSupportMode()) {
+                    await fetch('/api/support.php?action=reply', {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+                        body: JSON.stringify({
+                            thread_id: supportThreadIdOf(), message: `[Файл: ${file.name}]`,
+                            attachment_url: result.url, attachment_type: file.type.startsWith('image/') ? 'image' : 'file',
+                            attachment_name: file.name
+                        })
+                    });
+                    await loadMessages();
                     const c = document.getElementById('messagesContainer');
                     c.scrollTop = c.scrollHeight;
                     event.target.value = '';
