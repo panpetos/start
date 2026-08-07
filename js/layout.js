@@ -37,10 +37,17 @@
       '</a>' +
     '</li>';
 
+  var themeToggleItem =
+    '<li id="psyThemeToggleWrap" style="' + liReset + 'margin-left:0.6rem;flex-shrink:0;">' +
+      '<button id="psyThemeToggle" aria-label="Светлая/тёмная тема" title="Светлая/тёмная тема" ' +
+      'style="width:38px;height:38px;min-width:38px;border-radius:50%;border:1.5px solid #E5E7EB;background:#fff;cursor:pointer;font-size:1.05rem;display:inline-flex;align-items:center;justify-content:center;transition:transform .2s;" ' +
+      'onmouseover="this.style.transform=\'scale(1.05)\'" onmouseout="this.style.transform=\'scale(1)\'">🌙</button>' +
+    '</li>';
+
   var menu = links.map(function (l) {
     var st = active(l.href) ? 'color:#34C759;font-weight:600;' : '';
     return '<li style="' + liReset + '"><a href="' + l.href + '" class="nav-link" style="' + st + '">' + l.text + '</a></li>';
-  }).join('') + loginCircle;
+  }).join('') + themeToggleItem + loginCircle;
 
   // ВАЖНО: не используем класс .container внутри шапки — многие страницы
   // переопределяют .container (свой max-width/padding), из-за чего меню «плясало».
@@ -98,11 +105,47 @@
     'body.dark #psySupInput{background:#2A2A2A!important;border-color:#444!important;color:#E6E6E6!important}' +
     'body.dark #psyDevNotice>div{background:#1E1E1E!important}' +
     'body.dark #psyDevNotice h3{color:#E6E6E6!important}' +
-    'body.dark #psyDevNotice p{color:#9CA3AF!important}';
+    'body.dark #psyDevNotice p{color:#9CA3AF!important}' +
+    'body.dark #psyThemeToggle{background:#2A2A2A!important;border-color:#444!important;color:#E6E6E6!important}';
   document.head.appendChild(darkCss);
 
+  // ── Единая светлая/тёмная тема (ключ localStorage: psy-theme) ────────────────
+  // Личные кабинеты клиента/психолога и админка держат свои переключатели (тот же
+  // ключ) — на этих страницах кнопку в шапке скрываем, чтобы не дублировать.
+  function isDarkNow() { return document.body.classList.contains('dark'); }
+  function applyStoredTheme() {
+    try {
+      var t = localStorage.getItem('psy-theme');
+      var dark = t === 'dark' || (!t && window.matchMedia && window.matchMedia('(prefers-color-scheme:dark)').matches);
+      document.body.classList.toggle('dark', !!dark);
+    } catch (e) {}
+  }
+  function updateThemeToggleIcon() {
+    var btn = document.getElementById('psyThemeToggle');
+    if (btn) btn.textContent = isDarkNow() ? '☀️' : '🌙';
+  }
+  function toggleSiteTheme() {
+    var dark = !isDarkNow();
+    document.body.classList.toggle('dark', dark);
+    try { localStorage.setItem('psy-theme', dark ? 'dark' : 'light'); } catch (e) {}
+    updateThemeToggleIcon();
+  }
+  window.psyToggleTheme = toggleSiteTheme;
+  function wireThemeToggle() {
+    var wrap = document.getElementById('psyThemeToggleWrap');
+    var btn = document.getElementById('psyThemeToggle');
+    if (!btn) return;
+    // Страница уже даёт свой переключатель темы (личный кабинет/админка) — не дублируем.
+    if (document.getElementById('themeBtn') || document.getElementById('themeIcon')) {
+      if (wrap) wrap.style.display = 'none';
+      return;
+    }
+    updateThemeToggleIcon();
+    btn.addEventListener('click', toggleSiteTheme);
+  }
+
   // Синхронная вставка во время разбора HTML — без мерцания.
-  window.psyWriteHeader = function () { document.write(headerHtml); };
+  window.psyWriteHeader = function () { applyStoredTheme(); document.write(headerHtml); };
   window.psyWriteFooter = function () { document.write(footerHtml); };
 
   function wireBurger() {
@@ -535,6 +578,7 @@
     fillPlaceholders();
     fillDynamicPrices();
     wireBurger();
+    wireThemeToggle();
     // showDevNotice(); — отключено: оверлей «сайт в разработке» мешает проверке эквайринга
     showConsentBanner();
     buildSupportWidget();

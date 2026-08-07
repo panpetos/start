@@ -239,7 +239,7 @@
     </style>
     <script>
         (function(){
-            var t = localStorage.getItem('admin-theme') || 'light';
+            var t = localStorage.getItem('admin-theme') || localStorage.getItem('psy-theme') || 'light';
             var dark = t === 'dark' || (t === 'system' && window.matchMedia('(prefers-color-scheme:dark)').matches);
             if (dark) document.documentElement.style.colorScheme = 'dark';
         })();
@@ -248,7 +248,7 @@
 <body>
     <script>
         (function(){
-            var t = localStorage.getItem('admin-theme') || 'light';
+            var t = localStorage.getItem('admin-theme') || localStorage.getItem('psy-theme') || 'light';
             var dark = t === 'dark' || (t === 'system' && window.matchMedia('(prefers-color-scheme:dark)').matches);
             if (dark) document.body.classList.add('dark');
         })();
@@ -395,11 +395,14 @@
         const THEME_CYCLE = ['light', 'dark', 'system'];
         const THEME_LABELS = { light: 'Тёмная тема', dark: 'Системная тема', system: 'Светлая тема' };
         const THEME_ICONS  = { light: '🌙', dark: '💻', system: '☀️' };
-        function getAdminTheme(){ return localStorage.getItem('admin-theme') || 'light'; }
+        function getAdminTheme(){ return localStorage.getItem('admin-theme') || localStorage.getItem('psy-theme') || 'light'; }
         function applyAdminTheme(t){
             const prefersDark = window.matchMedia('(prefers-color-scheme:dark)').matches;
             const dark = t === 'dark' || (t === 'system' && prefersDark);
             document.body.classList.toggle('dark', dark);
+            // Синхронизируем с общим ключом темы сайта, чтобы чаты и другие страницы
+            // подхватывали тот же светлый/тёмный режим, что выбран в админке.
+            try { localStorage.setItem('psy-theme', dark ? 'dark' : 'light'); } catch (e) {}
         }
         function toggleTheme(){
             const cur = getAdminTheme();
