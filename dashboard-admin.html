@@ -102,10 +102,14 @@
         @media (max-width: 768px) {
             .sidebar { position: fixed; top: 0; left: -290px; bottom: 0; z-index: 1000; width: 280px; transition: left 0.25s ease; padding-top: 84px; height: 100vh; }
             .sidebar.open { left: 0; }
-            .sidebar-toggle { display: flex; }
+            /* Бургер встроен в шапку сайта (справа), а не плавает поверх контента */
+            .sidebar-toggle { display: flex; top: 17px; left: auto; right: 12px; width: 34px; height: 34px; font-size: 1.05rem; }
+            .nav .burger-menu, .nav .nav-menu { display: none !important; }
             .admin-layout { display: block; }
             .main-content { padding: 0.75rem !important; }
             .panel-head { flex-direction: column; align-items: flex-start; gap: 0.5rem; }
+            /* Поле поиска в шапке разделов — компактнее на мобильных */
+            .panel-head .search { width: 100%; min-width: 0; padding: 0.4rem 0.6rem; font-size: 0.8rem; }
         }
 
         /* ── Main content ────────────────────────────────────────── */
@@ -890,14 +894,15 @@
                     const res = await (await fetch('/api/support.php?action=threads', { credentials:'include' })).json();
                     if (!res || !res.ok) return;
                     const rows = res.data || [];
-                    const totalUnread = rows.reduce((s,t) => s + (t.unread || 0), 0);
-                    if (totalUnread > supLastTotalUnread) {
+                    const widgetUnread = rows.reduce((s,t) => s + (t.unread || 0), 0);
+                    if (widgetUnread > supLastTotalUnread) {
                         supPlaySound();
                         const newest = rows.find(t => t.unread > 0);
                         if (newest) supShowNotif((newest.name || 'Гость') + ': ' + (newest.last_message || ''));
                     }
-                    supLastTotalUnread = totalUnread;
-                    updateSupportBadge(totalUnread);
+                    supLastTotalUnread = widgetUnread;
+                    const inboxUnread = (currentTab === 'support') ? await supRefreshInbox() : 0;
+                    updateSupportBadge(widgetUnread + inboxUnread);
                     if (currentTab === 'support' && !supportThreadId) updateThreadList(rows);
                 } catch(e) {}
             }, 5000);
@@ -933,6 +938,41 @@
             }).join('') : '<tr><td colspan="4" class="muted" style="padding:1.5rem;text-align:center;">Обращений пока нет</td></tr>';
         }
 
+        function supRenderInboxList(convs) {
+            const box = document.getElementById('supInboxList');
+            if (!box) return;
+            if (!convs.length) { box.innerHTML = '<div class="empty" style="padding:1.25rem;">Сообщений во внутреннем чате нет</div>'; return; }
+            box.innerHTML = convs.map(c => {
+                const name = `${c.first_name || ''} ${c.last_name || ''}`.trim() || 'Пользователь';
+                const preview = (c.is_mine ? 'Вы: ' : '') + ((c.last_message || '').replace(/^\[ORDER#\d+\]\s*/, ''));
+                const unread = c.unread_count > 0 ? `<span class="badge b-red">${c.unread_count} новых</span>` : '';
+                return `<div style="display:flex;justify-content:space-between;align-items:center;gap:0.75rem;padding:0.7rem 1rem;border-bottom:1px solid var(--a-td-border);">
+                    <div style="min-width:0;">
+                        <b>${esc(name)}</b>
+                        ${c.email ? `<span class="muted" style="font-size:0.78rem;"> · ${esc(c.email)}</span>` : ''}
+                        <div class="muted" style="font-size:0.82rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:420px;">${esc(preview)}</div>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:0.5rem;flex-shrink:0;">
+                        ${unread}
+                        <span class="muted" style="font-size:0.75rem;">${c.last_message_time ? fmtDateTime(c.last_message_time) : ''}</span>
+                        <a class="btn-sm btn-purple" href="/chat.html?admin=1&user=${encodeURIComponent(c.user_id)}" target="_blank" rel="noopener">Открыть чат</a>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+        async function supRefreshInbox() {
+            try {
+                const convs = await (await fetch('/api/messages.php?action=conversations', { credentials:'include' })).json();
+                if (Array.isArray(convs)) {
+                    supRenderInboxList(convs);
+                    const unread = convs.reduce((s,c) => s + (c.unread_count || 0), 0);
+                    const t = document.getElementById('supInboxTitle');
+                    if (t) t.textContent = `Сообщения от клиентов и психологов (${convs.length})`;
+                    return unread;
+                }
+            } catch(e) {}
+            return 0;
+        }
         async function renderSupport(){
             if (supMsgPollTimer) { clearInterval(supMsgPollTimer); supMsgPollTimer = null; }
             let res;
@@ -959,10 +999,14 @@
             }).join('') : '<tr><td colspan="4" class="muted" style="padding:1.5rem;text-align:center;">Обращений пока нет</td></tr>';
             document.getElementById('content').innerHTML =
                 '<div class="note">💬 Обращения обновляются автоматически. Нажмите на обращение для полноэкранного чата.</div>' +
-                `<div class="panel"><div class="panel-head"><h2>Обращения (${rows.length})</h2><div style="display:flex;gap:0.5rem;align-items:center;"><input id="supSearchInput" placeholder="🔍 Поиск по имени / email..." style="padding:0.4rem 0.7rem;border:1.5px solid var(--a-input-border,#ddd);border-radius:0.5rem;font-family:inherit;font-size:0.8rem;background:var(--a-input-bg,#fff);color:var(--a-text,#1a1a1a);width:200px;" oninput="filterSupportThreads()"><button class="btn-sm btn-outline" onclick="supportThreadId=null;renderSupport()">↻ Обновить</button></div></div>
-                  <div class="tbl-wrap"><table><thead><tr><th>Контакт</th><th>Роль / статус</th><th>Последнее сообщение</th><th>Когда</th></tr></thead><tbody id="supThreadsBody">${list}</tbody></table></div></div>`;
+                `<div class="panel" style="margin-bottom:1.25rem;"><div class="panel-head"><h2>Обращения (${rows.length})</h2><div style="display:flex;gap:0.5rem;align-items:center;"><input id="supSearchInput" placeholder="🔍 Поиск по имени / email..." style="padding:0.4rem 0.7rem;border:1.5px solid var(--a-input-border,#ddd);border-radius:0.5rem;font-family:inherit;font-size:0.8rem;background:var(--a-input-bg,#fff);color:var(--a-text,#1a1a1a);width:200px;" oninput="filterSupportThreads()"><button class="btn-sm btn-outline" onclick="supportThreadId=null;renderSupport()">↻ Обновить</button></div></div>
+                  <div class="tbl-wrap"><table><thead><tr><th>Контакт</th><th>Роль / статус</th><th>Последнее сообщение</th><th>Когда</th></tr></thead><tbody id="supThreadsBody">${list}</tbody></table></div></div>` +
+                `<div class="panel"><div class="panel-head"><h2 id="supInboxTitle">Сообщения от клиентов и психологов</h2><button class="btn-sm btn-outline" onclick="supRefreshInbox()">↻ Обновить</button></div>
+                  <div class="note" style="margin:0.75rem 1rem 0;">Это переписка через встроенный чат сайта (не виджет поддержки на публичных страницах) — когда клиент или психолог пишут «Техподдержке» из своего личного кабинета.</div>
+                  <div id="supInboxList" style="margin-top:0.5rem;"><div class="loading">Загрузка...</div></div></div>`;
             supAllThreadRows = rows;
             if (supportThreadId) openSupportThread(supportThreadId);
+            supRefreshInbox();
         }
 
         let supOpenMsgCount = 0;
@@ -1626,11 +1670,13 @@
         }
 
         // ── Admin notes ─────────────────────────────────────────────────────
+        let notesCache = [];
         async function renderNotes(){
             let res;
             try { res = await (await fetch('/api/admin_notes.php?action=list', { credentials:'include' })).json(); }
             catch(e){ return fail(); }
             const notes = (res && res.ok) ? (res.data || []) : [];
+            notesCache = notes;
             const active = notes.filter(n => !parseInt(n.is_done));
             const done = notes.filter(n => parseInt(n.is_done));
 
@@ -1665,6 +1711,7 @@
                         ${n.body ? `<div class="note-card-text">${esc(n.body)}</div>` : ''}
                         <div class="note-card-meta">${fmtDateTime(n.created_at)}</div>
                     </div>
+                    ${isDone ? '' : `<button class="note-card-delete" onclick="noteToTask(${n.id})" title="Перенести в задачи Клоду" style="opacity:1;font-size:0.95rem;">🤖</button>`}
                     <button class="note-card-delete" onclick="deleteNote(${n.id})" title="Удалить">×</button>
                 </div>`;
             };
@@ -1700,6 +1747,24 @@
                 await fetch('/api/admin_notes.php?action=delete', { method:'POST', headers:{'Content-Type':'application/json'}, credentials:'include', body:JSON.stringify({id}) });
                 renderNotes();
             } catch(e){}
+        }
+
+        async function noteToTask(id){
+            const n = notesCache.find(x => x.id === id);
+            if (!n) return;
+            const title = (n.title || '').trim() || 'Из записки';
+            const body = (n.body || n.title || '').trim();
+            if (!body) { alert('Пустая записка — нечего переносить'); return; }
+            if (!confirm('Перенести эту записку в «Задачи Клоду»?')) return;
+            try {
+                const r = await apiPostTo(DEV_API, 'add', { title, body });
+                if (r.ok) {
+                    try { await fetch('/api/admin_notes.php?action=update', { method:'POST', headers:{'Content-Type':'application/json'}, credentials:'include', body:JSON.stringify({id, is_done:1}) }); } catch(e){}
+                    renderNotes();
+                } else {
+                    alert(r.error || 'Не удалось перенести задачу');
+                }
+            } catch(e) { alert('Ошибка сети'); }
         }
 
         // ── Helpers ─────────────────────────────────────────────────────────
