@@ -122,6 +122,16 @@
         }
         .folder-pick-btn:hover { opacity: 1; }
         .folder-pick-btn.in-folder { opacity: 1; color: #7C3AED; }
+
+        /* Аватарка группы/канала с кнопкой замены */
+        .chat-ava-edit { position: relative; width: 72px; height: 72px; }
+        .chat-ava-btn {
+            position: absolute; right: -4px; bottom: -4px; width: 28px; height: 28px;
+            border-radius: 50%; background: #7C3AED; color: #fff; border: 2px solid #fff;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 0.78rem; cursor: pointer;
+        }
+        body.dark .chat-ava-btn { border-color: #252525; }
         .folder-picker {
             position: fixed; z-index: 4000; min-width: 170px; max-height: 60vh; overflow-y: auto;
             background: #fff; border: 1px solid #E5E7EB; border-radius: 0.75rem;
@@ -924,6 +934,7 @@
         body.dark #orderModal > div,
         body.dark #groupInfoModal > div,
         body.dark #createGroupModal > div,
+        body.dark #channelSettingsModal > div,
         body.dark #forwardModal > div,
         body.dark #healthConsentModal > div > div { background: #252525 !important; color: #E6E6E6 !important; }
         body.dark #notesDrawer { background: #252525 !important; }
@@ -945,6 +956,23 @@
         body.dark #videoModal input::placeholder,
         body.dark #orderModal input::placeholder,
         body.dark #orderModal textarea::placeholder { color: #777 !important; }
+        /* Поля в модалках оформления канала и группы */
+        body.dark #channelSettingsModal input,
+        body.dark #channelSettingsModal textarea,
+        body.dark #groupInfoBody input,
+        body.dark #groupInfoBody textarea { background: #1E1E1E !important; border-color: #444 !important; color: #E6E6E6 !important; }
+        body.dark #channelSettingsModal input::placeholder,
+        body.dark #channelSettingsModal textarea::placeholder,
+        body.dark #groupInfoBody input::placeholder,
+        body.dark #groupInfoBody textarea::placeholder { color: #9A9A9A !important; }
+        body.dark #channelSettingsModal label,
+        body.dark #groupInfoBody label,
+        body.dark #channelSettingsModal [style*="color:#6B7280"],
+        body.dark #groupInfoBody [style*="color:#6B7280"] { color: #B4B4B4 !important; }
+        body.dark #channelSettingsModal [style*="color:#9CA3AF"],
+        body.dark #groupInfoBody [style*="color:#9CA3AF"] { color: #9A9A9A !important; }
+        body.dark #groupInfoBody [style*="border-bottom:1px solid #f0f0f0"] { border-bottom-color: #333 !important; }
+        body.dark #channelSettingsModal [style*="border-bottom:1px solid #eee"] { border-bottom-color: #333 !important; }
         body.dark #orderPayout { background: #1A3A1A !important; border-color: #2D5A2D !important; color: #6BCB77 !important; }
         body.dark [style*="background:#FFF8E7"],
         body.dark [style*="background: #FFF8E7"] { background: #3D3520 !important; border-color: #5A4E2D !important; color: #D4A844 !important; }
@@ -1152,6 +1180,17 @@
         </div>
     </div>
 
+    <!-- Оформление своего канала: аватарка, название, описание (только психолог-владелец) -->
+    <div id="channelSettingsModal" style="display:none;position:fixed;inset:0;background:rgba(26,26,46,0.6);z-index:1310;align-items:center;justify-content:center;padding:1rem;">
+        <div style="background:#fff;border-radius:1rem;max-width:420px;width:100%;max-height:85vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+            <div style="padding:1rem 1.25rem;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;">
+                <div style="font-weight:700;">Оформление канала</div>
+                <button onclick="closeChannelSettings()" style="background:none;border:none;font-size:1.2rem;cursor:pointer;color:#6B7280;">✕</button>
+            </div>
+            <div id="channelSettingsBody" style="padding:1.1rem 1.25rem;overflow-y:auto;flex:1;"></div>
+        </div>
+    </div>
+
     <!-- Создание группового чата / добавление участников (любая роль) -->
     <div id="createGroupModal" style="display:none;position:fixed;inset:0;background:rgba(26,26,46,0.6);z-index:1300;align-items:center;justify-content:center;padding:1rem;">
         <div style="background:#fff;border-radius:1rem;max-width:420px;width:100%;max-height:85vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
@@ -1253,38 +1292,72 @@
         }
 
         // ── Каналы в списке диалогов (задача #29, рефок): психологу — «Мой канал», клиенту — подписки ──
+        let channelsLoadError = '';
         async function loadMyChannels() {
+            channelsLoadError = '';
             try {
                 if (currentUser.role === 'psychologist') {
                     const r = await fetch('/api/my_profile.php?action=get', { credentials: 'include' });
                     const d = await r.json();
                     myOwnPsychId = (d && d.ok && d.profile) ? d.profile.id : null;
-                    myChannels = myOwnPsychId ? [{
-                        psychologist_id: myOwnPsychId, user_id: currentUser.id,
-                        first_name: currentUser.first_name, last_name: currentUser.last_name,
-                        avatar: currentUser.avatar, _own: true
-                    }] : [];
+                    // оформление своего канала подтягиваем сразу — иначе в списке до открытия
+                    // канала показывалось бы имя из профиля вместо названия канала
+                    let own = null;
+                    if (myOwnPsychId) {
+                        own = {
+                            psychologist_id: myOwnPsychId, user_id: currentUser.id,
+                            first_name: currentUser.first_name, last_name: currentUser.last_name,
+                            avatar: currentUser.avatar, _own: true
+                        };
+                        try {
+                            const ir = await fetch('/api/channels.php?action=info&psychologist_id=' + encodeURIComponent(myOwnPsychId), { credentials: 'include' });
+                            const id_ = await ir.json();
+                            if (id_ && id_.ok) {
+                                own.channel_title = id_.title;
+                                own.channel_description = id_.description;
+                                own.channel_avatar = id_.avatar_url;
+                                channelInfoCache[myOwnPsychId] = id_;
+                            }
+                        } catch (e) {}
+                    }
+                    myChannels = own ? [own] : [];
                 } else if (currentUser.role === 'client') {
                     const r = await fetch('/api/channels.php?action=my-subscriptions', { credentials: 'include' });
-                    const d = await r.json();
-                    myChannels = (d && d.data) || [];
+                    const d = await r.json().catch(() => ({}));
+                    // Ошибку не глушим: иначе каналы просто «исчезают» из списка без объяснений.
+                    if (!r.ok || d.ok === false) throw new Error(d.error || ('HTTP ' + r.status));
+                    myChannels = d.data || [];
                 }
-            } catch (e) { myChannels = []; }
+            } catch (e) {
+                myChannels = [];
+                channelsLoadError = e.message || 'неизвестная ошибка';
+            }
         }
 
         function channelsRowsHtml() {
-            if (!myChannels.length) return '';
+            const err = channelsLoadError
+                ? `<div style="padding:0.6rem 0.75rem;background:#FEF2F2;color:#B91C1C;font-size:0.78rem;border-bottom:1px solid #FECACA;">⚠️ Каналы не загрузились: ${escapeHtml(channelsLoadError)}</div>`
+                : '';
+            if (!myChannels.length) return err;
+            if (err) return err + channelsRowsInner();
+            return channelsRowsInner();
+        }
+
+        function channelsRowsInner() {
             return myChannels.map(c => {
-                const name = `${c.first_name || ''} ${c.last_name || ''}`.trim() || 'Канал';
+                // название и аватарка канала задаются психологом отдельно от личного профиля
+                const name = (c.channel_title || '').trim() || `${c.first_name || ''} ${c.last_name || ''}`.trim() || 'Канал';
+                const ava = c.channel_avatar || c.avatar;
                 const initial = name.charAt(0).toUpperCase();
                 const activeId = CHANNEL_PREFIX + c.psychologist_id;
                 const label = c._own ? 'Мой канал' : 'Канал';
-                const preview = c.last_post_text ? (label + ' · ' + c.last_post_text.slice(0, 30)) : (label + ' · публикации психолога');
+                const preview = c.last_post_text ? (label + ' · ' + c.last_post_text.slice(0, 30))
+                    : (c.channel_description ? (label + ' · ' + c.channel_description.slice(0, 34)) : (label + ' · публикации психолога'));
                 if (!folderAllows('channel', activeId)) return '';
                 return `
                     <div class="conversation-item ${activeId === selectedUserId ? 'active' : ''}" onclick="openChannel('${c.psychologist_id}')" title="${escapeHtml(name)}">
                         <div class="conversation-avatar" style="position:relative;">
-                            ${c.avatar ? `<img src="${c.avatar}" alt="${name}">` : initial}
+                            ${ava ? `<img src="${escapeHtml(ava)}" alt="${escapeHtml(name)}">` : initial}
                             <span style="position:absolute;bottom:-2px;right:-2px;background:#7C3AED;color:#fff;border-radius:50%;width:16px;height:16px;font-size:0.62rem;line-height:14px;text-align:center;border:2px solid #fff;">📡</span>
                         </div>
                         <div class="conversation-info">
@@ -1325,12 +1398,13 @@
             if (!myGroups.length) return err;
             return err + myGroups.map(g => {
                 const activeId = GROUP_PREFIX + g.id;
-                const lastMsg = g.last_message ? g.last_message.slice(0, 34) : 'Группа создана — напишите первым';
+                const lastMsg = g.last_message ? g.last_message.slice(0, 34)
+                    : (g.description ? g.description.slice(0, 40) : 'Группа создана — напишите первым');
                 const time = g.last_message_at ? formatTime(g.last_message_at) : '';
                 if (!folderAllows('group', activeId)) return '';
                 return `
                     <div class="conversation-item ${activeId === selectedUserId ? 'active' : ''}" onclick="openGroupChat(${g.id})" title="${escapeHtml(g.name)}">
-                        <div class="conversation-avatar" style="background:linear-gradient(135deg,#059669,#10B981);">👥</div>
+                        <div class="conversation-avatar" style="background:linear-gradient(135deg,#059669,#10B981);">${g.avatar_url ? `<img src="${escapeHtml(g.avatar_url)}" alt="">` : '👥'}</div>
                         <div class="conversation-info">
                             <div class="conversation-name"><span class="cn-text">${escapeHtml(g.name)}</span><span style="color:#9CA3AF;font-weight:400;font-size:0.78rem;flex-shrink:0;">· ${g.members_count}</span>${folderPickHtml(activeId)}</div>
                             <div class="conversation-preview">${escapeHtml(lastMsg)}</div>
@@ -1364,19 +1438,7 @@
             if (inputBar) inputBar.style.display = '';
             if (pollInterval) clearInterval(pollInterval);
 
-            const g = myGroups.find(x => String(x.id) === String(groupId)) || { name: 'Группа', members_count: 0 };
-            groupIsOwner = (g.role === 'owner');
-            document.getElementById('chatHeader').innerHTML = `
-                <button class="chat-back-btn" onclick="goBackToList()" title="Назад к диалогам">←</button>
-                <div class="avatar" style="background:linear-gradient(135deg,#059669,#10B981);cursor:pointer;" onclick="openGroupInfo(${groupId})">👥</div>
-                <div style="flex:1;min-width:0;cursor:pointer;" onclick="openGroupInfo(${groupId})">
-                    <div class="name">${escapeHtml(g.name)}</div>
-                    <div class="role">${g.members_count} участников · нажмите, чтобы открыть группу</div>
-                </div>
-                <div class="chat-header-actions">
-                    <button class="session-btn" style="background:#0EA5E9;" onclick="openGroupInfo(${groupId})" title="Участники и настройки группы">ℹ️ Группа</button>
-                    <a href="${getDashboardUrl()}" class="session-btn" style="background:#6B7280;text-decoration:none;" title="Вернуться в личный кабинет">← В кабинет</a>
-                </div>`;
+            renderGroupHeader(groupId);
 
             await loadMessages();
             // Список слева обновляем, чтобы счётчик непрочитанных и превью были живыми (как в Телеграме).
@@ -1385,6 +1447,29 @@
                 await loadMyGroups();
                 renderConversationList(allConversations);
             }, 5000);
+        }
+
+        /**
+         * Шапка группового чата. Отдельной функцией, потому что её нужно перерисовывать
+         * после смены названия/описания/аватарки, не переоткрывая весь чат.
+         */
+        function renderGroupHeader(groupId) {
+            const g = myGroups.find(x => String(x.id) === String(groupId)) || { name: 'Группа', members_count: 0 };
+            groupIsOwner = (g.role === 'owner');
+            const sub = g.description
+                ? escapeHtml(g.description.slice(0, 60))
+                : `${g.members_count} участников · нажмите, чтобы открыть группу`;
+            document.getElementById('chatHeader').innerHTML = `
+                <button class="chat-back-btn" onclick="goBackToList()" title="Назад к диалогам">←</button>
+                <div class="avatar" style="background:linear-gradient(135deg,#059669,#10B981);cursor:pointer;" onclick="openGroupInfo(${groupId})">${g.avatar_url ? `<img src="${escapeHtml(g.avatar_url)}" alt="">` : '👥'}</div>
+                <div style="flex:1;min-width:0;cursor:pointer;" onclick="openGroupInfo(${groupId})">
+                    <div class="name">${escapeHtml(g.name)}</div>
+                    <div class="role">${sub}</div>
+                </div>
+                <div class="chat-header-actions">
+                    <button class="session-btn" style="background:#0EA5E9;" onclick="openGroupInfo(${groupId})" title="Участники и настройки группы">ℹ️ Группа</button>
+                    <a href="${getDashboardUrl()}" class="session-btn" style="background:#6B7280;text-decoration:none;" title="Вернуться в личный кабинет">← В кабинет</a>
+                </div>`;
         }
 
         function groupBubbleHtml(m) {
@@ -1615,13 +1700,22 @@
 
             box.innerHTML = `
                 <div style="text-align:center;margin-bottom:0.9rem;">
-                    <div class="conversation-avatar" style="width:64px;height:64px;margin:0 auto 0.5rem;background:linear-gradient(135deg,#059669,#10B981);font-size:1.6rem;">👥</div>
+                    <div class="chat-ava-edit" style="margin:0 auto 0.5rem;">
+                        <div class="conversation-avatar" id="giAvatar" style="width:72px;height:72px;background:linear-gradient(135deg,#059669,#10B981);font-size:1.7rem;">${g.avatar_url ? `<img src="${escapeHtml(g.avatar_url)}" alt="">` : '👥'}</div>
+                        ${isOwner ? `<label class="chat-ava-btn" title="Сменить аватарку группы">📷
+                            <input type="file" accept="image/*" style="display:none;" onchange="uploadGroupAvatar(event)">
+                        </label>` : ''}
+                    </div>
                     <div style="font-weight:700;font-size:1.05rem;" id="giName">${escapeHtml(g.name || 'Группа')}</div>
                     <div style="color:#9CA3AF;font-size:0.8rem;">${members.length} участников</div>
+                    ${(!isOwner && g.description) ? `<div style="color:#6B7280;font-size:0.85rem;margin-top:0.4rem;line-height:1.45;">${escapeHtml(g.description)}</div>` : ''}
                 </div>
-                ${isOwner ? `<div style="display:flex;gap:0.4rem;margin-bottom:0.8rem;">
-                    <input id="giRename" value="${escapeHtml(g.name || '')}" placeholder="Название группы" style="flex:1;min-width:0;padding:0.5rem 0.7rem;border:1.5px solid #e0e0e0;border-radius:0.5rem;font-family:inherit;font-size:0.88rem;">
-                    <button onclick="renameGroup()" style="border:none;background:#7C3AED;color:#fff;border-radius:0.5rem;padding:0.5rem 0.8rem;font-size:0.82rem;cursor:pointer;font-family:inherit;">Переименовать</button>
+                ${isOwner ? `<div style="margin-bottom:0.8rem;">
+                    <label style="display:block;font-size:0.78rem;font-weight:700;color:#6B7280;margin-bottom:0.25rem;">Название группы</label>
+                    <input id="giRename" value="${escapeHtml(g.name || '')}" placeholder="Название группы" style="width:100%;padding:0.5rem 0.7rem;border:1.5px solid #e0e0e0;border-radius:0.5rem;font-family:inherit;font-size:0.88rem;margin-bottom:0.55rem;">
+                    <label style="display:block;font-size:0.78rem;font-weight:700;color:#6B7280;margin-bottom:0.25rem;">Описание</label>
+                    <textarea id="giDescr" rows="2" maxlength="500" placeholder="О чём группа, для кого" style="width:100%;padding:0.5rem 0.7rem;border:1.5px solid #e0e0e0;border-radius:0.5rem;font-family:inherit;font-size:0.88rem;resize:vertical;">${escapeHtml(g.description || '')}</textarea>
+                    <button onclick="saveGroupInfo()" id="giSaveBtn" style="width:100%;border:none;background:#7C3AED;color:#fff;border-radius:0.5rem;padding:0.55rem;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;margin-top:0.45rem;">Сохранить название и описание</button>
                 </div>` : ''}
                 <button onclick="openAddGroupMembers(${gid})" style="width:100%;border:none;background:#16A34A;color:#fff;border-radius:0.6rem;padding:0.6rem;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:0.8rem;">➕ Добавить участников</button>
                 <div style="font-weight:700;font-size:0.82rem;color:#6B7280;margin-bottom:0.3rem;">Участники</div>
@@ -1629,16 +1723,61 @@
                 <button onclick="leaveGroupChat(${gid})" style="width:100%;border:1.5px solid #DC2626;background:transparent;color:#DC2626;border-radius:0.6rem;padding:0.6rem;font-weight:700;cursor:pointer;font-family:inherit;margin-top:0.9rem;">🚪 Выйти из группы</button>`;
         }
 
-        async function renameGroup() {
-            const el = document.getElementById('giRename');
-            const name = el ? el.value.trim() : '';
-            if (!name) { alert('Введите название'); return; }
-            const d = await groupApi('rename', { group_id: groupInfoId, name });
-            if (!d.ok) { alert('Не удалось переименовать: ' + d.error); return; }
-            await loadMyGroups();
-            renderConversationList(allConversations);
-            await renderGroupInfo();
-            if (selectedUserId === GROUP_PREFIX + groupInfoId) await openGroupChat(groupInfoId);
+        /** Название + описание группы одним запросом (владелец). */
+        async function saveGroupInfo() {
+            const nameEl = document.getElementById('giRename');
+            const descrEl = document.getElementById('giDescr');
+            const btn = document.getElementById('giSaveBtn');
+            const name = nameEl ? nameEl.value.trim() : '';
+            if (!name) { alert('Введите название группы'); return; }
+            if (btn) { btn.disabled = true; btn.textContent = 'Сохраняем…'; }
+            try {
+                await groupApi('update-info', {
+                    group_id: groupInfoId, name,
+                    description: descrEl ? descrEl.value.trim() : ''
+                });
+                await loadMyGroups();
+                await loadConversations();
+                await renderGroupInfo();
+                if (String(selectedUserId) === GROUP_PREFIX + groupInfoId) renderGroupHeader(groupInfoId);
+            } catch (e) {
+                alert('Не удалось сохранить: ' + e.message);
+            } finally {
+                if (btn) { btn.disabled = false; btn.textContent = 'Сохранить название и описание'; }
+            }
+        }
+
+        /** Аватарка группы: грузим картинку через общий upload.php и сохраняем ссылку. */
+        async function uploadGroupAvatar(evt) {
+            const file = evt.target.files && evt.target.files[0];
+            evt.target.value = '';
+            if (!file) return;
+            if (!/^image\//.test(file.type)) { alert('Выберите картинку.'); return; }
+            if (file.size > 5 * 1024 * 1024) { alert('Картинка больше 5 МБ — выберите поменьше.'); return; }
+            const box = document.getElementById('giAvatar');
+            const prev = box ? box.innerHTML : '';
+            if (box) box.innerHTML = '⏳';
+            try {
+                const url = await uploadImage(file);
+                await groupApi('update-info', { group_id: groupInfoId, avatar_url: url });
+                await loadMyGroups();
+                await loadConversations();
+                await renderGroupInfo();
+                if (String(selectedUserId) === GROUP_PREFIX + groupInfoId) renderGroupHeader(groupInfoId);
+            } catch (e) {
+                if (box) box.innerHTML = prev;
+                alert('Не удалось загрузить аватарку: ' + e.message);
+            }
+        }
+
+        /** Общая загрузка картинки — используется аватарками групп и каналов. */
+        async function uploadImage(file) {
+            const fd = new FormData();
+            fd.append('file', file);
+            const res = await fetch('/api/upload.php', { method: 'POST', body: fd, credentials: 'include' });
+            const d = await res.json().catch(() => ({}));
+            if (!res.ok || !d.url) throw new Error(d.error || ('HTTP ' + res.status));
+            return d.url;
         }
 
         async function kickGroupMember(userId) {
@@ -1662,9 +1801,10 @@
             await loadMyGroups();
             renderConversationList(allConversations);
         }
+        window.saveGroupInfo = saveGroupInfo;
+        window.uploadGroupAvatar = uploadGroupAvatar;
         window.openGroupInfo = openGroupInfo;
         window.closeGroupInfo = closeGroupInfo;
-        window.renameGroup = renameGroup;
         window.kickGroupMember = kickGroupMember;
         window.deleteGroupMessage = deleteGroupMessage;
         window.cancelEditGroupMessage = cancelEditGroupMessage;
@@ -1707,7 +1847,6 @@
             if (pollInterval) { clearInterval(pollInterval); pollInterval = null; }
 
             const c = myChannels.find(x => String(x.psychologist_id) === String(psychId)) || {};
-            const name = `${c.first_name || ''} ${c.last_name || ''}`.trim() || 'Канал';
             const isOwn = !!c._own;
             let info = { subscribers_count: 0, is_subscribed: false };
             try {
@@ -1715,24 +1854,128 @@
                 const d = await r.json();
                 if (d && d.ok) info = d;
             } catch (e) {}
+            // Оформление канала (название/описание/аватарка) задаётся психологом отдельно
+            // от личного профиля; если не задано — берём имя и фото из профиля.
+            channelInfoCache[psychId] = info;
+            const profileName = `${c.first_name || ''} ${c.last_name || ''}`.trim() || 'Канал';
+            const name = (info.title || c.channel_title || '').trim() || profileName;
+            const ava = info.avatar_url || c.channel_avatar || c.avatar;
+            const descr = info.description || c.channel_description || '';
 
             const writeBtn = (!isOwn && c.user_id)
                 ? `<a href="/chat.html?user=${encodeURIComponent(c.user_id)}" class="session-btn" style="background:#16A34A;text-decoration:none;" title="Написать психологу лично">✉️ Написать</a>`
                 : (isOwn ? `<a href="/psychologist-dashboard.html" class="session-btn" style="background:#7C3AED;text-decoration:none;" title="Опубликовать пост">✍️ Мой канал</a>` : '');
+            const editBtn = isOwn
+                ? `<button class="session-btn" style="background:#0EA5E9;" onclick="openChannelSettings('${psychId}')" title="Аватарка, название и описание канала">🎨 Оформление</button>`
+                : '';
+            const sub = descr
+                ? `📡 ${escapeHtml(descr.slice(0, 70))}`
+                : `📡 Канал · ${info.subscribers_count || 0} подписчиков`;
             document.getElementById('chatHeader').innerHTML = `
                 <button class="chat-back-btn" onclick="goBackToList()" title="Назад к диалогам">←</button>
-                <div class="avatar">${c.avatar ? `<img src="${c.avatar}" alt="${name}">` : name.charAt(0)}</div>
+                <div class="avatar" ${isOwn ? `style="cursor:pointer;" onclick="openChannelSettings('${psychId}')" title="Сменить оформление канала"` : ''}>${ava ? `<img src="${escapeHtml(ava)}" alt="${escapeHtml(name)}">` : escapeHtml(name.charAt(0))}</div>
                 <div style="flex:1;min-width:0;">
                     <div class="name">${escapeHtml(name)}</div>
-                    <div class="role">📡 Канал · ${info.subscribers_count || 0} подписчиков</div>
+                    <div class="role">${sub}</div>
                 </div>
                 <div class="chat-header-actions">
                     ${writeBtn}
+                    ${editBtn}
                     <a href="/psychologist-profile.html?id=${encodeURIComponent(psychId)}" class="session-btn" style="background:#0EA5E9;text-decoration:none;" title="Профиль психолога">Профиль</a>
                     <a href="${getDashboardUrl()}" class="session-btn" style="background:#6B7280;text-decoration:none;" title="Вернуться в личный кабинет">← В кабинет</a>
                 </div>`;
 
             await loadChannelPosts(psychId);
+        }
+
+        // ── Оформление своего канала: аватарка, название, описание ──
+        let channelSettingsFor = null;
+        const channelInfoCache = {};
+
+        function openChannelSettings(psychId) {
+            const c = myChannels.find(x => String(x.psychologist_id) === String(psychId)) || {};
+            if (!c._own) return;   // оформление меняет только владелец канала
+            channelSettingsFor = psychId;
+            const info = channelInfoCache[psychId] || {};
+            const profileName = `${c.first_name || ''} ${c.last_name || ''}`.trim() || 'Канал';
+            const ava = info.avatar_url || c.channel_avatar || c.avatar;
+            document.getElementById('channelSettingsBody').innerHTML = `
+                <div style="text-align:center;margin-bottom:1rem;">
+                    <div class="chat-ava-edit" style="margin:0 auto 0.5rem;">
+                        <div class="conversation-avatar" id="csAvatar" style="width:72px;height:72px;font-size:1.7rem;">${ava ? `<img src="${escapeHtml(ava)}" alt="">` : '📡'}</div>
+                        <label class="chat-ava-btn" title="Сменить аватарку канала">📷
+                            <input type="file" accept="image/*" style="display:none;" onchange="uploadChannelAvatar(event)">
+                        </label>
+                    </div>
+                    <div style="color:#9CA3AF;font-size:0.78rem;">Аватарка канала — отдельно от вашего фото в профиле</div>
+                </div>
+                <label style="display:block;font-size:0.78rem;font-weight:700;color:#6B7280;margin-bottom:0.25rem;">Название канала</label>
+                <input id="csTitle" maxlength="255" value="${escapeHtml(info.title || '')}" placeholder="${escapeHtml(profileName)}"
+                       style="width:100%;padding:0.55rem 0.7rem;border:1.5px solid #e0e0e0;border-radius:0.5rem;font-family:inherit;font-size:0.9rem;margin-bottom:0.7rem;">
+                <label style="display:block;font-size:0.78rem;font-weight:700;color:#6B7280;margin-bottom:0.25rem;">Описание</label>
+                <textarea id="csDescr" rows="3" maxlength="500" placeholder="О чём канал, для кого, как часто выходят посты"
+                          style="width:100%;padding:0.55rem 0.7rem;border:1.5px solid #e0e0e0;border-radius:0.5rem;font-family:inherit;font-size:0.9rem;resize:vertical;">${escapeHtml(info.description || '')}</textarea>
+                <button id="csSaveBtn" onclick="saveChannelSettings()" style="width:100%;border:none;background:#7C3AED;color:#fff;border-radius:0.6rem;padding:0.6rem;font-weight:700;cursor:pointer;font-family:inherit;margin-top:0.8rem;">Сохранить</button>
+                <div style="color:#9CA3AF;font-size:0.75rem;margin-top:0.5rem;line-height:1.45;">Пустое название и описание — значит канал показывается под вашим именем из профиля.</div>`;
+            document.getElementById('channelSettingsModal').style.display = 'flex';
+        }
+        function closeChannelSettings() {
+            document.getElementById('channelSettingsModal').style.display = 'none';
+            channelSettingsFor = null;
+        }
+
+        async function channelApi(action, payload) {
+            const res = await fetch('/api/channels.php?action=' + action, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                credentials: 'include', body: JSON.stringify(payload)
+            });
+            const d = await res.json().catch(() => ({}));
+            if (!res.ok || d.ok === false) throw new Error(d.error || ('HTTP ' + res.status));
+            return d;
+        }
+
+        async function saveChannelSettings() {
+            const psychId = channelSettingsFor;
+            if (!psychId) return;
+            const btn = document.getElementById('csSaveBtn');
+            if (btn) { btn.disabled = true; btn.textContent = 'Сохраняем…'; }
+            try {
+                const d = await channelApi('save-settings', {
+                    title: (document.getElementById('csTitle').value || '').trim(),
+                    description: (document.getElementById('csDescr').value || '').trim()
+                });
+                channelInfoCache[psychId] = Object.assign({}, channelInfoCache[psychId], d);
+                await loadMyChannels();
+                renderConversationList(allConversations);
+                closeChannelSettings();
+                await openChannel(psychId);
+            } catch (e) {
+                alert('Не удалось сохранить оформление: ' + e.message);
+            } finally {
+                if (btn) { btn.disabled = false; btn.textContent = 'Сохранить'; }
+            }
+        }
+
+        async function uploadChannelAvatar(evt) {
+            const file = evt.target.files && evt.target.files[0];
+            evt.target.value = '';
+            if (!file || !channelSettingsFor) return;
+            if (!/^image\//.test(file.type)) { alert('Выберите картинку.'); return; }
+            if (file.size > 5 * 1024 * 1024) { alert('Картинка больше 5 МБ — выберите поменьше.'); return; }
+            const box = document.getElementById('csAvatar');
+            const prev = box ? box.innerHTML : '';
+            if (box) box.innerHTML = '⏳';
+            try {
+                const url = await uploadImage(file);
+                const d = await channelApi('save-settings', { avatar_url: url });
+                channelInfoCache[channelSettingsFor] = Object.assign({}, channelInfoCache[channelSettingsFor], d);
+                if (box) box.innerHTML = `<img src="${escapeHtml(url)}" alt="">`;
+                await loadMyChannels();
+                renderConversationList(allConversations);
+            } catch (e) {
+                if (box) box.innerHTML = prev;
+                alert('Не удалось загрузить аватарку: ' + e.message);
+            }
         }
 
         async function loadChannelPosts(psychId) {

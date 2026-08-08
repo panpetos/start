@@ -11,6 +11,7 @@
  * POST ?action=delete-post {id}                — удалить свой пост
  * POST ?action=subscribe   {psychologist_id}   — подписаться (авторизованный пользователь)
  * POST ?action=unsubscribe {psychologist_id}   — отписаться
+ * POST ?action=save-settings {title?, description?, avatar_url?} — оформление СВОЕГО канала (психолог)
  *
  * Доработка по фидбэку админа (рефок задачи #29) — лайки/просмотры/шеринг/общая лента:
  * GET  ?action=feed&limit=20&before_id=X       — общая лента постов ВСЕХ психологов (для всех ролей)
@@ -82,6 +83,15 @@ function ensureChannelTables(PDO $pdo) {
         created_at DATETIME NOT NULL,
         INDEX idx_post (post_id)
     ) DEFAULT CHARSET=utf8mb4");
+    // Оформление канала: своя аватарка, название и описание — отдельно от личного фото
+    // психолога (фидбэк админа: «нужно моч ставить аватарку на группу или канал с описанием»).
+    $pdo->exec("CREATE TABLE IF NOT EXISTS channel_settings (
+        psychologist_id VARCHAR(64) NOT NULL PRIMARY KEY,
+        title VARCHAR(255) NULL,
+        description VARCHAR(500) NULL,
+        avatar_url VARCHAR(500) NULL,
+        updated_at DATETIME NOT NULL
+    ) DEFAULT CHARSET=utf8mb4");
     // Модерация постов админом: скрытый пост не показывается ни в ленте, ни в канале,
     // но не удаляется безвозвратно (можно вернуть). Причина видна автору и админу.
     try { $pdo->exec("ALTER TABLE channel_posts ADD COLUMN is_hidden TINYINT(1) NOT NULL DEFAULT 0"); } catch (Exception $e) {}
@@ -89,7 +99,7 @@ function ensureChannelTables(PDO $pdo) {
     // Сортировка строковых ключей должна совпадать с users/psychologists, иначе JOIN'ы (лента,
     // подписки, комментарии) падают с ошибкой 1267 и выглядят как «данных нет».
     psy_align_collation($pdo, ['channel_posts', 'channel_subscriptions', 'channel_post_likes',
-        'channel_post_views', 'channel_post_comments']);
+        'channel_post_views', 'channel_post_comments', 'channel_settings']);
 }
 
 /** Есть ли колонка в таблице (кэшируется на запрос). */
@@ -288,7 +298,63 @@ if ($action === 'info') {
             $isSubscribed = (int)$st->fetchColumn() > 0;
         } catch (Exception $e) {}
     }
-    echo json_encode(['ok' => true, 'subscribers_count' => $subscribersCount, 'is_subscribed' => $isSubscribed]);
+    $settings = channelSettings($pdo, $psychId);
+    echo json_encode(['ok' => true, 'subscribers_count' => $subscribersCount, 'is_subscribed' => $isSubscribed,
+        'title' => $settings['title'], 'description' => $settings['description'], 'avatar_url' => $settings['avatar_url']],
+        JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
+/** Оформление канала психолога (пустые поля — значит используется имя/фото из профиля). */
+function channelSettings(PDO $pdo, $psychId) {
+    $empty = ['title' => null, 'description' => null, 'avatar_url' => null];
+    try {
+        $st = $pdo->prepare("SELECT title, description, avatar_url FROM channel_settings WHERE psychologist_id = ?");
+        $st->execute([$psychId]);
+        $r = $st->fetch(PDO::FETCH_ASSOC);
+        return $r ? array_merge($empty, $r) : $empty;
+    } catch (Exception $e) { return $empty; }
+}
+
+/**
+ * Оформление СВОЕГО канала: название, описание, аватарка. Только психолог, и только свой канал.
+ * Пустая строка означает «убрать» (вернуться к имени/фото из профиля).
+ */
+if ($action === 'save-settings' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (!$userId) { http_response_code(401); echo json_encode(['error' => 'Требуется авторизация']); exit; }
+    $psychId = myPsychologistId($pdo, $userId);
+    if (!$psychId) { http_response_code(403); echo json_encode(['error' => 'Доступно только психологам с созданным профилем']); exit; }
+    $title = isset($body['title']) ? trim((string)$body['title']) : null;
+    $descr = isset($body['description']) ? trim((string)$body['description']) : null;
+    $avatar = isset($body['avatar_url']) ? trim((string)$body['avatar_url']) : null;
+    // аватарка — только свой путь или https, чтобы нельзя было подставить чужой хост
+    if ($avatar !== null && $avatar !== '' &&
+        !preg_match('~^(/[A-Za-z0-9._/-]+|https://[A-Za-z0-9.-]+/[A-Za-z0-9._/%-]*)$~', $avatar)) {
+        http_response_code(400); echo json_encode(['error' => 'Некорректная ссылка на аватарку']); exit;
+    }
+    $cut = function ($v, $n) {
+        if ($v === null) return null;
+        if ($v === '') return null;
+        return function_exists('mb_substr') ? mb_substr($v, 0, $n, 'UTF-8') : substr($v, 0, $n);
+    };
+    try {
+        $cur = channelSettings($pdo, $psychId);
+        $newTitle  = ($title  === null) ? $cur['title']       : $cut($title, 255);
+        $newDescr  = ($descr  === null) ? $cur['description'] : $cut($descr, 500);
+        $newAvatar = ($avatar === null) ? $cur['avatar_url']  : $cut($avatar, 500);
+        $st = $pdo->prepare("SELECT 1 FROM channel_settings WHERE psychologist_id = ?");
+        $st->execute([$psychId]);
+        if ($st->fetchColumn()) {
+            $pdo->prepare("UPDATE channel_settings SET title = ?, description = ?, avatar_url = ?, updated_at = NOW() WHERE psychologist_id = ?")
+                ->execute([$newTitle, $newDescr, $newAvatar, $psychId]);
+        } else {
+            $pdo->prepare("INSERT INTO channel_settings (psychologist_id, title, description, avatar_url, updated_at) VALUES (?, ?, ?, ?, NOW())")
+                ->execute([$psychId, $newTitle, $newDescr, $newAvatar]);
+        }
+        echo json_encode(['ok' => true, 'title' => $newTitle, 'description' => $newDescr, 'avatar_url' => $newAvatar], JSON_UNESCAPED_UNICODE);
+    } catch (Exception $e) {
+        http_response_code(500); echo json_encode(['error' => 'Не удалось сохранить оформление канала: ' . $e->getMessage()], JSON_UNESCAPED_UNICODE);
+    }
     exit;
 }
 
@@ -297,17 +363,24 @@ if ($action === 'my-subscriptions') {
     try {
         $st = $pdo->prepare("
             SELECT p.id AS psychologist_id, u.id AS user_id, u.first_name, u.last_name, u.avatar,
+                   cs.title AS channel_title, cs.description AS channel_description, cs.avatar_url AS channel_avatar,
                    (SELECT text FROM channel_posts cp WHERE cp.psychologist_id = p.id ORDER BY cp.created_at DESC, cp.id DESC LIMIT 1) AS last_post_text,
                    (SELECT created_at FROM channel_posts cp WHERE cp.psychologist_id = p.id ORDER BY cp.created_at DESC, cp.id DESC LIMIT 1) AS last_post_at
             FROM channel_subscriptions s
             JOIN psychologists p ON p.id = s.psychologist_id
             JOIN users u ON u.id = p.user_id
+            LEFT JOIN channel_settings cs ON cs.psychologist_id = p.id
             WHERE s.client_id = ?
             ORDER BY s.created_at DESC
         ");
         $st->execute([$userId]);
-        echo json_encode(['ok' => true, 'data' => $st->fetchAll(PDO::FETCH_ASSOC)]);
-    } catch (Exception $e) { echo json_encode(['ok' => true, 'data' => []]); }
+        echo json_encode(['ok' => true, 'data' => $st->fetchAll(PDO::FETCH_ASSOC)], JSON_UNESCAPED_UNICODE);
+    } catch (Exception $e) {
+        // Раньше ошибка глушилась и подписки просто «исчезали» без следа — на такой
+        // молчаливый catch я уже наступал с лентой и группами. Отдаём причину.
+        http_response_code(500);
+        echo json_encode(['ok' => false, 'error' => 'Не удалось загрузить подписки: ' . $e->getMessage()], JSON_UNESCAPED_UNICODE);
+    }
     exit;
 }
 

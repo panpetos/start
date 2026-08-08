@@ -15,6 +15,7 @@
  * POST ?action=add-members {group_id, member_ids:[]}   — добавить участников (любой участник группы)
  * POST ?action=leave    {group_id}                     — выйти из группы
  * POST ?action=rename   {group_id, name}                — переименовать (только владелец)
+ * POST ?action=update-info {group_id, name?, description?, avatar_url?} — название/описание/аватарка (владелец)
  * POST ?action=delete-message {message_id}             — удалить своё сообщение (владелец — любое)
  * POST ?action=remove-member  {group_id, user_id}      — исключить участника (только владелец)
  */
@@ -77,6 +78,11 @@ function ensureGroupTables(PDO $pdo) {
         edited_at DATETIME NOT NULL,
         INDEX idx_message (message_id)
     ) DEFAULT CHARSET=utf8mb4");
+    // Аватарка и описание группы (фидбэк админа: «нужно моч ставить аватарку на группу
+    // или канал с описанием и там и там»). Добавляем через ALTER, чтобы не ломать
+    // существующие группы; повторный запуск молча ничего не делает.
+    try { $pdo->exec("ALTER TABLE chat_groups ADD COLUMN avatar_url VARCHAR(500) NULL"); } catch (Exception $e) {}
+    try { $pdo->exec("ALTER TABLE chat_groups ADD COLUMN description VARCHAR(500) NULL"); } catch (Exception $e) {}
     // См. schema_util.php: без выравнивания сортировки JOIN на users в списке сообщений и
     // участников падает с ошибкой 1267, и группа выглядит пустой/неработающей.
     psy_align_collation($pdo, ['chat_groups', 'chat_group_members', 'chat_group_messages', 'group_message_edit_log']);
@@ -125,7 +131,7 @@ if ($action === 'create' && $_SERVER['REQUEST_METHOD'] === 'POST') {
 if ($action === 'list') {
     try {
         $st = $pdo->prepare("
-            SELECT g.id, g.name, g.created_by, m.role, m.last_read_message_id,
+            SELECT g.id, g.name, g.avatar_url, g.description, g.created_by, m.role, m.last_read_message_id,
                    (SELECT COUNT(*) FROM chat_group_members WHERE group_id = g.id) AS members_count,
                    (SELECT content FROM chat_group_messages WHERE group_id = g.id ORDER BY id DESC LIMIT 1) AS last_message,
                    (SELECT created_at FROM chat_group_messages WHERE group_id = g.id ORDER BY id DESC LIMIT 1) AS last_message_at,
@@ -268,6 +274,45 @@ if ($action === 'leave' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         // Если участников не осталось — группа сама больше нигде не отображается, отдельно чистить не обязательно.
         out(['ok' => true]);
     } catch (Exception $e) { out(['error' => 'Не удалось выйти из группы'], 500); }
+}
+
+/**
+ * Название, описание и аватарка группы — одним запросом. Меняет только владелец.
+ * Передавать можно любое подмножество полей; пустая строка в description/avatar_url
+ * означает «убрать», отсутствие ключа — «не трогать».
+ */
+if ($action === 'update-info' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    $groupId = (int)($body['group_id'] ?? 0);
+    if (!$groupId) out(['error' => 'Не передан номер группы'], 400);
+    if (isMember($pdo, $groupId, $userId) !== 'owner') out(['error' => 'Менять группу может только владелец'], 403);
+    $sets = [];
+    $vals = [];
+    if (array_key_exists('name', $body)) {
+        $name = trim((string)$body['name']);
+        if ($name === '') out(['error' => 'Название не может быть пустым'], 400);
+        $sets[] = 'name = ?';
+        $vals[] = mb_substr($name, 0, 255);
+    }
+    if (array_key_exists('description', $body)) {
+        $descr = trim((string)$body['description']);
+        $sets[] = 'description = ?';
+        $vals[] = $descr === '' ? null : mb_substr($descr, 0, 500);
+    }
+    if (array_key_exists('avatar_url', $body)) {
+        $av = trim((string)$body['avatar_url']);
+        // принимаем только свои пути и https — чтобы в аватарку нельзя было подсунуть чужой хост
+        if ($av !== '' && !preg_match('~^(/[A-Za-z0-9._/-]+|https://[A-Za-z0-9.-]+/[A-Za-z0-9._/%-]*)$~', $av)) {
+            out(['error' => 'Некорректная ссылка на аватарку'], 400);
+        }
+        $sets[] = 'avatar_url = ?';
+        $vals[] = $av === '' ? null : mb_substr($av, 0, 500);
+    }
+    if (!$sets) out(['error' => 'Нечего менять'], 400);
+    try {
+        $vals[] = $groupId;
+        $pdo->prepare("UPDATE chat_groups SET " . implode(', ', $sets) . " WHERE id = ?")->execute($vals);
+        out(['ok' => true]);
+    } catch (Exception $e) { out(['error' => 'Не удалось сохранить: ' . $e->getMessage()], 500); }
 }
 
 if ($action === 'rename' && $_SERVER['REQUEST_METHOD'] === 'POST') {
