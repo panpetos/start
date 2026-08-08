@@ -2031,8 +2031,10 @@
             editingMessageId = id;
             const bubble = body.closest('.message');
             if (bubble) bubble.classList.add('editing');
+            // как и в личной переписке: маркер ответа в поле не показываем
+            const gEdSplit = splitReply(cached.content || '');
             body.innerHTML = `
-                <textarea id="gmsg-edit-input-${id}" class="msg-edit-textarea" rows="2" style="padding:0.4rem 0.6rem;border:1.5px solid #7C3AED;border-radius:0.5rem;font-family:inherit;resize:vertical;color:inherit;background:rgba(255,255,255,0.15);box-sizing:border-box;">${escapeHtml(cached.content || '')}</textarea>
+                <textarea id="gmsg-edit-input-${id}" class="msg-edit-textarea" rows="2" style="padding:0.4rem 0.6rem;border:1.5px solid #7C3AED;border-radius:0.5rem;font-family:inherit;resize:vertical;color:inherit;background:rgba(255,255,255,0.15);box-sizing:border-box;">${escapeHtml(gEdSplit.body)}</textarea>
                 <div style="display:flex;gap:0.5rem;margin-top:0.3rem;">
                     <button onclick="saveEditGroupMessage(event,'${id}')" style="cursor:pointer;border:none;background:#7C3AED;color:#fff;border-radius:0.4rem;padding:0.25rem 0.6rem;font-size:0.8rem;">Сохранить</button>
                     <button onclick="cancelEditGroupMessage()" style="cursor:pointer;border:1px solid currentColor;background:transparent;color:inherit;border-radius:0.4rem;padding:0.25rem 0.6rem;font-size:0.8rem;opacity:0.85;">Отмена</button>
@@ -2044,8 +2046,10 @@
             if (evt) evt.stopPropagation();
             const ta = document.getElementById('gmsg-edit-input-' + id);
             if (!ta) return;
-            const content = ta.value.trim();
-            if (!content) { alert('Текст не может быть пустым'); return; }
+            const typed = ta.value.trim();
+            if (!typed) { alert('Текст не может быть пустым'); return; }
+            const wasReply = splitReply((groupMsgCache[id] || {}).content || '').replyId;
+            const content = wasReply ? '[RE#' + wasReply + '] ' + typed : typed;
             const d = await groupApi('edit-message', { message_id: id, content });
             if (!d.ok) { alert('Не удалось сохранить: ' + d.error); return; }
             editingMessageId = null;
@@ -4166,8 +4170,11 @@
             editingMessageId = id;
             const bubble = body.closest('.message');
             if (bubble) bubble.classList.add('editing');
+            // В поле показываем текст без служебного маркера ответа — иначе пользователь видел бы
+            // «[RE#…]» и стёр бы его, потеряв связь с исходным сообщением.
+            const edSplit = splitReply(cached.content || '');
             body.innerHTML = `
-                <textarea id="msg-edit-input-${id}" class="msg-edit-textarea" rows="2" style="padding:0.4rem 0.6rem;border:1.5px solid #7C3AED;border-radius:0.5rem;font-family:inherit;resize:vertical;color:inherit;background:rgba(255,255,255,0.15);box-sizing:border-box;">${escapeHtml(cached.content || '')}</textarea>
+                <textarea id="msg-edit-input-${id}" class="msg-edit-textarea" rows="2" style="padding:0.4rem 0.6rem;border:1.5px solid #7C3AED;border-radius:0.5rem;font-family:inherit;resize:vertical;color:inherit;background:rgba(255,255,255,0.15);box-sizing:border-box;">${escapeHtml(edSplit.body)}</textarea>
                 <div style="display:flex;gap:0.5rem;margin-top:0.3rem;">
                     <button onclick="saveEditMessage(event,'${id}')" style="cursor:pointer;border:none;background:#7C3AED;color:#fff;border-radius:0.4rem;padding:0.25rem 0.6rem;font-size:0.8rem;">Сохранить</button>
                     <button onclick="cancelEditMessage(event,'${id}')" style="cursor:pointer;border:1px solid currentColor;background:transparent;color:inherit;border-radius:0.4rem;padding:0.25rem 0.6rem;font-size:0.8rem;opacity:0.85;">Отмена</button>
@@ -4180,8 +4187,11 @@
             if (evt) evt.stopPropagation();
             const ta = document.getElementById('msg-edit-input-' + id);
             if (!ta) return;
-            const content = ta.value.trim();
-            if (!content) { alert('Текст не может быть пустым'); return; }
+            const typed = ta.value.trim();
+            if (!typed) { alert('Текст не может быть пустым'); return; }
+            // маркер ответа возвращаем на место, он не должен пропасть при правке
+            const wasReply = splitReply((msgCache[id] || {}).content || '').replyId;
+            const content = wasReply ? '[RE#' + wasReply + '] ' + typed : typed;
             try {
                 const r = await (await fetch('/api/message_edit.php?action=edit', {
                     method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
