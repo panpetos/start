@@ -87,6 +87,22 @@ function ensureChannelTables(PDO $pdo) {
     try { $pdo->exec("ALTER TABLE channel_posts ADD COLUMN hidden_reason VARCHAR(500) NULL"); } catch (Exception $e) {}
 }
 
+/** Есть ли колонка в таблице (кэшируется на запрос). */
+function hasColumn(PDO $pdo, $table, $column) {
+    static $cache = [];
+    $key = $table . '.' . $column;
+    if (isset($cache[$key])) return $cache[$key];
+    $ok = false;
+    try {
+        $st = $pdo->query("SELECT * FROM $table LIMIT 0");
+        for ($i = 0, $n = $st->columnCount(); $i < $n; $i++) {
+            $meta = $st->getColumnMeta($i);
+            if ($meta && isset($meta['name']) && strcasecmp($meta['name'], $column) === 0) { $ok = true; break; }
+        }
+    } catch (Exception $e) { $ok = false; }
+    return $cache[$key] = $ok;
+}
+
 /** Текущий пользователь — администратор? */
 function isAdminUser(PDO $pdo, $userId) {
     if (!$userId) return false;
@@ -165,12 +181,17 @@ if ($action === 'posts') {
         // Скрытые админом посты автор видит у себя (со статусом), остальные — нет.
         $isOwner = ($psychId !== '' && myPsychologistId($pdo, $userId) === $psychId);
         $showHidden = $isOwner || isAdminUser($pdo, $userId);
-        $hiddenCond = $showHidden ? '' : ' AND (is_hidden IS NULL OR is_hidden = 0)';
-        $st = $pdo->prepare("SELECT id, text, image_url, created_at, is_hidden, hidden_reason FROM channel_posts WHERE psychologist_id = ?$hiddenCond ORDER BY created_at DESC, id DESC LIMIT 200");
+        $hasHidden = hasColumn($pdo, 'channel_posts', 'is_hidden');
+        $hiddenCond = ($hasHidden && !$showHidden) ? ' AND (is_hidden IS NULL OR is_hidden = 0)' : '';
+        $cols = $hasHidden ? 'id, text, image_url, created_at, is_hidden, hidden_reason' : 'id, text, image_url, created_at';
+        $st = $pdo->prepare("SELECT $cols FROM channel_posts WHERE psychologist_id = ?$hiddenCond ORDER BY created_at DESC, id DESC LIMIT 200");
         $st->execute([$psychId]);
         $rows = attachPostStats($pdo, $st->fetchAll(PDO::FETCH_ASSOC), $userId);
-        echo json_encode(['ok' => true, 'data' => $rows]);
-    } catch (Exception $e) { echo json_encode(['ok' => true, 'data' => []]); }
+        echo json_encode(['ok' => true, 'data' => $rows], JSON_UNESCAPED_UNICODE);
+    } catch (Exception $e) {
+        http_response_code(500);
+        echo json_encode(['error' => 'Не удалось загрузить посты канала: ' . $e->getMessage()], JSON_UNESCAPED_UNICODE);
+    }
     exit;
 }
 
@@ -182,7 +203,8 @@ if ($action === 'feed') {
         // почему-то не находилась строка в psychologists/users (например профиль пересоздан) —
         // при этом в канале (action=posts, без джойнов) он оставался виден. Отсюда и был баг
         // «в чатах канал есть, а в общей ленте его нет». Имя автора подставляем с запасом.
-        $where = ['(cp.is_hidden IS NULL OR cp.is_hidden = 0)'];
+        $where = [];
+        if (hasColumn($pdo, 'channel_posts', 'is_hidden')) $where[] = '(cp.is_hidden IS NULL OR cp.is_hidden = 0)';
         $params = [];
         if ($beforeId > 0) { $where[] = 'cp.id < ?'; $params[] = $beforeId; }
         $sql = "SELECT cp.id, cp.psychologist_id, cp.text, cp.image_url, cp.created_at,
@@ -190,7 +212,7 @@ if ($action === 'feed') {
                 FROM channel_posts cp
                 LEFT JOIN psychologists p ON p.id = cp.psychologist_id
                 LEFT JOIN users u ON u.id = p.user_id
-                WHERE " . implode(' AND ', $where) . "
+                " . ($where ? 'WHERE ' . implode(' AND ', $where) : '') . "
                 ORDER BY cp.created_at DESC, cp.id DESC LIMIT $limit";
         $st = $pdo->prepare($sql);
         $st->execute($params);
@@ -206,8 +228,11 @@ if ($action === 'feed') {
             } catch (Exception $e) {}
         }
         foreach ($rows as &$r) { $r['is_subscribed'] = isset($subscribed[$r['psychologist_id']]); }
-        echo json_encode(['ok' => true, 'data' => $rows]);
-    } catch (Exception $e) { echo json_encode(['ok' => true, 'data' => []]); }
+        echo json_encode(['ok' => true, 'data' => $rows], JSON_UNESCAPED_UNICODE);
+    } catch (Exception $e) {
+        http_response_code(500);
+        echo json_encode(['error' => 'Не удалось загрузить ленту: ' . $e->getMessage()], JSON_UNESCAPED_UNICODE);
+    }
     exit;
 }
 
@@ -359,7 +384,9 @@ if ($action === 'admin-posts') {
     if (!isAdminUser($pdo, $userId)) { http_response_code(403); echo json_encode(['error' => 'Доступно только администратору']); exit; }
     $limit = max(1, min(500, (int)($_GET['limit'] ?? 200)));
     try {
-        $st = $pdo->prepare("SELECT cp.id, cp.psychologist_id, cp.text, cp.image_url, cp.created_at, cp.is_hidden, cp.hidden_reason,
+        $hasHidden = hasColumn($pdo, 'channel_posts', 'is_hidden');
+        $modCols = $hasHidden ? 'cp.is_hidden, cp.hidden_reason,' : '';
+        $st = $pdo->prepare("SELECT cp.id, cp.psychologist_id, cp.text, cp.image_url, cp.created_at, $modCols
                     u.first_name, u.last_name, u.id AS author_user_id
                 FROM channel_posts cp
                 LEFT JOIN psychologists p ON p.id = cp.psychologist_id

@@ -78,10 +78,21 @@
             busy = true;
             if (reset) lastId = 0;
             const url = '/api/channels.php?action=feed&limit=20' + (lastId ? '&before_id=' + lastId : '');
-            let rows = [];
-            try { const r = await fetch(url, { credentials: 'include' }); const d = await r.json(); rows = (d && d.data) || []; } catch (e) {}
+            let rows = [], loadError = '';
+            try {
+                const r = await fetch(url, { credentials: 'include' });
+                const d = await r.json();
+                if (d && d.error) loadError = d.error; else rows = (d && d.data) || [];
+            } catch (e) { loadError = 'нет связи с сервером'; }
             const list = document.getElementById('feedList');
             const moreBtn = document.getElementById('loadMoreBtn');
+            // Сломанную загрузку показываем как ошибку, а не как «постов пока нет».
+            if (reset && loadError) {
+                list.innerHTML = '<div class="empty">⚠️ Не удалось загрузить ленту.<br>' + esc(loadError) + '</div>';
+                moreBtn.style.display = 'none';
+                busy = false;
+                return;
+            }
             if (reset && !rows.length) {
                 list.innerHTML = '<div class="empty">Пока нет постов в каналах психологов.<br>Загляните позже — специалисты уже начали делиться заметками и советами.</div>';
                 moreBtn.style.display = 'none';
