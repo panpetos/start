@@ -148,6 +148,9 @@
         }
         .folder-tab-add { color: #7C3AED; }
         .folder-tab-add .ftab-ico { font-size: 1rem; }
+        /* На широком экране действия видны кнопками, на узком — собраны в ⋮.
+           Класс продублирован, чтобы перебить display у .chat-hdr-btn ниже по файлу. */
+        .sb-narrow-only.sb-narrow-only { display: none; }
         .folder-pick-btn {
             border: none; background: transparent; cursor: pointer; font-size: 0.9rem;
             opacity: 0.45; padding: 0; line-height: 1; flex-shrink: 0;
@@ -259,14 +262,25 @@
            Раньше иконки висели в строке времени у каждого сообщения и рябили. Теперь
            появляются при наведении рядом с пузырём: быстрый «ответить» и меню. */
         .message { position: relative; }
+        /* Кнопки лежат СНАРУЖИ пузыря, и раньше между ними и пузырём был непокрытый зазор
+           (right: -62px). Мышь пересекала его, :hover терялся, кнопки исчезали — на ПК до них
+           было не дотянуться. Теперь блок начинается ровно от края пузыря (left/right: 100%),
+           а воздух даёт внутренний отступ, поэтому область наведения непрерывная.
+           Растянут на всю высоту сообщения (top/bottom: 0): сами кнопки прижаты к верху,
+           но уводить мышь в сторону можно с любой строки — иначе с середины длинного
+           сообщения курсор выходил мимо блока и кнопки снова гасли. */
         .msg-hover {
-            position: absolute; top: 2px; display: flex; gap: 2px;
+            position: absolute; top: 0; bottom: 0; display: flex; gap: 2px; align-items: flex-start;
+            padding: 2px 10px; box-sizing: border-box;
             opacity: 0; pointer-events: none; transition: opacity 0.12s;
         }
-        .message.theirs .msg-hover { right: -62px; }
-        .message.mine .msg-hover { left: -62px; }
+        .message.theirs .msg-hover { left: 100%; }
+        .message.mine .msg-hover { right: 100%; flex-direction: row-reverse; }
         .message:hover .msg-hover,
+        .msg-hover:hover,
         .msg-hover:focus-within { opacity: 1; pointer-events: auto; }
+        /* Пока открыто меню действий, кнопки не должны гаснуть под курсором */
+        .message.menu-open .msg-hover { opacity: 1; pointer-events: auto; }
         .msg-hover button {
             width: 27px; height: 27px; border: none; border-radius: 50%;
             background: #fff; color: #6B7280; cursor: pointer; padding: 0;
@@ -1269,10 +1283,36 @@
             }
             /* На телефоне список занимает весь экран — тянуть нечего */
             .pane-resizer { display: none; }
-            /* Рейка папок на телефоне уже, но остаётся вертикальной — как в мобильном MAX */
-            .chat-folders { width: 58px; padding: 0.35rem 0.15rem; }
-            .folder-tab { padding: 0.5rem 0.1rem 0.4rem; font-size: 0.58rem; }
-            .folder-tab .ftab-ico { font-size: 1.15rem; }
+            /* Телефон: как в Telegram — папки горизонтальной строкой под шапкой, действия в ⋮.
+               Сам элемент папок переносится в разметке (см. syncFolderPlacement), потому что
+               на ПК он должен оставаться колонкой слева. */
+            .sb-wide-only.sb-wide-only { display: none; }
+            .sb-narrow-only.sb-narrow-only { display: flex; }
+            .conversations-pane { flex-direction: column; }
+            .chat-folders {
+                width: 100%; flex-direction: row; align-items: center;
+                padding: 0.4rem 0.5rem; gap: 0.3rem;
+                border-right: none; border-bottom: 1px solid #ECECF2;
+                overflow-x: auto; overflow-y: hidden;
+            }
+            .folder-tab {
+                flex-direction: row; gap: 0.3rem; white-space: nowrap;
+                padding: 0.4rem 0.75rem; font-size: 0.8rem; border-radius: 2rem;
+                background: #F3F4F6;
+            }
+            .folder-tab .ftab-ico { font-size: 0.95rem; }
+            .folder-tab.active { background: #7C3AED; color: #fff; }
+            .folder-tab.active::before { display: none; }
+            .folder-tab .fcount {
+                position: static; background: rgba(0,0,0,0.14); color: inherit;
+                min-width: 0; padding: 0 0.3rem; line-height: 1.35;
+            }
+            .folder-tab.active .fcount { background: rgba(255,255,255,0.28); }
+            .folder-tab-add { background: transparent; border: 1px dashed #C4B5FD; }
+            body.dark .chat-folders { border-bottom-color: #333; }
+            body.dark .folder-tab { background: #2F2F2F; }
+            body.dark .folder-tab.active { background: #7C3AED; color: #fff; }
+            body.dark .folder-tab-add { background: transparent; border-color: #5B3E8E; }
             /* Кнопка «⋮» была мелкой для пальца — зона нажатия 34×34 */
             .folder-pick-btn { width: 34px; height: 34px; }
             .conversations-pane.collapsed .chat-folders { display: flex; }
@@ -1488,11 +1528,15 @@
             <div class="conversations-list">
             <div class="chat-sb-head">
                 <input id="chatSearchInput" class="chat-sb-search" type="text" placeholder="🔍 Поиск по всем пользователям..." oninput="filterConversations()">
-                <button class="chat-hdr-btn" onclick="openCreateGroupModal()" title="Новая группа" aria-label="Новая группа">
+                <button class="chat-hdr-btn sb-wide-only" onclick="openCreateGroupModal()" title="Новая группа" aria-label="Новая группа">
                     <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
                 </button>
-                <button class="chat-hdr-btn" onclick="openWallpaperPicker()" title="Обои переписки" aria-label="Обои переписки">🎨</button>
-                <button id="chatThemeToggle" class="chat-hdr-btn" onclick="toggleChatTheme()" title="Светлая/тёмная тема" aria-label="Сменить тему">🌙</button>
+                <button class="chat-hdr-btn sb-wide-only" onclick="openWallpaperPicker()" title="Обои переписки" aria-label="Обои переписки">🎨</button>
+                <button id="chatThemeToggle" class="chat-hdr-btn sb-wide-only" onclick="toggleChatTheme()" title="Светлая/тёмная тема" aria-label="Сменить тему">🌙</button>
+                <!-- На телефоне всё это собрано в одно меню, как в мобильном Telegram -->
+                <button class="chat-hdr-btn sb-narrow-only" onclick="openSidebarMenu(event)" title="Ещё" aria-label="Ещё">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="6" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="12" cy="18" r="1.8"/></svg>
+                </button>
             </div>
             <div id="conversationsList" style="overflow-y:auto;flex:1;">
                 <div class="no-conversations">Загрузка...</div>
@@ -1847,6 +1891,7 @@
 
     <script src="/js/api.js"></script>
     <script src="/js/auth.js"></script>
+    <script src="/js/lightbox.js"></script>
     <script src="/js/post-format.js"></script>
     <script src="/js/header.js"></script>
     <script>
@@ -3598,6 +3643,54 @@
             renderConversationList(allConversations);
         }
 
+        /**
+         * Где живут папки. На ПК — колонкой слева от списка (первый ребёнок панели),
+         * на телефоне — строкой под шапкой, как в мобильном Telegram. Флексбоксом это не
+         * выразить: шапка лежит внутри .conversations-list, поэтому переносим сам элемент.
+         */
+        function syncFolderPlacement() {
+            const box = document.getElementById('chatFolders');
+            const pane = document.getElementById('conversationsPane');
+            const list = pane && pane.querySelector('.conversations-list');
+            const head = list && list.querySelector('.chat-sb-head');
+            if (!box || !pane || !list || !head) return;
+            const narrow = window.matchMedia('(max-width: 768px)').matches;
+            if (narrow) {
+                if (box.parentElement !== list || box.previousElementSibling !== head) {
+                    head.insertAdjacentElement('afterend', box);
+                }
+            } else if (box.parentElement !== pane || pane.firstElementChild !== box) {
+                pane.insertAdjacentElement('afterbegin', box);
+            }
+        }
+        window.addEventListener('resize', syncFolderPlacement);
+        window.addEventListener('orientationchange', syncFolderPlacement);
+
+        /** Меню действий списка чатов для телефона: новая группа, обои, тема. */
+        function openSidebarMenu(evt) {
+            if (evt) { evt.stopPropagation(); evt.preventDefault(); }
+            closeFolderPicker();
+            const dark = document.body.classList.contains('dark');
+            const menu = document.createElement('div');
+            menu.className = 'folder-picker';
+            menu.id = 'folderPicker';
+            menu.innerHTML = `
+                <button class="folder-picker-row" onclick="event.stopPropagation();closeFolderPicker();openCreateGroupModal()">
+                    <span class="fp-mark">👥</span>Новая группа
+                </button>
+                <button class="folder-picker-row" onclick="event.stopPropagation();closeFolderPicker();openWallpaperPicker()">
+                    <span class="fp-mark">🎨</span>Обои переписки
+                </button>
+                <button class="folder-picker-row" onclick="event.stopPropagation();closeFolderPicker();toggleChatTheme()">
+                    <span class="fp-mark">${dark ? '☀️' : '🌙'}</span>${dark ? 'Светлая тема' : 'Тёмная тема'}
+                </button>`;
+            document.body.appendChild(menu);
+            const r = evt.currentTarget.getBoundingClientRect();
+            menu.style.left = Math.max(8, Math.min(r.left, window.innerWidth - menu.offsetWidth - 8)) + 'px';
+            menu.style.top = (r.bottom + 6) + 'px';
+            setTimeout(() => document.addEventListener('click', closeFolderPicker, { once: true }), 0);
+        }
+
         function renderFolderTabs() {
             const box = document.getElementById('chatFolders');
             if (!box) return;
@@ -3619,6 +3712,7 @@
                         </button>`;
             }
             box.innerHTML = html;
+            syncFolderPlacement();
         }
 
         async function createChatFolder() {
@@ -3753,6 +3847,11 @@
         function openMsgMenu(evt, id) {
             if (evt) { evt.stopPropagation(); evt.preventDefault(); }
             closeFolderPicker();
+            // пока меню открыто, держим кнопки видимыми: иначе они гаснут, стоит курсору
+            // соскользнуть с пузыря на само меню
+            document.querySelectorAll('.message.menu-open').forEach(el => el.classList.remove('menu-open'));
+            const own = document.querySelector(`[data-msg-id="${id}"]`) || document.querySelector(`[data-fav-id="${id}"]`);
+            if (own) own.classList.add('menu-open');
             const cap = msgCaps[id] || {};
             const menu = document.createElement('div');
             menu.className = 'folder-picker';
@@ -3939,6 +4038,7 @@
         function closeFolderPicker() {
             const m = document.getElementById('folderPicker');
             if (m) m.remove();
+            document.querySelectorAll('.message.menu-open').forEach(el => el.classList.remove('menu-open'));
         }
 
         async function toggleChatInFolder(chatKey, folderId) {
@@ -4165,11 +4265,11 @@
                     const time = formatTime(m.created_at);
                     let attachmentHtml = '';
                     if (m.attachment_url) {
-                        const isImg = (m.attachment_type || '').indexOf('image') === 0;
+                        const isImg = isImageAttachment(m);
                         attachmentHtml = isVideoNote(m)
                             ? videoNoteHtml(m.attachment_url, m.attachment_name)
                             : (isImg
-                                ? `<div class="message-attachment"><a href="${m.attachment_url}" target="_blank"><img src="${m.attachment_url}" alt="${m.attachment_name || 'Изображение'}"></a></div>`
+                                ? `<div class="message-attachment"><a href="${m.attachment_url}" target="_blank"><img src="${m.attachment_url}" alt="${escapeHtml(m.attachment_name || 'Изображение')}" loading="lazy"></a></div>`
                                 : `<div class="message-attachment"><a href="${m.attachment_url}" target="_blank" download="${m.attachment_name || 'file'}">📄 ${m.attachment_name || 'Скачать файл'}</a></div>`);
                     }
                     const content = m.body ? escapeHtml(m.body) : '';
@@ -4234,8 +4334,8 @@
                 } else if (m.attachment_type === 'voice') {
                     const msgId = 'fav-' + m.id;
                     attachmentHtml = voicePlayerHtml(msgId, m.attachment_url, m.attachment_name);
-                } else if (m.attachment_type === 'image') {
-                    attachmentHtml = `<div class="message-attachment"><a href="${m.attachment_url}" target="_blank"><img src="${m.attachment_url}" alt="${m.attachment_name || 'Изображение'}"></a></div>`;
+                } else if (isImageAttachment(m)) {
+                    attachmentHtml = `<div class="message-attachment"><a href="${m.attachment_url}" target="_blank"><img src="${m.attachment_url}" alt="${escapeHtml(m.attachment_name || 'Изображение')}" loading="lazy"></a></div>`;
                 } else {
                     attachmentHtml = `<div class="message-attachment"><a href="${m.attachment_url}" target="_blank" download="${m.attachment_name || 'file'}">📄 ${m.attachment_name || 'Скачать файл'}</a></div>`;
                 }
@@ -4490,11 +4590,11 @@
                             // воспроизведения, иначе после опроса (раз в 5с) плеер сбрасывался.
                             const msgId = m.id != null ? String(m.id) : ('u-' + (m.created_at || '') + (m.attachment_url || ''));
                             attachmentHtml = voicePlayerHtml(msgId, m.attachment_url, m.attachment_name);
-                        } else if (m.attachment_type === 'image') {
+                        } else if (isImageAttachment(m)) {
                             attachmentHtml = `
                                 <div class="message-attachment">
                                     <a href="${m.attachment_url}" target="_blank">
-                                        <img src="${m.attachment_url}" alt="${m.attachment_name || 'Изображение'}">
+                                        <img src="${m.attachment_url}" alt="${escapeHtml(m.attachment_name || 'Изображение')}" loading="lazy">
                                     </a>
                                 </div>
                             `;
@@ -5163,6 +5263,16 @@
             const text = String(m.content || '');
             if (!m.attachment_url || !text) return false;
             return /^\[(Файл|Голосовое|Видеосообщение)/.test(text);
+        }
+
+        /**
+         * Картинка ли это вложение. Проверяем не только объявленный тип: сервер иногда
+         * сохраняет картинку как обычный файл, и тогда вместо превью показывалась ссылка.
+         */
+        function isImageAttachment(m) {
+            if ((m.attachment_type || '').indexOf('image') === 0) return true;
+            const u = String(m.attachment_url || '');
+            return typeof psyIsImageUrl === 'function' ? psyIsImageUrl(u) : /\.(jpe?g|png|gif|webp|avif|bmp)(\?|$)/i.test(u);
         }
 
         function isVideoNote(m) {

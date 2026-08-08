@@ -68,6 +68,7 @@ jobs:
             put js/header-init.js -o js/header-init.js;
             put js/post-format.js -o js/post-format.js;
             put js/dash-sidebar.js -o js/dash-sidebar.js;
+            put js/lightbox.js -o js/lightbox.js;
             put api/admin_ext.php -o api/admin_ext.php;
             put api/subscribe.php -o api/subscribe.php;
             put api/my_profile.php -o api/my_profile.php;
