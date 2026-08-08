@@ -7,6 +7,7 @@
  * же function_exists-резолвер связку config.php/db.php, как и остальные API-файлы этого репо.
  *
  * POST ?action=edit          {message_id, content}   — автор сообщения меняет текст (сохраняется в лог)
+ * POST ?action=delete        {message_id}             — автор удаляет своё сообщение (текст остаётся в логе)
  * GET  ?action=edited-map    &ids=1,2,3               — для каких из этих id есть правки (участнику диалога)
  * GET  ?action=recent-edits  &limit=200                — журнал правок для админа (кто/когда/с чего на что)
  */
@@ -92,6 +93,53 @@ if ($action === 'edit' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     } catch (Exception $e) {
         if ($pdo->inTransaction()) $pdo->rollBack();
         out(['error' => 'Не удалось сохранить изменения'], 500);
+    }
+    out(['ok' => true]);
+}
+
+/**
+ * Удаление своего сообщения в личной переписке. В группах и «Избранном» удаление уже было,
+ * а в 1:1 его не существовало вовсе — сообщение можно было только отредактировать.
+ *
+ * Удаляем строку целиком: messages.php — server-only файл, отфильтровать «удалённые» в его
+ * выборке нельзя, поэтому мягкое удаление привело бы к тому, что сообщение снова появлялось
+ * бы после обновления. Текст перед удалением уходит в message_edit_log (new_content = NULL),
+ * так что для админского журнала ничего не теряется.
+ */
+if ($action === 'delete' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    $messageId = trim((string)($body['message_id'] ?? ''));
+    if ($messageId === '') out(['error' => 'message_id обязателен'], 400);
+
+    try {
+        $st = $pdo->prepare("SELECT sender_id, content, attachment_url FROM messages WHERE id = ? LIMIT 1");
+        $st->execute([$messageId]);
+        $msg = $st->fetch(PDO::FETCH_ASSOC);
+    } catch (Exception $e) {
+        // в старых схемах может не быть attachment_url — пробуем без него
+        try {
+            $st = $pdo->prepare("SELECT sender_id, content FROM messages WHERE id = ? LIMIT 1");
+            $st->execute([$messageId]);
+            $msg = $st->fetch(PDO::FETCH_ASSOC);
+        } catch (Exception $e2) { out(['error' => 'Не удалось найти сообщение: ' . $e2->getMessage()], 500); }
+    }
+    if (!$msg) out(['error' => 'Сообщение не найдено'], 404);
+
+    $isOwn = (string)$msg['sender_id'] === (string)$userId || ($isAdmin && (string)$msg['sender_id'] === 'support');
+    // Админ может убрать любое сообщение (модерация), остальные — только свои.
+    if (!$isOwn && !$isAdmin) out(['error' => 'Удалить можно только свои сообщения'], 403);
+
+    $kept = (string)$msg['content'];
+    if (!empty($msg['attachment_url'])) $kept .= ' [вложение: ' . $msg['attachment_url'] . ']';
+
+    try {
+        $pdo->beginTransaction();
+        $log = $pdo->prepare("INSERT INTO message_edit_log (message_id, editor_id, old_content, new_content, edited_at) VALUES (?, ?, ?, NULL, NOW())");
+        $log->execute([$messageId, $userId, $kept]);
+        $pdo->prepare("DELETE FROM messages WHERE id = ?")->execute([$messageId]);
+        $pdo->commit();
+    } catch (Exception $e) {
+        if ($pdo->inTransaction()) $pdo->rollBack();
+        out(['error' => 'Не удалось удалить: ' . $e->getMessage()], 500);
     }
     out(['ok' => true]);
 }

@@ -159,6 +159,87 @@
         .vn-btn-rec.stop { background: #fff; color: #e94560; }
         .vn-btn-send { background: #16A34A; color: #fff; }
 
+        /* ── Закреплённый плеер под шапкой чата ──────────────────────────────────────
+           Видно, что именно играет, можно поставить на паузу, перейти к сообщению и
+           остановить всю очередь. Голосовые и кружки играют подряд сверху вниз. */
+        .sticky-player {
+            display: flex; align-items: center; gap: 0.6rem; flex-shrink: 0;
+            padding: 0.5rem 0.9rem; background: #F6F2FE;
+            border-bottom: 1px solid #E4DAF9;
+        }
+        .sp-btn {
+            width: 32px; height: 32px; flex-shrink: 0; border: none; cursor: pointer;
+            border-radius: 50%; background: #7C3AED; color: #fff;
+            display: flex; align-items: center; justify-content: center; padding: 0;
+        }
+        .sp-btn svg { width: 16px; height: 16px; }
+        .sp-btn.sp-close { background: transparent; color: #7C3AED; }
+        .sp-btn.sp-close:hover { background: #EADCFB; }
+        .sp-info { flex: 1; min-width: 0; cursor: pointer; }
+        .sp-title {
+            font-size: 0.8rem; font-weight: 600; color: #4C1D95;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .sp-line { height: 3px; border-radius: 2px; background: #DCCDF8; margin-top: 0.28rem; overflow: hidden; }
+        .sp-fill { height: 100%; width: 0; background: #7C3AED; border-radius: 2px; }
+        .sp-time { font-size: 0.74rem; color: #6D28D9; font-variant-numeric: tabular-nums; flex-shrink: 0; }
+        .sp-speed {
+            border: none; background: #EADCFB; color: #6D28D9; cursor: pointer;
+            font-family: inherit; font-size: 0.7rem; font-weight: 700;
+            padding: 3px 6px; border-radius: 7px; flex-shrink: 0;
+        }
+        .sp-speed:hover { background: #DCCDF8; }
+        body.dark .sticky-player { background: #2A2140; border-bottom-color: #3D2F5C; }
+        body.dark .sp-title { color: #D3BEFA; }
+        body.dark .sp-line { background: #3D2F5C; }
+        body.dark .sp-time { color: #C9AEFB; }
+        body.dark .sp-speed { background: #3D2F5C; color: #D3BEFA; }
+        body.dark .sp-speed:hover { background: #4A3970; }
+        body.dark .sp-btn.sp-close { color: #C9AEFB; }
+        body.dark .sp-btn.sp-close:hover { background: #3D2F5C; }
+
+        /* ── Плашка закреплённого сообщения ── */
+        .pinned-bar {
+            display: flex; align-items: center; gap: 0.55rem; flex-shrink: 0; cursor: pointer;
+            padding: 0.45rem 0.9rem; background: #FFFDF3; border-bottom: 1px solid #F2E7BF;
+        }
+        .pinned-bar:hover { background: #FFFAE6; }
+        .pinned-bar .pin-ico { width: 17px; height: 17px; flex-shrink: 0; color: #A16207; }
+        .pinned-text { flex: 1; min-width: 0; }
+        .pinned-title { font-size: 0.7rem; font-weight: 700; color: #A16207; }
+        .pinned-body {
+            font-size: 0.82rem; color: #4B4632;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .pinned-unpin {
+            border: none; background: transparent; cursor: pointer; color: #A16207;
+            font-size: 0.95rem; line-height: 1; padding: 0.3rem; border-radius: 0.4rem; flex-shrink: 0;
+        }
+        .pinned-unpin:hover { background: #F6ECC9; }
+        body.dark .pinned-bar { background: #2E2818; border-bottom-color: #4A3F1E; }
+        body.dark .pinned-bar:hover { background: #38301C; }
+        body.dark .pinned-bar .pin-ico,
+        body.dark .pinned-title,
+        body.dark .pinned-unpin { color: #E3B341; }
+        body.dark .pinned-body { color: #C9C3AC; }
+        body.dark .pinned-unpin:hover { background: #423821; }
+        /* Иконки действий у сообщения: одинаковый размер и цвет, вместо разнокалиберных эмодзи */
+        .msg-act { width: 14px; height: 14px; vertical-align: -2px; }
+        .message-time .act {
+            display: inline-flex; align-items: center; justify-content: center;
+            width: 22px; height: 22px; margin-left: 0.1rem; border-radius: 0.4rem;
+            cursor: pointer; opacity: 0.6; vertical-align: middle;
+        }
+        .message-time .act:hover { opacity: 1; background: rgba(124,58,237,0.12); }
+        .message.mine .message-time .act:hover { background: rgba(255,255,255,0.22); }
+
+        /* Подсветка сообщения, к которому перешли по закреплённому/плееру */
+        .message.flash { animation: msgFlash 1.4s ease; }
+        @keyframes msgFlash {
+            0%, 100% { box-shadow: none; }
+            25% { box-shadow: 0 0 0 3px rgba(124,58,237,0.55); }
+        }
+
         /* Сообщение, в котором только кружок: пузырь вокруг него не нужен */
         .message.vn-only {
             background: transparent !important; box-shadow: none !important;
@@ -203,6 +284,11 @@
         body.dark .folder-picker-row:hover { background: #37254A; color: #C9AEFB; }
         body.dark .folder-picker-row.on { color: #C9AEFB; }
         body.dark .folder-picker-row.fp-new { border-top-color: #3A3A3A; color: #C9AEFB; }
+        .folder-picker-sep {
+            font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
+            color: #9CA3AF; padding: 0.45rem 0.5rem 0.2rem;
+        }
+        body.dark .folder-picker-sep { color: #8A8A8A; }
 
         .conversation-item {
             display: flex;
@@ -442,11 +528,15 @@
 
         .chat-input {
             background: white;
-            padding: 1rem;
+            padding: 0.75rem 1rem;
             border-top: 1px solid #e0e0e0;
             display: flex;
-            gap: 1rem;
+            align-items: center;
+            gap: 0.3rem;
         }
+        /* Поле ввода отделяем от блока иконок, между самими иконками отступ маленький */
+        .chat-input input { margin-left: 0.35rem; }
+        .chat-input .send-btn { margin-left: 0.35rem; }
 
         .chat-input input {
             flex: 1;
@@ -462,9 +552,11 @@
             border-color: #7C3AED;
         }
 
-        .chat-input button {
-            width: 48px;
-            height: 48px;
+        /* Только кнопка отправки: раньше правило было по тегу (.chat-input button) и красило
+           заодно кнопки-иконки в фиолетовые кружки. */
+        .chat-input .send-btn {
+            width: 44px;
+            height: 44px;
             flex-shrink: 0;
             border-radius: 50%;
             background: linear-gradient(135deg, #7C3AED 0%, #6D28D9 100%);
@@ -474,32 +566,42 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            transition: transform 0.2s;
+            transition: transform 0.2s, box-shadow 0.2s;
+            box-shadow: 0 2px 10px rgba(124,58,237,0.35);
         }
 
-        .chat-input button:hover {
+        .chat-input .send-btn:hover {
             transform: scale(1.05);
+            box-shadow: 0 4px 14px rgba(124,58,237,0.45);
         }
 
+        /* Кнопки панели ввода. Раньше это были эмодзи (😊 📎 🎤 🎥) в серых кружках: у каждой
+           свой стиль, свой размер и своя цветность — вместе выглядело неопрятно, а на разных
+           системах эмодзи ещё и рисуются по-разному. Теперь одинаковые контурные SVG:
+           общая толщина линии, приглушённый серый, акцент при наведении. */
         .icon-btn {
-            width: 40px;
-            height: 40px;
+            width: 38px;
+            height: 38px;
             flex-shrink: 0;
-            border-radius: 50%;
-            background: #f0f0f0;
+            border-radius: 0.7rem;
+            background: transparent;
             border: none;
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 1.2rem;
-            transition: all 0.2s;
+            color: #8A8F98;
+            padding: 0;
+            transition: background 0.15s, color 0.15s;
         }
-
-        .icon-btn:hover {
-            background: #e0e0e0;
-            transform: scale(1.1);
-        }
+        .icon-btn svg { width: 21px; height: 21px; display: block; }
+        .icon-btn:hover { background: #F1EDFB; color: #7C3AED; }
+        .icon-btn:active { background: #E7DEFA; }
+        .icon-btn.recording { color: #E11D48; background: #FEE9EE; }
+        body.dark .icon-btn { color: #9AA0A8; }
+        body.dark .icon-btn:hover { background: #34274D; color: #C9AEFB; }
+        body.dark .icon-btn:active { background: #3E2E5B; }
+        body.dark .icon-btn.recording { color: #FB7185; background: #3A1E27; }
 
         .emoji-picker {
             position: absolute;
@@ -926,7 +1028,9 @@
                 bottom: 0;
             }
             .chat-input input { font-size: 16px; padding: 0.6rem 0.75rem; }
-            .chat-input button, .icon-btn { width: 36px; height: 36px; font-size: 1.05rem; }
+            .chat-input .send-btn { width: 40px; height: 40px; }
+            .icon-btn { width: 36px; height: 36px; }
+            .icon-btn svg { width: 20px; height: 20px; }
 
             .emoji-picker { width: 92vw; max-width: 340px; left: 4vw; bottom: 64px; }
             #chatSearchInput { font-size: 16px !important; }
@@ -969,8 +1073,8 @@
         body.dark .chat-input { background: #252525; border-top-color: #333; }
         body.dark .chat-input input { background: #1E1E1E; border-color: #444; color: #E6E6E6; }
         body.dark .chat-input input::placeholder { color: #777; }
-        body.dark .icon-btn { background: #333; color: #E6E6E6; }
-        body.dark .icon-btn:hover { background: #444; }
+        /* Старое правило заливало кнопки-иконки серым квадратом только в тёмной теме —
+           получалось непохоже на светлую. Цвета иконок заданы выше, одинаково для обеих тем. */
         body.dark .emoji-picker { background: #252525; box-shadow: 0 4px 25px rgba(0,0,0,0.5); }
         body.dark .emoji-grid span:hover { background: #333; }
         body.dark .file-preview { background: #2D2D2D; }
@@ -1086,22 +1190,52 @@
 
             <div id="chatContent" style="display: none; flex-direction: column; height: 100%;">
                 <div class="chat-header" id="chatHeader"></div>
+                <!-- Плашка закреплённого сообщения -->
+                <div class="pinned-bar" id="pinnedBar" style="display:none;" onclick="jumpToPinned()">
+                    <svg class="pin-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4h6l-1 5 3.5 3.5H5.5L9 9 8 4z"/><path d="M12 12.5V20"/></svg>
+                    <div class="pinned-text">
+                        <div class="pinned-title">Закреплённое сообщение</div>
+                        <div class="pinned-body" id="pinnedBody"></div>
+                    </div>
+                    <button class="pinned-unpin" id="pinnedUnpin" onclick="event.stopPropagation();unpinCurrent()" title="Открепить" aria-label="Открепить">✕</button>
+                </div>
+                <!-- Закреплённый плеер: видно, что играет, можно поставить на паузу и остановить -->
+                <div class="sticky-player" id="stickyPlayer" style="display:none;">
+                    <button class="sp-btn" id="spToggle" onclick="stickyTogglePlay()" title="Пауза" aria-label="Пауза">
+                        <svg viewBox="0 0 24 24" fill="currentColor"><rect x="7" y="5" width="3.5" height="14" rx="1"/><rect x="13.5" y="5" width="3.5" height="14" rx="1"/></svg>
+                    </button>
+                    <div class="sp-info" onclick="stickyJumpTo()">
+                        <div class="sp-title" id="spTitle">Голосовое сообщение</div>
+                        <div class="sp-line"><div class="sp-fill" id="spFill"></div></div>
+                    </div>
+                    <div class="sp-time" id="spTime">00:00</div>
+                    <button class="sp-speed" id="spSpeed" onclick="stickyCycleSpeed()" title="Скорость воспроизведения">1x</button>
+                    <button class="sp-btn sp-close" onclick="stickyStop()" title="Остановить" aria-label="Остановить">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+                    </button>
+                </div>
                 <div class="messages-container" id="messagesContainer"></div>
                 <div class="chat-input" id="chatInputBar">
-                    <button type="button" onclick="toggleEmojiPicker()" class="icon-btn" title="Эмодзи">😊</button>
-                    <label class="icon-btn" title="Прикрепить файл">
-                        📎
+                    <button type="button" onclick="toggleEmojiPicker()" class="icon-btn" title="Эмодзи" aria-label="Эмодзи">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8.5 14.5s1.3 1.6 3.5 1.6 3.5-1.6 3.5-1.6"/><path d="M9 9.5h.01M15 9.5h.01"/></svg>
+                    </button>
+                    <label class="icon-btn" title="Прикрепить файл" aria-label="Прикрепить файл">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20.4 12.3l-7.9 7.9a5 5 0 01-7-7l8-8a3.3 3.3 0 014.7 4.7l-8 8a1.7 1.7 0 01-2.4-2.4l7.4-7.3"/></svg>
                         <input type="file" id="fileInput" style="display:none;" onchange="handleFileSelect(event)"
                             accept="image/*,.pdf,.doc,.docx,.txt">
                     </label>
                     <button type="button" id="voiceBtn" onclick="toggleVoiceRecording()" class="icon-btn"
-                        title="Голосовое сообщение">🎤</button>
+                        title="Голосовое сообщение" aria-label="Голосовое сообщение">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2.5" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0013 0"/><path d="M12 17.5V21"/></svg>
+                    </button>
                     <button type="button" id="videoNoteBtn" onclick="startVideoNote()" class="icon-btn"
-                        title="Видеосообщение-кружок">🎥</button>
+                        title="Видеосообщение-кружок" aria-label="Видеосообщение-кружок">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M10.3 9.2l4.6 2.8-4.6 2.8V9.2z"/></svg>
+                    </button>
                     <input type="text" id="messageInput" placeholder="Введите сообщение..."
                         onkeypress="if(event.key==='Enter') sendMessage()">
-                    <button onclick="sendMessage()">
-                        <i data-lucide="send" style="width: 20px; height: 20px;"></i>
+                    <button onclick="sendMessage()" class="send-btn" title="Отправить" aria-label="Отправить">
+                        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2.5L10.8 13.2"/><path d="M21.5 2.5l-7 19-3.7-8.3-8.3-3.7 19-7z"/></svg>
                     </button>
                 </div>
                 <!-- Запись голоса -->
@@ -1410,17 +1544,15 @@
             }
         }
 
-        function channelsRowsHtml() {
-            const err = channelsLoadError
+        function channelsErrHtml() {
+            return channelsLoadError
                 ? `<div style="padding:0.6rem 0.75rem;background:#FEF2F2;color:#B91C1C;font-size:0.78rem;border-bottom:1px solid #FECACA;">⚠️ Каналы не загрузились: ${escapeHtml(channelsLoadError)}</div>`
                 : '';
-            if (!myChannels.length) return err;
-            if (err) return err + channelsRowsInner();
-            return channelsRowsInner();
         }
 
-        function channelsRowsInner() {
-            return myChannels.map(c => {
+        function channelsRows() {
+            const out = [];
+            myChannels.forEach(c => {
                 // название и аватарка канала задаются психологом отдельно от личного профиля
                 const name = (c.channel_title || '').trim() || `${c.first_name || ''} ${c.last_name || ''}`.trim() || 'Канал';
                 const ava = c.channel_avatar || c.avatar;
@@ -1429,19 +1561,20 @@
                 const label = c._own ? 'Мой канал' : 'Канал';
                 const preview = c.last_post_text ? (label + ' · ' + c.last_post_text.slice(0, 30))
                     : (c.channel_description ? (label + ' · ' + c.channel_description.slice(0, 34)) : (label + ' · публикации психолога'));
-                if (!folderAllows('channel', activeId)) return '';
-                return `
+                if (!folderAllows('channel', activeId)) return;
+                out.push({ key: activeId, html: `
                     <div class="conversation-item ${activeId === selectedUserId ? 'active' : ''}" onclick="openChannel('${c.psychologist_id}')" title="${escapeHtml(name)}">
                         <div class="conversation-avatar" style="position:relative;">
                             ${ava ? `<img src="${escapeHtml(ava)}" alt="${escapeHtml(name)}">` : initial}
                             <span style="position:absolute;bottom:-2px;right:-2px;background:#7C3AED;color:#fff;border-radius:50%;width:16px;height:16px;font-size:0.62rem;line-height:14px;text-align:center;border:2px solid #fff;">📡</span>
                         </div>
                         <div class="conversation-info">
-                            <div class="conversation-name"><span class="cn-text">${name}</span>${folderPickHtml(activeId)}</div>
+                            <div class="conversation-name"><span class="cn-text">${name}</span>${pinMarkHtml(activeId)}${folderPickHtml(activeId, 'channel', c.psychologist_id)}</div>
                             <div class="conversation-preview">${preview}</div>
                         </div>
-                    </div>`;
-            }).join('');
+                    </div>` });
+            });
+            return out;
         }
 
         // ── Групповые чаты — общий чат на несколько человек, доступно любой роли ──
@@ -1466,31 +1599,35 @@
             myGroups = d.data || [];
         }
 
-        function groupsRowsHtml() {
+        function groupsErrHtml() {
             // Ошибку загрузки групп показываем прямо в списке — раньше группы просто молча не появлялись.
-            const err = groupsLoadError
+            return groupsLoadError
                 ? `<div style="padding:0.6rem 0.75rem;background:#FEF2F2;color:#B91C1C;font-size:0.78rem;border-bottom:1px solid #FECACA;">⚠️ Группы не загрузились: ${escapeHtml(groupsLoadError)}</div>`
                 : '';
-            if (!myGroups.length) return err;
-            return err + myGroups.map(g => {
+        }
+
+        function groupsRows() {
+            const out = [];
+            myGroups.forEach(g => {
                 const activeId = GROUP_PREFIX + g.id;
                 const lastMsg = g.last_message ? g.last_message.slice(0, 34)
                     : (g.description ? g.description.slice(0, 40) : 'Группа создана — напишите первым');
                 const time = g.last_message_at ? formatTime(g.last_message_at) : '';
-                if (!folderAllows('group', activeId)) return '';
-                return `
+                if (!folderAllows('group', activeId)) return;
+                out.push({ key: activeId, html: `
                     <div class="conversation-item ${activeId === selectedUserId ? 'active' : ''}" onclick="openGroupChat(${g.id})" title="${escapeHtml(g.name)}">
                         <div class="conversation-avatar" style="background:linear-gradient(135deg,#059669,#10B981);">${g.avatar_url ? `<img src="${escapeHtml(g.avatar_url)}" alt="">` : '👥'}</div>
                         <div class="conversation-info">
-                            <div class="conversation-name"><span class="cn-text">${escapeHtml(g.name)}</span><span style="color:#9CA3AF;font-weight:400;font-size:0.78rem;flex-shrink:0;">· ${g.members_count}</span>${folderPickHtml(activeId)}</div>
+                            <div class="conversation-name"><span class="cn-text">${escapeHtml(g.name)}</span><span style="color:#9CA3AF;font-weight:400;font-size:0.78rem;flex-shrink:0;">· ${g.members_count}</span>${pinMarkHtml(activeId)}${folderPickHtml(activeId, 'group', g.id)}</div>
                             <div class="conversation-preview">${escapeHtml(lastMsg)}</div>
                         </div>
                         <div class="conversation-meta">
                             <div class="conversation-time">${time}</div>
                             ${g.unread_count > 0 ? `<span class="unread-badge">${g.unread_count}</span>` : ''}
                         </div>
-                    </div>`;
-            }).join('');
+                    </div>` });
+            });
+            return out;
         }
 
         // ── Групповой чат: обычная переписка на несколько человек ──
@@ -1498,6 +1635,7 @@
         let groupIsOwner = false; // владелец текущей открытой группы (может модерировать и переименовывать)
 
         async function openGroupChat(groupId) {
+            pinnedMessage = null; renderPinnedBar();
             editingMessageId = null;
             selectedUserId = GROUP_PREFIX + groupId;
             editingMessageId = null;
@@ -1517,6 +1655,7 @@
             renderGroupHeader(groupId);
 
             await loadMessages();
+            await loadPinnedMessage();
             // Список слева обновляем, чтобы счётчик непрочитанных и превью были живыми (как в Телеграме).
             pollInterval = setInterval(async () => {
                 await loadMessages();
@@ -1556,8 +1695,10 @@
             const editedTag = m.edited_at ? ` <span style="opacity:0.65;font-style:italic;" title="Отредактировано ${escapeHtml(formatTime(m.edited_at))}">(ред.)</span>` : '';
             // Своё сообщение можно править и удалять; владелец группы может удалить любое (модерация).
             const canDelete = isMine || groupIsOwner;
-            const editBtn = isMine ? ` <span onclick="startEditGroupMessage(event,'${m.id}')" style="cursor:pointer;opacity:0.75;margin-left:0.35rem;" title="Редактировать">✏️</span>` : '';
-            const delBtn = canDelete ? ` <span onclick="deleteGroupMessage(event,'${m.id}')" style="cursor:pointer;opacity:0.75;margin-left:0.35rem;" title="Удалить">🗑</span>` : '';
+            const editBtn = isMine ? `<span class="act" onclick="startEditGroupMessage(event,'${m.id}')" title="Редактировать">${msgIcon('edit')}</span>` : '';
+            const delBtn = canDelete ? `<span class="act" onclick="deleteGroupMessage(event,'${m.id}')" title="Удалить">${msgIcon('trash')}</span>` : '';
+            const gPinPrev = (m.content || '').replace(/\s+/g, ' ').slice(0, 200);
+            const pinBtn = `<span class="act" onclick="pinMessage(event,'${m.id}','${gPinPrev.replace(/'/g, "\\'").replace(/"/g, '&quot;')}')" title="Закрепить сообщение">${msgIcon('pin')}</span>`;
             // Как в Телеграме: у чужих сообщений в группе — аватар и имя автора.
             const ava = !isMine
                 ? `<div class="g-msg-ava" title="${escapeHtml(name)}" onclick="openUserCard('${m.sender_id}')">${m.avatar ? `<img src="${escapeHtml(m.avatar)}" alt="">` : escapeHtml(name.charAt(0).toUpperCase())}</div>`
@@ -1566,7 +1707,7 @@
                 <div class="message ${isMine ? 'mine' : 'theirs'}" data-msg-id="${m.id}">
                     ${!isMine ? `<div style="font-size:0.75rem;font-weight:700;opacity:0.8;margin-bottom:0.15rem;color:#7C3AED;">${escapeHtml(name)}</div>` : ''}
                     <div id="gmsg-body-${m.id}"><div>${escapeHtml(m.content)}</div></div>
-                    <div class="message-time">${time}${editedTag}${editBtn}${delBtn}</div>
+                    <div class="message-time">${time}${editedTag}${pinBtn}${editBtn}${delBtn}</div>
                 </div>`;
             return isMine ? bubble : `<div class="g-msg-row">${ava}${bubble}</div>`;
         }
@@ -1907,6 +2048,7 @@
         // ── Канал как раздел чата: лента постов психолога вместо переписки — писать этому человеку отсюда нельзя,
         // можно только читать и комментировать посты (как канал в Телеграм). Задача #29, рефок.
         async function openChannel(psychId) {
+            pinnedMessage = null; renderPinnedBar();
             selectedUserId = CHANNEL_PREFIX + psychId;
             editingMessageId = null;
             headerRenderedFor = selectedUserId;
@@ -2535,6 +2677,7 @@
             await loadMyChannels();
             await loadMyGroups();
             await loadFolders();
+            await loadPinnedChats();
             await loadConversations();
 
             // Автоматически открыть чат если есть user в URL
@@ -2678,7 +2821,8 @@
                 const container = document.getElementById('conversationsList');
 
                 if (!conversations || conversations.length === 0) {
-                    container.innerHTML = favoritesRowHtml() + channelsRowsHtml() + groupsRowsHtml() + `
+                    const rows = sortPinnedFirst(favoritesRows().concat(channelsRows(), groupsRows()));
+                    container.innerHTML = channelsErrHtml() + groupsErrHtml() + rows.map(r => r.html).join('') + `
                         <div class="no-conversations">
                             <p>У вас пока нет диалогов</p>
                             <p style="font-size: 0.9rem; margin-top: 0.5rem;">Диалоги появятся после записи на консультацию</p>
@@ -2720,6 +2864,129 @@
                 document.addEventListener('DOMContentLoaded', () => toggleChatSidebar(true));
             }
         } catch (e) {}
+
+        // ══════════════════════════════════════════════════════════════════════════════
+        //  ЗАКРЕПЛЕНИЯ (api/chat_pins.php)
+        //  Закреплённое сообщение — общее для обоих участников разговора.
+        //  Закреплённый диалог — личная настройка: поднимается наверх списка.
+        // ══════════════════════════════════════════════════════════════════════════════
+        let pinnedChats = [];            // ключи закреплённых чатов
+        let pinnedMessage = null;        // {message_id, preview} текущего открытого чата
+
+        async function pinsApi(action, payload) {
+            const url = '/api/chat_pins.php?action=' + action;
+            const res = payload
+                ? await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify(payload) })
+                : await fetch(url, { credentials: 'include' });
+            const d = await res.json().catch(() => ({}));
+            if (!res.ok || d.ok === false) throw new Error(d.error || ('HTTP ' + res.status));
+            return d;
+        }
+
+        async function loadPinnedChats() {
+            try {
+                const d = await pinsApi('pinned-chats');
+                pinnedChats = d.data || [];
+            } catch (e) { pinnedChats = []; }   // закрепления — удобство, список работает и без них
+        }
+
+        async function toggleChatPin(chatKey) {
+            closeFolderPicker();
+            try {
+                const d = await pinsApi('pin-chat', { chat_key: chatKey });
+                if (d.pinned) { if (pinnedChats.indexOf(chatKey) < 0) pinnedChats.unshift(chatKey); }
+                else pinnedChats = pinnedChats.filter(k => k !== chatKey);
+                renderConversationList(allConversations);
+            } catch (e) {
+                alert('Не удалось закрепить диалог: ' + e.message);
+            }
+        }
+
+        /** Ключ текущего открытого чата — тот же формат, что у папок и закреплений. */
+        function currentChatKey() {
+            if (!selectedUserId) return '';
+            return String(selectedUserId);
+        }
+
+        /** Подтянуть закрепление для открытого чата и показать плашку. */
+        async function loadPinnedMessage() {
+            const key = currentChatKey();
+            pinnedMessage = null;
+            if (!key) { renderPinnedBar(); return; }
+            try {
+                const d = await pinsApi('state&chat_key=' + encodeURIComponent(key));
+                pinnedMessage = d.pinned_message || null;
+            } catch (e) { pinnedMessage = null; }
+            renderPinnedBar();
+        }
+
+        function renderPinnedBar() {
+            const bar = document.getElementById('pinnedBar');
+            if (!bar) return;
+            if (!pinnedMessage) { bar.style.display = 'none'; return; }
+            bar.style.display = 'flex';
+            document.getElementById('pinnedBody').textContent = pinnedMessage.preview || 'Сообщение';
+        }
+
+        /** Закрепить сообщение (одно на разговор — новое заменяет прежнее, как в Telegram). */
+        async function pinMessage(evt, id, preview) {
+            if (evt) evt.stopPropagation();
+            const key = currentChatKey();
+            if (!key || !id) return;
+            try {
+                const d = await pinsApi('pin-message', { chat_key: key, message_id: id, preview: preview || '' });
+                pinnedMessage = { message_id: d.message_id, preview: d.preview };
+                renderPinnedBar();
+            } catch (e) {
+                alert('Не удалось закрепить сообщение: ' + e.message);
+            }
+        }
+
+        async function unpinCurrent() {
+            const key = currentChatKey();
+            if (!key) return;
+            try {
+                await pinsApi('unpin-message', { chat_key: key });
+                pinnedMessage = null;
+                renderPinnedBar();
+            } catch (e) {
+                alert('Не удалось открепить: ' + e.message);
+            }
+        }
+
+        // Подсветка живёт около двух секунд. Список сообщений перерисовывается опросом раз в
+        // 5 секунд, поэтому класс запоминаем и возвращаем после перерисовки — иначе подсветка
+        // пропадала на полпути и переход выглядел так, будто ничего не произошло.
+        let flashMsgId = null;
+        let flashUntil = 0;
+
+        function flashMessage(el, id) {
+            if (!el) return;
+            flashMsgId = id || null;
+            flashUntil = Date.now() + 2200;
+            el.classList.remove('flash');
+            void el.offsetWidth;
+            el.classList.add('flash');
+        }
+
+        function restoreFlash() {
+            if (!flashMsgId) return;
+            if (Date.now() > flashUntil) { flashMsgId = null; return; }
+            const el = document.querySelector(`[data-msg-id="${flashMsgId}"]`) ||
+                       document.querySelector(`[data-fav-id="${flashMsgId}"]`);
+            if (el && !el.classList.contains('flash')) el.classList.add('flash');
+        }
+
+        /** Прокрутить переписку к закреплённому сообщению и подсветить его. */
+        function jumpToPinned() {
+            if (!pinnedMessage) return;
+            const id = pinnedMessage.message_id;
+            const el = document.querySelector(`[data-msg-id="${id}"]`) ||
+                       document.querySelector(`[data-fav-id="${id}"]`);
+            if (!el) { alert('Сообщение выше в переписке — прокрутите вверх, оно ещё не загружено.'); return; }
+            try { el.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (e) {}
+            flashMessage(el, id);
+        }
 
         const BUILTIN_FOLDERS = [
             { id: 'all',      label: 'Все',     kinds: null },
@@ -2832,34 +3099,71 @@
         }
 
         /**
-         * Кнопка раскладки чата по папкам. Показываем её, как только у человека есть хотя бы
-         * одна своя папка: складывать чаты нужно именно из общего списка «Все», а внутри самой
-         * папки видны только уже добавленные — иначе туда невозможно было бы ничего положить.
+         * Кнопка «⋮» у строки чата. Раньше это была отдельная кнопка «в папку», и админ не
+         * находил, как добавить человека в группу и как закрепить диалог. Теперь все действия
+         * над чатом собраны в одном меню: закрепить, разложить по папкам, добавить участников.
          */
-        function folderPickHtml(chatKey) {
-            if (!myFolders.length) return '';
+        function folderPickHtml(chatKey, kind, extraId) {
             const inSome = myFolders.some(f => (f.keys || []).indexOf(chatKey) >= 0);
             const esc = chatKey.replace(/'/g, "\\'");
             return `<button class="folder-pick-btn${inSome ? ' in-folder' : ''}"
-                        title="${inSome ? 'Папки этого чата' : 'Добавить чат в папку'}"
-                        onclick="openFolderPicker(event,'${esc}')">${inSome ? '✓' : '✚'}</button>`;
+                        title="Действия с чатом: закрепить, папки, участники"
+                        onclick="openChatRowMenu(event,'${esc}','${kind || ''}','${extraId == null ? '' : extraId}')" aria-label="Действия с чатом">
+                        <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="6" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="12" cy="18" r="1.7"/></svg>
+                    </button>`;
         }
 
-        /** Мини-меню со списком папок и галочками — по одному тапу на строке чата. */
-        function openFolderPicker(evt, chatKey) {
+        /**
+         * Иконки действий у сообщения. Раньше это были эмодзи (↪ 📌 ✏️ 🗑): на разных системах
+         * они разного размера и цвета и выбивались из остального интерфейса. Теперь такие же
+         * контурные SVG, как в панели ввода.
+         */
+        const MSG_ICONS = {
+            forward: '<path d="M14 4l6 5-6 5V4z"/><path d="M20 9H9a5 5 0 00-5 5v3"/>',
+            pin: '<path d="M9 4h6l-1 5 3.5 3.5H5.5L9 9 8 4z"/><path d="M12 12.5V20"/>',
+            edit: '<path d="M4 20h4l10-10a2.1 2.1 0 10-3-3L5 17v3z"/><path d="M14.5 6.5l3 3"/>',
+            trash: '<path d="M4 7h16"/><path d="M9.5 7V4.5h5V7"/><path d="M6 7l1 13h10l1-13"/>',
+        };
+        function msgIcon(name) {
+            return `<svg class="msg-act" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${MSG_ICONS[name]}</svg>`;
+        }
+
+        /** Значок «диалог закреплён» в строке списка. */
+        function pinMarkHtml(chatKey) {
+            if (pinnedChats.indexOf(chatKey) < 0) return '';
+            return `<svg class="pin-mark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" title="Закреплён"><path d="M9 4h6l-1 5 3.5 3.5H5.5L9 9 8 4z"/><path d="M12 12.5V20"/></svg>`;
+        }
+
+        /** Меню действий над чатом: закрепление, папки и (для групп) участники. */
+        function openChatRowMenu(evt, chatKey, kind, extraId) {
             if (evt) { evt.stopPropagation(); evt.preventDefault(); }
             closeFolderPicker();
-            if (!myFolders.length) return;
+            const esc = chatKey.replace(/'/g, "\\'");
+            const isPinned = pinnedChats.indexOf(chatKey) >= 0;
             const menu = document.createElement('div');
             menu.className = 'folder-picker';
             menu.id = 'folderPicker';
-            menu.innerHTML = myFolders.map(f => {
+            let html = `<button class="folder-picker-row" onclick="event.stopPropagation();toggleChatPin('${esc}')">
+                    <span class="fp-mark">📌</span>${isPinned ? 'Открепить диалог' : 'Закрепить диалог'}
+                </button>`;
+            if (kind === 'group' && extraId) {
+                html += `<button class="folder-picker-row" onclick="event.stopPropagation();closeFolderPicker();openAddGroupMembers(${extraId})">
+                        <span class="fp-mark">👥</span>Добавить участников
+                    </button>
+                    <button class="folder-picker-row" onclick="event.stopPropagation();closeFolderPicker();openGroupInfo(${extraId})">
+                        <span class="fp-mark">ℹ️</span>Настройки группы
+                    </button>`;
+            }
+            html += `<div class="folder-picker-sep">Папки</div>`;
+            html += myFolders.map(f => {
                 const inIt = (f.keys || []).indexOf(chatKey) >= 0;
                 return `<button class="folder-picker-row${inIt ? ' on' : ''}"
-                            onclick="event.stopPropagation();toggleChatInFolder('${chatKey.replace(/'/g, "\\'")}',${f.id})">
+                            onclick="event.stopPropagation();toggleChatInFolder('${esc}',${f.id})">
                             <span class="fp-mark">${inIt ? '✓' : ''}</span>${escapeHtml(f.name)}
                         </button>`;
-            }).join('') + `<button class="folder-picker-row fp-new" onclick="event.stopPropagation();closeFolderPicker();createChatFolder()">＋ Новая папка</button>`;
+            }).join('');
+            html += `<button class="folder-picker-row fp-new" onclick="event.stopPropagation();closeFolderPicker();createChatFolder()">＋ Новая папка</button>`;
+            menu.innerHTML = html;
             document.body.appendChild(menu);
             const r = evt.currentTarget.getBoundingClientRect();
             const mh = menu.getBoundingClientRect().height;
@@ -2867,6 +3171,8 @@
             menu.style.top = (r.bottom + mh > window.innerHeight ? Math.max(8, r.top - mh) : r.bottom + 4) + 'px';
             setTimeout(() => document.addEventListener('click', closeFolderPicker, { once: true }), 0);
         }
+        // старое имя оставляем: на него мог остаться вызов
+        function openFolderPicker(evt, chatKey) { openChatRowMenu(evt, chatKey, '', ''); }
         function closeFolderPicker() {
             const m = document.getElementById('folderPicker');
             if (m) m.remove();
@@ -2891,30 +3197,46 @@
 
         // Пункт «⭐ Избранное» — личный диалог с самим собой, всегда закреплён сверху
         // списка диалогов, доступен в любой роли (задача #28).
-        function favoritesRowHtml() {
-            if (!folderAllows('fav', FAVORITES_ID)) return '';
-            return `
+        function favoritesRows() {
+            if (!folderAllows('fav', FAVORITES_ID)) return [];
+            return [{ key: FAVORITES_ID, html: `
                 <div class="conversation-item ${selectedUserId === FAVORITES_ID ? 'active' : ''}" onclick="openFavorites()" style="border-bottom:2px solid #F3E8FF;" title="Избранное">
                     <div class="conversation-avatar" style="background:linear-gradient(135deg,#F59E0B,#FBBF24);">⭐</div>
                     <div class="conversation-info">
-                        <div class="conversation-name"><span class="cn-text">Избранное</span>${folderPickHtml(FAVORITES_ID)}</div>
+                        <div class="conversation-name"><span class="cn-text">Избранное</span>${pinMarkHtml(FAVORITES_ID)}${folderPickHtml(FAVORITES_ID, 'fav')}</div>
                         <div class="conversation-preview">Заметки себе, файлы, пересланные сообщения</div>
                     </div>
-                </div>`;
+                </div>` }];
+        }
+
+        /** Закреплённые чаты — первыми, остальные в исходном порядке (устойчивая сортировка). */
+        function sortPinnedFirst(rows) {
+            const pinned = [], rest = [];
+            rows.forEach(r => (pinnedChats.indexOf(r.key) >= 0 ? pinned : rest).push(r));
+            return pinned.concat(rest);
         }
 
         function renderConversationList(conversations) {
             const container = document.getElementById('conversationsList');
-            const head = favoritesRowHtml() + channelsRowsHtml() + groupsRowsHtml();
+            // Разметку собираем строками {key, html} и только потом сортируем: закреплённые
+            // должны подниматься над ВСЕМ списком, а не внутри своего блока — иначе закреплённая
+            // личная переписка всё равно оставалась под группами и каналами.
+            const rows = [];
+            const err = channelsErrHtml() + groupsErrHtml();   // сообщения об ошибках всегда сверху
+            favoritesRows().forEach(r => rows.push(r));
+            channelsRows().forEach(r => rows.push(r));
+            groupsRows().forEach(r => rows.push(r));
+            const headHtml = err;
             if (!conversations || conversations.length === 0) {
-                container.innerHTML = head + (head.indexOf('conversation-item') >= 0 ? '' : `
+                const only = sortPinnedFirst(rows).map(r => r.html).join('');
+                container.innerHTML = headHtml + only + (only.indexOf('conversation-item') >= 0 ? '' : `
                     <div class="no-conversations">
                         <p>Ничего не найдено</p>
                     </div>
                 `);
                 return;
             }
-            container.innerHTML = head + conversations.map(c => {
+            conversations.forEach(c => {
                 const name = `${c.first_name || ''} ${c.last_name || ''}`.trim() || 'Пользователь';
                 const initial = name.charAt(0).toUpperCase();
                 const isNew = !!c._isNew;
@@ -2926,15 +3248,15 @@
                 const time = isNew ? '' : formatTime(c.last_message_time);
                 const clickHandler = isSupport ? `openSupportThread('${c._threadId}')` : (isNew ? `startNewChat('${c.id}')` : `openChat('${c.user_id}')`);
                 const activeId = isNew ? c.id : c.user_id;
-                if (!folderAllows('personal', String(activeId))) return '';
-                return `
+                if (!folderAllows('personal', String(activeId))) return;
+                rows.push({ key: String(activeId), html: `
                     <div class="conversation-item ${activeId === selectedUserId ? 'active' : ''}"
                          onclick="${clickHandler}" title="${escapeHtml(name)}">
                         <div class="conversation-avatar" ${isSupport ? 'style="background:linear-gradient(135deg,#F59E0B,#EF4444);"' : ''}>
                             ${c.avatar ? `<img src="${c.avatar}" alt="${name}">` : (isSupport ? '🆘' : initial)}
                         </div>
                         <div class="conversation-info">
-                            <div class="conversation-name"><span class="cn-text">${name}</span>${folderPickHtml(String(activeId))}</div>
+                            <div class="conversation-name"><span class="cn-text">${name}</span>${pinMarkHtml(String(activeId))}${folderPickHtml(String(activeId), 'personal')}</div>
                             <div class="conversation-preview">${isNew ? preview : (preview.substring(0, 40) + (preview.length > 40 ? '...' : ''))}</div>
                         </div>
                         <div class="conversation-meta">
@@ -2942,8 +3264,9 @@
                             ${!isNew && c.unread_count > 0 ? `<span class="unread-badge">${c.unread_count}</span>` : ''}
                         </div>
                     </div>
-                `;
-            }).join('');
+                ` });
+            });
+            container.innerHTML = headHtml + sortPinnedFirst(rows).map(r => r.html).join('');
             // Папка может не содержать ни одного чата — иначе список выглядел бы «сломанным»
             if (container.querySelectorAll('.conversation-item').length === 0) {
                 const f = myFolders.find(x => 'u' + x.id === activeFolder);
@@ -2998,6 +3321,7 @@
 
         // Личный диалог «Избранное» — доступен в любой роли, пишет сам себе (задача #28).
         async function openFavorites() {
+            pinnedMessage = null; renderPinnedBar();
             selectedUserId = FAVORITES_ID;
             editingMessageId = null;
             headerRenderedFor = FAVORITES_ID;
@@ -3021,6 +3345,7 @@
             try { if (window.lucide) lucide.createIcons(); } catch (e) {}
 
             await loadMessages();
+            await loadPinnedMessage();
 
             if (pollInterval) clearInterval(pollInterval);
             pollInterval = setInterval(loadMessages, 5000);
@@ -3107,6 +3432,7 @@
             document.querySelector('.chat-container').classList.add('mobile-chat-open');
 
             await loadMessages();
+            await loadPinnedMessage();
 
             // Запустить polling
             if (pollInterval) clearInterval(pollInterval);
@@ -3129,6 +3455,7 @@
                 }
                 repaintAllVoice();
                 restoreVideoNote();
+                restoreFlash();
                 if (wasScrolledToBottom) container.scrollTop = container.scrollHeight;
             } catch (e) { console.error('Load favorites error:', e); }
         }
@@ -3155,7 +3482,7 @@
                     ${sourceLine}
                     ${content}
                     ${attachmentHtml}
-                    <div class="message-time">${time} <span onclick="openForwardMenu(event,'fav','${m.id}')" style="cursor:pointer;opacity:0.75;margin-right:0.35rem;" title="Переслать">↪</span><span onclick="deleteFavorite(${m.id})" style="cursor:pointer;opacity:0.7;" title="Удалить">🗑</span></div>
+                    <div class="message-time">${time}<span class="act" onclick="openForwardMenu(event,'fav','${m.id}')" title="Переслать">${msgIcon('forward')}</span><span class="act" onclick="deleteFavorite(${m.id})" title="Удалить">${msgIcon('trash')}</span></div>
                 </div>`;
         }
 
@@ -3192,6 +3519,24 @@
         function closeForwardModal() {
             document.getElementById('forwardModal').style.display = 'none';
             pendingForward = null;
+        }
+
+        /** Удалить своё сообщение в личной переписке (текст остаётся в админском журнале). */
+        async function deletePersonalMessage(evt, id) {
+            if (evt) evt.stopPropagation();
+            if (!confirm('Удалить это сообщение? Отменить будет нельзя.')) return;
+            editingMessageId = null;
+            try {
+                const res = await fetch('/api/message_edit.php?action=delete', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include', body: JSON.stringify({ message_id: id })
+                });
+                const d = await res.json().catch(() => ({}));
+                if (!res.ok || d.ok === false) throw new Error(d.error || ('HTTP ' + res.status));
+                await loadMessages();
+            } catch (e) {
+                alert('Не удалось удалить сообщение: ' + e.message);
+            }
         }
 
         // ── Редактирование своего сообщения (задачи #29, #42) — правки логируются на сервере для админа ──
@@ -3352,8 +3697,17 @@
                     if (m.id) {
                         msgCache[m.id] = { content: m.content, attachment_url: m.attachment_url, attachment_type: m.attachment_type, attachment_name: m.attachment_name };
                     }
-                    const forwardBtn = m.id ? ` <span onclick="openForwardMenu(event,'msg','${m.id}')" style="cursor:pointer;opacity:0.75;margin-left:0.35rem;" title="Переслать">↪</span>` : '';
-                    const editBtn = (m.id && isMine && !m.attachment_url) ? ` <span onclick="startEditMessage(event,'${m.id}')" style="cursor:pointer;opacity:0.75;margin-left:0.35rem;" title="Редактировать">✏️</span>` : '';
+                    const forwardBtn = m.id ? `<span class="act" onclick="openForwardMenu(event,'msg','${m.id}')" title="Переслать">${msgIcon('forward')}</span>` : '';
+                    const editBtn = (m.id && isMine && !m.attachment_url) ? `<span class="act" onclick="startEditMessage(event,'${m.id}')" title="Редактировать">${msgIcon('edit')}</span>` : '';
+                    // Удаление своего сообщения в личной переписке. Раньше его не было вовсе:
+                    // удалять можно было только в группах и «Избранном». Админ может убрать любое.
+                    const canDeleteMsg = m.id && (isMine || isAdminMode);
+                    const delBtn = canDeleteMsg ? `<span class="act" onclick="deletePersonalMessage(event,'${m.id}')" title="Удалить">${msgIcon('trash')}</span>` : '';
+                    // Закрепление сообщения — видно обоим участникам разговора
+                    const pinPreview = (m.content || '').replace(/\s+/g, ' ').slice(0, 200);
+                    const pinBtn = m.id
+                        ? `<span class="act" onclick="pinMessage(event,'${m.id}','${pinPreview.replace(/'/g, "\\'").replace(/"/g, '&quot;')}')" title="Закрепить сообщение">${msgIcon('pin')}</span>`
+                        : '';
                     const editedTag = (m.id && editedMap[m.id]) ? ` <span style="opacity:0.65;font-style:italic;" title="Отредактировано ${escapeHtml(formatTime(editedMap[m.id]))}">(ред.)</span>` : '';
 
                     // Рендер вложения
@@ -3420,13 +3774,14 @@
                             ${callBtn}
                             <div id="msg-body-${m.id || ''}">${content ? `<div id="msg-content-${m.id || ''}">${content}</div>` : ''}</div>
                             ${attachmentHtml}
-                            <div class="message-time">${time}${editedTag}${forwardBtn}${editBtn}</div>
+                            <div class="message-time">${time}${editedTag}${forwardBtn}${pinBtn}${editBtn}${delBtn}</div>
                         </div>
                     `;
                 }).join('');
 
                 repaintAllVoice();
                 restoreVideoNote();
+                restoreFlash();
                 if (wasScrolledToBottom) {
                     container.scrollTop = container.scrollHeight;
                 }
@@ -3845,7 +4200,9 @@
             v.onended = () => {
                 box.classList.remove('playing');
                 v.currentTime = 0;
+                const url = v.getAttribute('src');
                 playingVideoNote = null;
+                if (!playNextAfter('vn', url)) updateStickyPlayer();
             };
             const fail = () => { box.classList.remove('playing'); playingVideoNote = null; };
             // Только что отправленный кружок (или медленная сеть) ещё не готов —
@@ -3861,6 +4218,9 @@
                 v.addEventListener('error', fail, { once: true });
                 if (v.networkState === 0 /* NETWORK_EMPTY */) v.load();
             }
+            playQueueOn = true;
+            voiceStartTicking();
+            updateStickyPlayer();
         }
 
         /** Тап по кружку — играть/пауза. Одновременно играет только один кружок. */
@@ -3873,6 +4233,7 @@
                 v.pause();
                 box.classList.remove('playing');
                 playingVideoNote = null;
+                updateStickyPlayer();
             }
         }
 
@@ -3950,7 +4311,7 @@
                 // Показать UI записи
                 document.getElementById('voiceRecording').style.display = 'flex';
                 document.querySelector('.chat-input').style.display = 'none';
-                document.getElementById('voiceBtn').style.background = '#e94560';
+                document.getElementById('voiceBtn').classList.add('recording');
 
                 // Таймер
                 recordingTimer = setInterval(() => {
@@ -3977,7 +4338,7 @@
         function hideVoiceRecording() {
             document.getElementById('voiceRecording').style.display = 'none';
             document.querySelector('.chat-input').style.display = 'flex';
-            document.getElementById('voiceBtn').style.background = '';
+            document.getElementById('voiceBtn').classList.remove('recording');
             document.getElementById('recordingTime').textContent = '00:00';
             clearInterval(recordingTimer);
         }
@@ -4098,6 +4459,168 @@
             const mins = Math.floor(seconds / 60).toString().padStart(2, '0');
             const secs = (seconds % 60).toString().padStart(2, '0');
             return `${mins}:${secs}`;
+        }
+
+        // ══════════════════════════════════════════════════════════════════════════════
+        //  ЗАКРЕПЛЁННЫЙ ПЛЕЕР И ОЧЕРЕДЬ ВОСПРОИЗВЕДЕНИЯ
+        //  Как в мессенджерах: включил голосовое — сверху появилась плашка «что играет»,
+        //  а записи проигрываются подряд сверху вниз, пока не закончатся или пока не
+        //  нажмёшь на плашке «остановить».
+        // ══════════════════════════════════════════════════════════════════════════════
+        let playQueueOn = true;      // проигрывать следующее по списку после текущего
+        let stickyKind = null;       // 'voice' | 'vn' | null — что сейчас в плашке
+
+        /** Все проигрываемые вложения в порядке их появления в переписке. */
+        function playableItems() {
+            const box = document.getElementById('messagesContainer');
+            if (!box) return [];
+            return [...box.querySelectorAll('.voice-message[data-id], .video-note')].map(el => {
+                if (el.classList.contains('video-note')) {
+                    const v = el.querySelector('video');
+                    return { kind: 'vn', box: el, url: v ? v.getAttribute('src') : '' };
+                }
+                return { kind: 'voice', box: el, id: el.getAttribute('data-id'), url: el.getAttribute('data-audio') };
+            });
+        }
+
+        /** Запустить следующую запись после указанной. Возвращает true, если нашлась. */
+        function playNextAfter(kind, key) {
+            if (!playQueueOn) return false;
+            const items = playableItems();
+            const idx = items.findIndex(it => it.kind === kind &&
+                (kind === 'voice' ? it.id === key : it.url === key));
+            if (idx < 0) return false;
+            const next = items[idx + 1];
+            if (!next) return false;
+            if (next.kind === 'voice') {
+                toggleVoicePlay(next.id, next.url);
+            } else {
+                const v = next.box.querySelector('video');
+                if (!v) return false;
+                v.currentTime = 0;
+                startVideoNotePlayback(next.box, v, 0);
+            }
+            // подтягиваем следующую запись в зону видимости, как это делает Telegram
+            try { next.box.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); } catch (e) {}
+            return true;
+        }
+
+        function stickyEl(id) { return document.getElementById(id); }
+
+        /** Перерисовать плашку: что играет, сколько прошло, играет или на паузе. */
+        function updateStickyPlayer() {
+            const bar = stickyEl('stickyPlayer');
+            if (!bar) return;
+            let title = '', pos = 0, total = 0, playing = false, show = false;
+
+            if (currentPlayingVoiceId && voicePlayers[currentPlayingVoiceId]) {
+                const p = voicePlayers[currentPlayingVoiceId];
+                stickyKind = 'voice';
+                title = 'Голосовое сообщение';
+                pos = voicePosition(currentPlayingVoiceId);
+                total = p.buffer.duration;
+                playing = p.playing;
+                show = true;
+            } else if (playingVideoNote) {
+                const v = document.querySelector('.video-note.playing video');
+                stickyKind = 'vn';
+                title = 'Видеосообщение';
+                pos = v ? v.currentTime : playingVideoNote.time;
+                total = (v && isFinite(v.duration)) ? v.duration : 0;
+                playing = !!(v && !v.paused);
+                show = true;
+            } else if (isVoicePaused()) {
+                // запись на паузе — плашку не убираем, чтобы можно было продолжить
+                const p = voicePlayers[stickyPausedId];
+                stickyKind = 'voice';
+                title = 'Голосовое сообщение';
+                pos = p ? (p.offset || 0) : 0;
+                total = p ? p.buffer.duration : 0;
+                playing = false;
+                show = true;
+            }
+
+            if (!show) { bar.style.display = 'none'; stickyKind = null; return; }
+            bar.style.display = 'flex';
+            stickyEl('spTitle').textContent = title;
+            stickyEl('spTime').textContent = fmtSec(pos) + (total ? ' / ' + fmtSec(total) : '');
+            stickyEl('spFill').style.width = (total ? Math.min(100, (pos / total) * 100) : 0) + '%';
+            stickyEl('spSpeed').textContent = voiceSpeed + 'x';
+            stickyEl('spSpeed').style.display = stickyKind === 'voice' ? '' : 'none';
+            const btn = stickyEl('spToggle');
+            btn.title = playing ? 'Пауза' : 'Продолжить';
+            btn.innerHTML = playing
+                ? '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="7" y="5" width="3.5" height="14" rx="1"/><rect x="13.5" y="5" width="3.5" height="14" rx="1"/></svg>'
+                : '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5l11 7-11 7V5z"/></svg>';
+        }
+
+        let stickyPausedId = null;   // голосовое, поставленное на паузу (плашка остаётся)
+        function isVoicePaused() {
+            return !!(stickyPausedId && voicePlayers[stickyPausedId] && !voicePlayers[stickyPausedId].playing);
+        }
+
+        function stickyTogglePlay() {
+            if (currentPlayingVoiceId) {
+                stopVoicePlayer(currentPlayingVoiceId, false);
+                return;
+            }
+            if (playingVideoNote) {
+                const b = document.querySelector('.video-note.playing');
+                if (b) toggleVideoNotePlay(b);
+                updateStickyPlayer();
+                return;
+            }
+            if (isVoicePaused()) {
+                const id = stickyPausedId;
+                const box = document.querySelector(`.voice-message[data-id="${id}"]`);
+                toggleVoicePlay(id, box ? box.getAttribute('data-audio') : '');
+                return;
+            }
+            // ничего не играло и нечего продолжать — включаем первую запись в переписке
+            const first = playableItems()[0];
+            if (!first) return;
+            if (first.kind === 'voice') toggleVoicePlay(first.id, first.url);
+            else {
+                const v = first.box.querySelector('video');
+                if (v) startVideoNotePlayback(first.box, v, 0);
+            }
+        }
+
+        /** Остановить всё и убрать плашку: очередь дальше не идёт. */
+        function stickyStop() {
+            playQueueOn = false;
+            if (currentPlayingVoiceId) stopVoicePlayer(currentPlayingVoiceId, true);
+            if (stickyPausedId && voicePlayers[stickyPausedId]) voicePlayers[stickyPausedId].offset = 0;
+            stickyPausedId = null;
+            document.querySelectorAll('.video-note.playing').forEach(b => {
+                const v = b.querySelector('video');
+                if (v) { v.pause(); v.currentTime = 0; }
+                b.classList.remove('playing');
+            });
+            playingVideoNote = null;
+            stickyKind = null;
+            const bar = stickyEl('stickyPlayer');
+            if (bar) bar.style.display = 'none';
+            playQueueOn = true;   // следующий ручной запуск снова включает очередь
+        }
+
+        function stickyCycleSpeed() {
+            cycleVoiceSpeed(currentPlayingVoiceId || stickyPausedId);
+            updateStickyPlayer();
+        }
+
+        /** Прокрутить переписку к записи, которая сейчас в плашке. */
+        function stickyJumpTo() {
+            let el = null;
+            if (currentPlayingVoiceId || stickyPausedId) {
+                el = document.querySelector(`.voice-message[data-id="${currentPlayingVoiceId || stickyPausedId}"]`);
+            } else if (playingVideoNote) {
+                el = document.querySelector('.video-note.playing');
+            }
+            if (!el) return;
+            try { el.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (e) {}
+            const msg = el.closest('.message');
+            if (msg) flashMessage(msg, msg.getAttribute('data-msg-id') || msg.getAttribute('data-fav-id'));
         }
 
         // === ТАЙМЛАЙН ГОЛОСОВЫХ ===
@@ -4253,6 +4776,10 @@
             voiceRafId = null;
             if (currentPlayingVoiceId) {
                 paintVoice(currentPlayingVoiceId);
+                updateStickyPlayer();
+                voiceRafId = requestAnimationFrame(voiceTick);
+            } else if (playingVideoNote) {
+                updateStickyPlayer();          // кружок играет — плашку тоже ведём
                 voiceRafId = requestAnimationFrame(voiceTick);
             }
         }
@@ -4300,6 +4827,9 @@
             if (!p) return;
             if (p.source) {
                 p.offset = resetOffset ? 0 : voicePosition(msgId);
+                // Пауза (а не сброс) — помним запись, чтобы плашка сверху осталась и с неё
+                // можно было продолжить, даже если паузу нажали в самом сообщении.
+                if (!resetOffset) stickyPausedId = msgId;
                 // onended снимаем ДО stop(): событие приходит асинхронно, и если к этому моменту
                 // уже запущен новый источник (перемотка, смена скорости), старый обработчик
                 // сбрасывал позицию в ноль и глушил только что начатое воспроизведение.
@@ -4312,6 +4842,7 @@
             p.playing = false;
             if (currentPlayingVoiceId === msgId) currentPlayingVoiceId = null;
             paintVoice(msgId);
+            updateStickyPlayer();
         }
 
         function startVoicePlayer(msgId) {
@@ -4337,9 +4868,15 @@
                 p.source = null;
                 if (currentPlayingVoiceId === msgId) currentPlayingVoiceId = null;
                 paintVoice(msgId);
+                // Запись догралась до конца — включаем следующую по списку (как в Telegram).
+                // Если следующей нет, плашка сама скроется на ближайшем обновлении.
+                if (!playNextAfter('voice', msgId)) { stickyPausedId = null; updateStickyPlayer(); }
             };
+            stickyPausedId = null;
+            playQueueOn = true;
             voiceStartTicking();
             paintVoice(msgId);
+            updateStickyPlayer();
         }
 
         async function toggleVoicePlay(msgId, audioUrl) {
