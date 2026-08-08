@@ -120,7 +120,54 @@
         @media (max-width: 560px) {
             .selector-wrap > div { padding: 1.25rem !important; }
             .hero h1 { font-size: 1.6rem; }
-            .seg { flex-wrap: wrap; }
+            .hero p { font-size: 0.95rem; }
+
+            /* ── Цена в селекторе форматов ──────────────────────────────────────────
+               Была 2.5rem (40px) инлайново — на телефоне «3 000 ₽» не влезало в строку
+               и знак рубля уезжал на вторую строку. Уменьшаем и запрещаем разрыв,
+               чтобы сумма всегда читалась одной строкой. !important — стиль инлайновый. ── */
+            #selPrice { font-size: 1.85rem !important; white-space: nowrap; }
+            #selDur { font-size: 1.25rem !important; }
+            #selPriceSub, #selDur + div { font-size: 0.8rem !important; }
+            /* разделитель между ценой и длительностью занимал по 2rem с двух сторон */
+            .selector-wrap [style*="gap:2rem"] { gap: 1rem !important; }
+            .selector-wrap [style*="padding-left:2rem"] { padding-left: 1rem !important; }
+            #selDesc { font-size: 0.92rem; }
+
+            /* Переключатель «Для себя / пары / подростка»: подписи разной длины, а inline
+               flex:1 делил ширину на равные трети — «Для подростка» не влезало и переносилось
+               на вторую строку, из-за чего переключатель становился вдвое выше.
+               Даём кнопкам ширину по содержимому и запрещаем перенос. */
+            .seg { flex-wrap: nowrap; gap: 0.2rem !important; }
+            .seg-btn {
+                flex: 0 1 auto !important;
+                white-space: nowrap;
+                font-size: 0.8rem !important;
+                padding: 0.55rem 0.5rem !important;
+            }
+
+            /* Карточки пакетов: суммы были 2.25rem (36px) — крупно для телефона. */
+            .plan-card { padding: 1.35rem 1.15rem !important; }
+            .plan-emoji { font-size: 1.75rem; margin-bottom: 0.5rem; }
+            .plan-name { font-size: 1.1rem; }
+            .plan-desc { font-size: 0.86rem; margin-bottom: 1rem; min-height: 0; }
+            .plan-price { margin-bottom: 1rem; }
+            .plan-price .amount { font-size: 1.75rem; }
+            .plan-price .currency { font-size: 1.05rem; }
+            .plan-price > div:first-child { white-space: nowrap; }
+            .plan-features { margin-bottom: 1.25rem; }
+            .plan-features li { font-size: 0.88rem; padding: 0.4rem 0; }
+            .btn-plan { padding: 0.8rem; font-size: 0.95rem; }
+        }
+
+        @media (max-width: 380px) {
+            /* Самые узкие экраны: ещё компактнее, чтобы сумма гарантированно
+               оставалась в одну строку вместе со знаком рубля. */
+            #selPrice { font-size: 1.6rem !important; }
+            #selDur { font-size: 1.1rem !important; }
+            .seg-btn { font-size: 0.74rem !important; padding: 0.5rem 0.35rem !important; }
+            .plan-price .amount { font-size: 1.6rem; }
+            .hero h1 { font-size: 1.45rem; }
         }
     </style>
 </head>
