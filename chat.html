@@ -1171,6 +1171,7 @@
         let groupIsOwner = false; // владелец текущей открытой группы (может модерировать и переименовывать)
 
         async function openGroupChat(groupId) {
+            editingMessageId = null;
             selectedUserId = GROUP_PREFIX + groupId;
             editingMessageId = null;
             headerRenderedFor = selectedUserId;
@@ -1232,9 +1233,15 @@
             return isMine ? bubble : `<div class="g-msg-row">${ava}${bubble}</div>`;
         }
 
+        function cancelEditGroupMessage() {
+            editingMessageId = null;
+            loadGroupMessages();
+        }
+
         async function deleteGroupMessage(evt, id) {
             if (evt) evt.stopPropagation();
             if (!confirm('Удалить это сообщение?')) return;
+            editingMessageId = null;
             const d = await groupApi('delete-message', { message_id: id });
             if (!d.ok) { alert('Не удалось удалить: ' + d.error); return; }
             await loadGroupMessages();
@@ -1261,13 +1268,16 @@
             const cached = groupMsgCache[id];
             const body = document.getElementById('gmsg-body-' + id);
             if (!cached || !body) return;
+            // Тот же приём, что и для личных сообщений: пока форма открыта, поллинг не перерисовывает
+            // ленту, иначе textarea пропадает на середине печати.
+            editingMessageId = id;
             const bubble = body.closest('.message');
             if (bubble) bubble.classList.add('editing');
             body.innerHTML = `
                 <textarea id="gmsg-edit-input-${id}" class="msg-edit-textarea" rows="2" style="padding:0.4rem 0.6rem;border:1.5px solid #7C3AED;border-radius:0.5rem;font-family:inherit;resize:vertical;color:inherit;background:rgba(255,255,255,0.15);box-sizing:border-box;">${escapeHtml(cached.content || '')}</textarea>
                 <div style="display:flex;gap:0.5rem;margin-top:0.3rem;">
                     <button onclick="saveEditGroupMessage(event,'${id}')" style="cursor:pointer;border:none;background:#7C3AED;color:#fff;border-radius:0.4rem;padding:0.25rem 0.6rem;font-size:0.8rem;">Сохранить</button>
-                    <button onclick="loadGroupMessages()" style="cursor:pointer;border:1px solid currentColor;background:transparent;color:inherit;border-radius:0.4rem;padding:0.25rem 0.6rem;font-size:0.8rem;opacity:0.85;">Отмена</button>
+                    <button onclick="cancelEditGroupMessage()" style="cursor:pointer;border:1px solid currentColor;background:transparent;color:inherit;border-radius:0.4rem;padding:0.25rem 0.6rem;font-size:0.8rem;opacity:0.85;">Отмена</button>
                 </div>`;
             const ta = document.getElementById('gmsg-edit-input-' + id);
             if (ta) { ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); }
@@ -1280,6 +1290,7 @@
             if (!content) { alert('Текст не может быть пустым'); return; }
             const d = await groupApi('edit-message', { message_id: id, content });
             if (!d.ok) { alert('Не удалось сохранить: ' + d.error); return; }
+            editingMessageId = null;
             await loadGroupMessages();
         }
         window.startEditGroupMessage = startEditGroupMessage;
@@ -1479,6 +1490,7 @@
         window.renameGroup = renameGroup;
         window.kickGroupMember = kickGroupMember;
         window.deleteGroupMessage = deleteGroupMessage;
+        window.cancelEditGroupMessage = cancelEditGroupMessage;
         let addMembersToGroupId = null;
         async function openAddGroupMembers(groupId) {
             closeGroupInfo();
