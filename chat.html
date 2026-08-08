@@ -498,25 +498,37 @@
             flex-shrink: 0;
         }
 
+        /* Таймлайн голосового: полосы рисуются по реальным пикам записи (см. voiceWavePeaks),
+           закрашенная часть = позиция воспроизведения, клик/протяжка по нему = перемотка.
+           Полосы растягиваются по ширине, поэтому плеер одинаково выглядит и на телефоне. */
         .voice-waveform {
             flex: 1;
             height: 30px;
             display: flex;
             align-items: center;
             gap: 2px;
+            cursor: pointer;
+            touch-action: none;
+            min-width: 90px;
         }
 
         .voice-waveform span {
-            width: 3px;
+            flex: 1 1 0;
+            min-width: 2px;
+            max-width: 4px;
             background: #7C3AED;
             border-radius: 2px;
-            opacity: 0.6;
+            opacity: 0.32;
         }
+        .voice-waveform span.played { opacity: 1; }
+        .voice-waveform.seeking span { transition: none; }
+        .voice-waveform.pending { opacity: 0.55; }
 
         .voice-info {
             display: flex;
             flex-direction: column;
             align-items: flex-end;
+            gap: 3px;
             font-size: 12px;
             color: #888;
         }
@@ -524,7 +536,31 @@
         .voice-duration {
             font-weight: 500;
             color: #333;
+            font-variant-numeric: tabular-nums;
         }
+
+        .voice-speed {
+            border: none;
+            background: rgba(124, 58, 237, 0.16);
+            color: #6D28D9;
+            font-size: 10px;
+            font-weight: 700;
+            line-height: 1;
+            padding: 3px 5px;
+            border-radius: 7px;
+            cursor: pointer;
+            font-family: inherit;
+        }
+        .voice-speed:hover { background: rgba(124, 58, 237, 0.28); }
+
+        /* В своём (фиолетовом) пузыре фиолетовая волна и подписи сливались с фоном — там всё белое */
+        .message.mine .voice-message { background: rgba(255, 255, 255, 0.18); }
+        .message.mine .voice-play-btn { background: #fff; color: #6D28D9; }
+        .message.mine .voice-waveform span { background: #fff; }
+        .message.mine .voice-info { color: rgba(255, 255, 255, 0.85); }
+        .message.mine .voice-duration { color: #fff; }
+        .message.mine .voice-speed { background: rgba(255, 255, 255, 0.28); color: #fff; }
+        .message.mine .voice-speed:hover { background: rgba(255, 255, 255, 0.42); }
 
         /* Dashboard Button */
         .dashboard-btn {
@@ -759,6 +795,8 @@
         body.dark .file-preview { background: #2D2D2D; }
         body.dark .voice-recording { background: #333; }
         body.dark .voice-duration { color: #E6E6E6; }
+        body.dark .voice-speed { background: #37254A; color: #C9AEFB; }
+        body.dark .voice-speed:hover { background: #45305C; }
         body.dark .voice-info { color: #999; }
         body.dark .empty-state { color: #9A9A9A; }
         body.dark .empty-back-link { color: #B794F4 !important; }
@@ -2448,6 +2486,7 @@
                 } else {
                     container.innerHTML = rows.map(favMessageBubbleHtml).join('');
                 }
+                repaintAllVoice();
                 if (wasScrolledToBottom) container.scrollTop = container.scrollHeight;
             } catch (e) { console.error('Load favorites error:', e); }
         }
@@ -2458,12 +2497,7 @@
             if (m.attachment_url) {
                 if (m.attachment_type === 'voice') {
                     const msgId = 'fav-' + m.id;
-                    attachmentHtml = `
-                        <div class="voice-message" data-audio="${m.attachment_url}" data-id="${msgId}">
-                            <button class="voice-play-btn" onclick="toggleVoicePlay('${msgId}', '${m.attachment_url}')">▶</button>
-                            <div class="voice-waveform" id="waveform-${msgId}">${generateWaveform()}</div>
-                            <div class="voice-info"><span class="voice-duration">${m.attachment_name || '00:00'}</span></div>
-                        </div>`;
+                    attachmentHtml = voicePlayerHtml(msgId, m.attachment_url, m.attachment_name);
                 } else if (m.attachment_type === 'image') {
                     attachmentHtml = `<div class="message-attachment"><a href="${m.attachment_url}" target="_blank"><img src="${m.attachment_url}" alt="${m.attachment_name || 'Изображение'}"></a></div>`;
                 } else {
@@ -2682,17 +2716,11 @@
                     let attachmentHtml = '';
                     if (m.attachment_url) {
                         if (m.attachment_type === 'voice') {
-                            // Голосовое сообщение с плеером
-                            const msgId = m.id || Math.random().toString(36);
-                            attachmentHtml = `
-                                <div class="voice-message" data-audio="${m.attachment_url}" data-id="${msgId}">
-                                    <button class="voice-play-btn" onclick="toggleVoicePlay('${msgId}', '${m.attachment_url}')">▶</button>
-                                    <div class="voice-waveform" id="waveform-${msgId}">${generateWaveform()}</div>
-                                    <div class="voice-info">
-                                        <span class="voice-duration">${m.attachment_name || '00:00'}</span>
-                                    </div>
-                                </div>
-                            `;
+                            // Голосовое сообщение с плеером.
+                            // id обязан быть стабильным: по нему кэшируются волна и позиция
+                            // воспроизведения, иначе после опроса (раз в 5с) плеер сбрасывался.
+                            const msgId = m.id != null ? String(m.id) : ('u-' + (m.created_at || '') + (m.attachment_url || ''));
+                            attachmentHtml = voicePlayerHtml(msgId, m.attachment_url, m.attachment_name);
                         } else if (m.attachment_type === 'image') {
                             attachmentHtml = `
                                 <div class="message-attachment">
@@ -2750,6 +2778,7 @@
                     `;
                 }).join('');
 
+                repaintAllVoice();
                 if (wasScrolledToBottom) {
                     container.scrollTop = container.scrollHeight;
                 }
@@ -3138,15 +3167,76 @@
             return `${mins}:${secs}`;
         }
 
-        // Генерация волны для плеера
-        function generateWaveform() {
+        // === ТАЙМЛАЙН ГОЛОСОВЫХ ===
+        // Раньше волна рисовалась через Math.random() на каждый рендер, а список сообщений
+        // перерисовывается опросом раз в 5 секунд — из-за этого волна «дёргалась сама по себе»
+        // и никак не соответствовала записи. Теперь пики считаются один раз из декодированного
+        // аудио и кэшируются по id сообщения; до загрузки показываем стабильную заглушку,
+        // детерминированную от id (одинаковую при каждом рендере).
+        const VOICE_BARS = 34;
+        const voiceWavePeaks = {};   // msgId -> [0..1] * VOICE_BARS
+
+        function voicePlaceholderPeaks(msgId) {
+            // Быстрый детерминированный шум от строки id: одна и та же волна на всех рендерах.
+            let h = 2166136261;
+            const s = String(msgId);
+            for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+            const peaks = [];
+            for (let i = 0; i < VOICE_BARS; i++) {
+                h ^= h << 13; h ^= h >>> 17; h ^= h << 5; h |= 0;
+                peaks.push(0.25 + (Math.abs(h) % 1000) / 1000 * 0.6);
+            }
+            return peaks;
+        }
+
+        /** Пики громкости из декодированного буфера — то, что реально видно на записи. */
+        function peaksFromBuffer(buffer) {
+            const data = buffer.getChannelData(0);
+            const per = Math.max(1, Math.floor(data.length / VOICE_BARS));
+            const peaks = [];
+            let max = 0.0001;
+            for (let i = 0; i < VOICE_BARS; i++) {
+                let sum = 0, n = 0;
+                for (let j = i * per; j < (i + 1) * per && j < data.length; j++) { sum += data[j] * data[j]; n++; }
+                const rms = Math.sqrt(sum / (n || 1));
+                peaks.push(rms);
+                if (rms > max) max = rms;
+            }
+            // нормируем к максимуму записи и подтягиваем тихие места, чтобы волна не была плоской
+            return peaks.map(v => 0.14 + 0.86 * Math.pow(v / max, 0.7));
+        }
+
+        function voiceBarsHtml(msgId) {
+            const peaks = voiceWavePeaks[msgId] || voicePlaceholderPeaks(msgId);
             let bars = '';
-            for (let i = 0; i < 30; i++) {
-                const height = 5 + Math.random() * 20;
+            for (let i = 0; i < peaks.length; i++) {
+                const height = Math.max(3, Math.round(peaks[i] * 26));
                 bars += `<span style="height:${height}px;"></span>`;
             }
             return bars;
         }
+
+        /** Разметка плеера: используется и в диалогах, и в «избранном». */
+        function voicePlayerHtml(msgId, url, label) {
+            const safeId = String(msgId);
+            const dur = label || '00:00';
+            return `
+                <div class="voice-message" data-audio="${url}" data-id="${safeId}">
+                    <button class="voice-play-btn" onclick="toggleVoicePlay('${safeId}', '${url}')" title="Слушать">▶</button>
+                    <div class="voice-waveform" id="waveform-${safeId}"
+                         onpointerdown="voiceSeekStart(event,'${safeId}','${url}')"
+                         onpointermove="voiceSeekMove(event,'${safeId}')"
+                         onpointerup="voiceSeekEnd(event,'${safeId}')"
+                         onpointercancel="voiceSeekEnd(event,'${safeId}')">${voiceBarsHtml(safeId)}</div>
+                    <div class="voice-info">
+                        <span class="voice-duration" data-total="${dur}">${dur}</span>
+                        <button class="voice-speed" onclick="cycleVoiceSpeed('${safeId}')" title="Скорость воспроизведения">${voiceSpeed}x</button>
+                    </div>
+                </div>`;
+        }
+
+        // Совместимость: старый вызов из шаблонов, если где-то остался.
+        function generateWaveform() { return voiceBarsHtml('legacy'); }
 
         // Воспроизведение голосового сообщения через Web Audio API.
         // Записи MediaRecorder в webm — это поток без корректной duration в заголовке,
@@ -3154,8 +3244,11 @@
         // конца записи (примерно на трети трека). decodeAudioData() декодирует реальные
         // сэмплы независимо от метаданных контейнера, поэтому проигрывается запись целиком.
         let voiceCtx = null;
-        let voicePlayers = {}; // msgId -> {buffer, offset, playing, source, startCtxTime, manualStop}
+        let voicePlayers = {}; // msgId -> {buffer, offset, playing, source, startCtxTime, rate}
         let currentPlayingVoiceId = null;
+        let voiceSpeed = 1;            // общая скорость воспроизведения: 1 → 1.5 → 2 → 1
+        let voiceRafId = null;
+        let voiceSeekId = null;        // msgId, по таймлайну которого сейчас тянут палец/мышь
 
         function getVoiceCtx() {
             if (!voiceCtx) voiceCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -3163,73 +3256,243 @@
             return voiceCtx;
         }
 
-        function stopVoicePlayer(msgId, resetOffset) {
+        /** Текущая позиция воспроизведения в секундах (учитывает скорость). */
+        function voicePosition(msgId) {
             const p = voicePlayers[msgId];
-            if (!p || !p.source) return;
-            const ctx = getVoiceCtx();
-            if (!resetOffset) p.offset = ctx.currentTime - p.startCtxTime;
-            else p.offset = 0;
-            p.manualStop = true;
-            try { p.source.stop(); } catch (e) {}
-            p.playing = false;
-            const btn = document.querySelector(`.voice-message[data-id="${msgId}"] .voice-play-btn`);
-            if (btn) btn.textContent = '▶';
-            if (currentPlayingVoiceId === msgId) currentPlayingVoiceId = null;
+            if (!p) return 0;
+            if (!p.playing) return p.offset || 0;
+            const elapsed = (getVoiceCtx().currentTime - p.startCtxTime) * (p.rate || 1);
+            return Math.min(p.buffer.duration, Math.max(0, elapsed));
         }
 
-        function startVoicePlayer(msgId, btn) {
-            const ctx = getVoiceCtx();
-            const p = voicePlayers[msgId];
-            const source = ctx.createBufferSource();
-            source.buffer = p.buffer;
-            source.connect(ctx.destination);
-            const offset = (p.offset && p.offset < p.buffer.duration) ? p.offset : 0;
-            source.start(0, offset);
-            p.source = source;
-            p.startCtxTime = ctx.currentTime - offset;
-            p.playing = true;
-            p.manualStop = false;
-            currentPlayingVoiceId = msgId;
-            btn.textContent = '⏸';
-            source.onended = () => {
-                if (p.manualStop) { p.manualStop = false; return; }
-                p.playing = false;
-                p.offset = 0;
-                btn.textContent = '▶';
-                if (currentPlayingVoiceId === msgId) currentPlayingVoiceId = null;
-            };
+        function fmtSec(sec) {
+            sec = Math.max(0, Math.round(sec));
+            return String(Math.floor(sec / 60)).padStart(2, '0') + ':' + String(sec % 60).padStart(2, '0');
         }
 
-        async function toggleVoicePlay(msgId, audioUrl) {
-            const btn = document.querySelector(`.voice-message[data-id="${msgId}"] .voice-play-btn`);
-            if (!btn) return;
-
-            if (currentPlayingVoiceId && currentPlayingVoiceId !== msgId) {
-                stopVoicePlayer(currentPlayingVoiceId, false);
+        /**
+         * Перерисовать таймлайн и подписи. Ищем элементы заново на каждом кадре: список
+         * сообщений перерисовывается опросом раз в 5 секунд, и держать ссылки на узлы нельзя.
+         */
+        function paintVoice(msgId) {
+            const box = document.querySelector(`.voice-message[data-id="${msgId}"]`);
+            if (!box) return;
+            const p = voicePlayers[msgId];
+            const wave = box.querySelector('.voice-waveform');
+            const btn = box.querySelector('.voice-play-btn');
+            const dur = box.querySelector('.voice-duration');
+            const spd = box.querySelector('.voice-speed');
+            if (spd) spd.textContent = voiceSpeed + 'x';
+            if (!p) return;
+            // пока тянут палец по таймлайну — не перебиваем подсветку позицией воспроизведения
+            if (voiceSeekId === msgId) return;
+            const pos = voicePosition(msgId);
+            const frac = p.buffer.duration ? pos / p.buffer.duration : 0;
+            if (wave) {
+                const bars = wave.children;
+                const upto = Math.round(frac * bars.length);
+                for (let i = 0; i < bars.length; i++) bars[i].classList.toggle('played', i < upto);
+                wave.classList.remove('pending');
             }
-
-            let p = voicePlayers[msgId];
-            if (p && p.playing) {
-                stopVoicePlayer(msgId, false);
-                return;
+            if (btn) btn.textContent = p.playing ? '⏸' : '▶';
+            if (dur) {
+                const total = p.buffer.duration;
+                dur.textContent = (p.playing || pos > 0.05)
+                    ? fmtSec(pos) + ' / ' + fmtSec(total)
+                    : (dur.dataset.total || fmtSec(total));
             }
+        }
 
-            if (!p) {
-                btn.textContent = '⏳';
+        /**
+         * После перерисовки списка сообщений (опрос раз в 5с) DOM новый: волна берётся из кэша
+         * пиков, а вот закрашенная часть и подписи нужно вернуть — иначе поставленная на паузу
+         * запись выглядела бы как непрослушанная.
+         */
+        function repaintAllVoice() {
+            Object.keys(voicePlayers).forEach(paintVoice);
+            if (Object.keys(voicePlayers).length === 0) {
+                document.querySelectorAll('.voice-speed').forEach(b => { b.textContent = voiceSpeed + 'x'; });
+            }
+        }
+
+        /** Один общий кадровый цикл на всё: перерисовка списка сообщений его не ломает. */
+        function voiceTick() {
+            voiceRafId = null;
+            if (currentPlayingVoiceId) {
+                paintVoice(currentPlayingVoiceId);
+                voiceRafId = requestAnimationFrame(voiceTick);
+            }
+        }
+        function voiceStartTicking() {
+            if (!voiceRafId) voiceRafId = requestAnimationFrame(voiceTick);
+        }
+
+        /** Обновить волну реальными пиками после декодирования (и на уже отрисованном узле). */
+        function applyVoicePeaks(msgId, buffer) {
+            voiceWavePeaks[msgId] = peaksFromBuffer(buffer);
+            const wave = document.querySelector(`.voice-message[data-id="${msgId}"] .voice-waveform`);
+            if (wave) wave.innerHTML = voiceBarsHtml(msgId);
+        }
+
+        /** Скачать и декодировать запись. Возвращает состояние плеера либо null при ошибке. */
+        async function ensureVoiceLoaded(msgId, audioUrl) {
+            if (voicePlayers[msgId]) return voicePlayers[msgId];
+            if (voiceLoading[msgId]) return voiceLoading[msgId];
+            const wave = document.querySelector(`.voice-message[data-id="${msgId}"] .voice-waveform`);
+            if (wave) wave.classList.add('pending');
+            voiceLoading[msgId] = (async () => {
                 try {
                     const resp = await fetch(audioUrl, { credentials: 'include' });
                     const arrBuf = await resp.arrayBuffer();
                     const buffer = await getVoiceCtx().decodeAudioData(arrBuf);
-                    p = voicePlayers[msgId] = { buffer, offset: 0, playing: false, source: null };
+                    voicePlayers[msgId] = { buffer, offset: 0, playing: false, source: null, rate: voiceSpeed };
+                    applyVoicePeaks(msgId, buffer);
+                    paintVoice(msgId);
+                    return voicePlayers[msgId];
                 } catch (e) {
                     console.error('Voice decode error:', e);
-                    btn.textContent = '▶';
-                    alert('Не удалось воспроизвести голосовое сообщение');
-                    return;
+                    const w = document.querySelector(`.voice-message[data-id="${msgId}"] .voice-waveform`);
+                    if (w) w.classList.remove('pending');
+                    return null;
+                } finally {
+                    delete voiceLoading[msgId];
                 }
-            }
-            startVoicePlayer(msgId, btn);
+            })();
+            return voiceLoading[msgId];
         }
+        const voiceLoading = {};
+
+        function stopVoicePlayer(msgId, resetOffset) {
+            const p = voicePlayers[msgId];
+            if (!p) return;
+            if (p.source) {
+                p.offset = resetOffset ? 0 : voicePosition(msgId);
+                // onended снимаем ДО stop(): событие приходит асинхронно, и если к этому моменту
+                // уже запущен новый источник (перемотка, смена скорости), старый обработчик
+                // сбрасывал позицию в ноль и глушил только что начатое воспроизведение.
+                p.source.onended = null;
+                try { p.source.stop(); } catch (e) {}
+                p.source = null;
+            } else if (resetOffset) {
+                p.offset = 0;
+            }
+            p.playing = false;
+            if (currentPlayingVoiceId === msgId) currentPlayingVoiceId = null;
+            paintVoice(msgId);
+        }
+
+        function startVoicePlayer(msgId) {
+            const ctx = getVoiceCtx();
+            const p = voicePlayers[msgId];
+            if (!p) return;
+            const source = ctx.createBufferSource();
+            source.buffer = p.buffer;
+            source.playbackRate.value = voiceSpeed;
+            source.connect(ctx.destination);
+            const offset = (p.offset && p.offset < p.buffer.duration - 0.05) ? p.offset : 0;
+            source.start(0, offset);
+            p.source = source;
+            p.rate = voiceSpeed;
+            // startCtxTime приведён к «нулю записи»: позиция = (сейчас - startCtxTime) * rate
+            p.startCtxTime = ctx.currentTime - offset / voiceSpeed;
+            p.playing = true;
+            currentPlayingVoiceId = msgId;
+            source.onended = () => {
+                if (p.source !== source) return;   // источник уже заменён — это не конец записи
+                p.playing = false;
+                p.offset = 0;
+                p.source = null;
+                if (currentPlayingVoiceId === msgId) currentPlayingVoiceId = null;
+                paintVoice(msgId);
+            };
+            voiceStartTicking();
+            paintVoice(msgId);
+        }
+
+        async function toggleVoicePlay(msgId, audioUrl) {
+            if (currentPlayingVoiceId && currentPlayingVoiceId !== msgId) {
+                stopVoicePlayer(currentPlayingVoiceId, false);
+            }
+            const existing = voicePlayers[msgId];
+            if (existing && existing.playing) { stopVoicePlayer(msgId, false); return; }
+
+            const btn = document.querySelector(`.voice-message[data-id="${msgId}"] .voice-play-btn`);
+            if (!voicePlayers[msgId] && btn) btn.textContent = '⏳';
+            const p = await ensureVoiceLoaded(msgId, audioUrl);
+            if (!p) {
+                const b = document.querySelector(`.voice-message[data-id="${msgId}"] .voice-play-btn`);
+                if (b) b.textContent = '▶';
+                alert('Не удалось воспроизвести голосовое сообщение');
+                return;
+            }
+            startVoicePlayer(msgId);
+        }
+
+        /** 1x → 1.5x → 2x → 1x. Скорость применяется на лету, позиция не теряется. */
+        function cycleVoiceSpeed(msgId) {
+            const steps = [1, 1.5, 2];
+            voiceSpeed = steps[(steps.indexOf(voiceSpeed) + 1) % steps.length];
+            try { localStorage.setItem('psy-voice-speed', String(voiceSpeed)); } catch (e) {}
+            document.querySelectorAll('.voice-speed').forEach(b => { b.textContent = voiceSpeed + 'x'; });
+            const p = voicePlayers[msgId];
+            if (p && p.playing) {
+                const pos = voicePosition(msgId);
+                stopVoicePlayer(msgId, false);
+                p.offset = pos;
+                startVoicePlayer(msgId);
+            }
+        }
+
+        // === Перемотка тычком/протяжкой по таймлайну ===
+        function voiceFracFromEvent(e, wave) {
+            const r = wave.getBoundingClientRect();
+            if (!r.width) return 0;
+            return Math.min(1, Math.max(0, (e.clientX - r.left) / r.width));
+        }
+        /** Мгновенная подсветка волны при перемотке — до того, как аудио реально стартует. */
+        function voicePreviewFrac(msgId, frac) {
+            const box = document.querySelector(`.voice-message[data-id="${msgId}"]`);
+            if (!box) return;
+            const bars = box.querySelectorAll('.voice-waveform span');
+            const upto = Math.round(frac * bars.length);
+            bars.forEach((b, i) => b.classList.toggle('played', i < upto));
+            const p = voicePlayers[msgId];
+            const dur = box.querySelector('.voice-duration');
+            if (p && dur) dur.textContent = fmtSec(frac * p.buffer.duration) + ' / ' + fmtSec(p.buffer.duration);
+        }
+
+        async function voiceSeekStart(e, msgId, audioUrl) {
+            const wave = e.currentTarget;
+            voiceSeekId = msgId;
+            wave.classList.add('seeking');
+            try { wave.setPointerCapture(e.pointerId); } catch (err) {}
+            voicePreviewFrac(msgId, voiceFracFromEvent(e, wave));
+            // грузим запись сразу: без буфера неизвестна длительность, а значит и куда мотать
+            if (!voicePlayers[msgId]) await ensureVoiceLoaded(msgId, audioUrl);
+        }
+        function voiceSeekMove(e, msgId) {
+            if (voiceSeekId !== msgId) return;
+            voicePreviewFrac(msgId, voiceFracFromEvent(e, e.currentTarget));
+        }
+        function voiceSeekEnd(e, msgId) {
+            if (voiceSeekId !== msgId) return;
+            voiceSeekId = null;
+            const wave = e.currentTarget;
+            wave.classList.remove('seeking');
+            const frac = voiceFracFromEvent(e, wave);
+            const p = voicePlayers[msgId];
+            if (!p) return;   // запись ещё не догрузилась — просто оставляем подсветку
+            const wasPlaying = p.playing;
+            if (wasPlaying) stopVoicePlayer(msgId, false);
+            p.offset = frac * p.buffer.duration;
+            if (wasPlaying) startVoicePlayer(msgId);
+            else paintVoice(msgId);
+        }
+
+        try {
+            const savedSpeed = parseFloat(localStorage.getItem('psy-voice-speed'));
+            if ([1, 1.5, 2].indexOf(savedSpeed) >= 0) voiceSpeed = savedSpeed;
+        } catch (e) {}
 
         // === ЗАГРУЗКА ФАЙЛОВ ===
         let pendingFile = null;
