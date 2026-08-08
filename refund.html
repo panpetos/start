@@ -77,6 +77,16 @@
     body.dark .site-footer { border-top-color: #333; color: #777; }
     body.dark .site-footer a { color: #777; }
     body.dark a { color: #B794F4; }
+    /* ── Мобильные экраны: таблицы с длинными значениями (реквизиты, сроки возврата)
+       не влезали в 320px и обрезались по краю. Уменьшаем отступы и разрешаем перенос. ── */
+    @media (max-width: 560px) {
+      body { padding-left: 0; padding-right: 0; }
+      table { font-size: 13.5px; }
+      th, td { padding: 7px 8px; overflow-wrap: anywhere; }
+      .requisites td:first-child { white-space: normal; }
+      h1 { font-size: 1.45rem; }
+      h2 { font-size: 1.15rem; }
+    }
   </style>
   <script src="/js/layout.js"></script>
 </head>

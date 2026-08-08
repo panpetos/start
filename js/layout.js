@@ -92,6 +92,15 @@
     'body.dark .nav{background:#1E1E1E!important;border-bottom-color:#333!important}' +
     'body.dark .nav-brand span:first-child{color:#E6E6E6!important}' +
     'body.dark .nav-link{color:#D1D5DB!important}' +
+    // iOS Safari зумит страницу при фокусе на поле с font-size < 16px, после чего вёрстка
+    // становится шире экрана. Правило есть в css/styles.css, но часть страниц (privacy,
+    // refund, offer, consent*) её не подключают, а layout.js есть на всех — дублируем здесь,
+    // чтобы поля виджета поддержки и форм не вызывали зум ни на одной странице.
+    '@media (max-width:768px){' +
+      'input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=color]),' +
+      'textarea,select{font-size:16px!important}' +
+      '.site-footer a{display:inline-block;margin:3px 6px}' +
+    '}' +
     'body.dark .nav-link:hover{color:#A78BFA!important}' +
     'body.dark .nav-menu{background:#1E1E1E!important}' +
     'body.dark .site-footer{background:#1A1A1A!important;color:#9CA3AF!important}' +
