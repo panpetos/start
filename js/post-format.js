@@ -12,27 +12,61 @@
         return d.innerHTML;
     }
 
-    /** Поддержка: **жирный**, *курсив* или _курсив_, строки "- " -> список, переносы строк -> <br>. Вход всегда экранируется. */
+    /**
+     * Разметка: **жирный**, *курсив* / _курсив_, `## заголовок`, `> цитата`,
+     * "- " и "1. " списки, [текст](ссылка), переносы строк -> <br>.
+     * Вход ВСЕГДА экранируется до подстановки тегов — HTML автора не сохраняется и не исполняется.
+     */
+    function inlineFmt(s) {
+        return escapeHtml(s)
+            .replace(/\*\*([^\n*]+)\*\*/g, '<b>$1</b>')
+            .replace(/(^|[^*])\*([^\n*]+)\*(?!\*)/g, '$1<i>$2</i>')
+            .replace(/_([^\n_]+)_/g, '<i>$1</i>')
+            // ссылка [текст](url) — пускаем только http(s) и внутренние /пути, иначе оставляем текстом
+            .replace(/\[([^\]\n]+)\]\((https?:\/\/[^\s)]+|\/[^\s)]*)\)/g,
+                '<a href="$2" target="_blank" rel="noopener nofollow">$1</a>');
+    }
+
     function formatPostText(raw) {
         if (!raw) return '';
         const lines = String(raw).split('\n');
         let html = '';
-        let inList = false;
-        const inline = (s) => escapeHtml(s)
-            .replace(/\*\*([^\n*]+)\*\*/g, '<b>$1</b>')
-            .replace(/(^|[^*])\*([^\n*]+)\*(?!\*)/g, '$1<i>$2</i>')
-            .replace(/_([^\n_]+)_/g, '<i>$1</i>');
-        lines.forEach((line, i) => {
-            const m = /^\s*[-•]\s+(.+)$/.exec(line);
-            if (m) {
-                if (!inList) { html += '<ul style="margin:0.3rem 0 0.3rem 1.1rem;padding:0;">'; inList = true; }
-                html += '<li>' + inline(m[1]) + '</li>';
+        let list = null; // 'ul' | 'ol' | null
+        const closeList = () => { if (list) { html += '</' + list + '>'; list = null; } };
+        const openList = (kind) => {
+            if (list !== kind) { closeList(); html += '<' + kind + ' style="margin:0.4rem 0 0.4rem 1.2rem;padding:0;">'; list = kind; }
+        };
+        let prevWasBlock = true;
+        lines.forEach(line => {
+            const h = /^\s*(#{2,3})\s+(.+)$/.exec(line);
+            const q = /^\s*>\s?(.*)$/.exec(line);
+            const ul = /^\s*[-•]\s+(.+)$/.exec(line);
+            const ol = /^\s*\d+[.)]\s+(.+)$/.exec(line);
+            if (h) {
+                closeList();
+                const tag = h[1].length === 2 ? 'h2' : 'h3';
+                html += '<' + tag + '>' + inlineFmt(h[2]) + '</' + tag + '>';
+                prevWasBlock = true;
+            } else if (q) {
+                closeList();
+                html += '<blockquote style="margin:0.5rem 0;padding:0.4rem 0.9rem;border-left:3px solid #7C3AED;opacity:0.9;">' + inlineFmt(q[1]) + '</blockquote>';
+                prevWasBlock = true;
+            } else if (ul) {
+                openList('ul');
+                html += '<li>' + inlineFmt(ul[1]) + '</li>';
+                prevWasBlock = true;
+            } else if (ol) {
+                openList('ol');
+                html += '<li>' + inlineFmt(ol[1]) + '</li>';
+                prevWasBlock = true;
             } else {
-                if (inList) { html += '</ul>'; inList = false; }
-                html += (i > 0 ? '<br>' : '') + inline(line);
+                closeList();
+                if (line.trim() === '') { html += '<br>'; prevWasBlock = true; return; }
+                html += (prevWasBlock ? '' : '<br>') + inlineFmt(line);
+                prevWasBlock = false;
             }
         });
-        if (inList) html += '</ul>';
+        closeList();
         return html;
     }
 

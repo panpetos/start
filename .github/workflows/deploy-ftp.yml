@@ -36,6 +36,7 @@ jobs:
             put client-dashboard.html;
             put psychologist-dashboard.html;
             put psychologist-notes.html;
+            put psychologist-blog.html;
             put chat.html;
             put login.html;
             put register.html;
@@ -105,6 +106,7 @@ jobs:
             put api/site_structure.php -o api/site_structure.php;
             put api/message_edit.php -o api/message_edit.php;
             put api/group_chat.php -o api/group_chat.php;
+            put api/blog.php -o api/blog.php;
             bye;
           "
           echo "Deployment complete"

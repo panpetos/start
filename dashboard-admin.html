@@ -359,6 +359,9 @@
                     <button class="sidebar-item" data-tab="adminperms" onclick="switchTab('adminperms')">
                         <span class="sidebar-item-icon">🔐</span> Права админов
                     </button>
+                    <button class="sidebar-item" data-tab="content" onclick="switchTab('content')">
+                        <span class="sidebar-item-icon">🛡</span> Контент
+                    </button>
                     <button class="sidebar-item" data-tab="sitemap" onclick="switchTab('sitemap')">
                         <span class="sidebar-item-icon">🗺️</span> Карта сайта
                     </button>
@@ -487,7 +490,7 @@
             // Close mobile sidebar
             document.getElementById('sidebar').classList.remove('open');
             document.getElementById('sidebarOverlay').classList.remove('open');
-            ({ overview:renderOverview, support:renderSupport, users:renderUsers, psychologists:renderPsych, tariffs:renderTariffs, robokassa:renderRobokassa, yookassa:renderYookassa, devtasks:renderDevTasks, appointments:renderAppointments, replacements:renderReplacements, supervision:renderSupervision, calls:renderCalls, payments:renderPayments, subscribers:renderSubscribers, referrals:renderReferrals, activity:renderActivity, notes:renderNotes, notifications:renderNotifications, adminperms:renderAdminPerms, metrics:renderMetrics, sitemap:renderSitemap }[tab])();
+            ({ overview:renderOverview, support:renderSupport, users:renderUsers, psychologists:renderPsych, tariffs:renderTariffs, robokassa:renderRobokassa, yookassa:renderYookassa, devtasks:renderDevTasks, appointments:renderAppointments, replacements:renderReplacements, supervision:renderSupervision, calls:renderCalls, payments:renderPayments, subscribers:renderSubscribers, referrals:renderReferrals, activity:renderActivity, notes:renderNotes, notifications:renderNotifications, adminperms:renderAdminPerms, metrics:renderMetrics, sitemap:renderSitemap, content:renderContentMod }[tab])();
         }
 
         // ── Overview ────────────────────────────────────────────────────────
@@ -791,6 +794,138 @@
                 spaced(panel('Популярные страницы', 'mPages', pagesRows)) +
                 spaced(panel('Источники переходов', 'mRef', refRows));
         }
+
+        // ── Модерация контента: посты каналов + статьи блога психологов ──────
+        let cmPosts = [], cmArticles = [];
+
+        async function renderContentMod(){
+            document.getElementById('content').innerHTML =
+                `<div class="note">🛡 Модерация публикуемого психологами контента. «Скрыть» не удаляет запись — она исчезает из ленты и блога, автор видит вашу причину и может доработать; «Вернуть» публикует обратно. «Удалить» необратимо.</div>
+                <div class="panel" style="margin-top:0.75rem;"><div class="panel-head"><h2>📰 Посты каналов</h2></div>
+                    <div id="cmPostsBox" style="padding:0.6rem 0;"><div class="loading">Загрузка...</div></div>
+                </div>
+                <div class="panel" style="margin-top:0.75rem;"><div class="panel-head"><h2>✍️ Статьи блога</h2></div>
+                    <div id="cmArticlesBox" style="padding:0.6rem 0;"><div class="loading">Загрузка...</div></div>
+                </div>`;
+            loadCmPosts();
+            loadCmArticles();
+        }
+
+        async function loadCmPosts(){
+            const box = document.getElementById('cmPostsBox');
+            if (!box) return;
+            try {
+                const r = await (await fetch('/api/channels.php?action=admin-posts&limit=300', { credentials:'include' })).json();
+                if (!r.ok) { box.innerHTML = '<div class="empty">⚠️ ' + esc(r.error || 'не удалось загрузить') + '</div>'; return; }
+                cmPosts = r.data || [];
+                if (!cmPosts.length) { box.innerHTML = '<div class="empty">Постов пока нет</div>'; return; }
+                box.innerHTML = `<div class="tbl-wrap"><table><thead><tr><th>Дата</th><th>Автор</th><th>Текст</th><th>Метрики</th><th>Статус</th><th>Действия</th></tr></thead><tbody>` +
+                    cmPosts.map(p => {
+                        const hidden = String(p.is_hidden) === '1';
+                        const author = `${p.first_name||''} ${p.last_name||''}`.trim() || '<span class="muted">профиль не найден</span>';
+                        const st = hidden ? '<span class="badge b-red">скрыт</span>' : '<span class="badge b-green">опубликован</span>';
+                        const acts = hidden
+                            ? `<button class="btn-sm btn-purple" onclick="cmSetPostHidden(${p.id},0)">Вернуть</button>`
+                            : `<button class="btn-sm btn-outline" onclick="cmSetPostHidden(${p.id},1)">Скрыть</button>`;
+                        return `<tr><td class="muted">${fmtDateTime(p.created_at)}</td>
+                            <td>${author}</td>
+                            <td style="max-width:320px;"><div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${esc(p.text||'')}">${esc(p.text||'—')}</div>
+                                ${p.hidden_reason ? `<div class="muted" style="font-size:0.75rem;">причина: ${esc(p.hidden_reason)}</div>` : ''}</td>
+                            <td class="muted" style="white-space:nowrap;">❤️ ${p.likes_count||0} · 👁 ${p.views_count||0} · 💬 ${p.comments_count||0}</td>
+                            <td>${st}</td>
+                            <td style="white-space:nowrap;">${acts}
+                                <button class="btn-sm btn-red" style="margin-left:0.3rem;" onclick="cmDeletePost(${p.id})">🗑</button></td></tr>`;
+                    }).join('') + '</tbody></table></div>';
+            } catch(e){ box.innerHTML = '<div class="empty">⚠️ ошибка сети</div>'; }
+        }
+
+        async function cmSetPostHidden(id, hidden){
+            let reason = '';
+            if (hidden) {
+                reason = prompt('Причина скрытия (её увидит автор):', 'Нарушает правила площадки');
+                if (reason === null) return;
+            }
+            try {
+                const r = await (await fetch('/api/channels.php?action=admin-set-hidden', {
+                    method:'POST', headers:{'Content-Type':'application/json'}, credentials:'include',
+                    body: JSON.stringify({ id, hidden, reason })
+                })).json();
+                if (!r.ok) { alert(r.error || 'Не удалось'); return; }
+                loadCmPosts();
+            } catch(e){ alert('Ошибка сети'); }
+        }
+        async function cmDeletePost(id){
+            if (!confirm('Удалить пост навсегда? Вместе с лайками, просмотрами и комментариями. Действие необратимо.')) return;
+            try {
+                const r = await (await fetch('/api/channels.php?action=admin-delete-post', {
+                    method:'POST', headers:{'Content-Type':'application/json'}, credentials:'include',
+                    body: JSON.stringify({ id })
+                })).json();
+                if (!r.ok) { alert(r.error || 'Не удалось'); return; }
+                loadCmPosts();
+            } catch(e){ alert('Ошибка сети'); }
+        }
+
+        const CM_ART_STATUS = { published:['b-green','опубликована'], draft:['b-amber','черновик'], hidden:['b-red','снята'] };
+
+        async function loadCmArticles(){
+            const box = document.getElementById('cmArticlesBox');
+            if (!box) return;
+            try {
+                const r = await (await fetch('/api/blog.php?action=admin-list', { credentials:'include' })).json();
+                if (!r.ok) { box.innerHTML = '<div class="empty">⚠️ ' + esc(r.error || 'не удалось загрузить') + '</div>'; return; }
+                cmArticles = r.data || [];
+                if (!cmArticles.length) { box.innerHTML = '<div class="empty">Статей пока нет</div>'; return; }
+                box.innerHTML = `<div class="tbl-wrap"><table><thead><tr><th>Обновлена</th><th>Автор</th><th>Заголовок</th><th>Тема</th><th>👁</th><th>Статус</th><th>Действия</th></tr></thead><tbody>` +
+                    cmArticles.map(a => {
+                        const stt = CM_ART_STATUS[a.status] || ['b-gray', a.status || '—'];
+                        const author = `${a.first_name||''} ${a.last_name||''}`.trim() || '—';
+                        const acts = a.status === 'published'
+                            ? `<button class="btn-sm btn-outline" onclick="cmSetArticleStatus(${a.id},'hidden')">Снять</button>`
+                            : `<button class="btn-sm btn-purple" onclick="cmSetArticleStatus(${a.id},'published')">Опубликовать</button>`;
+                        return `<tr><td class="muted">${fmtDateTime(a.updated_at)}</td>
+                            <td>${esc(author)}</td>
+                            <td style="max-width:280px;"><div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(a.title)}</div>
+                                ${a.moderation_note ? `<div class="muted" style="font-size:0.75rem;">причина: ${esc(a.moderation_note)}</div>` : ''}</td>
+                            <td class="muted">${esc(a.tag||'—')}</td>
+                            <td class="muted">${a.views_count||0}</td>
+                            <td>${stt[0] ? `<span class="badge ${stt[0]}">${stt[1]}</span>` : ''}</td>
+                            <td style="white-space:nowrap;">
+                                <a class="btn-sm btn-outline" href="/article.html?slug=${encodeURIComponent(a.slug)}" target="_blank" style="text-decoration:none;">Открыть</a>
+                                ${acts}
+                                <button class="btn-sm btn-red" style="margin-left:0.3rem;" onclick="cmDeleteArticle(${a.id})">🗑</button></td></tr>`;
+                    }).join('') + '</tbody></table></div>';
+            } catch(e){ box.innerHTML = '<div class="empty">⚠️ ошибка сети</div>'; }
+        }
+
+        async function cmSetArticleStatus(id, status){
+            let reason = '';
+            if (status === 'hidden') {
+                reason = prompt('Причина снятия с публикации (её увидит автор):', 'Требуется доработка');
+                if (reason === null) return;
+            }
+            try {
+                const r = await (await fetch('/api/blog.php?action=admin-set-status', {
+                    method:'POST', headers:{'Content-Type':'application/json'}, credentials:'include',
+                    body: JSON.stringify({ id, status, reason })
+                })).json();
+                if (!r.ok) { alert(r.error || 'Не удалось'); return; }
+                loadCmArticles();
+            } catch(e){ alert('Ошибка сети'); }
+        }
+        async function cmDeleteArticle(id){
+            if (!confirm('Удалить статью навсегда? Действие необратимо.')) return;
+            try {
+                const r = await (await fetch('/api/blog.php?action=admin-delete', {
+                    method:'POST', headers:{'Content-Type':'application/json'}, credentials:'include',
+                    body: JSON.stringify({ id })
+                })).json();
+                if (!r.ok) { alert(r.error || 'Не удалось'); return; }
+                loadCmArticles();
+            } catch(e){ alert('Ошибка сети'); }
+        }
+        window.cmSetPostHidden = cmSetPostHidden; window.cmDeletePost = cmDeletePost;
+        window.cmSetArticleStatus = cmSetArticleStatus; window.cmDeleteArticle = cmDeleteArticle;
 
         // ── Карта сайта: майнд-мэп структуры проекта (задача #38) ────────────
         let smNodes = [], smEdges = [];
@@ -2435,7 +2570,7 @@
             tariffs:'💰 Тарифы', robokassa:'🏦 Робокасса', yookassa:'🏦 ЮKassa', subscribers:'📧 Подписчики',
             referrals:'🔗 Источники', activity:'📜 Журнал', support:'💬 Поддержка', devtasks:'🤖 Задачи Клоду',
             notifications:'🔔 Уведомления', notes:'📝 Записки', adminperms:'🔐 Права админов', metrics:'📊 Метрики',
-            sitemap:'🗺️ Карта сайта'
+            sitemap:'🗺️ Карта сайта', content:'🛡 Контент'
         };
         async function renderAdminPerms(){
             let res;

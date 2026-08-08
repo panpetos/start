@@ -81,6 +81,20 @@ function ensureChannelTables(PDO $pdo) {
         created_at DATETIME NOT NULL,
         INDEX idx_post (post_id)
     ) DEFAULT CHARSET=utf8mb4");
+    // Модерация постов админом: скрытый пост не показывается ни в ленте, ни в канале,
+    // но не удаляется безвозвратно (можно вернуть). Причина видна автору и админу.
+    try { $pdo->exec("ALTER TABLE channel_posts ADD COLUMN is_hidden TINYINT(1) NOT NULL DEFAULT 0"); } catch (Exception $e) {}
+    try { $pdo->exec("ALTER TABLE channel_posts ADD COLUMN hidden_reason VARCHAR(500) NULL"); } catch (Exception $e) {}
+}
+
+/** Текущий пользователь — администратор? */
+function isAdminUser(PDO $pdo, $userId) {
+    if (!$userId) return false;
+    try {
+        $st = $pdo->prepare("SELECT role FROM users WHERE id = ? LIMIT 1");
+        $st->execute([$userId]);
+        return ((string)$st->fetchColumn() === 'admin');
+    } catch (Exception $e) { return false; }
 }
 
 /** Анонимный ключ просмотра для гостей — тот же приём, что и в analytics.php (без ПД). */
@@ -148,7 +162,11 @@ if ($action === 'posts') {
     $psychId = (string)($_GET['psychologist_id'] ?? '');
     if ($psychId === '') { http_response_code(400); echo json_encode(['error' => 'psychologist_id обязателен']); exit; }
     try {
-        $st = $pdo->prepare("SELECT id, text, image_url, created_at FROM channel_posts WHERE psychologist_id = ? ORDER BY created_at DESC, id DESC LIMIT 200");
+        // Скрытые админом посты автор видит у себя (со статусом), остальные — нет.
+        $isOwner = ($psychId !== '' && myPsychologistId($pdo, $userId) === $psychId);
+        $showHidden = $isOwner || isAdminUser($pdo, $userId);
+        $hiddenCond = $showHidden ? '' : ' AND (is_hidden IS NULL OR is_hidden = 0)';
+        $st = $pdo->prepare("SELECT id, text, image_url, created_at, is_hidden, hidden_reason FROM channel_posts WHERE psychologist_id = ?$hiddenCond ORDER BY created_at DESC, id DESC LIMIT 200");
         $st->execute([$psychId]);
         $rows = attachPostStats($pdo, $st->fetchAll(PDO::FETCH_ASSOC), $userId);
         echo json_encode(['ok' => true, 'data' => $rows]);
@@ -160,15 +178,22 @@ if ($action === 'feed') {
     $limit = max(1, min(50, (int)($_GET['limit'] ?? 20)));
     $beforeId = (int)($_GET['before_id'] ?? 0);
     try {
+        // ВАЖНО: именно LEFT JOIN. С INNER JOIN пост молча исчезал из общей ленты, если у автора
+        // почему-то не находилась строка в psychologists/users (например профиль пересоздан) —
+        // при этом в канале (action=posts, без джойнов) он оставался виден. Отсюда и был баг
+        // «в чатах канал есть, а в общей ленте его нет». Имя автора подставляем с запасом.
+        $where = ['(cp.is_hidden IS NULL OR cp.is_hidden = 0)'];
+        $params = [];
+        if ($beforeId > 0) { $where[] = 'cp.id < ?'; $params[] = $beforeId; }
         $sql = "SELECT cp.id, cp.psychologist_id, cp.text, cp.image_url, cp.created_at,
                        u.first_name, u.last_name, u.avatar, p.specialization
                 FROM channel_posts cp
-                JOIN psychologists p ON p.id = cp.psychologist_id
-                JOIN users u ON u.id = p.user_id
-                " . ($beforeId > 0 ? "WHERE cp.id < ?" : "") . "
+                LEFT JOIN psychologists p ON p.id = cp.psychologist_id
+                LEFT JOIN users u ON u.id = p.user_id
+                WHERE " . implode(' AND ', $where) . "
                 ORDER BY cp.created_at DESC, cp.id DESC LIMIT $limit";
         $st = $pdo->prepare($sql);
-        $st->execute($beforeId > 0 ? [$beforeId] : []);
+        $st->execute($params);
         $rows = $st->fetchAll(PDO::FETCH_ASSOC);
         $rows = attachPostStats($pdo, $rows, $userId);
         // Подписки текущего пользователя — чтобы в ленте сразу показать кнопку "Отписаться"
@@ -326,6 +351,53 @@ if ($action === 'unsubscribe' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         $st->execute([$userId, $psychId]);
         echo json_encode(['ok' => true]);
     } catch (Exception $e) { http_response_code(500); echo json_encode(['error' => 'Не удалось отписаться']); }
+    exit;
+}
+
+// ── Модерация постов администратором ──────────────────────────────────────────────
+if ($action === 'admin-posts') {
+    if (!isAdminUser($pdo, $userId)) { http_response_code(403); echo json_encode(['error' => 'Доступно только администратору']); exit; }
+    $limit = max(1, min(500, (int)($_GET['limit'] ?? 200)));
+    try {
+        $st = $pdo->prepare("SELECT cp.id, cp.psychologist_id, cp.text, cp.image_url, cp.created_at, cp.is_hidden, cp.hidden_reason,
+                    u.first_name, u.last_name, u.id AS author_user_id
+                FROM channel_posts cp
+                LEFT JOIN psychologists p ON p.id = cp.psychologist_id
+                LEFT JOIN users u ON u.id = p.user_id
+                ORDER BY cp.created_at DESC, cp.id DESC LIMIT $limit");
+        $st->execute();
+        $rows = attachPostStats($pdo, $st->fetchAll(PDO::FETCH_ASSOC), $userId);
+        echo json_encode(['ok' => true, 'data' => $rows], JSON_UNESCAPED_UNICODE);
+    } catch (Exception $e) { echo json_encode(['ok' => true, 'data' => []]); }
+    exit;
+}
+
+if ($action === 'admin-set-hidden' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (!isAdminUser($pdo, $userId)) { http_response_code(403); echo json_encode(['error' => 'Доступно только администратору']); exit; }
+    $id = (int)($body['id'] ?? 0);
+    if (!$id) { http_response_code(400); echo json_encode(['error' => 'id обязателен']); exit; }
+    $hidden = !empty($body['hidden']) ? 1 : 0;
+    $reason = trim((string)($body['reason'] ?? ''));
+    try {
+        $st = $pdo->prepare("UPDATE channel_posts SET is_hidden = ?, hidden_reason = ? WHERE id = ?");
+        $st->execute([$hidden, $hidden ? ($reason !== '' ? mb_substr($reason, 0, 500) : 'Скрыт администратором') : null, $id]);
+        echo json_encode(['ok' => true]);
+    } catch (Exception $e) { http_response_code(500); echo json_encode(['error' => 'Не удалось изменить статус: ' . $e->getMessage()], JSON_UNESCAPED_UNICODE); }
+    exit;
+}
+
+if ($action === 'admin-delete-post' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (!isAdminUser($pdo, $userId)) { http_response_code(403); echo json_encode(['error' => 'Доступно только администратору']); exit; }
+    $id = (int)($body['id'] ?? 0);
+    if (!$id) { http_response_code(400); echo json_encode(['error' => 'id обязателен']); exit; }
+    try {
+        $pdo->prepare("DELETE FROM channel_posts WHERE id = ?")->execute([$id]);
+        // подчищаем связанные метрики/комментарии, чтобы не оставлять мусор
+        foreach (['channel_post_likes', 'channel_post_views', 'channel_post_comments'] as $t) {
+            try { $pdo->prepare("DELETE FROM $t WHERE post_id = ?")->execute([$id]); } catch (Exception $e) {}
+        }
+        echo json_encode(['ok' => true]);
+    } catch (Exception $e) { http_response_code(500); echo json_encode(['error' => 'Не удалось удалить: ' . $e->getMessage()], JSON_UNESCAPED_UNICODE); }
     exit;
 }
 

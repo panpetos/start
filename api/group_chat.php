@@ -15,6 +15,8 @@
  * POST ?action=add-members {group_id, member_ids:[]}   — добавить участников (любой участник группы)
  * POST ?action=leave    {group_id}                     — выйти из группы
  * POST ?action=rename   {group_id, name}                — переименовать (только владелец)
+ * POST ?action=delete-message {message_id}             — удалить своё сообщение (владелец — любое)
+ * POST ?action=remove-member  {group_id, user_id}      — исключить участника (только владелец)
  */
 
 header('Content-Type: application/json; charset=utf-8');
@@ -75,7 +77,10 @@ function ensureGroupTables(PDO $pdo) {
         INDEX idx_message (message_id)
     ) DEFAULT CHARSET=utf8mb4");
 }
-try { ensureGroupTables($pdo); } catch (Exception $e) {}
+// Ошибку создания таблиц НЕ глушим: если таблиц нет, все действия ниже всё равно упадут,
+// и раньше это выглядело как «сообщения просто не отправляются» без единого намёка на причину.
+$groupTablesError = null;
+try { ensureGroupTables($pdo); } catch (Exception $e) { $groupTablesError = $e->getMessage(); }
 
 function isMember(PDO $pdo, $groupId, $userId) {
     try {
@@ -89,6 +94,7 @@ $action = $_GET['action'] ?? '';
 $body = ($_SERVER['REQUEST_METHOD'] === 'POST') ? (json_decode(file_get_contents('php://input'), true) ?: []) : [];
 
 if ($action === 'create' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    if ($groupTablesError) out(['error' => 'Групповые чаты недоступны: не удалось подготовить таблицы в БД (' . $groupTablesError . ')'], 500);
     $name = trim((string)($body['name'] ?? ''));
     if ($name === '') out(['error' => 'Введите название группы'], 400);
     $name = mb_substr($name, 0, 255);
@@ -107,7 +113,7 @@ if ($action === 'create' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         $pdo->commit();
     } catch (Exception $e) {
         if ($pdo->inTransaction()) $pdo->rollBack();
-        out(['error' => 'Не удалось создать группу'], 500);
+        out(['error' => 'Не удалось создать группу: ' . $e->getMessage()], 500);
     }
     out(['ok' => true, 'group_id' => (int)$groupId]);
 }
@@ -128,21 +134,22 @@ if ($action === 'list') {
         ");
         $st->execute([$userId]);
         out(['ok' => true, 'data' => $st->fetchAll(PDO::FETCH_ASSOC)]);
-    } catch (Exception $e) { out(['ok' => true, 'data' => []]); }
+    } catch (Exception $e) { out(['error' => 'Не удалось загрузить группы: ' . $e->getMessage()], 500); }
 }
 
 if ($action === 'messages') {
     $groupId = (int)($_GET['group_id'] ?? 0);
-    if (!$groupId || !isMember($pdo, $groupId, $userId)) out(['error' => 'Группа не найдена или вы не участник'], 403);
+    if (!$groupId) out(['error' => 'Не передан номер группы'], 400);
+    if (!isMember($pdo, $groupId, $userId)) out(['error' => 'Вы не участник этой группы (или группа удалена)'], 403);
     try {
         $st = $pdo->prepare("SELECT m.id, m.sender_id, m.content, m.created_at, m.edited_at, u.first_name, u.last_name, u.avatar
-                              FROM chat_group_messages m JOIN users u ON u.id = m.sender_id
+                              FROM chat_group_messages m LEFT JOIN users u ON u.id = m.sender_id
                               WHERE m.group_id = ? ORDER BY m.id ASC LIMIT 500");
         $st->execute([$groupId]);
         $rows = $st->fetchAll(PDO::FETCH_ASSOC);
         $maxId = $rows ? (int)$rows[count($rows) - 1]['id'] : 0;
         if ($maxId > 0) {
-            $pdo->prepare("UPDATE chat_group_members SET last_read_message_id = GREATEST(last_read_message_id, ?) WHERE group_id = ? AND user_id = ?")
+            $pdo->prepare("UPDATE chat_group_members SET last_read_message_id = GREATEST(COALESCE(last_read_message_id, 0), ?) WHERE group_id = ? AND user_id = ?")
                 ->execute([$maxId, $groupId, $userId]);
         }
         out(['ok' => true, 'data' => $rows]);
@@ -150,19 +157,23 @@ if ($action === 'messages') {
 }
 
 if ($action === 'send' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    if ($groupTablesError) out(['error' => 'Групповые чаты недоступны: не удалось подготовить таблицы в БД (' . $groupTablesError . ')'], 500);
     $groupId = (int)($body['group_id'] ?? 0);
     $content = trim((string)($body['content'] ?? ''));
-    if (!$groupId || !isMember($pdo, $groupId, $userId)) out(['error' => 'Группа не найдена или вы не участник'], 403);
+    if (!$groupId) out(['error' => 'Не передан номер группы'], 400);
+    if (!isMember($pdo, $groupId, $userId)) out(['error' => 'Вы не участник этой группы (или группа удалена)'], 403);
     if ($content === '') out(['error' => 'Пустое сообщение'], 400);
     $content = mb_substr($content, 0, 5000);
     try {
         $st = $pdo->prepare("INSERT INTO chat_group_messages (group_id, sender_id, content, created_at) VALUES (?, ?, ?, NOW())");
         $st->execute([$groupId, $userId, $content]);
-        $mid = $pdo->lastInsertId();
-        $pdo->prepare("UPDATE chat_group_members SET last_read_message_id = GREATEST(last_read_message_id, ?) WHERE group_id = ? AND user_id = ?")
+        $mid = (int)$pdo->lastInsertId();
+        // COALESCE: если last_read_message_id почему-то NULL, GREATEST(NULL, x) вернёт NULL,
+        // а колонка NOT NULL — в strict-режиме MySQL это ошибка и всё сообщение бы «не отправилось».
+        $pdo->prepare("UPDATE chat_group_members SET last_read_message_id = GREATEST(COALESCE(last_read_message_id, 0), ?) WHERE group_id = ? AND user_id = ?")
             ->execute([$mid, $groupId, $userId]);
-        out(['ok' => true, 'id' => (int)$mid]);
-    } catch (Exception $e) { out(['error' => 'Не удалось отправить'], 500); }
+        out(['ok' => true, 'id' => $mid]);
+    } catch (Exception $e) { out(['error' => 'Не удалось отправить: ' . $e->getMessage()], 500); }
 }
 
 if ($action === 'edit-message' && $_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -186,9 +197,39 @@ if ($action === 'edit-message' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         $pdo->commit();
     } catch (Exception $e) {
         if ($pdo->inTransaction()) $pdo->rollBack();
-        out(['error' => 'Не удалось сохранить'], 500);
+        out(['error' => 'Не удалось сохранить: ' . $e->getMessage()], 500);
     }
     out(['ok' => true]);
+}
+
+if ($action === 'delete-message' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    $mid = (int)($body['message_id'] ?? 0);
+    if (!$mid) out(['error' => 'message_id обязателен'], 400);
+    try {
+        $st = $pdo->prepare("SELECT sender_id, group_id FROM chat_group_messages WHERE id = ? LIMIT 1");
+        $st->execute([$mid]);
+        $msg = $st->fetch(PDO::FETCH_ASSOC);
+    } catch (Exception $e) { out(['error' => 'Ошибка: ' . $e->getMessage()], 500); }
+    if (!$msg) out(['error' => 'Сообщение не найдено'], 404);
+    // Своё сообщение удаляет автор; любое — владелец группы (модерация, как админ канала в Telegram).
+    $isOwner = (isMember($pdo, (int)$msg['group_id'], $userId) === 'owner');
+    if ((string)$msg['sender_id'] !== (string)$userId && !$isOwner) out(['error' => 'Удалить можно только своё сообщение'], 403);
+    try {
+        $pdo->prepare("DELETE FROM chat_group_messages WHERE id = ?")->execute([$mid]);
+        out(['ok' => true]);
+    } catch (Exception $e) { out(['error' => 'Не удалось удалить: ' . $e->getMessage()], 500); }
+}
+
+if ($action === 'remove-member' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    $groupId = (int)($body['group_id'] ?? 0);
+    $target = trim((string)($body['user_id'] ?? ''));
+    if (!$groupId || $target === '') out(['error' => 'Некорректный запрос'], 400);
+    if (isMember($pdo, $groupId, $userId) !== 'owner') out(['error' => 'Исключать участников может только владелец группы'], 403);
+    if ($target === (string)$userId) out(['error' => 'Владелец не может исключить себя — используйте «Выйти из группы»'], 400);
+    try {
+        $pdo->prepare("DELETE FROM chat_group_members WHERE group_id = ? AND user_id = ? AND role <> 'owner'")->execute([$groupId, $target]);
+        out(['ok' => true]);
+    } catch (Exception $e) { out(['error' => 'Не удалось исключить: ' . $e->getMessage()], 500); }
 }
 
 if ($action === 'members') {
@@ -196,7 +237,7 @@ if ($action === 'members') {
     if (!$groupId || !isMember($pdo, $groupId, $userId)) out(['error' => 'Группа не найдена или вы не участник'], 403);
     try {
         $st = $pdo->prepare("SELECT m.user_id, m.role, m.joined_at, u.first_name, u.last_name, u.avatar, u.role AS site_role
-                              FROM chat_group_members m JOIN users u ON u.id = m.user_id
+                              FROM chat_group_members m LEFT JOIN users u ON u.id = m.user_id
                               WHERE m.group_id = ? ORDER BY (m.role='owner') DESC, u.first_name");
         $st->execute([$groupId]);
         out(['ok' => true, 'data' => $st->fetchAll(PDO::FETCH_ASSOC)]);
@@ -212,7 +253,7 @@ if ($action === 'add-members' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         $ins = $pdo->prepare("INSERT IGNORE INTO chat_group_members (group_id, user_id, role, joined_at) VALUES (?, ?, 'member', NOW())");
         foreach (array_slice($memberIds, 0, 200) as $mid) $ins->execute([$groupId, $mid]);
         out(['ok' => true]);
-    } catch (Exception $e) { out(['error' => 'Не удалось добавить участников'], 500); }
+    } catch (Exception $e) { out(['error' => 'Не удалось добавить участников: ' . $e->getMessage()], 500); }
 }
 
 if ($action === 'leave' && $_SERVER['REQUEST_METHOD'] === 'POST') {

@@ -102,9 +102,34 @@
     <script src="/js/articles.js"></script>
     <script>
         function esc(s){ const d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
-        (function renderArticles(){
-            const list = window.PSY_ARTICLES || [];
-            document.getElementById('articlesGrid').innerHTML = list.map(a => `
+
+        const GRADS = ['linear-gradient(135deg,#F3E8FF,#EDE9FF)','linear-gradient(135deg,#DBEAFE,#E0E7FF)',
+            'linear-gradient(135deg,#DCFCE7,#D1FAE5)','linear-gradient(135deg,#FEF3C7,#FDE68A)',
+            'linear-gradient(135deg,#FCE7F3,#FBCFE8)','linear-gradient(135deg,#CFFAFE,#E0F2FE)'];
+        function gradFor(key){ let h=0,s=String(key); for(let i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))>>>0; return GRADS[h%GRADS.length]; }
+
+        /** Карточка статьи из блога психолога (обложка-картинка либо цветная плашка с эмодзи). */
+        function apiCardHtml(a){
+            const author = `${a.first_name || ''} ${a.last_name || ''}`.trim();
+            const thumb = a.cover_url
+                ? `<div class="article-thumb" style="padding:0;overflow:hidden;"><img src="${esc(a.cover_url)}" alt="" style="width:100%;height:100%;object-fit:cover;"></div>`
+                : `<div class="article-thumb" style="background:${gradFor(a.slug || a.id)};">📝</div>`;
+            return `
+                <a class="article-card" href="/article.html?slug=${encodeURIComponent(a.slug)}" style="text-decoration:none;color:inherit;">
+                    ${thumb}
+                    <div class="article-body">
+                        <span class="article-tag">${esc(a.tag || 'Статья')}</span>
+                        <div class="article-title">${esc(a.title)}</div>
+                        <div class="article-excerpt">${esc(a.excerpt || '')}</div>
+                        <div class="article-meta">
+                            <span>${author ? esc(author) : 'Психолог psytalk.pro'}</span>
+                            <span class="read-link">Читать →</span>
+                        </div>
+                    </div>
+                </a>`;
+        }
+        function staticCardHtml(a){
+            return `
                 <a class="article-card" href="/article.html?id=${encodeURIComponent(a.id)}" style="text-decoration:none;color:inherit;">
                     <div class="article-thumb" style="background:${a.grad};">${a.emoji}</div>
                     <div class="article-body">
@@ -116,7 +141,19 @@
                             <span class="read-link">Читать →</span>
                         </div>
                     </div>
-                </a>`).join('');
+                </a>`;
+        }
+
+        // Статьи психологов из БД идут первыми, редакционные (js/articles.js) — после них.
+        (async function renderArticles(){
+            let apiRows = [];
+            try {
+                const r = await (await fetch('/api/blog.php?action=list&limit=60')).json();
+                if (r && r.ok) apiRows = r.data || [];
+            } catch(e) {}
+            const staticRows = window.PSY_ARTICLES || [];
+            document.getElementById('articlesGrid').innerHTML =
+                apiRows.map(apiCardHtml).join('') + staticRows.map(staticCardHtml).join('');
         })();
 
         async function subscribeEmail() {

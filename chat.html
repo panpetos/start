@@ -254,6 +254,11 @@
         }
 
         .message.editing { max-width: 90%; }
+        /* Группа: аватар автора рядом с чужим сообщением (как в Телеграме) */
+        .g-msg-row { display: flex; align-items: flex-end; gap: 0.45rem; align-self: flex-start; max-width: 85%; }
+        .g-msg-row .message { max-width: 100%; }
+        .g-msg-ava { width: 30px; height: 30px; border-radius: 50%; flex-shrink: 0; background: linear-gradient(135deg,#7C3AED,#9F67FA); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 0.78rem; font-weight: 700; overflow: hidden; cursor: pointer; margin-bottom: 2px; }
+        .g-msg-ava img { width: 100%; height: 100%; object-fit: cover; }
         .msg-edit-textarea { width: 100%; min-width: 220px; font-size: 0.92rem; }
 
         .message-time {
@@ -746,6 +751,8 @@
         /* Modal overrides (inline styles) */
         body.dark #videoModal > div,
         body.dark #orderModal > div,
+        body.dark #groupInfoModal > div,
+        body.dark #createGroupModal > div,
         body.dark #forwardModal > div,
         body.dark #healthConsentModal > div > div { background: #252525 !important; color: #E6E6E6 !important; }
         body.dark #notesDrawer { background: #252525 !important; }
@@ -959,6 +966,17 @@
         </div>
     </div>
 
+    <!-- Экран группы: участники, переименование, выход -->
+    <div id="groupInfoModal" style="display:none;position:fixed;inset:0;background:rgba(26,26,46,0.6);z-index:1310;align-items:center;justify-content:center;padding:1rem;">
+        <div style="background:#fff;border-radius:1rem;max-width:420px;width:100%;max-height:85vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+            <div style="padding:1rem 1.25rem;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;">
+                <div style="font-weight:700;">Группа</div>
+                <button onclick="closeGroupInfo()" style="background:none;border:none;font-size:1.2rem;cursor:pointer;color:#6B7280;">✕</button>
+            </div>
+            <div id="groupInfoBody" style="padding:1.1rem 1.25rem;overflow-y:auto;flex:1;"></div>
+        </div>
+    </div>
+
     <!-- Создание группового чата / добавление участников (любая роль) -->
     <div id="createGroupModal" style="display:none;position:fixed;inset:0;background:rgba(26,26,46,0.6);z-index:1300;align-items:center;justify-content:center;padding:1rem;">
         <div style="background:#fff;border-radius:1rem;max-width:420px;width:100%;max-height:85vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
@@ -1102,20 +1120,37 @@
         }
 
         // ── Групповые чаты — общий чат на несколько человек, доступно любой роли ──
-        async function loadMyGroups() {
+        let groupsLoadError = '';
+        /** Единый помощник для всех групповых вызовов: возвращает данные или показывает реальную ошибку сервера. */
+        async function groupApi(action, payload) {
+            const url = '/api/group_chat.php?action=' + action;
             try {
-                const r = await fetch('/api/group_chat.php?action=list', { credentials: 'include' });
-                const d = await r.json();
-                myGroups = (d && d.ok) ? (d.data || []) : [];
-            } catch (e) { myGroups = []; }
+                const res = payload
+                    ? await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify(payload) })
+                    : await fetch(url, { credentials: 'include' });
+                const d = await res.json().catch(() => ({}));
+                if (!d || !d.ok) return { ok: false, error: (d && d.error) || ('сервер ответил ' + res.status) };
+                return d;
+            } catch (e) { return { ok: false, error: 'нет связи с сервером' }; }
+        }
+
+        async function loadMyGroups() {
+            const d = await groupApi('list');
+            if (!d.ok) { groupsLoadError = d.error; myGroups = []; return; }
+            groupsLoadError = '';
+            myGroups = d.data || [];
         }
 
         function groupsRowsHtml() {
-            if (!myGroups.length) return '';
-            return myGroups.map(g => {
-                const initial = (g.name || '#').charAt(0).toUpperCase();
+            // Ошибку загрузки групп показываем прямо в списке — раньше группы просто молча не появлялись.
+            const err = groupsLoadError
+                ? `<div style="padding:0.6rem 0.75rem;background:#FEF2F2;color:#B91C1C;font-size:0.78rem;border-bottom:1px solid #FECACA;">⚠️ Группы не загрузились: ${escapeHtml(groupsLoadError)}</div>`
+                : '';
+            if (!myGroups.length) return err;
+            return err + myGroups.map(g => {
                 const activeId = GROUP_PREFIX + g.id;
                 const lastMsg = g.last_message ? g.last_message.slice(0, 34) : 'Группа создана — напишите первым';
+                const time = g.last_message_at ? formatTime(g.last_message_at) : '';
                 return `
                     <div class="conversation-item ${activeId === selectedUserId ? 'active' : ''}" onclick="openGroupChat(${g.id})">
                         <div class="conversation-avatar" style="background:linear-gradient(135deg,#059669,#10B981);">👥</div>
@@ -1124,6 +1159,7 @@
                             <div class="conversation-preview">${escapeHtml(lastMsg)}</div>
                         </div>
                         <div class="conversation-meta">
+                            <div class="conversation-time">${time}</div>
                             ${g.unread_count > 0 ? `<span class="unread-badge">${g.unread_count}</span>` : ''}
                         </div>
                     </div>`;
@@ -1132,6 +1168,7 @@
 
         // ── Групповой чат: обычная переписка на несколько человек ──
         let groupMsgCache = {}; // id -> {content}, для редактирования своих сообщений в группе
+        let groupIsOwner = false; // владелец текущей открытой группы (может модерировать и переименовывать)
 
         async function openGroupChat(groupId) {
             selectedUserId = GROUP_PREFIX + groupId;
@@ -1150,21 +1187,26 @@
             if (pollInterval) clearInterval(pollInterval);
 
             const g = myGroups.find(x => String(x.id) === String(groupId)) || { name: 'Группа', members_count: 0 };
+            groupIsOwner = (g.role === 'owner');
             document.getElementById('chatHeader').innerHTML = `
                 <button class="chat-back-btn" onclick="goBackToList()" title="Назад к диалогам">←</button>
-                <div class="avatar" style="background:linear-gradient(135deg,#059669,#10B981);">👥</div>
-                <div style="flex:1;min-width:0;cursor:pointer;" onclick="showGroupMembers(${groupId})">
+                <div class="avatar" style="background:linear-gradient(135deg,#059669,#10B981);cursor:pointer;" onclick="openGroupInfo(${groupId})">👥</div>
+                <div style="flex:1;min-width:0;cursor:pointer;" onclick="openGroupInfo(${groupId})">
                     <div class="name">${escapeHtml(g.name)}</div>
-                    <div class="role">${g.members_count} участников · нажмите, чтобы посмотреть</div>
+                    <div class="role">${g.members_count} участников · нажмите, чтобы открыть группу</div>
                 </div>
                 <div class="chat-header-actions">
-                    <button class="session-btn" style="background:#16A34A;" onclick="openAddGroupMembers(${groupId})" title="Добавить участников">➕ Участники</button>
-                    <button class="session-btn" style="background:#DC2626;" onclick="leaveGroupChat(${groupId})" title="Выйти из группы">🚪 Выйти</button>
+                    <button class="session-btn" style="background:#0EA5E9;" onclick="openGroupInfo(${groupId})" title="Участники и настройки группы">ℹ️ Группа</button>
                     <a href="${getDashboardUrl()}" class="session-btn" style="background:#6B7280;text-decoration:none;" title="Вернуться в личный кабинет">← В кабинет</a>
                 </div>`;
 
             await loadMessages();
-            pollInterval = setInterval(loadMessages, 5000);
+            // Список слева обновляем, чтобы счётчик непрочитанных и превью были живыми (как в Телеграме).
+            pollInterval = setInterval(async () => {
+                await loadMessages();
+                await loadMyGroups();
+                renderConversationList(allConversations);
+            }, 5000);
         }
 
         function groupBubbleHtml(m) {
@@ -1173,24 +1215,41 @@
             const time = formatTime(m.created_at);
             groupMsgCache[m.id] = { content: m.content };
             const editedTag = m.edited_at ? ` <span style="opacity:0.65;font-style:italic;" title="Отредактировано ${escapeHtml(formatTime(m.edited_at))}">(ред.)</span>` : '';
+            // Своё сообщение можно править и удалять; владелец группы может удалить любое (модерация).
+            const canDelete = isMine || groupIsOwner;
             const editBtn = isMine ? ` <span onclick="startEditGroupMessage(event,'${m.id}')" style="cursor:pointer;opacity:0.75;margin-left:0.35rem;" title="Редактировать">✏️</span>` : '';
-            return `
+            const delBtn = canDelete ? ` <span onclick="deleteGroupMessage(event,'${m.id}')" style="cursor:pointer;opacity:0.75;margin-left:0.35rem;" title="Удалить">🗑</span>` : '';
+            // Как в Телеграме: у чужих сообщений в группе — аватар и имя автора.
+            const ava = !isMine
+                ? `<div class="g-msg-ava" title="${escapeHtml(name)}" onclick="openUserCard('${m.sender_id}')">${m.avatar ? `<img src="${escapeHtml(m.avatar)}" alt="">` : escapeHtml(name.charAt(0).toUpperCase())}</div>`
+                : '';
+            const bubble = `
                 <div class="message ${isMine ? 'mine' : 'theirs'}" data-msg-id="${m.id}">
-                    ${!isMine ? `<div style="font-size:0.75rem;font-weight:700;opacity:0.75;margin-bottom:0.15rem;">${escapeHtml(name)}</div>` : ''}
+                    ${!isMine ? `<div style="font-size:0.75rem;font-weight:700;opacity:0.8;margin-bottom:0.15rem;color:#7C3AED;">${escapeHtml(name)}</div>` : ''}
                     <div id="gmsg-body-${m.id}"><div>${escapeHtml(m.content)}</div></div>
-                    <div class="message-time">${time}${editedTag}${editBtn}</div>
+                    <div class="message-time">${time}${editedTag}${editBtn}${delBtn}</div>
                 </div>`;
+            return isMine ? bubble : `<div class="g-msg-row">${ava}${bubble}</div>`;
+        }
+
+        async function deleteGroupMessage(evt, id) {
+            if (evt) evt.stopPropagation();
+            if (!confirm('Удалить это сообщение?')) return;
+            const d = await groupApi('delete-message', { message_id: id });
+            if (!d.ok) { alert('Не удалось удалить: ' + d.error); return; }
+            await loadGroupMessages();
         }
 
         async function loadGroupMessages() {
             const groupId = selectedUserId.slice(GROUP_PREFIX.length);
-            let rows = [];
-            try {
-                const r = await fetch('/api/group_chat.php?action=messages&group_id=' + encodeURIComponent(groupId), { credentials: 'include' });
-                const d = await r.json();
-                rows = (d && d.ok) ? (d.data || []) : [];
-            } catch (e) {}
             const container = document.getElementById('messagesContainer');
+            const d = await groupApi('messages&group_id=' + encodeURIComponent(groupId));
+            if (!d.ok) {
+                // Раньше ошибка просто игнорировалась и лента оставалась пустой без объяснений.
+                container.innerHTML = `<div class="empty-state"><div><p style="color:#DC2626;">⚠️ Не удалось загрузить сообщения группы: ${escapeHtml(d.error)}</p></div></div>`;
+                return;
+            }
+            const rows = d.data || [];
             const wasScrolledToBottom = container.scrollHeight - container.scrollTop <= container.clientHeight + 50;
             container.innerHTML = rows.length ? rows.map(groupBubbleHtml).join('')
                 : `<div class="empty-state"><div><p style="color:#9CA3AF;">👥 Группа создана — напишите первое сообщение.</p></div></div>`;
@@ -1219,14 +1278,9 @@
             if (!ta) return;
             const content = ta.value.trim();
             if (!content) { alert('Текст не может быть пустым'); return; }
-            try {
-                const r = await (await fetch('/api/group_chat.php?action=edit-message', {
-                    method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
-                    body: JSON.stringify({ message_id: id, content })
-                })).json();
-                if (!r.ok) { alert(r.error || 'Не удалось сохранить'); return; }
-                await loadGroupMessages();
-            } catch (e) { alert('Ошибка сети'); }
+            const d = await groupApi('edit-message', { message_id: id, content });
+            if (!d.ok) { alert('Не удалось сохранить: ' + d.error); return; }
+            await loadGroupMessages();
         }
         window.startEditGroupMessage = startEditGroupMessage;
         window.saveEditGroupMessage = saveEditGroupMessage;
@@ -1303,6 +1357,7 @@
                     if (!r.ok) { alert(r.error || 'Не удалось добавить участников'); return; }
                     closeCreateGroupModal();
                     await loadMyGroups();
+                    renderConversationList(allConversations);
                     if (selectedUserId === GROUP_PREFIX + addMembersToGroupId) await openGroupChat(addMembersToGroupId);
                 } catch (e) { alert('Ошибка сети'); }
                 return;
@@ -1329,34 +1384,104 @@
         window.submitCreateGroup = submitCreateGroup;
 
         async function fetchGroupMembers(groupId) {
-            try {
-                const r = await fetch('/api/group_chat.php?action=members&group_id=' + encodeURIComponent(groupId), { credentials: 'include' });
-                const d = await r.json();
-                return (d && d.ok) ? (d.data || []) : [];
-            } catch (e) { return []; }
+            const d = await groupApi('members&group_id=' + encodeURIComponent(groupId));
+            return d.ok ? (d.data || []) : [];
         }
-        async function showGroupMembers(groupId) {
-            const members = await fetchGroupMembers(groupId);
-            const text = members.map(m => (`${m.first_name || ''} ${m.last_name || ''}`.trim() || 'Пользователь') + (m.role === 'owner' ? ' (владелец)' : '')).join('\n') || 'Нет участников';
-            alert(`Участники группы (${members.length}):\n\n${text}`);
+
+        // ── Экран группы: участники, переименование, добавить/исключить, выход ──
+        // Раньше это было окошко alert()/confirm() — по сути нечитаемый список и «ОК = выйти».
+        let groupInfoId = null;
+        async function openGroupInfo(groupId) {
+            groupInfoId = groupId;
+            document.getElementById('groupInfoModal').style.display = 'flex';
+            await renderGroupInfo();
         }
+        function closeGroupInfo() {
+            document.getElementById('groupInfoModal').style.display = 'none';
+            groupInfoId = null;
+        }
+        async function renderGroupInfo() {
+            const gid = groupInfoId;
+            const box = document.getElementById('groupInfoBody');
+            if (!box || !gid) return;
+            box.innerHTML = '<div style="color:#9CA3AF;font-size:0.85rem;padding:0.5rem 0;">Загрузка…</div>';
+            const g = myGroups.find(x => String(x.id) === String(gid)) || { name: 'Группа' };
+            const members = await fetchGroupMembers(gid);
+            const isOwner = (g.role === 'owner');
+            groupIsOwner = isOwner;
+            const rows = members.map(m => {
+                const nm = `${m.first_name || ''} ${m.last_name || ''}`.trim() || 'Пользователь';
+                const roleLabel = m.site_role === 'psychologist' ? 'психолог' : (m.site_role === 'admin' ? 'админ' : 'клиент');
+                const kick = (isOwner && m.role !== 'owner')
+                    ? `<button onclick="kickGroupMember('${m.user_id}')" title="Исключить" style="border:none;background:none;color:#DC2626;cursor:pointer;font-size:0.95rem;">✕</button>`
+                    : '';
+                return `<div style="display:flex;align-items:center;gap:0.6rem;padding:0.5rem 0;border-bottom:1px solid #f0f0f0;">
+                    <div class="conversation-avatar" style="width:34px;height:34px;font-size:0.85rem;">${m.avatar ? `<img src="${escapeHtml(m.avatar)}" alt="">` : escapeHtml(nm.charAt(0).toUpperCase())}</div>
+                    <div style="flex:1;min-width:0;">
+                        <div style="font-weight:600;font-size:0.88rem;">${escapeHtml(nm)}${m.role === 'owner' ? ' <span style="color:#7C3AED;font-size:0.72rem;font-weight:700;">владелец</span>' : ''}</div>
+                        <div style="color:#9CA3AF;font-size:0.75rem;">${roleLabel}</div>
+                    </div>
+                    ${kick}
+                </div>`;
+            }).join('') || '<div style="color:#9CA3AF;font-size:0.85rem;">Нет участников</div>';
+
+            box.innerHTML = `
+                <div style="text-align:center;margin-bottom:0.9rem;">
+                    <div class="conversation-avatar" style="width:64px;height:64px;margin:0 auto 0.5rem;background:linear-gradient(135deg,#059669,#10B981);font-size:1.6rem;">👥</div>
+                    <div style="font-weight:700;font-size:1.05rem;" id="giName">${escapeHtml(g.name || 'Группа')}</div>
+                    <div style="color:#9CA3AF;font-size:0.8rem;">${members.length} участников</div>
+                </div>
+                ${isOwner ? `<div style="display:flex;gap:0.4rem;margin-bottom:0.8rem;">
+                    <input id="giRename" value="${escapeHtml(g.name || '')}" placeholder="Название группы" style="flex:1;min-width:0;padding:0.5rem 0.7rem;border:1.5px solid #e0e0e0;border-radius:0.5rem;font-family:inherit;font-size:0.88rem;">
+                    <button onclick="renameGroup()" style="border:none;background:#7C3AED;color:#fff;border-radius:0.5rem;padding:0.5rem 0.8rem;font-size:0.82rem;cursor:pointer;font-family:inherit;">Переименовать</button>
+                </div>` : ''}
+                <button onclick="openAddGroupMembers(${gid})" style="width:100%;border:none;background:#16A34A;color:#fff;border-radius:0.6rem;padding:0.6rem;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:0.8rem;">➕ Добавить участников</button>
+                <div style="font-weight:700;font-size:0.82rem;color:#6B7280;margin-bottom:0.3rem;">Участники</div>
+                <div>${rows}</div>
+                <button onclick="leaveGroupChat(${gid})" style="width:100%;border:1.5px solid #DC2626;background:transparent;color:#DC2626;border-radius:0.6rem;padding:0.6rem;font-weight:700;cursor:pointer;font-family:inherit;margin-top:0.9rem;">🚪 Выйти из группы</button>`;
+        }
+
+        async function renameGroup() {
+            const el = document.getElementById('giRename');
+            const name = el ? el.value.trim() : '';
+            if (!name) { alert('Введите название'); return; }
+            const d = await groupApi('rename', { group_id: groupInfoId, name });
+            if (!d.ok) { alert('Не удалось переименовать: ' + d.error); return; }
+            await loadMyGroups();
+            renderConversationList(allConversations);
+            await renderGroupInfo();
+            if (selectedUserId === GROUP_PREFIX + groupInfoId) await openGroupChat(groupInfoId);
+        }
+
+        async function kickGroupMember(userId) {
+            if (!confirm('Исключить участника из группы?')) return;
+            const d = await groupApi('remove-member', { group_id: groupInfoId, user_id: userId });
+            if (!d.ok) { alert('Не удалось исключить: ' + d.error); return; }
+            await loadMyGroups();
+            renderConversationList(allConversations);
+            await renderGroupInfo();
+        }
+
         async function leaveGroupChat(groupId) {
-            if (!confirm('Выйти из этой группы? Вы перестанете получать сообщения.')) return;
-            try {
-                await fetch('/api/group_chat.php?action=leave', {
-                    method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
-                    body: JSON.stringify({ group_id: groupId })
-                });
-                if (pollInterval) { clearInterval(pollInterval); pollInterval = null; }
-                selectedUserId = null;
-                document.getElementById('chatContent').style.display = 'none';
-                document.getElementById('emptyState').style.display = 'flex';
-                await loadMyGroups();
-                renderConversationList(allConversations);
-            } catch (e) {}
+            if (!confirm('Выйти из этой группы? Вы перестанете получать её сообщения.')) return;
+            const d = await groupApi('leave', { group_id: groupId });
+            if (!d.ok) { alert('Не удалось выйти: ' + d.error); return; }
+            closeGroupInfo();
+            if (pollInterval) { clearInterval(pollInterval); pollInterval = null; }
+            selectedUserId = null;
+            document.getElementById('chatContent').style.display = 'none';
+            document.getElementById('emptyState').style.display = 'flex';
+            await loadMyGroups();
+            renderConversationList(allConversations);
         }
+        window.openGroupInfo = openGroupInfo;
+        window.closeGroupInfo = closeGroupInfo;
+        window.renameGroup = renameGroup;
+        window.kickGroupMember = kickGroupMember;
+        window.deleteGroupMessage = deleteGroupMessage;
         let addMembersToGroupId = null;
         async function openAddGroupMembers(groupId) {
+            closeGroupInfo();
             addMembersToGroupId = groupId;
             pendingGroupMembers = [];
             const existing = await fetchGroupMembers(groupId);
@@ -1371,7 +1496,6 @@
             document.getElementById('createGroupSubmitBtn').textContent = 'Добавить';
             document.getElementById('createGroupModal').style.display = 'flex';
         }
-        window.showGroupMembers = showGroupMembers;
         window.leaveGroupChat = leaveGroupChat;
         window.openAddGroupMembers = openAddGroupMembers;
 
@@ -2666,15 +2790,18 @@
 
             if (typeof selectedUserId === 'string' && selectedUserId.indexOf(GROUP_PREFIX) === 0) {
                 input.value = '';
-                try {
-                    await fetch('/api/group_chat.php?action=send', {
-                        method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
-                        body: JSON.stringify({ group_id: selectedUserId.slice(GROUP_PREFIX.length), content })
-                    });
-                    await loadMessages();
-                    const container = document.getElementById('messagesContainer');
-                    container.scrollTop = container.scrollHeight;
-                } catch (e) { console.error('Send group message error:', e); }
+                const d = await groupApi('send', { group_id: selectedUserId.slice(GROUP_PREFIX.length), content });
+                if (!d.ok) {
+                    // Главное отличие от прежнего поведения: ошибка видна, а текст не теряется.
+                    input.value = content;
+                    alert('Сообщение не отправлено: ' + d.error);
+                    return;
+                }
+                await loadMessages();
+                const container = document.getElementById('messagesContainer');
+                container.scrollTop = container.scrollHeight;
+                await loadMyGroups();
+                renderConversationList(allConversations);
                 return;
             }
 
