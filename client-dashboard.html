@@ -121,6 +121,13 @@
         body.dark #replaceModal > div > div { background: var(--d-panel) !important; color: var(--d-text) !important; }
 
         /* ── Notion-style sidebar layout ─── */
+        /* Плашка-предупреждение. Раньше тут были var(--d-bg2,#FEF3C7) и var(--d-text,#92400E):
+           переменной --d-bg2 не существует, поэтому фон брался светлый, а --d-text в тёмной теме
+           даёт светло-серый текст — светлый текст на светлом фоне не читался вовсе.
+           Теперь цвета заданы явно и отдельно для каждой темы. */
+        .warn-box { background: #FEF3C7; border: 1px solid #F59E0B; color: #92400E; }
+        body.dark .warn-box { background: #3A2F14; border-color: #7A5C1A; color: #FCD34D; }
+
         .dash-layout { display: flex; min-height: calc(100vh - 84px); }
         .dash-sidebar { width: 240px; background: var(--d-panel); border-right: 1px solid var(--d-border); display: flex; flex-direction: column; position: sticky; top: 84px; height: calc(100vh - 84px); flex-shrink: 0; transition: background 0.2s, border-color 0.2s; z-index: 10; }
         .dash-sidebar-header { padding: 1rem 1rem 0.75rem; border-bottom: 1px solid var(--d-border); }
@@ -439,7 +446,7 @@
                             actionHtml = `<a href="/book.html?id=${p.psychologist_id}&pkg=${p.id}" class="btn btn-small" title="Записаться по абонементу">📅 Записаться по абонементу</a>`;
                         } else if (unavailable) {
                             actionHtml = `<div style="margin-top:6px;">
-                                <div style="background:var(--d-bg2,#FEF3C7);border:1px solid var(--d-border,#F59E0B);border-radius:8px;padding:10px 14px;margin-bottom:8px;font-size:.9rem;color:var(--d-text,#92400E);">
+                                <div class="warn-box" style="border-radius:8px;padding:10px 14px;margin-bottom:8px;font-size:.9rem;">
                                     ⚠️ Ваш специалист больше недоступен. Вы можете выбрать другого психолога для использования абонемента.
                                 </div>
                                 <a href="/search.html?pkg=${p.id}" class="btn btn-small" style="background:#7C3AED;">🔄 Выбрать другого психолога</a>

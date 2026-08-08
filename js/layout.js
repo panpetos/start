@@ -105,7 +105,9 @@
     'body.dark .nav-menu{background:#1E1E1E!important}' +
     'body.dark .site-footer{background:#1A1A1A!important;color:#9CA3AF!important}' +
     'body.dark .site-footer a{color:#9CA3AF!important}' +
-    'body.dark .site-footer span[style*="background:#fff"]{background:#2A2A2A!important;border-color:#444!important}' +
+    // Логотипы платёжных систем — тёмные брендовые цвета текста. Перекрашивать их подложку
+    // в тёмную нельзя: получался тёмный текст на тёмном фоне (VISA — контраст 1.01).
+    'body.dark .site-footer span[style*="background:#fff"]{background:#F3F4F6!important;border-color:#555!important}' +
     'body.dark #psySupPanel{background:#1E1E1E!important}' +
     'body.dark #psySupForm{background:#1E1E1E!important}' +
     'body.dark #psySupForm p{color:#9CA3AF!important}' +
@@ -158,7 +160,127 @@
   window.psyWriteHeader = function () { applyStoredTheme(); document.write(headerHtml); };
   window.psyWriteFooter = function () { document.write(footerHtml); };
 
+  // ── Страховка читаемости текста в тёмной теме ──────────────────────────────────
+  // В тёмной теме часть правил задаёт светлый цвет текста в паре с тёмным фоном
+  // (например .badge-secondary: color #B794F4 + background #2D1F4E). Но если фон этого
+  // же элемента задан ИНЛАЙНОВО светлым, инлайн побеждает класс — остаётся светлый текст
+  // на светлой подложке, который не читается. Обратный случай тоже встречается.
+  // CSS такое не выразит (нужно знать фактический фон), поэтому считаем реальный контраст
+  // и правим только там, где он ниже порога. Цвет меняем в ту сторону, которой не хватает.
+  //
+  // ВАЖНО: цвет ставим КЛАССОМ, а не el.style.setProperty. Тёмная тема ловит инлайновые
+  // светлые фоны атрибутными селекторами (body.dark div[style*="background:#fff"]), а любая
+  // запись в el.style пересобирает весь атрибут style (background:#fff → background: rgb(255, 255, 255)),
+  // селектор перестаёт совпадать, фон возвращается в белый — и текст становится ещё хуже видно.
+  var fixCss = document.createElement('style');
+  fixCss.textContent =
+    'body.dark .psy-fg-dark.psy-fg-dark{color:#1A1A1A!important}' +
+    'body.dark .psy-fg-light.psy-fg-light{color:#E6E6E6!important}' +
+    'body.dark .psy-fg-plum.psy-fg-plum{color:#4C1D95!important}' +
+    'body.dark .psy-fg-lilac.psy-fg-lilac{color:#B794F4!important}' +
+    'body.dark .psy-fg-mgrey.psy-fg-mgrey{color:#565656!important}' +
+    'body.dark .psy-fg-lgrey.psy-fg-lgrey{color:#A8A8A8!important}';
+  document.head.appendChild(fixCss);
+  var FG_CLASSES = {
+    '#1A1A1A': 'psy-fg-dark', '#E6E6E6': 'psy-fg-light',
+    '#4C1D95': 'psy-fg-plum', '#B794F4': 'psy-fg-lilac',
+    '#565656': 'psy-fg-mgrey', '#A8A8A8': 'psy-fg-lgrey'
+  };
+  var FG_ALL = ['psy-fg-dark', 'psy-fg-light', 'psy-fg-plum', 'psy-fg-lilac', 'psy-fg-mgrey', 'psy-fg-lgrey'];
+
+  function psyFixAccentContrast() {
+    try {
+      if (!document.body.classList.contains('dark')) return;
+      var parse = function (c) {
+        var m = String(c).match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/);
+        return m ? { r: +m[1], g: +m[2], b: +m[3], a: m[4] === undefined ? 1 : +m[4] } : null;
+      };
+      var lum = function (c) {
+        var f = function (v) { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); };
+        return 0.2126 * f(c.r) + 0.7152 * f(c.g) + 0.0722 * f(c.b);
+      };
+      var ratio = function (a, b) {
+        var l1 = lum(a), l2 = lum(b);
+        return (Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05);
+      };
+      // сначала снимаем свои прошлые правки, иначе второй проход измерит уже исправленный цвет
+      document.querySelectorAll('.' + FG_ALL.join(',.')).forEach(function (el) {
+        el.classList.remove.apply(el.classList, FG_ALL);
+      });
+      document.querySelectorAll('body *').forEach(function (el) {
+        var hasText = false;
+        for (var i = 0; i < el.childNodes.length; i++) {
+          var n = el.childNodes[i];
+          if (n.nodeType === 3 && n.textContent.trim().length > 1) { hasText = true; break; }
+        }
+        if (!hasText) return;
+        var cs = getComputedStyle(el);
+        if (cs.display === 'none' || cs.visibility === 'hidden' || parseFloat(cs.opacity) < 0.4) return;
+        var fg = parse(cs.color);
+        if (!fg || fg.a < 0.5) return;
+        var bg = null;
+        for (var q = el; q; q = q.parentElement) {
+          var c = parse(getComputedStyle(q).backgroundColor);
+          if (c && c.a > 0.5) { bg = c; break; }
+        }
+        if (!bg) return;
+        // порог по WCAG AA: крупному и жирному тексту достаточно 3:1, обычному нужно 4.5:1
+        var fs = parseFloat(cs.fontSize) || 16;
+        var big = fs >= 24 || (fs >= 18.66 && parseInt(cs.fontWeight, 10) >= 600);
+        if (ratio(fg, bg) >= (big ? 3 : 4.5)) return;
+        // сиреневый/фиолетовый оттенок сохраняем, просто берём подходящую по светлоте версию
+        var purple = fg.b > fg.r && fg.b > fg.g && fg.r > 60;
+        var onLight = lum(bg) > 0.4;
+        // приглушённый серый не выводим в максимальный контраст — иначе теряется иерархия:
+        // вторичный текст должен оставаться вторичным, просто читаемым
+        var muted = Math.max(fg.r, fg.g, fg.b) - Math.min(fg.r, fg.g, fg.b) < 24;
+        var target = onLight
+          ? (purple ? '#4C1D95' : (muted ? '#565656' : '#1A1A1A'))
+          : (purple ? '#B794F4' : (muted ? '#A8A8A8' : '#E6E6E6'));
+        var tc = parse('rgb(' + [
+          parseInt(target.slice(1, 3), 16), parseInt(target.slice(3, 5), 16), parseInt(target.slice(5, 7), 16)
+        ].join(', ') + ')');
+        if (ratio(fg, bg) < ratio(tc, bg)) el.classList.add(FG_CLASSES[target]);
+      });
+    } catch (e) {}
+  }
+  window.psyFixAccentContrast = psyFixAccentContrast;
+  window.addEventListener('load', function () { setTimeout(psyFixAccentContrast, 300); });
+
+  // На мобильных фиксированная шапка ниже, чем зашитый в страницы padding-top: 84px —
+  // сверху оставалось ~27px пустоты до контента. Подгоняем отступ под реальную высоту шапки.
+  // Трогаем только страницы, которые уже используют этот приём (текущий отступ 60–120px),
+  // чтобы не сломать вёрстку там, где отступ выставлен осознанно.
+  function psySyncHeaderOffset() {
+    try {
+      var nav = document.querySelector('.nav');
+      if (!nav) return;
+      if (getComputedStyle(nav).position !== 'fixed') return;
+      var cur = parseFloat(getComputedStyle(document.body).paddingTop) || 0;
+      if (cur < 60 || cur > 120) return;
+      var h = Math.round(nav.getBoundingClientRect().height);
+      if (!h) return;
+      document.body.style.paddingTop = (h + 2) + 'px';
+      document.documentElement.style.setProperty('--psy-nav-h', h + 'px');
+      var sb = document.querySelector('.dash-sidebar');
+      if (sb && window.matchMedia('(max-width: 768px)').matches) sb.style.paddingTop = (h + 2) + 'px';
+    } catch (e) {}
+  }
+  // Кнопка «☰» боковой менюшки кабинета висела на фиксированных top:92px/left:12px и после
+  // подгонки отступа шапки наезжала на заголовок карточки («Личный кабинет»). Ставим её в
+  // свободный правый верхний угол контента и считаем top от реальной высоты шапки.
+  var sbCss = document.createElement('style');
+  sbCss.textContent =
+    '@media (max-width: 768px){' +
+    '.dash-sidebar-toggle{top:calc(var(--psy-nav-h,74px) + 10px)!important;left:auto!important;right:0.75rem!important}' +
+    '}';
+  document.head.appendChild(sbCss);
+  window.psySyncHeaderOffset = psySyncHeaderOffset;
+  window.addEventListener('resize', psySyncHeaderOffset);
+  window.addEventListener('orientationchange', psySyncHeaderOffset);
+
   function wireBurger() {
+    psySyncHeaderOffset();
     var navMenu = document.getElementById('navMenu');
     var burger = document.getElementById('burgerMenu');
     if (!navMenu || !burger) return;

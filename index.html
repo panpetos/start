@@ -102,7 +102,7 @@
                   </div>
                 </div>
               </div>
-              <div style="background:#F3E8FF;border-radius:0.875rem;padding:0.875rem 1rem;font-size:0.875rem;color:#4C1D95;line-height:1.5;">
+              <div class="lilac-note" style="border-radius:0.875rem;padding:0.875rem 1rem;font-size:0.875rem;line-height:1.5;">
                 Сегодня мы разберём стратегии борьбы с дедлайн-стрессом и восстановления ресурса...
               </div>
             </div>
@@ -144,7 +144,7 @@
         <div style="padding:3rem;">
           <div style="display:inline-flex;align-items:center;gap:0.5rem;background:#fff;color:#7C3AED;padding:0.375rem 1rem;border-radius:2rem;font-size:0.8125rem;font-weight:700;margin-bottom:1.25rem;">✨ Умный подбор</div>
           <h2 style="font-size:2.1rem;color:#1A1A1A;letter-spacing:-0.03em;line-height:1.15;margin-bottom:1rem;">Не знаете, кого выбрать? Подберём за минуту</h2>
-          <p style="color:#5B5570;font-size:1.0625rem;line-height:1.7;margin-bottom:1.5rem;">Ответьте на 4 коротких вопроса — покажем специалистов, которые подходят именно под ваш запрос, формат и бюджет.</p>
+          <p class="quiz-lead" style="font-size:1.0625rem;line-height:1.7;margin-bottom:1.5rem;">Ответьте на 4 коротких вопроса — покажем специалистов, которые подходят именно под ваш запрос, формат и бюджет.</p>
           <div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:1.75rem;">
             <span style="background:#fff;border:1px solid #E9D5FF;border-radius:2rem;padding:0.4rem 1rem;font-size:0.875rem;font-weight:600;color:#7C3AED;">🙂 Себе</span>
             <span style="background:#fff;border:1px solid #E9D5FF;border-radius:2rem;padding:0.4rem 1rem;font-size:0.875rem;font-weight:600;color:#7C3AED;">💞 Паре</span>
@@ -438,6 +438,13 @@
   </section>
 
   <style>
+    /* Цвета, заданные под светлую тему, в тёмной оставались тёмными на тёмном фоне:
+       лиловая плашка давала контраст 1.35, вводный абзац квиза — 2.49. Разводим по темам. */
+    .lilac-note { background: #F3E8FF; color: #4C1D95; }
+    body.dark .lilac-note { background: #2D1F4E; color: #DDD2F5; }
+    .quiz-lead { color: #5B5570; }
+    body.dark .quiz-lead { color: #BDB6CE; }
+
     @media (max-width: 900px) {
       .why-grid { grid-template-columns: repeat(2,1fr) !important; }
       .reviews-grid { grid-template-columns: 1fr !important; }

@@ -195,9 +195,13 @@
         }
 
         /* ── Канал как раздел чата (задача #29, рефок): read-only лента постов вместо диалога ── */
-        .ch-post { background: white; border-radius: 1rem; padding: 1rem 1.1rem; margin-bottom: 0.85rem; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
-        .ch-post-text { white-space: pre-wrap; line-height: 1.55; color: #333; }
-        .ch-post-img { max-width: 100%; border-radius: 0.7rem; margin-top: 0.5rem; display: block; }
+        /* Пост канала: раньше растягивался на всю ширину области сообщений, а картинка шла
+           без ограничения высоты и занимала целый экран. Ограничиваем колонку и высоту медиа —
+           в лоб на весь экран пост больше не разворачивается, картинка открывается по клику. */
+        .ch-post { background: white; border-radius: 1rem; padding: 0.85rem 1rem; margin: 0 auto 0.75rem; box-shadow: 0 2px 8px rgba(0,0,0,0.08); max-width: 620px; width: 100%; }
+        .ch-post-text { white-space: pre-wrap; line-height: 1.5; color: #333; font-size: 0.94rem; }
+        .ch-post-img { width: 100%; max-height: 300px; object-fit: cover; border-radius: 0.7rem; margin-top: 0.5rem; display: block; cursor: zoom-in; }
+        @media (max-width: 768px) { .ch-post-img { max-height: 220px; } }
         .ch-post-date { color: #999; font-size: 0.75rem; margin-bottom: 0.4rem; }
         .ch-post-actions { display: flex; align-items: center; gap: 0.3rem; margin-top: 0.7rem; padding-top: 0.6rem; border-top: 1px solid #eee; }
         .ch-pbtn { display: inline-flex; align-items: center; gap: 0.3rem; background: none; border: none; cursor: pointer; color: #666; font-size: 0.85rem; font-family: inherit; padding: 0.3rem 0.55rem; border-radius: 0.5rem; }
@@ -252,6 +256,19 @@
             border-bottom-left-radius: 4px;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
         }
+
+        /* Кнопки в шапке списка диалогов. Раньше фон задавался инлайново (#f9fafb) и в тёмной
+           теме оставался светлым, а цвет текста становился светлым — контраст 1.19, кнопка
+           темы была фактически невидимой. Теперь цвета берутся из темы. */
+        .chat-hdr-btn {
+            flex-shrink: 0; width: 36px; height: 36px; border-radius: 50%;
+            border: 1.5px solid #e0e0e0; background: #f9fafb; color: #4B5563;
+            cursor: pointer; font-size: 1rem; display: flex; align-items: center; justify-content: center;
+            transition: background 0.15s, border-color 0.15s, color 0.15s;
+        }
+        .chat-hdr-btn:hover { background: #F3E8FF; border-color: #C4B5FD; color: #7C3AED; }
+        body.dark .chat-hdr-btn { background: #2A2A2A; border-color: #444; color: #C9C9C9; }
+        body.dark .chat-hdr-btn:hover { background: #37254A; border-color: #7C3AED; color: #B794F4; }
 
         .message.editing { max-width: 90%; }
         /* Группа: аватар автора рядом с чужим сообщением (как в Телеграме) */
@@ -725,8 +742,8 @@
         body.dark .conversation-item.active { background: #2D1F4E; }
         body.dark .conversation-name { color: #E6E6E6; }
         body.dark .conversation-preview { color: #999; }
-        body.dark .conversation-time { color: #777; }
-        body.dark .no-conversations { color: #777; }
+        body.dark .conversation-time { color: #9A9A9A; }
+        body.dark .no-conversations { color: #9A9A9A; }
         body.dark .chat-area { background: #191919; }
         body.dark .chat-header { background: #252525; border-bottom-color: #333; }
         body.dark .chat-header .name { color: #E6E6E6; }
@@ -743,11 +760,13 @@
         body.dark .voice-recording { background: #333; }
         body.dark .voice-duration { color: #E6E6E6; }
         body.dark .voice-info { color: #999; }
-        body.dark .empty-state { color: #777; }
+        body.dark .empty-state { color: #9A9A9A; }
+        body.dark .empty-back-link { color: #B794F4 !important; }
+        body.dark .empty-back-link2 { color: #A8A8A8 !important; }
         body.dark .chat-back-btn { background: #333; color: #E6E6E6; }
         body.dark .btn-cancel { background: #555; }
         body.dark .message-time { color: rgba(255,255,255,0.5); }
-        body.dark .message.theirs .message-time { color: #777; }
+        body.dark .message.theirs .message-time { color: #9A9A9A; }
         /* Modal overrides (inline styles) */
         body.dark #videoModal > div,
         body.dark #orderModal > div,
@@ -804,8 +823,10 @@
         <div class="conversations-list">
             <div style="padding:0.75rem;border-bottom:1px solid #e0e0e0;flex-shrink:0;display:flex;gap:0.5rem;align-items:center;">
                 <input id="chatSearchInput" type="text" placeholder="🔍 Поиск по всем пользователям..." style="flex:1;min-width:0;padding:0.5rem 0.75rem;border:1.5px solid #e0e0e0;border-radius:0.5rem;font-family:inherit;font-size:0.875rem;outline:none;background:#f9fafb;" oninput="filterConversations()">
-                <button onclick="openCreateGroupModal()" title="Создать группу" style="flex-shrink:0;width:36px;height:36px;border-radius:50%;border:1.5px solid #e0e0e0;background:#f9fafb;cursor:pointer;font-size:1.1rem;display:flex;align-items:center;justify-content:center;">👥➕</button>
-                <button id="chatThemeToggle" onclick="toggleChatTheme()" title="Светлая/тёмная тема" style="flex-shrink:0;width:36px;height:36px;border-radius:50%;border:1.5px solid #e0e0e0;background:#f9fafb;cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center;">🌙</button>
+                <button class="chat-hdr-btn" onclick="openCreateGroupModal()" title="Новая группа" aria-label="Новая группа">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+                </button>
+                <button id="chatThemeToggle" class="chat-hdr-btn" onclick="toggleChatTheme()" title="Светлая/тёмная тема" aria-label="Сменить тему">🌙</button>
             </div>
             <div id="conversationsList" style="overflow-y:auto;flex:1;">
                 <div class="no-conversations">Загрузка...</div>
@@ -818,8 +839,8 @@
                     <i data-lucide="message-square" style="width: 64px; height: 64px; opacity: 0.3;"></i>
                     <p style="margin-top: 1rem;">Выберите диалог для начала общения</p>
                     <div style="display:flex;gap:0.5rem;justify-content:center;flex-wrap:wrap;margin-top:1rem;">
-                        <a href="#" onclick="goBackToList();return false;" style="display:inline-flex;align-items:center;gap:0.3rem;color:#7C3AED;text-decoration:none;font-size:0.875rem;font-weight:600;" title="К списку чатов">← К списку чатов</a>
-                        <a href="#" id="emptyStateBackLink" style="display:inline-flex;align-items:center;gap:0.3rem;color:#6B7280;text-decoration:none;font-size:0.875rem;" title="Вернуться в личный кабинет">В кабинет →</a>
+                        <a href="#" onclick="goBackToList();return false;" class="empty-back-link" style="display:inline-flex;align-items:center;gap:0.3rem;color:#7C3AED;text-decoration:none;font-size:0.875rem;font-weight:600;" title="К списку чатов">← К списку чатов</a>
+                        <a href="#" id="emptyStateBackLink" class="empty-back-link2" style="display:inline-flex;align-items:center;gap:0.3rem;color:#6B7280;text-decoration:none;font-size:0.875rem;" title="Вернуться в личный кабинет">В кабинет →</a>
                     </div>
                 </div>
             </div>
@@ -1576,7 +1597,7 @@
 
         function chPostHtml(p) {
             const date = new Date(p.created_at).toLocaleString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
-            const img = p.image_url ? `<img class="ch-post-img" src="${escapeHtml(p.image_url)}" alt="">` : '';
+            const img = p.image_url ? `<img class="ch-post-img" src="${escapeHtml(p.image_url)}" alt="" title="Открыть оригинал" onclick="window.open(this.src,'_blank')">` : '';
             const text = p.text ? `<div class="ch-post-text">${formatPostText(p.text)}</div>` : '';
             return `
                 <div class="ch-post" data-post-id="${p.id}">
