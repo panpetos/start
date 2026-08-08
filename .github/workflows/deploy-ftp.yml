@@ -107,6 +107,7 @@ jobs:
             put api/message_edit.php -o api/message_edit.php;
             put api/group_chat.php -o api/group_chat.php;
             put api/blog.php -o api/blog.php;
+            put api/schema_util.php -o api/schema_util.php;
             bye;
           "
           echo "Deployment complete"

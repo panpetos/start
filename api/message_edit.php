@@ -19,6 +19,7 @@ header('Access-Control-Allow-Headers: Content-Type');
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') { http_response_code(204); exit; }
 
 require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/schema_util.php';
 if (!function_exists('getDB') && !function_exists('getDbConnection') && !function_exists('getPDO')) {
     require_once __DIR__ . '/db.php';
 }
@@ -52,7 +53,7 @@ function ensureEditLogTable(PDO $pdo) {
         INDEX idx_edited_at (edited_at)
     ) DEFAULT CHARSET=utf8mb4");
 }
-try { ensureEditLogTable($pdo); } catch (Exception $e) {}
+try { ensureEditLogTable($pdo); psy_align_collation($pdo, ['message_edit_log']); } catch (Exception $e) {}
 // Метка "сообщение отредактировано" в самой таблице messages — на будущее (messages.php её сегодня не
 // отдаёт в ответах, т.к. этот файл нам недоступен, поэтому UI полагается на action=edited-map ниже).
 try { $pdo->exec("ALTER TABLE messages ADD COLUMN edited_at DATETIME NULL"); } catch (Exception $e) {}

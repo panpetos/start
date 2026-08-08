@@ -32,6 +32,7 @@ header('Access-Control-Allow-Headers: Content-Type');
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') { http_response_code(204); exit; }
 
 require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/schema_util.php';
 if (!function_exists('getDB') && !function_exists('getDbConnection') && !function_exists('getPDO')) {
     require_once __DIR__ . '/db.php';
 }
@@ -85,6 +86,10 @@ function ensureChannelTables(PDO $pdo) {
     // но не удаляется безвозвратно (можно вернуть). Причина видна автору и админу.
     try { $pdo->exec("ALTER TABLE channel_posts ADD COLUMN is_hidden TINYINT(1) NOT NULL DEFAULT 0"); } catch (Exception $e) {}
     try { $pdo->exec("ALTER TABLE channel_posts ADD COLUMN hidden_reason VARCHAR(500) NULL"); } catch (Exception $e) {}
+    // Сортировка строковых ключей должна совпадать с users/psychologists, иначе JOIN'ы (лента,
+    // подписки, комментарии) падают с ошибкой 1267 и выглядят как «данных нет».
+    psy_align_collation($pdo, ['channel_posts', 'channel_subscriptions', 'channel_post_likes',
+        'channel_post_views', 'channel_post_comments']);
 }
 
 /** Есть ли колонка в таблице (кэшируется на запрос). */

@@ -20,6 +20,7 @@ header('Access-Control-Allow-Headers: Content-Type');
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') { http_response_code(204); exit; }
 
 require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/schema_util.php';
 if (!function_exists('getDB') && !function_exists('getDbConnection') && !function_exists('getPDO')) {
     require_once __DIR__ . '/db.php';
 }
@@ -48,7 +49,7 @@ function ensureTable(PDO $pdo) {
 $action = $_GET['action'] ?? '';
 $body = json_decode(file_get_contents('php://input'), true) ?: [];
 
-try { ensureTable($pdo); } catch (Exception $e) {}
+try { ensureTable($pdo); psy_align_collation($pdo, ['psychologist_notes']); } catch (Exception $e) {}
 
 if ($action === 'list') {
     $about = (string)($_GET['about'] ?? '');

@@ -29,6 +29,7 @@ header('Access-Control-Allow-Headers: Content-Type');
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') { http_response_code(204); exit; }
 
 require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/schema_util.php';
 if (!function_exists('getDB') && !function_exists('getDbConnection') && !function_exists('getPDO')) {
     require_once __DIR__ . '/db.php';
 }
@@ -64,6 +65,7 @@ try {
         INDEX idx_author (author_user_id),
         INDEX idx_status (status)
     ) DEFAULT CHARSET=utf8mb4");
+    psy_align_collation($pdo, ['blog_articles']);
 } catch (Exception $e) { $tablesError = $e->getMessage(); }
 
 function userRole(PDO $pdo, $userId) {

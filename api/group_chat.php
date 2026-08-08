@@ -27,6 +27,7 @@ header('Access-Control-Allow-Headers: Content-Type');
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') { http_response_code(204); exit; }
 
 require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/schema_util.php';
 if (!function_exists('getDB') && !function_exists('getDbConnection') && !function_exists('getPDO')) {
     require_once __DIR__ . '/db.php';
 }
@@ -76,6 +77,9 @@ function ensureGroupTables(PDO $pdo) {
         edited_at DATETIME NOT NULL,
         INDEX idx_message (message_id)
     ) DEFAULT CHARSET=utf8mb4");
+    // См. schema_util.php: без выравнивания сортировки JOIN на users в списке сообщений и
+    // участников падает с ошибкой 1267, и группа выглядит пустой/неработающей.
+    psy_align_collation($pdo, ['chat_groups', 'chat_group_members', 'chat_group_messages', 'group_message_edit_log']);
 }
 // Ошибку создания таблиц НЕ глушим: если таблиц нет, все действия ниже всё равно упадут,
 // и раньше это выглядело как «сообщения просто не отправляются» без единого намёка на причину.
