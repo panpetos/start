@@ -450,6 +450,11 @@
     }
     @media (max-width: 560px) {
       .why-grid { grid-template-columns: 1fr !important; }
+      /* На 320px внутренние 2rem с двух сторон не оставляли места тексту — он вылезал за край. */
+      .b2b-grid { padding: 1.25rem !important; gap: 1.5rem !important; }
+      .quiz-grid > div:first-child { padding: 1.25rem !important; }
+      .b2b-grid h2 { font-size: 1.4rem !important; }
+      .sess-grid h2 { font-size: 1.6rem !important; }
     }
   </style>
 

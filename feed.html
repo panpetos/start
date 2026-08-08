@@ -30,7 +30,7 @@
         .post-date { color: var(--fd-text-sec); font-size: 0.75rem; margin-left: auto; white-space: nowrap; }
         .post-text { margin-top: 0.7rem; white-space: pre-wrap; line-height: 1.6; color: var(--fd-text); }
         .post-text img, .post-img { max-width: 100%; border-radius: 0.7rem; margin-top: 0.6rem; display: block; }
-        .post-actions { display: flex; align-items: center; gap: 0.4rem; margin-top: 0.8rem; padding-top: 0.7rem; border-top: 1px solid var(--fd-border); }
+        .post-actions { display: flex; align-items: center; gap: 0.4rem; margin-top: 0.8rem; padding-top: 0.7rem; border-top: 1px solid var(--fd-border); flex-wrap: wrap; }
         .pbtn { display: inline-flex; align-items: center; gap: 0.3rem; background: none; border: none; cursor: pointer; color: var(--fd-text-sec); font-size: 0.85rem; font-family: inherit; padding: 0.35rem 0.6rem; border-radius: 0.5rem; transition: background 0.15s, color 0.15s; }
         .pbtn:hover { background: var(--fd-border); }
         .pbtn.liked { color: #DC2626; font-weight: 700; }
@@ -50,6 +50,19 @@
         .comment-form input:focus { border-color: #7C3AED; }
         .comment-form button { padding: 0.5rem 0.9rem; border-radius: 1.2rem; border: none; background: #7C3AED; color: #fff; font-weight: 600; font-size: 0.82rem; cursor: pointer; font-family: inherit; }
         .comments-empty { color: var(--fd-text-sec); font-size: 0.82rem; }
+
+        @media (max-width: 480px) {
+            .wrap { padding: 1.25rem 0.75rem 3rem; }
+            .post-card { padding: 0.9rem 0.95rem; border-radius: 0.9rem; }
+            /* Пять действий в один ряд на узком экране не влезают — «Подписаться»
+               уезжала за правый край и была недоступна. Переносим её на свою строку. */
+            .pbtn { padding: 0.3rem 0.4rem; font-size: 0.82rem; }
+            .sub-btn { margin-left: 0; width: 100%; padding: 0.45rem 0.8rem; text-align: center; }
+            .post-head { gap: 0.55rem; }
+            .post-ava { width: 38px; height: 38px; }
+            .post-date { font-size: 0.7rem; }
+            .comment-form input { font-size: 16px; }
+        }
     </style>
 </head>
 <body>

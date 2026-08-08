@@ -30,7 +30,7 @@
     main { max-width: 900px; margin: 0 auto; padding: 2.5rem 1.5rem 4rem; }
     .toc { background: var(--white); border: 1px solid var(--gray-300); border-radius: 16px; padding: 1.75rem 2rem; margin-bottom: 2.5rem; box-shadow: 0 2px 12px rgba(0,0,0,0.05); }
     .toc h2 { font-size: 0.95rem; font-weight: 600; color: var(--gray-500); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 1rem; }
-    .toc ol { padding-left: 1.25rem; display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 0.35rem 2rem; }
+    .toc ol { padding-left: 1.25rem; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(240px, 100%), 1fr)); gap: 0.35rem 2rem; }
     .toc li { font-size: 0.9rem; }
     .toc a { color: var(--purple); text-decoration: none; font-weight: 500; }
     .toc a:hover { text-decoration: underline; }
@@ -46,7 +46,7 @@
     p.intro-text { font-size: 0.95rem; color: var(--gray-700); margin-bottom: 1rem; line-height: 1.75; }
     .terms-block { background: var(--purple-bg); border-left: 3px solid var(--purple); border-radius: 0 10px 10px 0; padding: 1rem 1.25rem; margin-bottom: 1.25rem; }
     .terms-block h3 { font-size: 0.85rem; font-weight: 700; color: var(--purple); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.6rem; }
-    .req-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 1rem; }
+    .req-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(220px, 100%), 1fr)); gap: 1rem; }
     .req-item { background: var(--gray-100); border-radius: 10px; padding: 0.9rem 1rem; }
     .req-label { font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--gray-500); margin-bottom: 0.3rem; }
     .req-value { font-size: 0.95rem; font-weight: 600; color: var(--gray-900); }

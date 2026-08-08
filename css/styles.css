@@ -508,6 +508,14 @@ p { margin-bottom: var(--spacing-md); }
 
 .site-footer a { color: #888; margin: 0 8px; }
 
+@media (max-width: 560px) {
+  .site-footer { padding: 20px 12px; }
+  /* inline-block вместо inline: строчная ссылка, разорванная на две строки, отдаёт
+     объединённый прямоугольник шире контейнера и выходит за край экрана. */
+  .site-footer a { display: inline-block; margin: 3px 6px; }
+  .site-footer p { overflow-wrap: anywhere; }
+}
+
 .nav {
   background-color: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(20px);
@@ -1557,6 +1565,19 @@ details p {
   }
 }
 
+/* ── Мобильные формы: iOS Safari принудительно зумит страницу при фокусе на поле,
+   если его font-size < 16px. После такого зума вёрстка шире экрана, и это
+   выглядит как «всё уехало». 16px на всех полях убирает зум целиком.
+   !important нужен потому, что размеры полей заданы в <style> отдельных страниц
+   и в инлайновых стилях, иначе правило проигрывает по приоритету. ── */
+@media (max-width: 768px) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+}
+
 @media (max-width: 1023px) {
   html, body { overflow-x: hidden !important; width: 100%; position: relative; }
 
@@ -1585,8 +1606,16 @@ details p {
   .nav-menu li {
     width: 100%;
     margin: 0 !important;
-    padding: 0.75rem 0;
+    padding: 0.25rem 0;
     border-bottom: 1px solid #F5F5F5;
+  }
+  /* Пункт меню — полноценная область нажатия под палец (было ~32px в высоту). */
+  .nav-menu li > a, .nav-menu li > .nav-link {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    min-height: 44px;
+    padding: 0.35rem 0;
   }
 
   .nav-menu li:last-child { border-bottom: none; margin-top: 1rem !important; }

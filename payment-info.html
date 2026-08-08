@@ -37,6 +37,18 @@
         body.dark .req-table td { border-bottom-color: #333; }
         body.dark .req-table td:first-child { color: #999; }
         body.dark .req-table td:last-child { color: #E6E6E6; }
+
+        @media (max-width: 560px) {
+            .wrap { padding: 1.5rem 0.85rem 3rem; }
+            /* Реквизиты: длинные значения (название ИП, e-mail, счёт) не влезали в 320px
+               и уезжали за край. Делаем построчную вёрстку и разрешаем перенос. */
+            .req-table { font-size: 0.875rem; }
+            .req-table td { display: block; width: auto !important; border-bottom: none; padding: 0.15rem 0; }
+            .req-table td:first-child { padding-top: 0.6rem; font-size: 0.78rem; }
+            .req-table td:last-child { padding-bottom: 0.6rem; border-bottom: 1px solid #F0F0F0; overflow-wrap: anywhere; }
+            body.dark .req-table td:last-child { border-bottom-color: #333; }
+            .req-table a { overflow-wrap: anywhere; }
+        }
         body.dark .secure { background: #1A3A1A; border-color: #2D5A2D; }
         body.dark .secure b, body.dark .secure p { color: #CCCCCC; }
     </style>
