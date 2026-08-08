@@ -106,6 +106,7 @@ jobs:
             put api/site_structure.php -o api/site_structure.php;
             put api/message_edit.php -o api/message_edit.php;
             put api/group_chat.php -o api/group_chat.php;
+            put api/chat_folders.php -o api/chat_folders.php;
             put api/blog.php -o api/blog.php;
             put api/schema_util.php -o api/schema_util.php;
             bye;
