@@ -52,14 +52,34 @@
             overflow: hidden;
         }
 
-        .conversations-list {
-            width: 320px;
-            background: white;
+        /* Колонка чатов = рейка папок + сам список. Ширину можно тянуть за правый край. */
+        .conversations-pane {
+            width: var(--pane-w, 320px);
+            min-width: 0;
+            flex-shrink: 0;
+            display: flex;
+            position: relative;
             border-right: 1px solid #e0e0e0;
+            background: white;
+        }
+        .conversations-list {
+            flex: 1;
+            min-width: 0;
+            background: white;
             display: flex;
             flex-direction: column;
-            transition: width 0.18s ease;
         }
+        .pane-resizer {
+            position: absolute; top: 0; bottom: 0; right: -3px; width: 7px;
+            cursor: col-resize; z-index: 20; background: transparent;
+        }
+        .pane-resizer::after {
+            content: ''; position: absolute; top: 0; bottom: 0; left: 3px; width: 1px;
+            background: transparent; transition: background 0.15s;
+        }
+        .pane-resizer:hover::after, .pane-resizer.dragging::after { background: #7C3AED; }
+        body.pane-resizing { cursor: col-resize; user-select: none; }
+        body.dark .conversations-pane { background: #252525; border-right-color: #333; }
 
         /* Шапка списка диалогов: поиск + действия. Классы, а не инлайн — иначе
            свёрнутое состояние не переопределить. */
@@ -78,19 +98,20 @@
         }
 
         /* ── Свёрнутая шторка: остаются только аватарки, как в Telegram ── */
-        .conversations-list.collapsed { width: 76px; }
-        .conversations-list.collapsed .chat-sb-head { flex-direction: column; padding: 0.6rem 0.3rem; gap: 0.35rem; }
-        .conversations-list.collapsed .chat-sb-search,
-        .conversations-list.collapsed .chat-folders,
-        .conversations-list.collapsed .conversation-info,
-        .conversations-list.collapsed .conversation-time { display: none; }
-        .conversations-list.collapsed .conversation-item {
-            justify-content: center; padding: 0.55rem 0; gap: 0; position: relative;
+        .conversations-pane.collapsed { width: 76px !important; }
+        .conversations-pane.collapsed .chat-folders { display: none; }
+        .conversations-pane.collapsed .chat-sb-head { flex-direction: column; padding: 0.6rem 0.3rem; gap: 0.35rem; }
+        .conversations-pane.collapsed .chat-sb-search,
+        .conversations-pane.collapsed .conversation-info,
+        .conversations-pane.collapsed .conversation-time { display: none; }
+        .conversations-pane.collapsed .conversation-item {
+            justify-content: center; padding: 0.55rem 0; gap: 0;
         }
-        .conversations-list.collapsed .conversation-meta {
-            position: absolute; top: 3px; right: 9px; text-align: center;
+        .conversations-pane.collapsed .conversation-meta {
+            position: absolute; top: 3px; right: 9px; text-align: center; padding-right: 0;
         }
-        .conversations-list.collapsed .unread-badge { margin: 0; padding: 1px 5px; font-size: 0.65rem; }
+        .conversations-pane.collapsed .folder-pick-btn { display: none; }
+        .conversations-pane.collapsed .unread-badge { margin: 0; padding: 1px 5px; font-size: 0.65rem; }
         .sb-collapse-btn {
             width: 34px; height: 34px; flex-shrink: 0; border-radius: 0.5rem;
             border: 1px solid #e0e0e0; background: #f9fafb; color: #6B7280;
@@ -99,23 +120,41 @@
         }
         .sb-collapse-btn:hover { background: #F3E8FF; color: #7C3AED; border-color: #C4B5FD; }
 
-        /* ── Папки: Все / Личное / Каналы / Группы + свои ── */
+        /* ── Папки: вертикальная рейка слева, как в Telegram и MAX ──────────────────
+           Раньше папки были горизонтальным рядом над списком: он занимал строку и на
+           телефоне уезжал в горизонтальную прокрутку. Теперь узкая колонка с иконками. */
         .chat-folders {
-            display: flex; gap: 0.3rem; padding: 0.5rem 0.6rem;
-            border-bottom: 1px solid #f0f0f0; flex-shrink: 0;
-            overflow-x: auto; scrollbar-width: none;
+            display: flex; flex-direction: column; align-items: stretch;
+            width: 66px; flex-shrink: 0; padding: 0.4rem 0.25rem; gap: 0.15rem;
+            background: #FAFAFC; border-right: 1px solid #ECECF2;
+            overflow-y: auto; overflow-x: hidden; scrollbar-width: none;
         }
         .chat-folders::-webkit-scrollbar { display: none; }
         .folder-tab {
-            flex: 0 0 auto; border: none; background: #F3F4F6; color: #4B5563;
-            font-family: inherit; font-size: 0.78rem; font-weight: 600;
-            padding: 0.32rem 0.7rem; border-radius: 2rem; cursor: pointer;
-            display: inline-flex; align-items: center; gap: 0.25rem; white-space: nowrap;
+            flex: 0 0 auto; border: none; background: transparent; color: #6B7280;
+            font-family: inherit; font-size: 0.62rem; font-weight: 600;
+            padding: 0.45rem 0.1rem 0.35rem; border-radius: 0.6rem; cursor: pointer;
+            display: flex; flex-direction: column; align-items: center; gap: 0.15rem;
+            line-height: 1.15; text-align: center; position: relative;
         }
-        .folder-tab:hover { background: #EDE9FE; color: #6D28D9; }
-        .folder-tab.active { background: #7C3AED; color: #fff; }
-        .folder-tab .fcount { opacity: 0.7; font-weight: 500; }
-        .folder-tab-add { background: transparent; color: #7C3AED; border: 1px dashed #C4B5FD; }
+        .folder-tab .ftab-ico { font-size: 1.05rem; line-height: 1; }
+        .folder-tab .ftab-name {
+            display: block; max-width: 100%; overflow: hidden;
+            text-overflow: ellipsis; white-space: nowrap;
+        }
+        .folder-tab:hover { background: #F1EDFB; color: #6D28D9; }
+        .folder-tab.active { background: #EDE4FD; color: #6D28D9; }
+        .folder-tab.active::before {
+            content: ''; position: absolute; left: 0; top: 18%; bottom: 18%;
+            width: 3px; border-radius: 0 3px 3px 0; background: #7C3AED;
+        }
+        .folder-tab .fcount {
+            position: absolute; top: 2px; right: 6px;
+            background: #7C3AED; color: #fff; font-size: 0.58rem; font-weight: 700;
+            min-width: 15px; padding: 0 3px; border-radius: 8px; line-height: 15px;
+        }
+        .folder-tab-add { color: #7C3AED; }
+        .folder-tab-add .ftab-ico { font-size: 1rem; }
         .folder-pick-btn {
             border: none; background: transparent; cursor: pointer; font-size: 0.9rem;
             opacity: 0.45; padding: 0; line-height: 1; flex-shrink: 0;
@@ -223,15 +262,90 @@
         body.dark .pinned-unpin { color: #E3B341; }
         body.dark .pinned-body { color: #C9C3AC; }
         body.dark .pinned-unpin:hover { background: #423821; }
-        /* Иконки действий у сообщения: одинаковый размер и цвет, вместо разнокалиберных эмодзи */
-        .msg-act { width: 14px; height: 14px; vertical-align: -2px; }
-        .message-time .act {
-            display: inline-flex; align-items: center; justify-content: center;
-            width: 22px; height: 22px; margin-left: 0.1rem; border-radius: 0.4rem;
-            cursor: pointer; opacity: 0.6; vertical-align: middle;
+        /* ── Действия по наведению на сообщение (как в Telegram/MAX) ──────────────────
+           Раньше иконки висели в строке времени у каждого сообщения и рябили. Теперь
+           появляются при наведении рядом с пузырём: быстрый «ответить» и меню. */
+        .message { position: relative; }
+        .msg-hover {
+            position: absolute; top: 2px; display: flex; gap: 2px;
+            opacity: 0; pointer-events: none; transition: opacity 0.12s;
         }
-        .message-time .act:hover { opacity: 1; background: rgba(124,58,237,0.12); }
-        .message.mine .message-time .act:hover { background: rgba(255,255,255,0.22); }
+        .message.theirs .msg-hover { right: -62px; }
+        .message.mine .msg-hover { left: -62px; }
+        .message:hover .msg-hover,
+        .msg-hover:focus-within { opacity: 1; pointer-events: auto; }
+        .msg-hover button {
+            width: 27px; height: 27px; border: none; border-radius: 50%;
+            background: #fff; color: #6B7280; cursor: pointer; padding: 0;
+            display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 1px 5px rgba(0,0,0,0.14);
+        }
+        .msg-hover button:hover { color: #7C3AED; }
+        body.dark .msg-hover button { background: #333; color: #C4C4C4; box-shadow: 0 1px 5px rgba(0,0,0,0.4); }
+        body.dark .msg-hover button:hover { color: #C9AEFB; }
+        /* На тач-устройствах наведения нет — держим кнопки видимыми и внутри пузыря */
+        @media (hover: none) {
+            .msg-hover { opacity: 0.75; pointer-events: auto; position: static; margin-top: 0.3rem; }
+            .message.theirs .msg-hover, .message.mine .msg-hover { right: auto; left: auto; }
+        }
+
+        /* ── Цитата ответа внутри пузыря ── */
+        .msg-quote {
+            border-left: 3px solid #7C3AED; padding: 0.15rem 0 0.15rem 0.5rem;
+            margin-bottom: 0.35rem; cursor: pointer; max-width: 100%;
+        }
+        .msg-quote-name { font-size: 0.74rem; font-weight: 700; color: #7C3AED; }
+        .msg-quote-text {
+            font-size: 0.8rem; opacity: 0.85;
+            overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        }
+        .message.mine .msg-quote { border-left-color: rgba(255,255,255,0.75); }
+        .message.mine .msg-quote-name { color: #fff; }
+        body.dark .msg-quote-name { color: #C9AEFB; }
+
+        /* ── Полоска ответа над полем ввода ── */
+        .reply-bar {
+            display: flex; align-items: center; gap: 0.5rem; flex-shrink: 0;
+            padding: 0.45rem 0.9rem; background: #F6F2FE; border-top: 1px solid #E4DAF9;
+        }
+        .reply-bar .rb-ico { width: 16px; height: 16px; color: #7C3AED; flex-shrink: 0; }
+        .reply-bar .rb-text { flex: 1; min-width: 0; }
+        .reply-bar .rb-name { font-size: 0.72rem; font-weight: 700; color: #6D28D9; }
+        .reply-bar .rb-body {
+            font-size: 0.8rem; color: #4B5563;
+            overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        }
+        .reply-bar .rb-x {
+            border: none; background: transparent; color: #6D28D9; cursor: pointer;
+            font-size: 1rem; line-height: 1; padding: 0.25rem 0.35rem; border-radius: 0.4rem;
+        }
+        .reply-bar .rb-x:hover { background: #EADCFB; }
+        body.dark .reply-bar { background: #2A2140; border-top-color: #3D2F5C; }
+        body.dark .reply-bar .rb-name { color: #D3BEFA; }
+        body.dark .reply-bar .rb-body { color: #B4B4B4; }
+        body.dark .reply-bar .rb-x { color: #C9AEFB; }
+        body.dark .reply-bar .rb-x:hover { background: #3D2F5C; }
+
+        /* ── Режим выделения сообщений ── */
+        .sel-bar {
+            display: flex; align-items: center; gap: 0.5rem; flex-shrink: 0;
+            padding: 0.5rem 0.9rem; background: #EDE4FD; border-bottom: 1px solid #DCCDF8;
+        }
+        .sel-bar .sb-count { flex: 1; font-size: 0.85rem; font-weight: 700; color: #4C1D95; }
+        .sel-bar button {
+            border: none; background: #7C3AED; color: #fff; cursor: pointer;
+            font-family: inherit; font-size: 0.8rem; font-weight: 600;
+            padding: 0.4rem 0.7rem; border-radius: 0.5rem;
+        }
+        .sel-bar button.ghost { background: transparent; color: #6D28D9; }
+        .sel-bar button.danger { background: #DC2626; }
+        .sel-bar button:disabled { opacity: 0.45; cursor: default; }
+        body.dark .sel-bar { background: #37254A; border-bottom-color: #4A3970; }
+        body.dark .sel-bar .sb-count { color: #D3BEFA; }
+        body.dark .sel-bar button.ghost { color: #C9AEFB; }
+        body.selecting .message { cursor: pointer; }
+        .message.selected { outline: 2px solid #7C3AED; outline-offset: 2px; }
+        body.selecting .msg-hover { display: none; }
 
         /* Подсветка сообщения, к которому перешли по закреплённому/плееру */
         .message.flash { animation: msgFlash 1.4s ease; }
@@ -297,6 +411,27 @@
             border-bottom: 1px solid #f0f0f0;
             cursor: pointer;
             transition: background 0.2s;
+            position: relative;
+        }
+        /* Меню «⋮» держим у правого края строки, а не в строке имени: раньше оно стояло
+           сразу после названия и на длинных именах уезжало под текст. */
+        .conversation-item > .folder-pick-btn {
+            position: absolute;
+            top: 50%;
+            right: 0.35rem;
+            transform: translateY(-50%);
+            opacity: 0;
+        }
+        .conversation-item:hover > .folder-pick-btn,
+        .conversation-item > .folder-pick-btn.in-folder,
+        .conversation-item > .folder-pick-btn:focus-visible { opacity: 0.55; }
+        .conversation-item > .folder-pick-btn:hover { opacity: 1; }
+        /* Оставляем место под «⋮», иначе превью и время подъезжают прямо под кнопку */
+        .conversation-item .conversation-info { padding-right: 1.1rem; }
+        .conversation-item .conversation-meta { padding-right: 1.4rem; }
+        /* На тач-устройствах наведения нет — кнопку показываем всегда */
+        @media (hover: none) {
+            .conversation-item > .folder-pick-btn { opacity: 0.5; }
         }
 
         .conversation-item:hover {
@@ -467,6 +602,108 @@
         body.dark .ch-comments-box { border-top-color: #333; }
         body.dark .ch-comment-body { background: #1E1E1E; }
         body.dark .ch-comment-form input { background: #1E1E1E; border-color: #444; color: #E6E6E6; }
+
+        /* ── Обои переписки ──────────────────────────────────────────────────────────
+           Фоны собраны из градиентов и SVG-паттернов в data:URI: никаких внешних картинок,
+           значит ничего не грузится и нечему отвалиться. Выбор общий для всех чатов и
+           хранится на сервере (api/chat_prefs.php), поэтому переезжает между устройствами. */
+        .messages-container { background-attachment: local; }
+        body[data-wall="dots"] .messages-container {
+            background-color: #F7F5FC;
+            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18"><circle cx="2" cy="2" r="1.3" fill="%23C9BCF0"/></svg>');
+        }
+        body[data-wall="lilac"] .messages-container {
+            background: linear-gradient(160deg, #F3EDFF 0%, #FBF7FF 45%, #F1F4FF 100%);
+        }
+        body[data-wall="mint"] .messages-container {
+            background: linear-gradient(160deg, #EAF7F1 0%, #F6FBF8 50%, #EAF3F8 100%);
+        }
+        body[data-wall="sand"] .messages-container {
+            background: linear-gradient(160deg, #FBF3E8 0%, #FDF9F2 50%, #F7F1E6 100%);
+        }
+        body[data-wall="paper"] .messages-container {
+            background-color: #FAF8F4;
+            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="26" height="26"><path d="M0 25.5h26" stroke="%23E7E0D3" stroke-width="1"/></svg>');
+        }
+        body[data-wall="stars"] .messages-container {
+            background-color: #F2F4FB;
+            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="44" height="44"><circle cx="6" cy="8" r="1" fill="%23B9C2E8"/><circle cx="28" cy="20" r="1.4" fill="%23C7CEEC"/><circle cx="16" cy="34" r="1" fill="%23B9C2E8"/><circle cx="38" cy="6" r="1" fill="%23CDD3EE"/></svg>');
+        }
+        /* Тёмные версии: те же обои, но не выжигающие глаза */
+        body.dark[data-wall="dots"] .messages-container {
+            background-color: #1C1A22;
+            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18"><circle cx="2" cy="2" r="1.3" fill="%233A3350"/></svg>');
+        }
+        body.dark[data-wall="lilac"] .messages-container { background: linear-gradient(160deg, #221B31 0%, #1B1725 50%, #1A1B2A 100%); }
+        body.dark[data-wall="mint"] .messages-container { background: linear-gradient(160deg, #16241F 0%, #171E1C 50%, #161F26 100%); }
+        body.dark[data-wall="sand"] .messages-container { background: linear-gradient(160deg, #262018 0%, #1F1B16 50%, #241E15 100%); }
+        body.dark[data-wall="paper"] .messages-container {
+            background-color: #201E1A;
+            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="26" height="26"><path d="M0 25.5h26" stroke="%23332F27" stroke-width="1"/></svg>');
+        }
+        body.dark[data-wall="stars"] .messages-container {
+            background-color: #171A26;
+            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="44" height="44"><circle cx="6" cy="8" r="1" fill="%233B4470"/><circle cx="28" cy="20" r="1.4" fill="%23454E7D"/><circle cx="16" cy="34" r="1" fill="%233B4470"/><circle cx="38" cy="6" r="1" fill="%234A5288"/></svg>');
+        }
+
+        /* Выбор обоев */
+        .wall-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.6rem; }
+        .wall-item {
+            border: 2px solid #E5E7EB; border-radius: 0.7rem; cursor: pointer;
+            padding: 0; overflow: hidden; background: none; font-family: inherit;
+        }
+        .wall-item.on { border-color: #7C3AED; }
+        .wall-swatch { height: 62px; display: block; }
+        .wall-label {
+            display: block; font-size: 0.72rem; color: #6B7280; padding: 0.25rem 0.2rem;
+            background: #fff; text-align: center;
+        }
+        body.dark .wall-item { border-color: #3A3A3A; }
+        body.dark .wall-item.on { border-color: #7C3AED; }
+        body.dark .wall-label { background: #2A2A2A; color: #B4B4B4; }
+
+        /* Полосы прокрутки: системные выглядели резко, особенно в тёмной теме.
+           Тонкие, полупрозрачные, темнеют при наведении. */
+        .messages-container,
+        #conversationsList,
+        .folder-picker,
+        #groupInfoBody {
+            scrollbar-width: thin;
+            scrollbar-color: rgba(124, 58, 237, 0.28) transparent;
+        }
+        .messages-container::-webkit-scrollbar,
+        #conversationsList::-webkit-scrollbar,
+        .folder-picker::-webkit-scrollbar,
+        #groupInfoBody::-webkit-scrollbar { width: 8px; height: 8px; }
+        .messages-container::-webkit-scrollbar-track,
+        #conversationsList::-webkit-scrollbar-track,
+        .folder-picker::-webkit-scrollbar-track,
+        #groupInfoBody::-webkit-scrollbar-track { background: transparent; }
+        .messages-container::-webkit-scrollbar-thumb,
+        #conversationsList::-webkit-scrollbar-thumb,
+        .folder-picker::-webkit-scrollbar-thumb,
+        #groupInfoBody::-webkit-scrollbar-thumb {
+            background: rgba(124, 58, 237, 0.22);
+            border-radius: 4px;
+            border: 2px solid transparent;
+            background-clip: content-box;
+        }
+        .messages-container:hover::-webkit-scrollbar-thumb,
+        #conversationsList:hover::-webkit-scrollbar-thumb { background: rgba(124, 58, 237, 0.42); background-clip: content-box; }
+        .messages-container::-webkit-scrollbar-thumb:hover,
+        #conversationsList::-webkit-scrollbar-thumb:hover { background: rgba(124, 58, 237, 0.6); background-clip: content-box; }
+        body.dark .messages-container,
+        body.dark #conversationsList,
+        body.dark .folder-picker,
+        body.dark #groupInfoBody { scrollbar-color: rgba(183, 148, 244, 0.3) transparent; }
+        body.dark .messages-container::-webkit-scrollbar-thumb,
+        body.dark #conversationsList::-webkit-scrollbar-thumb,
+        body.dark .folder-picker::-webkit-scrollbar-thumb,
+        body.dark #groupInfoBody::-webkit-scrollbar-thumb {
+            background: rgba(183, 148, 244, 0.24); background-clip: content-box;
+        }
+        body.dark .messages-container:hover::-webkit-scrollbar-thumb,
+        body.dark #conversationsList:hover::-webkit-scrollbar-thumb { background: rgba(183, 148, 244, 0.44); background-clip: content-box; }
 
         .messages-container {
             flex: 1;
@@ -954,30 +1191,31 @@
             body { height: 100dvh; }
             .chat-container { height: 100dvh; }
 
-            .conversations-list,
-            .conversations-list.collapsed {
-                width: 100%;
+            .conversations-pane,
+            .conversations-pane.collapsed {
+                width: 100% !important;
             }
-            /* На телефоне список занимает весь экран — сворачивать нечего, кнопку скрываем */
-            .sb-collapse-btn { display: none; }
-            /* Папки-кнопки были 29px в высоту — для пальца мало, доводим до 36px */
-            .folder-tab { padding: 0.5rem 0.85rem; font-size: 0.82rem; }
-            /* Кнопка «в папку» была 17×14 — для пальца мало. Отрицательные отступы по вертикали
-               держат высоту строки чата прежней, но зона нажатия становится 34×34. */
-            .folder-pick-btn { width: 34px; height: 34px; font-size: 1rem; margin: -5px -4px; }
-            .chat-folders { padding: 0.45rem 0.6rem; gap: 0.35rem; }
-            .conversations-list.collapsed .chat-sb-head { flex-direction: row; padding: 0.75rem; gap: 0.5rem; }
-            .conversations-list.collapsed .chat-sb-search,
-            .conversations-list.collapsed .chat-folders,
-            .conversations-list.collapsed .conversation-info,
-            .conversations-list.collapsed .conversation-time { display: revert; }
-            .conversations-list.collapsed .conversation-item { justify-content: flex-start; padding: 0.75rem; gap: 0.65rem; }
-            .conversations-list.collapsed .conversation-meta { position: static; text-align: right; }
+            /* На телефоне список занимает весь экран — сворачивать и тянуть нечего */
+            .sb-collapse-btn, .pane-resizer { display: none; }
+            /* Рейка папок на телефоне уже, но остаётся вертикальной — как в мобильном MAX */
+            .chat-folders { width: 58px; padding: 0.35rem 0.15rem; }
+            .folder-tab { padding: 0.5rem 0.1rem 0.4rem; font-size: 0.58rem; }
+            .folder-tab .ftab-ico { font-size: 1.15rem; }
+            /* Кнопка «⋮» была мелкой для пальца — зона нажатия 34×34 */
+            .folder-pick-btn { width: 34px; height: 34px; }
+            .conversations-pane.collapsed .chat-folders { display: flex; }
+            .conversations-pane.collapsed .chat-sb-head { flex-direction: row; padding: 0.75rem; gap: 0.5rem; }
+            .conversations-pane.collapsed .chat-sb-search,
+            .conversations-pane.collapsed .conversation-info,
+            .conversations-pane.collapsed .conversation-time { display: revert; }
+            .conversations-pane.collapsed .conversation-item { justify-content: flex-start; padding: 0.75rem; gap: 0.65rem; }
+            .conversations-pane.collapsed .conversation-meta { position: static; text-align: right; padding-right: 1.4rem; }
+            .conversations-pane.collapsed .folder-pick-btn { display: inline-flex; }
             .chat-area {
                 display: none;
             }
             /* Когда открыт диалог — показываем чат на весь экран, список прячем */
-            .chat-container.mobile-chat-open .conversations-list { display: none; }
+            .chat-container.mobile-chat-open .conversations-pane { display: none; }
             .chat-container.mobile-chat-open .chat-area { display: flex; }
             .chat-back-btn { display: flex; }
 
@@ -1051,11 +1289,11 @@
         body.dark .chat-sb-search { background: #1E1E1E; border-color: #444; color: #E6E6E6; }
         body.dark .sb-collapse-btn { background: #2A2A2A; border-color: #444; color: #A8A8A8; }
         body.dark .sb-collapse-btn:hover { background: #37254A; color: #C9AEFB; border-color: #7C3AED; }
-        body.dark .chat-folders { border-bottom-color: #333; }
-        body.dark .folder-tab { background: #2F2F2F; color: #C4C4C4; }
-        body.dark .folder-tab:hover { background: #37254A; color: #C9AEFB; }
-        body.dark .folder-tab.active { background: #7C3AED; color: #fff; }
-        body.dark .folder-tab-add { background: transparent; color: #C9AEFB; border-color: #5B3E8E; }
+        body.dark .chat-folders { background: #202020; border-right-color: #333; }
+        body.dark .folder-tab { background: transparent; color: #A8A8A8; }
+        body.dark .folder-tab:hover { background: #34274D; color: #C9AEFB; }
+        body.dark .folder-tab.active { background: #37254A; color: #D3BEFA; }
+        body.dark .folder-tab-add { color: #C9AEFB; }
         body.dark #chatSearchInput { background: #1E1E1E; border-color: #444; color: #E6E6E6; }
         body.dark #chatSearchInput::placeholder { color: #777; }
         body.dark .conversation-item { border-bottom-color: #333; }
@@ -1096,6 +1334,7 @@
         body.dark #groupInfoModal > div,
         body.dark #createGroupModal > div,
         body.dark #channelSettingsModal > div,
+        body.dark #wallpaperModal > div,
         body.dark #forwardModal > div,
         body.dark #healthConsentModal > div > div { background: #252525 !important; color: #E6E6E6 !important; }
         body.dark #notesDrawer { background: #252525 !important; }
@@ -1161,19 +1400,25 @@
         })();
     </script>
     <div class="chat-container" style="height:100vh;">
-        <div class="conversations-list" id="conversationsPane">
+        <div class="conversations-pane" id="conversationsPane">
+            <!-- Вертикальная рейка папок слева, как в Telegram/MAX -->
+            <div class="chat-folders" id="chatFolders"></div>
+            <div class="conversations-list">
             <div class="chat-sb-head">
                 <button class="sb-collapse-btn" id="sbCollapseBtn" onclick="toggleChatSidebar()" title="Свернуть список" aria-label="Свернуть список">‹</button>
                 <input id="chatSearchInput" class="chat-sb-search" type="text" placeholder="🔍 Поиск по всем пользователям..." oninput="filterConversations()">
                 <button class="chat-hdr-btn" onclick="openCreateGroupModal()" title="Новая группа" aria-label="Новая группа">
                     <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
                 </button>
+                <button class="chat-hdr-btn" onclick="openWallpaperPicker()" title="Обои переписки" aria-label="Обои переписки">🎨</button>
                 <button id="chatThemeToggle" class="chat-hdr-btn" onclick="toggleChatTheme()" title="Светлая/тёмная тема" aria-label="Сменить тему">🌙</button>
             </div>
-            <div class="chat-folders" id="chatFolders"></div>
             <div id="conversationsList" style="overflow-y:auto;flex:1;">
                 <div class="no-conversations">Загрузка...</div>
             </div>
+            </div>
+            <!-- Край для перетаскивания ширины списка -->
+            <div class="pane-resizer" id="paneResizer" title="Потяните, чтобы изменить ширину"></div>
         </div>
 
         <div class="chat-area" id="chatArea">
@@ -1192,7 +1437,7 @@
                 <div class="chat-header" id="chatHeader"></div>
                 <!-- Плашка закреплённого сообщения -->
                 <div class="pinned-bar" id="pinnedBar" style="display:none;" onclick="jumpToPinned()">
-                    <svg class="pin-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4h6l-1 5 3.5 3.5H5.5L9 9 8 4z"/><path d="M12 12.5V20"/></svg>
+                    <svg width="17" height="17" class="pin-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4h6l-1 5 3.5 3.5H5.5L9 9 8 4z"/><path d="M12 12.5V20"/></svg>
                     <div class="pinned-text">
                         <div class="pinned-title">Закреплённое сообщение</div>
                         <div class="pinned-body" id="pinnedBody"></div>
@@ -1202,7 +1447,7 @@
                 <!-- Закреплённый плеер: видно, что играет, можно поставить на паузу и остановить -->
                 <div class="sticky-player" id="stickyPlayer" style="display:none;">
                     <button class="sp-btn" id="spToggle" onclick="stickyTogglePlay()" title="Пауза" aria-label="Пауза">
-                        <svg viewBox="0 0 24 24" fill="currentColor"><rect x="7" y="5" width="3.5" height="14" rx="1"/><rect x="13.5" y="5" width="3.5" height="14" rx="1"/></svg>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="7" y="5" width="3.5" height="14" rx="1"/><rect x="13.5" y="5" width="3.5" height="14" rx="1"/></svg>
                     </button>
                     <div class="sp-info" onclick="stickyJumpTo()">
                         <div class="sp-title" id="spTitle">Голосовое сообщение</div>
@@ -1211,26 +1456,42 @@
                     <div class="sp-time" id="spTime">00:00</div>
                     <button class="sp-speed" id="spSpeed" onclick="stickyCycleSpeed()" title="Скорость воспроизведения">1x</button>
                     <button class="sp-btn sp-close" onclick="stickyStop()" title="Остановить" aria-label="Остановить">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+                        <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
                     </button>
                 </div>
+                <!-- Панель выделенных сообщений -->
+                <div class="sel-bar" id="selBar" style="display:none;">
+                    <span class="sb-count" id="selCount">Выбрано: 0</span>
+                    <button onclick="forwardSelected()" id="selFwd">Переслать</button>
+                    <button class="danger" onclick="deleteSelected()" id="selDel">Удалить</button>
+                    <button class="ghost" onclick="exitSelectMode()">Отмена</button>
+                </div>
                 <div class="messages-container" id="messagesContainer"></div>
+                <!-- Ответ на сообщение -->
+                <div class="reply-bar" id="replyBar" style="display:none;">
+                    <svg class="rb-ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 4L4 9l6 5V4z"/><path d="M4 9h11a5 5 0 015 5v3"/></svg>
+                    <div class="rb-text">
+                        <div class="rb-name" id="replyName">Ответ</div>
+                        <div class="rb-body" id="replyBody"></div>
+                    </div>
+                    <button class="rb-x" onclick="cancelReply()" title="Отменить ответ" aria-label="Отменить ответ">✕</button>
+                </div>
                 <div class="chat-input" id="chatInputBar">
                     <button type="button" onclick="toggleEmojiPicker()" class="icon-btn" title="Эмодзи" aria-label="Эмодзи">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8.5 14.5s1.3 1.6 3.5 1.6 3.5-1.6 3.5-1.6"/><path d="M9 9.5h.01M15 9.5h.01"/></svg>
+                        <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8.5 14.5s1.3 1.6 3.5 1.6 3.5-1.6 3.5-1.6"/><path d="M9 9.5h.01M15 9.5h.01"/></svg>
                     </button>
                     <label class="icon-btn" title="Прикрепить файл" aria-label="Прикрепить файл">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20.4 12.3l-7.9 7.9a5 5 0 01-7-7l8-8a3.3 3.3 0 014.7 4.7l-8 8a1.7 1.7 0 01-2.4-2.4l7.4-7.3"/></svg>
+                        <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20.4 12.3l-7.9 7.9a5 5 0 01-7-7l8-8a3.3 3.3 0 014.7 4.7l-8 8a1.7 1.7 0 01-2.4-2.4l7.4-7.3"/></svg>
                         <input type="file" id="fileInput" style="display:none;" onchange="handleFileSelect(event)"
                             accept="image/*,.pdf,.doc,.docx,.txt">
                     </label>
                     <button type="button" id="voiceBtn" onclick="toggleVoiceRecording()" class="icon-btn"
                         title="Голосовое сообщение" aria-label="Голосовое сообщение">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2.5" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0013 0"/><path d="M12 17.5V21"/></svg>
+                        <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2.5" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0013 0"/><path d="M12 17.5V21"/></svg>
                     </button>
                     <button type="button" id="videoNoteBtn" onclick="startVideoNote()" class="icon-btn"
                         title="Видеосообщение-кружок" aria-label="Видеосообщение-кружок">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M10.3 9.2l4.6 2.8-4.6 2.8V9.2z"/></svg>
+                        <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M10.3 9.2l4.6 2.8-4.6 2.8V9.2z"/></svg>
                     </button>
                     <input type="text" id="messageInput" placeholder="Введите сообщение..."
                         onkeypress="if(event.key==='Enter') sendMessage()">
@@ -1370,6 +1631,17 @@
                 <button onclick="closeGroupInfo()" style="background:none;border:none;font-size:1.2rem;cursor:pointer;color:#6B7280;">✕</button>
             </div>
             <div id="groupInfoBody" style="padding:1.1rem 1.25rem;overflow-y:auto;flex:1;"></div>
+        </div>
+    </div>
+
+    <!-- Обои переписки -->
+    <div id="wallpaperModal" style="display:none;position:fixed;inset:0;background:rgba(26,26,46,0.6);z-index:1320;align-items:center;justify-content:center;padding:1rem;">
+        <div style="background:#fff;border-radius:1rem;max-width:420px;width:100%;max-height:85vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+            <div style="padding:1rem 1.25rem;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;">
+                <div style="font-weight:700;">Обои переписки</div>
+                <button onclick="closeWallpaperPicker()" style="background:none;border:none;font-size:1.2rem;cursor:pointer;color:#6B7280;">✕</button>
+            </div>
+            <div id="wallpaperBody" style="padding:1.1rem 1.25rem;overflow-y:auto;flex:1;"></div>
         </div>
     </div>
 
@@ -1569,9 +1841,10 @@
                             <span style="position:absolute;bottom:-2px;right:-2px;background:#7C3AED;color:#fff;border-radius:50%;width:16px;height:16px;font-size:0.62rem;line-height:14px;text-align:center;border:2px solid #fff;">📡</span>
                         </div>
                         <div class="conversation-info">
-                            <div class="conversation-name"><span class="cn-text">${name}</span>${pinMarkHtml(activeId)}${folderPickHtml(activeId, 'channel', c.psychologist_id)}</div>
+                            <div class="conversation-name"><span class="cn-text">${name}</span>${pinMarkHtml(activeId)}</div>
                             <div class="conversation-preview">${preview}</div>
                         </div>
+                        ${folderPickHtml(activeId, 'channel', c.psychologist_id)}
                     </div>` });
             });
             return out;
@@ -1618,13 +1891,14 @@
                     <div class="conversation-item ${activeId === selectedUserId ? 'active' : ''}" onclick="openGroupChat(${g.id})" title="${escapeHtml(g.name)}">
                         <div class="conversation-avatar" style="background:linear-gradient(135deg,#059669,#10B981);">${g.avatar_url ? `<img src="${escapeHtml(g.avatar_url)}" alt="">` : '👥'}</div>
                         <div class="conversation-info">
-                            <div class="conversation-name"><span class="cn-text">${escapeHtml(g.name)}</span><span style="color:#9CA3AF;font-weight:400;font-size:0.78rem;flex-shrink:0;">· ${g.members_count}</span>${pinMarkHtml(activeId)}${folderPickHtml(activeId, 'group', g.id)}</div>
+                            <div class="conversation-name"><span class="cn-text">${escapeHtml(g.name)}</span><span style="color:#9CA3AF;font-weight:400;font-size:0.78rem;flex-shrink:0;">· ${g.members_count}</span>${pinMarkHtml(activeId)}</div>
                             <div class="conversation-preview">${escapeHtml(lastMsg)}</div>
                         </div>
                         <div class="conversation-meta">
                             <div class="conversation-time">${time}</div>
                             ${g.unread_count > 0 ? `<span class="unread-badge">${g.unread_count}</span>` : ''}
                         </div>
+                        ${folderPickHtml(activeId, 'group', g.id)}
                     </div>` });
             });
             return out;
@@ -1692,13 +1966,16 @@
             const name = `${m.first_name || ''} ${m.last_name || ''}`.trim() || 'Участник';
             const time = formatTime(m.created_at);
             groupMsgCache[m.id] = { content: m.content };
+            msgCaps[m.id] = {
+                kind: 'group', author: isMine ? 'Вы' : name, text: splitReply(m.content).body,
+                canForward: false, canPin: true, canEdit: isMine, canDelete: (isMine || groupIsOwner),
+            };
             const editedTag = m.edited_at ? ` <span style="opacity:0.65;font-style:italic;" title="Отредактировано ${escapeHtml(formatTime(m.edited_at))}">(ред.)</span>` : '';
+            const grp = splitReply(m.content);
             // Своё сообщение можно править и удалять; владелец группы может удалить любое (модерация).
             const canDelete = isMine || groupIsOwner;
-            const editBtn = isMine ? `<span class="act" onclick="startEditGroupMessage(event,'${m.id}')" title="Редактировать">${msgIcon('edit')}</span>` : '';
-            const delBtn = canDelete ? `<span class="act" onclick="deleteGroupMessage(event,'${m.id}')" title="Удалить">${msgIcon('trash')}</span>` : '';
-            const gPinPrev = (m.content || '').replace(/\s+/g, ' ').slice(0, 200);
-            const pinBtn = `<span class="act" onclick="pinMessage(event,'${m.id}','${gPinPrev.replace(/'/g, "\\'").replace(/"/g, '&quot;')}')" title="Закрепить сообщение">${msgIcon('pin')}</span>`;
+
+
             // Как в Телеграме: у чужих сообщений в группе — аватар и имя автора.
             const ava = !isMine
                 ? `<div class="g-msg-ava" title="${escapeHtml(name)}" onclick="openUserCard('${m.sender_id}')">${m.avatar ? `<img src="${escapeHtml(m.avatar)}" alt="">` : escapeHtml(name.charAt(0).toUpperCase())}</div>`
@@ -1706,8 +1983,10 @@
             const bubble = `
                 <div class="message ${isMine ? 'mine' : 'theirs'}" data-msg-id="${m.id}">
                     ${!isMine ? `<div style="font-size:0.75rem;font-weight:700;opacity:0.8;margin-bottom:0.15rem;color:#7C3AED;">${escapeHtml(name)}</div>` : ''}
-                    <div id="gmsg-body-${m.id}"><div>${escapeHtml(m.content)}</div></div>
-                    <div class="message-time">${time}${editedTag}${pinBtn}${editBtn}${delBtn}</div>
+                    ${quoteHtml(grp.replyId)}
+                    <div id="gmsg-body-${m.id}"><div>${escapeHtml(grp.body)}</div></div>
+                    <div class="message-time">${time}${editedTag}</div>
+                    ${msgHoverHtml(m.id)}
                 </div>`;
             return isMine ? bubble : `<div class="g-msg-row">${ava}${bubble}</div>`;
         }
@@ -2678,6 +2957,8 @@
             await loadMyGroups();
             await loadFolders();
             await loadPinnedChats();
+            await loadChatPrefs();
+            initPaneResizer();
             await loadConversations();
 
             // Автоматически открыть чат если есть user в URL
@@ -2866,6 +3147,146 @@
         } catch (e) {}
 
         // ══════════════════════════════════════════════════════════════════════════════
+        //  НАСТРОЙКИ ЧАТА: ОБОИ И ШИРИНА СПИСКА (api/chat_prefs.php)
+        //  На сервере, чтобы не терялись при смене устройства; localStorage — только кэш,
+        //  чтобы страница открывалась уже с выбранными обоями, не дожидаясь ответа.
+        // ══════════════════════════════════════════════════════════════════════════════
+        const WALLPAPERS = [
+            { id: 'none',  label: 'Без обоев' },
+            { id: 'dots',  label: 'Точки' },
+            { id: 'lilac', label: 'Сирень' },
+            { id: 'mint',  label: 'Мята' },
+            { id: 'sand',  label: 'Песок' },
+            { id: 'paper', label: 'Бумага' },
+            { id: 'stars', label: 'Звёзды' },
+        ];
+        const PANE_MIN = 200, PANE_MAX = 640, PANE_DEFAULT = 320;
+
+        async function prefsApi(action, payload) {
+            const url = '/api/chat_prefs.php?action=' + action;
+            const res = payload
+                ? await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify(payload) })
+                : await fetch(url, { credentials: 'include' });
+            const d = await res.json().catch(() => ({}));
+            if (!res.ok || d.ok === false) throw new Error(d.error || ('HTTP ' + res.status));
+            return d;
+        }
+
+        function applyWallpaper(id) {
+            document.body.setAttribute('data-wall', id || 'none');
+        }
+        function applyPaneWidth(px) {
+            const w = Math.min(PANE_MAX, Math.max(PANE_MIN, parseInt(px, 10) || PANE_DEFAULT));
+            document.documentElement.style.setProperty('--pane-w', w + 'px');
+            return w;
+        }
+
+        /** Мгновенно применяем кэш, затем уточняем с сервера. */
+        function applyCachedChatPrefs() {
+            try {
+                applyWallpaper(localStorage.getItem('psy-chat-wall') || 'none');
+                applyPaneWidth(localStorage.getItem('psy-chat-pane-w') || PANE_DEFAULT);
+            } catch (e) { applyWallpaper('none'); }
+        }
+        applyCachedChatPrefs();
+
+        async function loadChatPrefs() {
+            try {
+                const d = await prefsApi('get');
+                const p = d.data || {};
+                if (p.wallpaper) { applyWallpaper(p.wallpaper); try { localStorage.setItem('psy-chat-wall', p.wallpaper); } catch (e) {} }
+                if (p.sidebar_width) { applyPaneWidth(p.sidebar_width); try { localStorage.setItem('psy-chat-pane-w', String(p.sidebar_width)); } catch (e) {} }
+            } catch (e) { /* настройки — удобство, чат работает и без них */ }
+        }
+
+        function savePref(key, value) {
+            prefsApi('set', { key, value: String(value) }).catch(() => {});
+        }
+
+        // ── Обои ──
+        function openWallpaperPicker() {
+            const cur = document.body.getAttribute('data-wall') || 'none';
+            document.getElementById('wallpaperBody').innerHTML = `
+                <div class="wall-grid">
+                    ${WALLPAPERS.map(w => `
+                        <button class="wall-item ${cur === w.id ? 'on' : ''}" onclick="pickWallpaper('${w.id}')" title="${escapeHtml(w.label)}">
+                            <span class="wall-swatch" data-wallpreview="${w.id}"></span>
+                            <span class="wall-label">${escapeHtml(w.label)}</span>
+                        </button>`).join('')}
+                </div>
+                <div style="color:#9CA3AF;font-size:0.78rem;margin-top:0.8rem;line-height:1.45;">Обои применяются ко всем перепискам и сохраняются в вашем профиле.</div>`;
+            // предпросмотр рисуем теми же правилами, что и сам фон
+            document.querySelectorAll('[data-wallpreview]').forEach(el => {
+                const id = el.getAttribute('data-wallpreview');
+                const probe = document.createElement('div');
+                probe.className = 'messages-container';
+                probe.style.cssText = 'position:absolute;left:-9999px;width:40px;height:40px;';
+                const prev = document.body.getAttribute('data-wall');
+                document.body.setAttribute('data-wall', id);
+                document.body.appendChild(probe);
+                const cs = getComputedStyle(probe);
+                el.style.background = cs.background;
+                el.style.backgroundColor = cs.backgroundColor;
+                probe.remove();
+                document.body.setAttribute('data-wall', prev || 'none');
+            });
+            document.getElementById('wallpaperModal').style.display = 'flex';
+        }
+        function closeWallpaperPicker() {
+            document.getElementById('wallpaperModal').style.display = 'none';
+        }
+        function pickWallpaper(id) {
+            applyWallpaper(id);
+            try { localStorage.setItem('psy-chat-wall', id); } catch (e) {}
+            savePref('wallpaper', id);
+            closeWallpaperPicker();
+        }
+
+        // ── Перетаскивание ширины списка чатов ──
+        function initPaneResizer() {
+            const grip = document.getElementById('paneResizer');
+            const pane = document.getElementById('conversationsPane');
+            if (!grip || !pane) return;
+            let startX = 0, startW = 0, active = false;
+            const onMove = e => {
+                if (!active) return;
+                const w = applyPaneWidth(startW + (e.clientX - startX));
+                grip.dataset.w = w;
+            };
+            const onUp = () => {
+                if (!active) return;
+                active = false;
+                grip.classList.remove('dragging');
+                document.body.classList.remove('pane-resizing');
+                window.removeEventListener('pointermove', onMove);
+                window.removeEventListener('pointerup', onUp);
+                const w = grip.dataset.w;
+                if (w) {
+                    try { localStorage.setItem('psy-chat-pane-w', w); } catch (e) {}
+                    savePref('sidebar_width', w);
+                }
+            };
+            grip.addEventListener('pointerdown', e => {
+                // свёрнутую шторку не тянем — сначала разверните
+                if (pane.classList.contains('collapsed')) return;
+                e.preventDefault();
+                active = true;
+                startX = e.clientX;
+                startW = pane.getBoundingClientRect().width;
+                grip.classList.add('dragging');
+                document.body.classList.add('pane-resizing');
+                window.addEventListener('pointermove', onMove);
+                window.addEventListener('pointerup', onUp);
+            });
+            // двойной клик по краю возвращает ширину по умолчанию
+            grip.addEventListener('dblclick', () => {
+                const w = applyPaneWidth(PANE_DEFAULT);
+                try { localStorage.setItem('psy-chat-pane-w', String(w)); } catch (e) {}
+                savePref('sidebar_width', w);
+            });
+        }
+
+        // ══════════════════════════════════════════════════════════════════════════════
         //  ЗАКРЕПЛЕНИЯ (api/chat_pins.php)
         //  Закреплённое сообщение — общее для обоих участников разговора.
         //  Закреплённый диалог — личная настройка: поднимается наверх списка.
@@ -2989,10 +3410,10 @@
         }
 
         const BUILTIN_FOLDERS = [
-            { id: 'all',      label: 'Все',     kinds: null },
-            { id: 'personal', label: 'Личное',  kinds: ['personal', 'fav'] },
-            { id: 'channels', label: 'Каналы',  kinds: ['channel'] },
-            { id: 'groups',   label: 'Группы',  kinds: ['group'] },
+            { id: 'all',      label: 'Все',     icon: '💬', kinds: null },
+            { id: 'personal', label: 'Личное',  icon: '👤', kinds: ['personal', 'fav'] },
+            { id: 'channels', label: 'Каналы',  icon: '📡', kinds: ['channel'] },
+            { id: 'groups',   label: 'Группы',  icon: '👥', kinds: ['group'] },
         ];
         let myFolders = [];              // [{id, name, keys:[]}]
         let activeFolder = 'all';
@@ -3051,15 +3472,22 @@
         function renderFolderTabs() {
             const box = document.getElementById('chatFolders');
             if (!box) return;
-            const tab = (id, label, extra) => `
+            const tab = (id, label, icon, count) => `
                 <button class="folder-tab ${activeFolder === id ? 'active' : ''}" onclick="setActiveFolder('${id}')"
-                        title="${escapeHtml(label)}">${escapeHtml(label)}${extra || ''}</button>`;
-            let html = BUILTIN_FOLDERS.map(f => tab(f.id, f.label)).join('');
-            html += myFolders.map(f => tab('u' + f.id, f.name,
-                ` <span class="fcount">${(f.keys || []).length}</span>`)).join('');
-            html += `<button class="folder-tab folder-tab-add" onclick="createChatFolder()" title="Новая папка">＋ Папка</button>`;
+                        title="${escapeHtml(label)}">
+                    <span class="ftab-ico">${icon}</span>
+                    <span class="ftab-name">${escapeHtml(label)}</span>
+                    ${count ? `<span class="fcount">${count}</span>` : ''}
+                </button>`;
+            let html = BUILTIN_FOLDERS.map(f => tab(f.id, f.label, f.icon, 0)).join('');
+            html += myFolders.map(f => tab('u' + f.id, f.name, '📁', (f.keys || []).length)).join('');
+            html += `<button class="folder-tab folder-tab-add" onclick="createChatFolder()" title="Новая папка">
+                        <span class="ftab-ico">＋</span><span class="ftab-name">Папка</span>
+                    </button>`;
             if (myFolders.length && activeFolder.charAt(0) === 'u') {
-                html += `<button class="folder-tab folder-tab-add" onclick="manageActiveFolder()" title="Настроить папку">⚙</button>`;
+                html += `<button class="folder-tab folder-tab-add" onclick="manageActiveFolder()" title="Настроить папку">
+                            <span class="ftab-ico">⚙</span><span class="ftab-name">Правка</span>
+                        </button>`;
             }
             box.innerHTML = html;
         }
@@ -3109,29 +3537,210 @@
             return `<button class="folder-pick-btn${inSome ? ' in-folder' : ''}"
                         title="Действия с чатом: закрепить, папки, участники"
                         onclick="openChatRowMenu(event,'${esc}','${kind || ''}','${extraId == null ? '' : extraId}')" aria-label="Действия с чатом">
-                        <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="6" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="12" cy="18" r="1.7"/></svg>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="6" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="12" cy="18" r="1.7"/></svg>
                     </button>`;
         }
 
-        /**
-         * Иконки действий у сообщения. Раньше это были эмодзи (↪ 📌 ✏️ 🗑): на разных системах
-         * они разного размера и цвета и выбивались из остального интерфейса. Теперь такие же
-         * контурные SVG, как в панели ввода.
-         */
-        const MSG_ICONS = {
-            forward: '<path d="M14 4l6 5-6 5V4z"/><path d="M20 9H9a5 5 0 00-5 5v3"/>',
-            pin: '<path d="M9 4h6l-1 5 3.5 3.5H5.5L9 9 8 4z"/><path d="M12 12.5V20"/>',
-            edit: '<path d="M4 20h4l10-10a2.1 2.1 0 10-3-3L5 17v3z"/><path d="M14.5 6.5l3 3"/>',
-            trash: '<path d="M4 7h16"/><path d="M9.5 7V4.5h5V7"/><path d="M6 7l1 13h10l1-13"/>',
-        };
-        function msgIcon(name) {
-            return `<svg class="msg-act" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${MSG_ICONS[name]}</svg>`;
+        // ══════════════════════════════════════════════════════════════════════════════
+        //  ДЕЙСТВИЯ С СООБЩЕНИЕМ: НАВЕДЕНИЕ, ОТВЕТ, ВЫДЕЛЕНИЕ
+        //
+        //  Ответ храним маркером в тексте: "[RE#<id>] сам текст". api/messages.php —
+        //  серверный файл вне репозитория, добавить в него колонку reply_to нельзя, а такой
+        //  приём здесь уже используется для счетов ([ORDER#N]), поэтому он единообразен и
+        //  работает сразу и в личных чатах, и в группах, и в «Избранном».
+        // ══════════════════════════════════════════════════════════════════════════════
+        const RE_MARK = /^\[RE#([A-Za-z0-9_-]+)\]\s*/;
+        let msgCaps = {};            // id -> что можно делать с этим сообщением
+        let replyTo = null;          // {id, name, text} — на что отвечаем
+        let selectMode = false;
+        let selectedIds = [];
+
+        /** Разобрать текст на «на что отвечаем» и сам текст. */
+        function splitReply(text) {
+            const m = String(text || '').match(RE_MARK);
+            if (!m) return { replyId: null, body: String(text || '') };
+            return { replyId: m[1], body: String(text).replace(RE_MARK, '') };
         }
+
+        /** Цитата в пузыре. Если исходное сообщение не загружено — показываем нейтрально. */
+        function quoteHtml(replyId) {
+            if (!replyId) return '';
+            const src = msgCaps[replyId];
+            const name = (src && src.author) || 'Сообщение';
+            const text = (src && src.text) ? src.text.slice(0, 90) : 'перейти к сообщению';
+            return `<div class="msg-quote" onclick="jumpToMessage(event,'${replyId}')" title="Перейти к сообщению">
+                        <div class="msg-quote-name">${escapeHtml(name)}</div>
+                        <div class="msg-quote-text">${escapeHtml(text)}</div>
+                    </div>`;
+        }
+
+        function jumpToMessage(evt, id) {
+            if (evt) evt.stopPropagation();
+            const el = document.querySelector(`[data-msg-id="${id}"]`) || document.querySelector(`[data-fav-id="${id}"]`);
+            if (!el) { alert('Это сообщение выше в переписке — прокрутите вверх.'); return; }
+            try { el.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (e) {}
+            flashMessage(el, id);
+        }
+
+        /** Кнопки, появляющиеся при наведении на сообщение: быстрый ответ и меню. */
+        function msgHoverHtml(id) {
+            if (!id) return '';
+            return `<div class="msg-hover">
+                        <button onclick="startReply(event,'${id}')" title="Ответить" aria-label="Ответить">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M10 4L4 9l6 5V4z"/><path d="M4 9h11a5 5 0 015 5v3"/></svg>
+                        </button>
+                        <button onclick="openMsgMenu(event,'${id}')" title="Ещё" aria-label="Ещё">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="6" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="12" cy="18" r="1.7"/></svg>
+                        </button>
+                    </div>`;
+        }
+
+        /** Меню действий над сообщением. Состав зависит от прав, собранных при отрисовке. */
+        function openMsgMenu(evt, id) {
+            if (evt) { evt.stopPropagation(); evt.preventDefault(); }
+            closeFolderPicker();
+            const cap = msgCaps[id] || {};
+            const menu = document.createElement('div');
+            menu.className = 'folder-picker';
+            menu.id = 'folderPicker';
+            const row = (icon, label, call) =>
+                `<button class="folder-picker-row" onclick="event.stopPropagation();closeFolderPicker();${call}">
+                    <span class="fp-mark">${icon}</span>${label}
+                </button>`;
+            let html = row('↩', 'Ответить', `startReply(null,'${id}')`);
+            html += row('☑', 'Выделить', `enterSelectMode('${id}')`);
+            if (cap.canForward) html += row('↪', 'Переслать', `openForwardMenu(null,'${cap.kind === 'fav' ? 'fav' : 'msg'}','${id}')`);
+            if (cap.canPin) html += row('📌', 'Закрепить', `pinMessageById('${id}')`);
+            if (cap.canEdit) html += row('✏️', 'Изменить', cap.kind === 'group' ? `startEditGroupMessage(null,'${id}')` : `startEditMessage(null,'${id}')`);
+            if (cap.canDelete) {
+                const call = cap.kind === 'group' ? `deleteGroupMessage(null,'${id}')`
+                          : (cap.kind === 'fav' ? `deleteFavorite('${id}')` : `deletePersonalMessage(null,'${id}')`);
+                html += row('🗑', 'Удалить', call);
+            }
+            menu.innerHTML = html;
+            document.body.appendChild(menu);
+            const r = evt ? evt.currentTarget.getBoundingClientRect()
+                          : (document.querySelector(`[data-msg-id="${id}"]`) || document.body).getBoundingClientRect();
+            const mh = menu.getBoundingClientRect().height;
+            menu.style.left = Math.min(r.left, window.innerWidth - menu.offsetWidth - 8) + 'px';
+            menu.style.top = (r.bottom + mh > window.innerHeight ? Math.max(8, r.top - mh) : r.bottom + 4) + 'px';
+            setTimeout(() => document.addEventListener('click', closeFolderPicker, { once: true }), 0);
+        }
+
+        /** Закрепить по id — берём текст из собранных прав, чтобы не дублировать разметку. */
+        function pinMessageById(id) {
+            const cap = msgCaps[id] || {};
+            pinMessage(null, id, cap.text || '');
+        }
+
+        // ── Ответ ──
+        function startReply(evt, id) {
+            if (evt) evt.stopPropagation();
+            closeFolderPicker();
+            const cap = msgCaps[id];
+            if (!cap) return;
+            replyTo = { id, name: cap.author || 'Сообщение', text: cap.text || '' };
+            document.getElementById('replyName').textContent = 'Ответ · ' + replyTo.name;
+            document.getElementById('replyBody').textContent = replyTo.text.slice(0, 120) || 'вложение';
+            document.getElementById('replyBar').style.display = 'flex';
+            const input = document.getElementById('messageInput');
+            if (input) input.focus();
+        }
+        function cancelReply() {
+            replyTo = null;
+            const bar = document.getElementById('replyBar');
+            if (bar) bar.style.display = 'none';
+        }
+        /** Приписать маркер ответа к тексту перед отправкой. */
+        function withReplyMark(text) {
+            if (!replyTo) return text;
+            return '[RE#' + replyTo.id + '] ' + text;
+        }
+
+        // ── Выделение нескольких сообщений ──
+        function enterSelectMode(firstId) {
+            selectMode = true;
+            selectedIds = firstId ? [firstId] : [];
+            document.body.classList.add('selecting');
+            renderSelBar();
+            markSelected();
+        }
+        function exitSelectMode() {
+            selectMode = false;
+            selectedIds = [];
+            document.body.classList.remove('selecting');
+            document.getElementById('selBar').style.display = 'none';
+            markSelected();
+        }
+        function toggleSelect(id) {
+            if (!selectMode || !id) return;
+            selectedIds = selectedIds.indexOf(id) >= 0 ? selectedIds.filter(x => x !== id) : selectedIds.concat([id]);
+            renderSelBar();
+            markSelected();
+        }
+        function renderSelBar() {
+            const bar = document.getElementById('selBar');
+            if (!bar) return;
+            bar.style.display = selectMode ? 'flex' : 'none';
+            document.getElementById('selCount').textContent = 'Выбрано: ' + selectedIds.length;
+            const canDel = selectedIds.length > 0 && selectedIds.every(id => (msgCaps[id] || {}).canDelete);
+            document.getElementById('selDel').disabled = !canDel;
+            document.getElementById('selFwd').disabled = selectedIds.length === 0;
+        }
+        function markSelected() {
+            document.querySelectorAll('.message').forEach(el => {
+                const id = el.getAttribute('data-msg-id') || el.getAttribute('data-fav-id');
+                el.classList.toggle('selected', !!id && selectedIds.indexOf(id) >= 0);
+            });
+        }
+        /** Пересылка выделенных: по одному, тем же механизмом, что и одиночная. */
+        async function forwardSelected() {
+            if (!selectedIds.length) return;
+            const ids = selectedIds.slice();
+            exitSelectMode();
+            openForwardMenu(null, 'msg', ids[0]);
+            if (ids.length > 1) {
+                alert('Пока пересылается первое выбранное сообщение — остальные ' + (ids.length - 1) + ' перешлите по одному.');
+            }
+        }
+        async function deleteSelected() {
+            if (!selectedIds.length) return;
+            if (!confirm('Удалить выбранные сообщения (' + selectedIds.length + ')? Отменить будет нельзя.')) return;
+            const ids = selectedIds.slice();
+            exitSelectMode();
+            for (const id of ids) {
+                const cap = msgCaps[id] || {};
+                try {
+                    if (cap.kind === 'group') {
+                        await groupApi('delete-message', { message_id: id });
+                    } else if (cap.kind === 'fav') {
+                        await fetch('/api/favorites.php?action=delete', {
+                            method: 'POST', headers: { 'Content-Type': 'application/json' },
+                            credentials: 'include', body: JSON.stringify({ id })
+                        });
+                    } else {
+                        await fetch('/api/message_edit.php?action=delete', {
+                            method: 'POST', headers: { 'Content-Type': 'application/json' },
+                            credentials: 'include', body: JSON.stringify({ message_id: id })
+                        });
+                    }
+                } catch (e) { /* остальные всё равно пробуем удалить */ }
+            }
+            await loadMessages();
+        }
+        // Клик по сообщению в режиме выделения переключает выбор
+        document.addEventListener('click', function (e) {
+            if (!selectMode) return;
+            const msg = e.target.closest && e.target.closest('.message');
+            if (!msg) return;
+            const id = msg.getAttribute('data-msg-id') || msg.getAttribute('data-fav-id');
+            if (id) { e.preventDefault(); toggleSelect(id); }
+        });
 
         /** Значок «диалог закреплён» в строке списка. */
         function pinMarkHtml(chatKey) {
             if (pinnedChats.indexOf(chatKey) < 0) return '';
-            return `<svg class="pin-mark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" title="Закреплён"><path d="M9 4h6l-1 5 3.5 3.5H5.5L9 9 8 4z"/><path d="M12 12.5V20"/></svg>`;
+            return `<svg width="13" height="13" class="pin-mark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" title="Закреплён"><path d="M9 4h6l-1 5 3.5 3.5H5.5L9 9 8 4z"/><path d="M12 12.5V20"/></svg>`;
         }
 
         /** Меню действий над чатом: закрепление, папки и (для групп) участники. */
@@ -3203,9 +3812,10 @@
                 <div class="conversation-item ${selectedUserId === FAVORITES_ID ? 'active' : ''}" onclick="openFavorites()" style="border-bottom:2px solid #F3E8FF;" title="Избранное">
                     <div class="conversation-avatar" style="background:linear-gradient(135deg,#F59E0B,#FBBF24);">⭐</div>
                     <div class="conversation-info">
-                        <div class="conversation-name"><span class="cn-text">Избранное</span>${pinMarkHtml(FAVORITES_ID)}${folderPickHtml(FAVORITES_ID, 'fav')}</div>
+                        <div class="conversation-name"><span class="cn-text">Избранное</span>${pinMarkHtml(FAVORITES_ID)}</div>
                         <div class="conversation-preview">Заметки себе, файлы, пересланные сообщения</div>
                     </div>
+                    ${folderPickHtml(FAVORITES_ID, 'fav')}
                 </div>` }];
         }
 
@@ -3256,13 +3866,14 @@
                             ${c.avatar ? `<img src="${c.avatar}" alt="${name}">` : (isSupport ? '🆘' : initial)}
                         </div>
                         <div class="conversation-info">
-                            <div class="conversation-name"><span class="cn-text">${name}</span>${pinMarkHtml(String(activeId))}${folderPickHtml(String(activeId), 'personal')}</div>
+                            <div class="conversation-name"><span class="cn-text">${name}</span>${pinMarkHtml(String(activeId))}</div>
                             <div class="conversation-preview">${isNew ? preview : (preview.substring(0, 40) + (preview.length > 40 ? '...' : ''))}</div>
                         </div>
                         <div class="conversation-meta">
                             <div class="conversation-time">${time}</div>
                             ${!isNew && c.unread_count > 0 ? `<span class="unread-badge">${c.unread_count}</span>` : ''}
                         </div>
+                        ${folderPickHtml(String(activeId), 'personal')}
                     </div>
                 ` });
             });
@@ -3476,13 +4087,20 @@
                 }
             }
             const sourceLine = m.source_label ? `<div style="font-size:0.72rem;font-weight:700;opacity:0.85;margin-bottom:0.25rem;">${escapeHtml(m.source_label)}</div>` : '';
-            const content = (m.content && !isAttachmentPlaceholder(m)) ? `<div>${escapeHtml(m.content)}</div>` : '';
+            const fav = splitReply(m.content);
+            const content = (m.content && !isAttachmentPlaceholder(m)) ? `<div>${escapeHtml(fav.body)}</div>` : '';
+            msgCaps[String(m.id)] = {
+                kind: 'fav', author: 'Заметка', text: fav.body,
+                canForward: true, canPin: false, canEdit: false, canDelete: true,
+            };
             return `
                 <div class="message mine${(isVideoNote(m) && !content) ? ' vn-only' : ''}" data-fav-id="${m.id}">
                     ${sourceLine}
+                    ${quoteHtml(fav.replyId)}
                     ${content}
                     ${attachmentHtml}
-                    <div class="message-time">${time}<span class="act" onclick="openForwardMenu(event,'fav','${m.id}')" title="Переслать">${msgIcon('forward')}</span><span class="act" onclick="deleteFavorite(${m.id})" title="Удалить">${msgIcon('trash')}</span></div>
+                    <div class="message-time">${time}</div>
+                    ${msgHoverHtml(String(m.id))}
                 </div>`;
         }
 
@@ -3697,17 +4315,8 @@
                     if (m.id) {
                         msgCache[m.id] = { content: m.content, attachment_url: m.attachment_url, attachment_type: m.attachment_type, attachment_name: m.attachment_name };
                     }
-                    const forwardBtn = m.id ? `<span class="act" onclick="openForwardMenu(event,'msg','${m.id}')" title="Переслать">${msgIcon('forward')}</span>` : '';
-                    const editBtn = (m.id && isMine && !m.attachment_url) ? `<span class="act" onclick="startEditMessage(event,'${m.id}')" title="Редактировать">${msgIcon('edit')}</span>` : '';
-                    // Удаление своего сообщения в личной переписке. Раньше его не было вовсе:
-                    // удалять можно было только в группах и «Избранном». Админ может убрать любое.
-                    const canDeleteMsg = m.id && (isMine || isAdminMode);
-                    const delBtn = canDeleteMsg ? `<span class="act" onclick="deletePersonalMessage(event,'${m.id}')" title="Удалить">${msgIcon('trash')}</span>` : '';
-                    // Закрепление сообщения — видно обоим участникам разговора
-                    const pinPreview = (m.content || '').replace(/\s+/g, ' ').slice(0, 200);
-                    const pinBtn = m.id
-                        ? `<span class="act" onclick="pinMessage(event,'${m.id}','${pinPreview.replace(/'/g, "\\'").replace(/"/g, '&quot;')}')" title="Закрепить сообщение">${msgIcon('pin')}</span>`
-                        : '';
+
+
                     const editedTag = (m.id && editedMap[m.id]) ? ` <span style="opacity:0.65;font-style:italic;" title="Отредактировано ${escapeHtml(formatTime(editedMap[m.id]))}">(ред.)</span>` : '';
 
                     // Рендер вложения
@@ -3756,7 +4365,18 @@
 
                     // Не показывать "[Файл: ...]" / "[Голосовое сообщение: ...]" / "[Видеосообщение: ...]"
                     // если вложение и так отрисовано — текст нужен только как подпись в списке диалогов.
-                    let content = isAttachmentPlaceholder(m) ? '' : escapeHtml(m.content);
+                    // Ответ: из текста вынимаем маркер [RE#id] и рисуем цитату отдельно
+                    const rp = splitReply(m.content);
+                    const quote = quoteHtml(rp.replyId);
+                    let content = isAttachmentPlaceholder(m) ? '' : escapeHtml(rp.body);
+                    // Права на действия собираем здесь, меню потом их читает
+                    if (m.id) {
+                        msgCaps[m.id] = {
+                            kind: 'msg', author: isMine ? 'Вы' : (m.sender_first_name || 'Собеседник'),
+                            text: rp.body, canForward: true, canPin: true,
+                            canEdit: !!(isMine && !m.attachment_url), canDelete: !!(isMine || isAdminMode),
+                        };
+                    }
 
                     // Ссылка на видеовстречу Телемост → кнопка «Присоединиться»
                     let callBtn = '';
@@ -3771,10 +4391,12 @@
 
                     return `
                         <div class="message ${isMine ? 'mine' : 'theirs'}${(isVideoNote(m) && !content) ? ' vn-only' : ''}" data-msg-id="${m.id || ''}">
+                            ${quote}
                             ${callBtn}
                             <div id="msg-body-${m.id || ''}">${content ? `<div id="msg-content-${m.id || ''}">${content}</div>` : ''}</div>
                             ${attachmentHtml}
-                            <div class="message-time">${time}${editedTag}${forwardBtn}${pinBtn}${editBtn}${delBtn}</div>
+                            <div class="message-time">${time}${editedTag}</div>
+                            ${msgHoverHtml(m.id)}
                         </div>
                     `;
                 }).join('');
@@ -3849,9 +4471,12 @@
 
         async function sendMessage() {
             const input = document.getElementById('messageInput');
-            const content = input.value.trim();
+            // Маркер ответа приписывается один раз здесь — дальше все ветки (группа,
+            // поддержка, «Избранное», обычный чат) отправляют уже готовый текст.
+            const content = withReplyMark(input.value.trim());
 
-            if (!content || !selectedUserId) return;
+            if (!input.value.trim() || !selectedUserId) return;
+            cancelReply();
 
             if (typeof selectedUserId === 'string' && selectedUserId.indexOf(GROUP_PREFIX) === 0) {
                 input.value = '';
@@ -4550,8 +5175,8 @@
             const btn = stickyEl('spToggle');
             btn.title = playing ? 'Пауза' : 'Продолжить';
             btn.innerHTML = playing
-                ? '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="7" y="5" width="3.5" height="14" rx="1"/><rect x="13.5" y="5" width="3.5" height="14" rx="1"/></svg>'
-                : '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5l11 7-11 7V5z"/></svg>';
+                ? '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="7" y="5" width="3.5" height="14" rx="1"/><rect x="13.5" y="5" width="3.5" height="14" rx="1"/></svg>'
+                : '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5l11 7-11 7V5z"/></svg>';
         }
 
         let stickyPausedId = null;   // голосовое, поставленное на паузу (плашка остаётся)

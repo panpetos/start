@@ -108,6 +108,7 @@ jobs:
             put api/group_chat.php -o api/group_chat.php;
             put api/chat_folders.php -o api/chat_folders.php;
             put api/chat_pins.php -o api/chat_pins.php;
+            put api/chat_prefs.php -o api/chat_prefs.php;
             put api/blog.php -o api/blog.php;
             put api/schema_util.php -o api/schema_util.php;
             bye;
