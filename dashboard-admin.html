@@ -1935,6 +1935,8 @@
                   <div style="font-weight:600;margin-bottom:0.4rem;">✈️ Telegram-бот ${yn(c.telegram_configured)}</div>
                   <input id="ntlg" type="password" placeholder="${c.telegram_configured?'•••• (задан, введите новый чтобы заменить)':'токен бота от @BotFather'}" style="width:100%;padding:0.55rem 0.75rem;border:1.5px solid #E5E7EB;border-radius:0.6rem;font-family:monospace;">
                   <input id="ntlgproxy" value="${esc(c.telegram_proxy||'')}" placeholder="Прокси (необязательно) — http://user:pass@host:port или socks5h://host:port" style="width:100%;margin-top:0.4rem;padding:0.5rem 0.7rem;border:1.5px solid #E5E7EB;border-radius:0.6rem;font-family:monospace;font-size:0.82rem;">
+                  <input id="ntlgapibase" value="${esc(c.telegram_api_base||'')}" placeholder="Адрес API Telegram (необязательно) — по умолчанию https://api.telegram.org" style="width:100%;margin-top:0.4rem;padding:0.5rem 0.7rem;border:1.5px solid #E5E7EB;border-radius:0.6rem;font-family:monospace;font-size:0.82rem;">
+                  <div class="muted" style="font-size:0.76rem;margin-top:0.3rem;">Если сеть хостинга не пускает напрямую к Telegram (санкции/блокировка — см. «Диагностика соединения» ниже), а платный прокси-сервер заводить не хочется, можно вместо него бесплатно поднять свой мини-прокси на Cloudflare Workers (workers.cloudflare.com, бесплатный тариф) и вписать сюда его адрес: создайте Worker с кодом <code>export default { fetch: (r) =&gt; fetch('https://api.telegram.org' + new URL(r.url).pathname, r) }</code>, скопируйте выданный адрес вида <code>https://имя.воркер.workers.dev</code> и вставьте его в это поле.</div>
                   ${testBotBlock('telegram', c.telegram_configured)}
                   ${c.telegram_configured ? `<button class="btn-sm btn-outline" style="margin-top:0.5rem;" onclick="notifDiag('telegram')">🔍 Диагностика соединения</button><div id="notifDiag_telegram" style="margin-top:0.4rem;font-size:0.82rem;"></div>` : ''}
                 </div>
@@ -2068,6 +2070,7 @@
             const payload = {
                 telegram_token: document.getElementById('ntlg').value,
                 telegram_proxy: document.getElementById('ntlgproxy').value,
+                telegram_api_base: document.getElementById('ntlgapibase').value,
                 max_token: document.getElementById('nmax').value,
                 max_proxy: document.getElementById('nmaxproxy').value,
                 email_method: document.getElementById('nemeth').value,

@@ -73,7 +73,10 @@ if ($action === 'edit' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         $msg = $st->fetch(PDO::FETCH_ASSOC);
     } catch (Exception $e) { out(['error' => 'Не удалось найти сообщение'], 500); }
     if (!$msg) out(['error' => 'Сообщение не найдено'], 404);
-    if ((string)$msg['sender_id'] !== (string)$userId) out(['error' => 'Редактировать можно только свои сообщения'], 403);
+    // Админ, переписывающийся от имени поддержки (as_support), шлёт сообщения с sender_id='support' —
+    // на клиенте (chat.html, isAdminMode) это его собственное сообщение, поэтому и тут считаем своим.
+    $isOwn = (string)$msg['sender_id'] === (string)$userId || ($isAdmin && (string)$msg['sender_id'] === 'support');
+    if (!$isOwn) out(['error' => 'Редактировать можно только свои сообщения'], 403);
 
     $oldContent = (string)$msg['content'];
     if ($oldContent === $newContent) out(['ok' => true, 'unchanged' => true]);

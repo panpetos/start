@@ -9,6 +9,8 @@ return [
     'telegram_token' => '',   // токен бота Telegram (BotFather)
     'telegram_proxy' => '',   // необязательно: прокси до api.telegram.org, если хостинг блокирует прямой доступ
                               // (например "http://user:pass@host:3128" или "socks5h://host:1080")
+    'telegram_api_base' => '', // необязательно: замена хоста "https://api.telegram.org" (например свой бесплатный
+                              // Cloudflare Worker-реверс-прокси) — для санкционных хостингов проще прокси-сервера
     'max_token'      => '',   // токен бота MAX
     'max_proxy'      => '',   // необязательно: прокси до platform-api2.max.ru, по той же причине
     'email_method'   => '',   // 'resend' (рекомендуется) | 'smtp' | 'mail'

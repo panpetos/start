@@ -1040,6 +1040,7 @@
         let pollInterval = null;
         let isAdminMode = false;  // Режим отправки от имени техподдержки
         let headerRenderedFor = null; // чтобы не пересобирать шапку при каждом поллинге
+        let editingMessageId = null; // id сообщения, которое сейчас редактируется — пока не null, поллинг не перерисовывает список (иначе textarea сбрасывается на середине печати)
         let ordersMap = {};       // id ордера -> объект (живое состояние для карточек в чате)
         let platformCommission = 40; // % комиссии сервиса (для предпросмотра выплаты психологу)
         let bookPsychId = null;   // id профиля психолога (из ?pid=) — для кнопки «Записаться» у клиента
@@ -1134,6 +1135,7 @@
 
         async function openGroupChat(groupId) {
             selectedUserId = GROUP_PREFIX + groupId;
+            editingMessageId = null;
             headerRenderedFor = selectedUserId;
 
             document.querySelectorAll('.conversation-item').forEach(el => {
@@ -1377,6 +1379,7 @@
         // можно только читать и комментировать посты (как канал в Телеграм). Задача #29, рефок.
         async function openChannel(psychId) {
             selectedUserId = CHANNEL_PREFIX + psychId;
+            editingMessageId = null;
             headerRenderedFor = selectedUserId;
 
             document.querySelectorAll('.conversation-item').forEach(el => {
@@ -1964,6 +1967,7 @@
         // Начать новый чат с пользователем (даже если нет истории)
         async function startNewChat(userId) {
             selectedUserId = userId;
+            editingMessageId = null;
 
             // Получить информацию о пользователе
             try {
@@ -2161,6 +2165,7 @@
         // Личный диалог «Избранное» — доступен в любой роли, пишет сам себе (задача #28).
         async function openFavorites() {
             selectedUserId = FAVORITES_ID;
+            editingMessageId = null;
             headerRenderedFor = FAVORITES_ID;
 
             document.querySelectorAll('.conversation-item').forEach(el => {
@@ -2189,6 +2194,7 @@
 
         async function openSupportThread(threadId) {
             selectedUserId = SUPPORT_PREFIX + threadId;
+            editingMessageId = null;
             headerRenderedFor = null;
 
             document.querySelectorAll('.conversation-item').forEach(el => {
@@ -2252,6 +2258,7 @@
 
         async function openChat(userId) {
             selectedUserId = userId;
+            editingMessageId = null;
             headerRenderedFor = null; // пересобрать шапку под нового собеседника
 
             // Обновить активный элемент
@@ -2358,6 +2365,7 @@
             const cached = msgCache[id];
             const body = document.getElementById('msg-body-' + id);
             if (!cached || !body) return;
+            editingMessageId = id;
             const bubble = body.closest('.message');
             if (bubble) bubble.classList.add('editing');
             body.innerHTML = `
@@ -2382,11 +2390,13 @@
                     body: JSON.stringify({ message_id: id, content })
                 })).json();
                 if (!r.ok) { alert(r.error || 'Не удалось сохранить'); return; }
-                await loadMessages();
-            } catch (e) { alert('Ошибка сети'); }
+            } catch (e) { alert('Ошибка сети'); return; }
+            editingMessageId = null;
+            await loadMessages();
         }
         function cancelEditMessage(evt, id) {
             if (evt) evt.stopPropagation();
+            editingMessageId = null;
             loadMessages();
         }
         window.startEditMessage = startEditMessage;
@@ -2450,6 +2460,7 @@
 
         async function loadMessages() {
             if (!selectedUserId) return;
+            if (editingMessageId) return; // не перерисовывать список поверх открытой формы редактирования (иначе она пропадает на середине печати)
             // Реальная переписка (в отличие от read-only канала) — вернуть панель ввода сообщений, если она была скрыта.
             const inputBar = document.getElementById('chatInputBar');
             if (inputBar && inputBar.style.display === 'none') inputBar.style.display = '';
@@ -2500,7 +2511,7 @@
 
                 container.innerHTML = messages.map(m => {
                     // Для админа: сообщения от support тоже считаются "своими"
-                    const isMine = m.sender_id === currentUser.id ||
+                    const isMine = String(m.sender_id) === String(currentUser.id) ||
                         (isAdminMode && (m.sender_id === 'support' || m.sender_first_name === 'Техподдержка'));
                     const time = formatTime(m.created_at);
                     if (m.id) {

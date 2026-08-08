@@ -18,7 +18,7 @@ function notify_channels_config() {
     $c = file_exists($f) ? (include $f) : [];
     if (!is_array($c)) return [];
     // Токены копипастятся вручную в UI — обрезаем случайные пробелы/переносы, иначе Telegram отвечает 401 Unauthorized.
-    foreach (['telegram_token', 'max_token', 'telegram_proxy', 'max_proxy'] as $k) {
+    foreach (['telegram_token', 'max_token', 'telegram_proxy', 'max_proxy', 'telegram_api_base'] as $k) {
         if (isset($c[$k])) $c[$k] = trim((string)$c[$k]);
     }
     return $c;
@@ -43,12 +43,16 @@ function notify_ensure_links_table(PDO $pdo) {
  * $proxy — необязательный прокси для curl (например "socks5h://host:1080" или
  * "http://user:pass@host:3128") — на случай если у хостинга проблемы с прямым
  * доступом к api.telegram.org (задача #40: подозрение на блокировку/санкции).
+ * $apiBase — необязательная замена хоста "https://api.telegram.org" (например
+ * бесплатный Cloudflare Worker-реверс-прокси до Bot API) — для хостингов под
+ * санкциями это проще в настройке, чем покупка/аренда SOCKS/HTTP-прокси-сервера.
  * Транспортные ошибки (не достучались до Telegram) и API-ошибки Telegram (плохой
  * токен и т.п.) возвращаются с явной меткой transport_error, чтобы не путать их —
  * раньше обе выглядели одинаково как {ok:false, error:"..."}.
  */
-function notify_tg_request($token, $method, $params = [], $proxy = null) {
-    $url = 'https://api.telegram.org/bot' . $token . '/' . $method;
+function notify_tg_request($token, $method, $params = [], $proxy = null, $apiBase = null) {
+    $base = rtrim((string)($apiBase ?: 'https://api.telegram.org'), '/');
+    $url = $base . '/bot' . $token . '/' . $method;
     $ch = curl_init($url);
     $opts = [
         CURLOPT_RETURNTRANSFER => true,
@@ -77,15 +81,15 @@ function notify_tg_request($token, $method, $params = [], $proxy = null) {
     if (empty($d['ok'])) $d['transport_error'] = false; // ответ дошёл, но Telegram вернул ошибку (например 401 — неверный токен)
     return $d;
 }
-function notify_tg_send($token, $chatId, $text, $proxy = null) {
-    return notify_tg_request($token, 'sendMessage', ['chat_id' => $chatId, 'text' => $text], $proxy);
+function notify_tg_send($token, $chatId, $text, $proxy = null, $apiBase = null) {
+    return notify_tg_request($token, 'sendMessage', ['chat_id' => $chatId, 'text' => $text], $proxy, $apiBase);
 }
 /** Последние входящие через long-polling getUpdates — чтобы найти chat_id тех, кто написал боту /start. */
-function notify_tg_recent_chats($token, $proxy = null) {
+function notify_tg_recent_chats($token, $proxy = null, $apiBase = null) {
     // getUpdates отвечает "409 Conflict: can't use getUpdates method while webhook is active", если на боте
     // когда-либо был установлен вебхук (даже случайно) — снимаем его перед каждым опросом, это безопасно и идемпотентно.
-    notify_tg_request($token, 'deleteWebhook', ['drop_pending_updates' => false], $proxy);
-    $r = notify_tg_request($token, 'getUpdates', ['limit' => 50, 'timeout' => 0], $proxy);
+    notify_tg_request($token, 'deleteWebhook', ['drop_pending_updates' => false], $proxy, $apiBase);
+    $r = notify_tg_request($token, 'getUpdates', ['limit' => 50, 'timeout' => 0], $proxy, $apiBase);
     if (empty($r['ok'])) return $r;
     $seen = [];
     foreach (($r['result'] ?? []) as $u) {
@@ -185,7 +189,7 @@ function notify_admins(PDO $pdo, $code, $vars) {
     foreach ($links as $l) {
         try {
             if ($l['channel'] === 'telegram' && !empty($cfg['telegram_token'])) {
-                notify_tg_send($cfg['telegram_token'], $l['chat_id'], $text, $cfg['telegram_proxy'] ?? null);
+                notify_tg_send($cfg['telegram_token'], $l['chat_id'], $text, $cfg['telegram_proxy'] ?? null, $cfg['telegram_api_base'] ?? null);
             } elseif ($l['channel'] === 'max' && !empty($cfg['max_token'])) {
                 notify_max_send($cfg['max_token'], $l['chat_id'], $text, $cfg['max_proxy'] ?? null);
             }
@@ -200,8 +204,8 @@ function notify_admins(PDO $pdo, $code, $vars) {
  * провайдером/файрволом хостера), или соединение проходит, но токен бота неверный
  * (обычная 401 Unauthorized), или всё в порядке.
  */
-function notify_tg_diag($token, $proxy = null) {
-    $r = notify_tg_request($token, 'getMe', [], $proxy);
+function notify_tg_diag($token, $proxy = null, $apiBase = null) {
+    $r = notify_tg_request($token, 'getMe', [], $proxy, $apiBase);
     return notify_diag_verdict($r);
 }
 function notify_max_diag($token, $proxy = null) {
@@ -217,8 +221,10 @@ function notify_diag_verdict($r) {
             'verdict' => 'transport',
             'message' => 'Сервер не смог подключиться (cURL: ' . ($r['error'] ?? '?') . '). '
                 . 'Это похоже на сетевую блокировку/файрвол на стороне хостинга, а не на проблему с токеном — '
-                . 'токен вообще не успел проверяться. Если это стабильно повторяется, нужен исходящий прокси '
-                . '(поле "Прокси" рядом с токеном ниже) до Telegram/MAX из региона без блокировки.',
+                . 'токен вообще не успел проверяться. Если это стабильно повторяется, нужен обход блокировки: '
+                . 'либо прокси (поле "Прокси" рядом с токеном) до Telegram/MAX из региона без блокировки, '
+                . 'либо (только для Telegram, проще и бесплатно) свой Cloudflare Worker-реверс-прокси в поле '
+                . '"Адрес API Telegram" — см. подсказку под этим полем в разделе «Каналы доставки».',
             'raw' => $r,
         ];
     }
