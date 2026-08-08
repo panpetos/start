@@ -122,6 +122,52 @@
       .empty-state h3, .empty-state p { max-width: 100%; word-wrap: break-word; }
     }
 
+    /* ── Карточка психолога на телефоне ─────────────────────────────────────────
+       Карточка размечена инлайновым grid «auto 1fr auto» (аватар | инфо | цена+кнопка).
+       На узком экране аватар и правая колонка забирают всю ширину, средняя дорожка
+       сжимается буквально в 0px — текст выходит за свою дорожку и наползает на цену,
+       а кнопка вылезает за край карточки. Перестраиваем в две строки:
+       [аватар | инфо] и снизу на всю ширину [цена + кнопка].
+       !important обязателен: сетка задана инлайново, иначе правило не победит. ── */
+    @media (max-width: 640px) {
+      a[data-psych-id] {
+        grid-template-columns: 64px minmax(0, 1fr) !important;
+        gap: 0.85rem !important;
+        padding: 1.1rem !important;
+        border-radius: 1rem !important;
+      }
+      a[data-psych-id] > div:first-child {
+        width: 64px !important; height: 64px !important;
+        min-width: 64px !important; max-width: 64px !important;
+        font-size: 1.35rem !important; border-width: 2px !important;
+      }
+      a[data-psych-id] > div:nth-child(2) { grid-column: 2 !important; }
+      /* цена и кнопка — отдельной строкой во всю ширину карточки */
+      a[data-psych-id] > div:nth-child(3) {
+        grid-column: 1 / -1 !important;
+        min-width: 0 !important;
+        align-items: stretch !important;
+        gap: 0.6rem !important;
+        margin-top: 0.15rem !important;
+      }
+      a[data-psych-id] > div:nth-child(3) > div { text-align: left !important; }
+      a[data-psych-id] > div:nth-child(3) > span {
+        width: 100% !important;
+        white-space: normal !important;
+        padding: 0.7rem 0.9rem !important;
+      }
+      /* имя переносится, а не распирает дорожку */
+      a[data-psych-id] > div:nth-child(2) > div:first-child > span { overflow-wrap: anywhere; }
+    }
+
+    @media (max-width: 430px) {
+      /* На узких экранах колонка под аватаром простаивает, а текст жмётся в ~150px.
+         Разворачиваем карточку в одну колонку — тексту достаётся вся ширина. */
+      a[data-psych-id] { grid-template-columns: minmax(0, 1fr) !important; gap: 0.7rem !important; }
+      a[data-psych-id] > div:first-child { width: 56px !important; height: 56px !important; min-width: 56px !important; max-width: 56px !important; font-size: 1.2rem !important; }
+      a[data-psych-id] > div:nth-child(2) { grid-column: 1 !important; }
+    }
+
     @media (max-width: 560px) {
       /* Поисковая строка на телефоне: меньше отступов и компактная кнопка,
          чтобы «Найти» целиком оставалась в пределах экрана. */
@@ -132,8 +178,10 @@
       /* После приведения полей к 16px (борьба с зумом iOS) селект стал шире —
          отдаём ему отдельную строку целиком, чтобы он гарантированно влезал. */
       .sort-bar { flex-direction: column; align-items: stretch; }
-      .sort-bar > div:last-child { width: 100%; }
-      .sort-select { width: 100%; flex: 1; }
+      /* Подпись «Сортировать:» и селект в одну строку не оставляли селекту места —
+         текст внутри него обрезался. Ставим подпись над селектом. */
+      .sort-bar > div:last-child { width: 100%; flex-direction: column; align-items: stretch; gap: 0.3rem !important; }
+      .sort-select { width: 100%; flex: 1; padding-right: 2rem; }
     }
 
     .mobile-filter-btn {
@@ -558,6 +606,14 @@
       return AVATAR_COLORS[h % AVATAR_COLORS.length];
     }
 
+    /* Русские склонения для счётчиков в карточке: «1 отзыв», «2 отзыва», «5 отзывов». */
+    function plural(n, one, few, many) {
+      n = Math.abs(parseInt(n, 10) || 0);
+      const d100 = n % 100, d10 = n % 10;
+      const word = (d100 > 10 && d100 < 20) ? many : (d10 === 1 ? one : (d10 >= 2 && d10 <= 4 ? few : many));
+      return n + ' ' + word;
+    }
+
     /* ─── Маппинг реального ответа /api/psychologists.php?action=search в формат карточки ─── */
     function normalizePsych(p) {
       const name = ((p.first_name || '') + ' ' + (p.last_name || '')).trim() || p.email || 'Психолог';
@@ -765,8 +821,8 @@
               '<div style="font-size:0.875rem;color:#7C3AED;font-weight:500;margin-bottom:0.5rem;">' + (p.specialties||[]).slice(0,1).join(', ') + '</div>' +
               '<div style="display:flex;flex-wrap:wrap;gap:1rem;font-size:0.8125rem;color:#6B7280;margin-bottom:0.625rem;align-items:center;">' +
                 '<span>' + stars + '<span style="font-weight:600;color:#1A1A1A;margin-left:0.25rem;">' + (p.rating||0).toFixed(1) + '</span></span>' +
-                '<span>' + (p.reviews||0) + ' отзывов</span>' +
-                '<span>' + (p.experience||0) + ' лет опыта</span>' +
+                '<span>' + plural(p.reviews||0, 'отзыв', 'отзыва', 'отзывов') + '</span>' +
+                '<span>' + plural(p.experience||0, 'год', 'года', 'лет') + ' опыта</span>' +
               '</div>' +
               '<div style="margin-bottom:0.5rem;">' + specs + '</div>' +
               '<div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:0.5rem;">' + formats + '</div>' +
