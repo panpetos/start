@@ -112,13 +112,6 @@
         }
         .conversations-pane.collapsed .folder-pick-btn { display: none; }
         .conversations-pane.collapsed .unread-badge { margin: 0; padding: 1px 5px; font-size: 0.65rem; }
-        .sb-collapse-btn {
-            width: 34px; height: 34px; flex-shrink: 0; border-radius: 0.5rem;
-            border: 1px solid #e0e0e0; background: #f9fafb; color: #6B7280;
-            cursor: pointer; display: flex; align-items: center; justify-content: center;
-            font-size: 1rem; line-height: 1; font-family: inherit;
-        }
-        .sb-collapse-btn:hover { background: #F3E8FF; color: #7C3AED; border-color: #C4B5FD; }
 
         /* ── Папки: вертикальная рейка слева, как в Telegram и MAX ──────────────────
            Раньше папки были горизонтальным рядом над списком: он занимал строку и на
@@ -196,7 +189,7 @@
         .vn-btn-ghost:hover { background: rgba(255,255,255,0.26); }
         .vn-btn-rec { background: #e94560; color: #fff; }
         .vn-btn-rec.stop { background: #fff; color: #e94560; }
-        .vn-btn-send { background: #16A34A; color: #fff; }
+        .vn-btn-send { background: #15803D; color: #fff; }
 
         /* ── Закреплённый плеер под шапкой чата ──────────────────────────────────────
            Видно, что именно играет, можно поставить на паузу, перейти к сообщению и
@@ -288,6 +281,13 @@
             .msg-hover { opacity: 0.75; pointer-events: auto; position: static; margin-top: 0.3rem; }
             .message.theirs .msg-hover, .message.mine .msg-hover { right: auto; left: auto; }
         }
+
+        /* Разметка внутри пузыря: заголовки по умолчанию 1.5em — в переписке это слишком
+           крупно, поэтому приводим к размеру чуть больше обычного текста. */
+        .message :is(h2, h3) { font-size: 1.05em; margin: 0.15rem 0 0.3rem; line-height: 1.25; }
+        .message ul, .message ol { margin: 0.25rem 0 0.25rem 1.1rem; padding: 0; }
+        .message code { word-break: break-word; }
+        .message blockquote { margin: 0.35rem 0 !important; }
 
         /* ── Цитата ответа внутри пузыря ── */
         .msg-quote {
@@ -603,6 +603,69 @@
         body.dark .ch-comment-body { background: #1E1E1E; }
         body.dark .ch-comment-form input { background: #1E1E1E; border-color: #444; color: #E6E6E6; }
 
+        /* ── Режим форматирования текста ─────────────────────────────────────────────
+           Разметка хранится как markdown-lite (**жирный**, ~~зачёркнутый~~ и т.д.), а не HTML:
+           это тот же формат, что у постов канала, и в базу не попадает разметка, которую
+           потом пришлось бы чистить. Предпросмотр рисуется тем же formatPostText(). */
+        .cmp-toolbar {
+            display: flex; flex-wrap: wrap; gap: 0.25rem; flex-shrink: 0;
+            padding: 0.6rem 1.1rem; border-bottom: 1px solid #F0F0F0;
+        }
+        .cmp-tool {
+            border: none; background: transparent; cursor: pointer; color: #4B5563;
+            font-family: inherit; font-size: 0.8rem; min-width: 32px; height: 32px;
+            padding: 0 0.5rem; border-radius: 0.5rem; display: inline-flex;
+            align-items: center; justify-content: center; gap: 0.25rem;
+        }
+        .cmp-tool:hover { background: #F1EDFB; color: #6D28D9; }
+        .cmp-tool.b { font-weight: 800; }
+        .cmp-tool.i { font-style: italic; }
+        .cmp-tool.u { text-decoration: underline; }
+        .cmp-tool.s { text-decoration: line-through; }
+        .cmp-tool.code { font-family: ui-monospace, Menlo, Consolas, monospace; }
+        .cmp-sep { width: 1px; align-self: stretch; background: #ECECEC; margin: 0 0.25rem; }
+        .cmp-text {
+            width: 100%; min-height: 8rem; max-height: 40vh; resize: vertical;
+            border: 1.5px solid #E5E7EB; border-radius: 0.7rem; padding: 0.7rem 0.85rem;
+            font-family: inherit; font-size: 0.95rem; line-height: 1.45; outline: none;
+            margin: 0.9rem 0 0; box-sizing: border-box;
+        }
+        .cmp-text:focus { border-color: #7C3AED; }
+        .cmp-preview-label {
+            font-size: 0.7rem; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 0.04em; color: #9CA3AF; margin: 0.8rem 0 0.3rem;
+        }
+        .cmp-preview {
+            border: 1px dashed #E5E7EB; border-radius: 0.7rem; padding: 0.7rem 0.85rem;
+            font-size: 0.95rem; line-height: 1.45; min-height: 3rem;
+            max-height: 22vh; overflow-y: auto; margin-bottom: 0.9rem;
+            word-break: break-word;
+        }
+        .cmp-preview :is(h2, h3) { font-size: 1.02rem; margin: 0.3rem 0; }
+        .cmp-btn-ghost {
+            border: 1.5px solid #E5E7EB; background: transparent; color: #4B5563;
+            border-radius: 0.6rem; padding: 0.5rem 0.9rem; cursor: pointer;
+            font-family: inherit; font-size: 0.88rem; font-weight: 600;
+        }
+        .cmp-btn-send {
+            border: none; background: #7C3AED; color: #fff;
+            border-radius: 0.6rem; padding: 0.5rem 1.1rem; cursor: pointer;
+            font-family: inherit; font-size: 0.88rem; font-weight: 700;
+        }
+        .cmp-btn-send:hover { background: #6D28D9; }
+        body.dark #composerModal > div { background: #252525 !important; color: #E6E6E6 !important; }
+        body.dark .cmp-toolbar { border-bottom-color: #333; }
+        body.dark .cmp-tool { color: #C4C4C4; }
+        body.dark .cmp-tool:hover { background: #34274D; color: #C9AEFB; }
+        body.dark .cmp-sep { background: #3A3A3A; }
+        body.dark .cmp-text { background: #1E1E1E; border-color: #444; color: #E6E6E6; }
+        body.dark .cmp-text::placeholder { color: #9A9A9A; }
+        body.dark .cmp-preview { border-color: #3A3A3A; }
+        body.dark .cmp-preview-label { color: #9A9A9A; }
+        body.dark .cmp-btn-ghost { border-color: #444; color: #C4C4C4; }
+        body.dark #composerModal [style*="border-bottom:1px solid #eee"],
+        body.dark #composerModal [style*="border-top:1px solid #eee"] { border-color: #333 !important; }
+
         /* ── Обои переписки ──────────────────────────────────────────────────────────
            Фоны собраны из градиентов и SVG-паттернов в data:URI: никаких внешних картинок,
            значит ничего не грузится и нечему отвалиться. Выбор общий для всех чатов и
@@ -772,20 +835,29 @@
             gap: 0.3rem;
         }
         /* Поле ввода отделяем от блока иконок, между самими иконками отступ маленький */
-        .chat-input input { margin-left: 0.35rem; }
+        .chat-input textarea { margin-left: 0.35rem; }
         .chat-input .send-btn { margin-left: 0.35rem; }
 
-        .chat-input input {
+        /* Поле ввода — textarea: Shift+Enter переносит строку, поле растёт до 6 строк,
+           дальше появляется своя прокрутка. Раньше это был <input>, и перенос строки был
+           невозможен вообще. */
+        .chat-input textarea {
             flex: 1;
             min-width: 0;
-            padding: 0.75rem 1rem;
+            padding: 0.7rem 1rem;
             border: 2px solid #e0e0e0;
-            border-radius: 24px;
+            border-radius: 22px;
             font-size: 1rem;
+            font-family: inherit;
+            line-height: 1.35;
             outline: none;
+            resize: none;
+            overflow-y: auto;
+            max-height: 8.5rem;
+            box-sizing: border-box;
         }
 
-        .chat-input input:focus {
+        .chat-input textarea:focus {
             border-color: #7C3AED;
         }
 
@@ -1103,7 +1175,7 @@
         /* Кнопка учёта времени сессии (видна психологу) */
         .session-btn {
             padding: 0.5rem 0.9rem; border-radius: 0.75rem; border: none;
-            background: #16A34A; color: #fff; font-weight: 700; font-size: 0.8rem;
+            background: #15803D; color: #fff; font-weight: 700; font-size: 0.8rem;
             cursor: pointer; white-space: nowrap; flex-shrink: 0; font-family: inherit;
             transition: background 0.2s, transform 0.2s;
         }
@@ -1195,8 +1267,8 @@
             .conversations-pane.collapsed {
                 width: 100% !important;
             }
-            /* На телефоне список занимает весь экран — сворачивать и тянуть нечего */
-            .sb-collapse-btn, .pane-resizer { display: none; }
+            /* На телефоне список занимает весь экран — тянуть нечего */
+            .pane-resizer { display: none; }
             /* Рейка папок на телефоне уже, но остаётся вертикальной — как в мобильном MAX */
             .chat-folders { width: 58px; padding: 0.35rem 0.15rem; }
             .folder-tab { padding: 0.5rem 0.1rem 0.4rem; font-size: 0.58rem; }
@@ -1265,7 +1337,7 @@
                 position: sticky;
                 bottom: 0;
             }
-            .chat-input input { font-size: 16px; padding: 0.6rem 0.75rem; }
+            .chat-input textarea { font-size: 16px; padding: 0.6rem 0.75rem; }
             .chat-input .send-btn { width: 40px; height: 40px; }
             .icon-btn { width: 36px; height: 36px; }
             .icon-btn svg { width: 20px; height: 20px; }
@@ -1287,8 +1359,6 @@
         body.dark .conversations-list { background: #252525; border-right-color: #333; }
         body.dark .chat-sb-head { border-bottom-color: #333; }
         body.dark .chat-sb-search { background: #1E1E1E; border-color: #444; color: #E6E6E6; }
-        body.dark .sb-collapse-btn { background: #2A2A2A; border-color: #444; color: #A8A8A8; }
-        body.dark .sb-collapse-btn:hover { background: #37254A; color: #C9AEFB; border-color: #7C3AED; }
         body.dark .chat-folders { background: #202020; border-right-color: #333; }
         body.dark .folder-tab { background: transparent; color: #A8A8A8; }
         body.dark .folder-tab:hover { background: #34274D; color: #C9AEFB; }
@@ -1309,8 +1379,8 @@
         body.dark .chat-header .role { color: #999; }
         body.dark .message.theirs { background: #252525; color: #E6E6E6; box-shadow: 0 2px 8px rgba(0,0,0,0.2); }
         body.dark .chat-input { background: #252525; border-top-color: #333; }
-        body.dark .chat-input input { background: #1E1E1E; border-color: #444; color: #E6E6E6; }
-        body.dark .chat-input input::placeholder { color: #777; }
+        body.dark .chat-input textarea { background: #1E1E1E; border-color: #444; color: #E6E6E6; }
+        body.dark .chat-input textarea::placeholder { color: #9A9A9A; }
         /* Старое правило заливало кнопки-иконки серым квадратом только в тёмной теме —
            получалось непохоже на светлую. Цвета иконок заданы выше, одинаково для обеих тем. */
         body.dark .emoji-picker { background: #252525; box-shadow: 0 4px 25px rgba(0,0,0,0.5); }
@@ -1336,7 +1406,19 @@
         body.dark #channelSettingsModal > div,
         body.dark #wallpaperModal > div,
         body.dark #forwardModal > div,
+        /* Карточку собеседника забыли добавить в этот список: её подложка оставалась белой,
+           а имя без своего цвета наследовало светлый текст тёмной темы — светлое на белом. */
+        body.dark #userCardModal > div,
         body.dark #healthConsentModal > div > div { background: #252525 !important; color: #E6E6E6 !important; }
+        /* Приглушённые подписи внутри карточки: на тёмной подложке #6B7280 уже не читается */
+        body.dark #userCardModal [style*="color:#6B7280"],
+        body.dark #userCardModal [style*="color: #6B7280"] { color: #A8A8A8 !important; }
+        body.dark #userCardModal [style*="color:#374151"],
+        body.dark #userCardModal [style*="color: #374151"] { color: #C4C4C4 !important; }
+        body.dark #userCardModal [style*="color:#9CA3AF"],
+        body.dark #userCardModal [style*="color: #9CA3AF"] { color: #9A9A9A !important; }
+        body.dark #userCardModal [style*="border-bottom:1px solid #eee"] { border-bottom-color: #333 !important; }
+        body.dark #userCardModal [style*="background:#F3E8FF"] { background: #37254A !important; color: #C9AEFB !important; }
         body.dark #notesDrawer { background: #252525 !important; }
         body.dark #forwardModal [style*="border-bottom:1px solid #eee"] { border-bottom-color: #333 !important; }
         body.dark #forwardSearchInput { background: #1E1E1E !important; border-color: #444 !important; color: #E6E6E6 !important; }
@@ -1405,7 +1487,6 @@
             <div class="chat-folders" id="chatFolders"></div>
             <div class="conversations-list">
             <div class="chat-sb-head">
-                <button class="sb-collapse-btn" id="sbCollapseBtn" onclick="toggleChatSidebar()" title="Свернуть список" aria-label="Свернуть список">‹</button>
                 <input id="chatSearchInput" class="chat-sb-search" type="text" placeholder="🔍 Поиск по всем пользователям..." oninput="filterConversations()">
                 <button class="chat-hdr-btn" onclick="openCreateGroupModal()" title="Новая группа" aria-label="Новая группа">
                     <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
@@ -1493,8 +1574,13 @@
                         title="Видеосообщение-кружок" aria-label="Видеосообщение-кружок">
                         <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M10.3 9.2l4.6 2.8-4.6 2.8V9.2z"/></svg>
                     </button>
-                    <input type="text" id="messageInput" placeholder="Введите сообщение..."
-                        onkeypress="if(event.key==='Enter') sendMessage()">
+                    <button type="button" id="formatBtn" onclick="openComposer()" class="icon-btn"
+                        title="Форматирование текста" aria-label="Форматирование текста">
+                        <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 18l4.5-12 4.5 12"/><path d="M5.6 14h5.8"/><path d="M15 18c0-2.2 1.3-3.4 3-3.4s3 1.2 3 3.4"/><path d="M21 14.6V18"/></svg>
+                    </button>
+                    <textarea id="messageInput" rows="1" placeholder="Введите сообщение..."
+                        oninput="autoGrowInput(this)"
+                        onkeydown="onMessageKeyDown(event)"></textarea>
                     <button onclick="sendMessage()" class="send-btn" title="Отправить" aria-label="Отправить">
                         <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2.5L10.8 13.2"/><path d="M21.5 2.5l-7 19-3.7-8.3-8.3-3.7 19-7z"/></svg>
                     </button>
@@ -1602,7 +1688,7 @@
             </div>
             <label style="display:block;font-size:0.8125rem;font-weight:600;color:#374151;margin-bottom:0.3rem;">Комментарий (необязательно)</label>
             <textarea id="orderNote" placeholder="Детали договорённости..." style="width:100%;height:60px;padding:0.7rem 0.9rem;border:2px solid #E5E7EB;border-radius:0.7rem;font-size:0.9rem;outline:none;font-family:inherit;resize:vertical;margin-bottom:0.6rem;"></textarea>
-            <div id="orderPayout" style="display:none;background:#F0FDF4;border:1px solid #BBF7D0;border-radius:0.625rem;padding:0.5rem 0.75rem;font-size:0.82rem;color:#16A34A;margin-bottom:0.6rem;"></div>
+            <div id="orderPayout" style="display:none;background:#F0FDF4;border:1px solid #BBF7D0;border-radius:0.625rem;padding:0.5rem 0.75rem;font-size:0.82rem;color:#15803D;margin-bottom:0.6rem;"></div>
             <div id="orderError" style="display:none;color:#DC2626;font-size:0.8125rem;margin-bottom:0.5rem;"></div>
             <button onclick="sendOrder()" style="width:100%;padding:0.875rem;background:linear-gradient(135deg,#7C3AED,#9F67FA);color:#fff;border:none;border-radius:0.75rem;font-weight:700;font-size:0.9375rem;cursor:pointer;font-family:inherit;margin-bottom:0.5rem;">Отправить счёт клиенту</button>
             <button onclick="closeOrderModal()" style="width:100%;padding:0.625rem;background:#F3F4F6;border:none;border-radius:0.75rem;color:#374151;font-weight:600;font-size:0.875rem;cursor:pointer;font-family:inherit;">Отмена</button>
@@ -1631,6 +1717,26 @@
                 <button onclick="closeGroupInfo()" style="background:none;border:none;font-size:1.2rem;cursor:pointer;color:#6B7280;">✕</button>
             </div>
             <div id="groupInfoBody" style="padding:1.1rem 1.25rem;overflow-y:auto;flex:1;"></div>
+        </div>
+    </div>
+
+    <!-- Режим форматирования: отдельное окно с панелью и предпросмотром -->
+    <div id="composerModal" style="display:none;position:fixed;inset:0;background:rgba(26,26,46,0.6);z-index:1340;align-items:center;justify-content:center;padding:1rem;">
+        <div style="background:#fff;border-radius:1rem;max-width:560px;width:100%;max-height:88vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+            <div style="padding:0.9rem 1.1rem;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;">
+                <div style="font-weight:700;">Форматирование текста</div>
+                <button onclick="closeComposer()" style="background:none;border:none;font-size:1.2rem;cursor:pointer;color:#6B7280;">✕</button>
+            </div>
+            <div class="cmp-toolbar" id="cmpToolbar"></div>
+            <div style="padding:0 1.1rem;flex:1;min-height:0;display:flex;flex-direction:column;">
+                <textarea id="composerText" class="cmp-text" placeholder="Текст сообщения. Можно оформлять кнопками выше."></textarea>
+                <div class="cmp-preview-label">Как это будет выглядеть</div>
+                <div class="cmp-preview" id="composerPreview"></div>
+            </div>
+            <div style="padding:0.85rem 1.1rem;border-top:1px solid #eee;display:flex;gap:0.5rem;justify-content:flex-end;flex-shrink:0;">
+                <button onclick="closeComposer()" class="cmp-btn-ghost">Отмена</button>
+                <button onclick="sendFromComposer()" class="cmp-btn-send">Отправить</button>
+            </div>
         </div>
     </div>
 
@@ -1831,7 +1937,7 @@
                 const initial = name.charAt(0).toUpperCase();
                 const activeId = CHANNEL_PREFIX + c.psychologist_id;
                 const label = c._own ? 'Мой канал' : 'Канал';
-                const preview = c.last_post_text ? (label + ' · ' + c.last_post_text.slice(0, 30))
+                const preview = c.last_post_text ? (label + ' · ' + previewText(c.last_post_text).slice(0, 30))
                     : (c.channel_description ? (label + ' · ' + c.channel_description.slice(0, 34)) : (label + ' · публикации психолога'));
                 if (!folderAllows('channel', activeId)) return;
                 out.push({ key: activeId, html: `
@@ -1883,7 +1989,7 @@
             const out = [];
             myGroups.forEach(g => {
                 const activeId = GROUP_PREFIX + g.id;
-                const lastMsg = g.last_message ? g.last_message.slice(0, 34)
+                const lastMsg = g.last_message ? previewText(g.last_message).slice(0, 34)
                     : (g.description ? g.description.slice(0, 40) : 'Группа создана — напишите первым');
                 const time = g.last_message_at ? formatTime(g.last_message_at) : '';
                 if (!folderAllows('group', activeId)) return;
@@ -1984,7 +2090,7 @@
                 <div class="message ${isMine ? 'mine' : 'theirs'}" data-msg-id="${m.id}">
                     ${!isMine ? `<div style="font-size:0.75rem;font-weight:700;opacity:0.8;margin-bottom:0.15rem;color:#7C3AED;">${escapeHtml(name)}</div>` : ''}
                     ${quoteHtml(grp.replyId)}
-                    <div id="gmsg-body-${m.id}"><div>${escapeHtml(grp.body)}</div></div>
+                    <div id="gmsg-body-${m.id}"><div>${msgText(grp.body)}</div></div>
                     <div class="message-time">${time}${editedTag}</div>
                     ${msgHoverHtml(m.id)}
                 </div>`;
@@ -2217,7 +2323,7 @@
                     <textarea id="giDescr" rows="2" maxlength="500" placeholder="О чём группа, для кого" style="width:100%;padding:0.5rem 0.7rem;border:1.5px solid #e0e0e0;border-radius:0.5rem;font-family:inherit;font-size:0.88rem;resize:vertical;">${escapeHtml(g.description || '')}</textarea>
                     <button onclick="saveGroupInfo()" id="giSaveBtn" style="width:100%;border:none;background:#7C3AED;color:#fff;border-radius:0.5rem;padding:0.55rem;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;margin-top:0.45rem;">Сохранить название и описание</button>
                 </div>` : ''}
-                <button onclick="openAddGroupMembers(${gid})" style="width:100%;border:none;background:#16A34A;color:#fff;border-radius:0.6rem;padding:0.6rem;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:0.8rem;">➕ Добавить участников</button>
+                <button onclick="openAddGroupMembers(${gid})" style="width:100%;border:none;background:#15803D;color:#fff;border-radius:0.6rem;padding:0.6rem;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:0.8rem;">➕ Добавить участников</button>
                 <div style="font-weight:700;font-size:0.82rem;color:#6B7280;margin-bottom:0.3rem;">Участники</div>
                 <div>${rows}</div>
                 <button onclick="leaveGroupChat(${gid})" style="width:100%;border:1.5px solid #DC2626;background:transparent;color:#DC2626;border-radius:0.6rem;padding:0.6rem;font-weight:700;cursor:pointer;font-family:inherit;margin-top:0.9rem;">🚪 Выйти из группы</button>`;
@@ -2364,7 +2470,7 @@
             const descr = info.description || c.channel_description || '';
 
             const writeBtn = (!isOwn && c.user_id)
-                ? `<a href="/chat.html?user=${encodeURIComponent(c.user_id)}" class="session-btn" style="background:#16A34A;text-decoration:none;" title="Написать психологу лично">✉️ Написать</a>`
+                ? `<a href="/chat.html?user=${encodeURIComponent(c.user_id)}" class="session-btn" style="background:#15803D;text-decoration:none;" title="Написать психологу лично">✉️ Написать</a>`
                 : (isOwn ? `<a href="/psychologist-dashboard.html" class="session-btn" style="background:#7C3AED;text-decoration:none;" title="Опубликовать пост">✍️ Мой канал</a>` : '');
             const editBtn = isOwn
                 ? `<button class="session-btn" style="background:#0EA5E9;" onclick="openChannelSettings('${psychId}')" title="Аватарка, название и описание канала">🎨 Оформление</button>`
@@ -2570,6 +2676,7 @@
                 const d = await r.json();
                 if (d.ok) {
                     input.value = '';
+                resetInputHeight();
                     const list = document.getElementById('chClist-' + postId);
                     if (list.children.length === 1 && list.children[0].tagName === 'DIV' && !list.children[0].classList.contains('ch-comment-item')) list.innerHTML = '';
                     list.insertAdjacentHTML('beforeend', chCommentItemHtml({
@@ -2599,7 +2706,7 @@
                 : '';
             // Клиент, открывший диалог с психологом, может записаться к нему ещё раз прямо отсюда
             const bookBtn = (!isPsy && other.role === 'psychologist')
-                ? `<a href="${bookPsychId ? ('/book.html?id=' + encodeURIComponent(bookPsychId)) : '/search.html'}" class="session-btn" style="background:#16A34A;text-decoration:none;display:inline-flex;align-items:center;" title="Записаться к этому психологу">📅 Записаться</a>`
+                ? `<a href="${bookPsychId ? ('/book.html?id=' + encodeURIComponent(bookPsychId)) : '/search.html'}" class="session-btn" style="background:#15803D;text-decoration:none;display:inline-flex;align-items:center;" title="Записаться к этому психологу">📅 Записаться</a>`
                 : '';
             const notesBtn = isPsy
                 ? `<button onclick="openNotes()" class="session-btn" style="background:#0EA5E9;" title="Приватные заметки по клиенту">📝 Заметки</button>`
@@ -2656,7 +2763,7 @@
                         </div>
                         <div style="display:flex;gap:0.6rem;margin-top:1.2rem;">
                             <a href="/psychologist-profile.html?id=${encodeURIComponent(c.psychologist_id)}" target="_blank" class="session-btn" style="background:#7C3AED;text-decoration:none;">Открыть профиль и канал</a>
-                            <a href="/book.html?id=${encodeURIComponent(c.psychologist_id)}" class="session-btn" style="background:#16A34A;text-decoration:none;">📅 Записаться</a>
+                            <a href="/book.html?id=${encodeURIComponent(c.psychologist_id)}" class="session-btn" style="background:#15803D;text-decoration:none;">📅 Записаться</a>
                         </div>`;
                 } else {
                     body.innerHTML = `
@@ -2732,7 +2839,7 @@
                         <span style="font-size:0.72rem;color:#9CA3AF;">${formatTime(n.created_at)}</span>
                         <span style="display:flex;gap:0.5rem;align-items:center;">
                             <span id="noteEditBtns-${n.id}" style="display:none;gap:0.5rem;">
-                                <button onclick="saveEditNote(${n.id})" style="background:none;border:none;color:#16A34A;cursor:pointer;font-size:0.75rem;font-weight:700;">Сохранить</button>
+                                <button onclick="saveEditNote(${n.id})" style="background:none;border:none;color:#15803D;cursor:pointer;font-size:0.75rem;font-weight:700;">Сохранить</button>
                                 <button onclick="cancelEditNote(${n.id})" style="background:none;border:none;color:#6B7280;cursor:pointer;font-size:0.75rem;">Отмена</button>
                             </span>
                             <button onclick="toggleNoteFavorite(${n.id}, ${fav ? 0 : 1})" title="${fav ? 'Убрать из избранного' : 'В избранное'}" style="background:none;border:none;cursor:pointer;font-size:0.9rem;">${fav ? '⭐' : '☆'}</button>
@@ -3132,16 +3239,17 @@
         //  Папки: встроенные Все/Личное/Каналы/Группы считаются по типу строки, свои —
         //  хранятся на сервере (api/chat_folders.php), чтобы не терялись при смене устройства.
         // ══════════════════════════════════════════════════════════════════════════════
+        /**
+         * Компактный вид списка чатов (только аватарки).
+         * Отдельной кнопки сворачивания больше нет: шторка тянется мышкой, и когда её
+         * доводят до края, она сама встаёт в аккуратный компактный вид. Раньше при узкой
+         * ширине вёрстка просто сминалась — оставались обрезки поиска и счётчики друг на друге.
+         */
         function toggleChatSidebar(force) {
             const pane = document.getElementById('conversationsPane');
             if (!pane) return;
             const collapsed = (force === undefined) ? !pane.classList.contains('collapsed') : !!force;
             pane.classList.toggle('collapsed', collapsed);
-            const btn = document.getElementById('sbCollapseBtn');
-            if (btn) {
-                btn.textContent = collapsed ? '›' : '‹';
-                btn.title = collapsed ? 'Развернуть список' : 'Свернуть список';
-            }
             try { localStorage.setItem('psy-chat-sb-collapsed', collapsed ? '1' : '0'); } catch (e) {}
         }
         try {
@@ -3247,15 +3355,29 @@
         }
 
         // ── Перетаскивание ширины списка чатов ──
+        // Ниже PANE_SNAP шторка защёлкивается в компактный вид (только аватарки), выше —
+        // разворачивается обратно. Без этого при узкой ширине оставались обрезки поиска и
+        // счётчики друг на друге: компактный режим был отдельным состоянием и не включался сам.
+        const PANE_SNAP = 168;
+
         function initPaneResizer() {
             const grip = document.getElementById('paneResizer');
             const pane = document.getElementById('conversationsPane');
             if (!grip || !pane) return;
-            let startX = 0, startW = 0, active = false;
+            let startX = 0, startW = 0, active = false, snapped = false;
+
             const onMove = e => {
                 if (!active) return;
-                const w = applyPaneWidth(startW + (e.clientX - startX));
-                grip.dataset.w = w;
+                const raw = startW + (e.clientX - startX);
+                if (raw < PANE_SNAP) {
+                    // тянут к краю — показываем сразу компактный вид, чтобы не мялось
+                    if (!snapped) { snapped = true; toggleChatSidebar(true); }
+                    grip.dataset.snap = '1';
+                    return;
+                }
+                if (snapped) { snapped = false; toggleChatSidebar(false); }
+                grip.dataset.snap = '0';
+                grip.dataset.w = applyPaneWidth(raw);
             };
             const onUp = () => {
                 if (!active) return;
@@ -3264,6 +3386,7 @@
                 document.body.classList.remove('pane-resizing');
                 window.removeEventListener('pointermove', onMove);
                 window.removeEventListener('pointerup', onUp);
+                if (grip.dataset.snap === '1') return;   // остались в компактном виде
                 const w = grip.dataset.w;
                 if (w) {
                     try { localStorage.setItem('psy-chat-pane-w', w); } catch (e) {}
@@ -3271,19 +3394,21 @@
                 }
             };
             grip.addEventListener('pointerdown', e => {
-                // свёрнутую шторку не тянем — сначала разверните
-                if (pane.classList.contains('collapsed')) return;
                 e.preventDefault();
                 active = true;
+                snapped = pane.classList.contains('collapsed');
                 startX = e.clientX;
-                startW = pane.getBoundingClientRect().width;
+                // из компактного вида тянем от его фактической ширины, чтобы не было рывка
+                startW = snapped ? PANE_SNAP - 1 : pane.getBoundingClientRect().width;
+                grip.dataset.snap = snapped ? '1' : '0';
                 grip.classList.add('dragging');
                 document.body.classList.add('pane-resizing');
                 window.addEventListener('pointermove', onMove);
                 window.addEventListener('pointerup', onUp);
             });
-            // двойной клик по краю возвращает ширину по умолчанию
+            // двойной клик по краю: из компактного вида разворачивает, иначе возвращает 320px
             grip.addEventListener('dblclick', () => {
+                if (pane.classList.contains('collapsed')) { toggleChatSidebar(false); return; }
                 const w = applyPaneWidth(PANE_DEFAULT);
                 try { localStorage.setItem('psy-chat-pane-w', String(w)); } catch (e) {}
                 savePref('sidebar_width', w);
@@ -3560,6 +3685,31 @@
         let selectedIds = [];
 
         /** Разобрать текст на «на что отвечаем» и сам текст. */
+        /**
+         * Текст сообщения с разметкой. Используем тот же markdown-lite, что у постов канала
+         * (js/post-format.js): в базе лежит только текст с маркерами, HTML не хранится.
+         * Если файл форматирования почему-то не загрузился — показываем экранированный текст,
+         * чтобы переписка не осталась пустой.
+         */
+        function msgText(t) {
+            if (typeof formatPostText === 'function') return formatPostText(t || '');
+            return escapeHtml(t || '');
+        }
+
+        /**
+         * Текст для превью в списке чатов и подсказках: без служебного маркера ответа и без
+         * символов разметки. Иначе в списке светилось «Вы: [RE#m-2] **привет**».
+         */
+        function previewText(t) {
+            return String(t || '')
+                .replace(RE_MARK, '')
+                .replace(/\*\*|~~|__|`/g, '')
+                .replace(/([*_])(\S[^\n*_]*?\S|\S)\1/g, '$2')
+                .replace(/^\s*#{2,3}\s+/, '')
+                .replace(/^\s*>\s?/, '')
+                .replace(/\[([^\]\n]+)\]\((?:https?:\/\/[^\s)]+|\/[^\s)]*)\)/g, '$1');
+        }
+
         function splitReply(text) {
             const m = String(text || '').match(RE_MARK);
             if (!m) return { replyId: null, body: String(text || '') };
@@ -3571,7 +3721,7 @@
             if (!replyId) return '';
             const src = msgCaps[replyId];
             const name = (src && src.author) || 'Сообщение';
-            const text = (src && src.text) ? src.text.slice(0, 90) : 'перейти к сообщению';
+            const text = (src && src.text) ? previewText(src.text).slice(0, 90) : 'перейти к сообщению';
             return `<div class="msg-quote" onclick="jumpToMessage(event,'${replyId}')" title="Перейти к сообщению">
                         <div class="msg-quote-name">${escapeHtml(name)}</div>
                         <div class="msg-quote-text">${escapeHtml(text)}</div>
@@ -3634,7 +3784,7 @@
         /** Закрепить по id — берём текст из собранных прав, чтобы не дублировать разметку. */
         function pinMessageById(id) {
             const cap = msgCaps[id] || {};
-            pinMessage(null, id, cap.text || '');
+            pinMessage(null, id, previewText(cap.text || ''));
         }
 
         // ── Ответ ──
@@ -3643,7 +3793,7 @@
             closeFolderPicker();
             const cap = msgCaps[id];
             if (!cap) return;
-            replyTo = { id, name: cap.author || 'Сообщение', text: cap.text || '' };
+            replyTo = { id, name: cap.author || 'Сообщение', text: previewText(cap.text || '') };
             document.getElementById('replyName').textContent = 'Ответ · ' + replyTo.name;
             document.getElementById('replyBody').textContent = replyTo.text.slice(0, 120) || 'вложение';
             document.getElementById('replyBar').style.display = 'flex';
@@ -3855,7 +4005,7 @@
                 const initial = name.charAt(0).toUpperCase();
                 const isNew = !!c._isNew;
                 const isSupport = !!c._support;
-                const lastMsg = (c.last_message || '').replace(/^\[ORDER#\d+\]\s*/, '');
+                const lastMsg = previewText((c.last_message || '').replace(/^\[ORDER#\d+\]\s*/, ''));
                 const preview = isNew
                     ? `<span style="color:#7C3AED;">${c.role === 'psychologist' ? 'Психолог' : 'Клиент'} · начать переписку</span>`
                     : (isSupport ? c.last_message : (c.is_mine ? `Вы: ${lastMsg}` : lastMsg));
@@ -4092,7 +4242,7 @@
             }
             const sourceLine = m.source_label ? `<div style="font-size:0.72rem;font-weight:700;opacity:0.85;margin-bottom:0.25rem;">${escapeHtml(m.source_label)}</div>` : '';
             const fav = splitReply(m.content);
-            const content = (m.content && !isAttachmentPlaceholder(m)) ? `<div>${escapeHtml(fav.body)}</div>` : '';
+            const content = (m.content && !isAttachmentPlaceholder(m)) ? `<div>${msgText(fav.body)}</div>` : '';
             msgCaps[String(m.id)] = {
                 kind: 'fav', author: 'Заметка', text: fav.body,
                 canForward: true, canPin: false, canEdit: false, canDelete: true,
@@ -4378,7 +4528,7 @@
                     // Ответ: из текста вынимаем маркер [RE#id] и рисуем цитату отдельно
                     const rp = splitReply(m.content);
                     const quote = quoteHtml(rp.replyId);
-                    let content = isAttachmentPlaceholder(m) ? '' : escapeHtml(rp.body);
+                    let content = isAttachmentPlaceholder(m) ? '' : msgText(rp.body);
                     // Права на действия собираем здесь, меню потом их читает
                     if (m.id) {
                         msgCaps[m.id] = {
@@ -4479,6 +4629,115 @@
             } catch (e) {}
         }
 
+        // ══════════════════════════════════════════════════════════════════════════════
+        //  ВВОД: ПЕРЕНОС СТРОКИ И РЕЖИМ ФОРМАТИРОВАНИЯ
+        //  Enter отправляет, Shift+Enter переносит строку и растягивает поле — как в Telegram.
+        //  Отдельная кнопка открывает окно с панелью форматирования и предпросмотром.
+        // ══════════════════════════════════════════════════════════════════════════════
+        function autoGrowInput(ta) {
+            if (!ta || !ta.offsetParent) return;   // поле скрыто — измерять нечего
+            ta.style.height = 'auto';
+            // box-sizing: border-box, а scrollHeight рамку не учитывает: без этой добавки
+            // поле после первого ввода становилось на пару пикселей ниже, чем было изначально
+            const border = ta.offsetHeight - ta.clientHeight;
+            // предел совпадает с max-height в CSS, дальше textarea прокручивается сам
+            ta.style.height = Math.min(ta.scrollHeight + border, 136) + 'px';
+        }
+
+        function onMessageKeyDown(e) {
+            if (e.key !== 'Enter') return;
+            if (e.shiftKey) return;          // Shift+Enter — перенос строки
+            e.preventDefault();
+            sendMessage();
+        }
+
+        /** Сбросить высоту поля после отправки, иначе оно остаётся растянутым. */
+        function resetInputHeight() {
+            const ta = document.getElementById('messageInput');
+            if (ta) { ta.style.height = ''; autoGrowInput(ta); }
+        }
+
+        // ── Окно форматирования ──
+        const CMP_TOOLS = [
+            { t: 'H2',  title: 'Заголовок',           act: () => cmpPrefix('## ') },
+            { t: 'H3',  title: 'Подзаголовок',        act: () => cmpPrefix('### ') },
+            { sep: true },
+            { t: 'Ж',   cls: 'b',    title: 'Жирный (**текст**)',        act: () => cmpWrap('**') },
+            { t: 'К',   cls: 'i',    title: 'Курсив (*текст*)',          act: () => cmpWrap('*') },
+            { t: 'Ч',   cls: 'u',    title: 'Подчёркнутый (__текст__)',  act: () => cmpWrap('__') },
+            { t: 'З',   cls: 's',    title: 'Зачёркнутый (~~текст~~)',   act: () => cmpWrap('~~') },
+            { t: '{ }', cls: 'code', title: 'Код (`текст`)',             act: () => cmpWrap('`') },
+            { sep: true },
+            { t: '“ ”', title: 'Цитата',              act: () => cmpPrefix('> ') },
+            { t: '• —', title: 'Маркированный список', act: () => cmpPrefix('- ') },
+            { t: '1.',  title: 'Нумерованный список',  act: () => cmpPrefix('1. ') },
+            { t: '🔗',  title: 'Ссылка',               act: () => cmpLink() },
+        ];
+
+        function renderCmpToolbar() {
+            const box = document.getElementById('cmpToolbar');
+            if (!box) return;
+            box.innerHTML = CMP_TOOLS.map((it, i) => it.sep
+                ? '<span class="cmp-sep"></span>'
+                : `<button type="button" class="cmp-tool ${it.cls || ''}" title="${escapeHtml(it.title)}" onclick="CMP_TOOLS[${i}].act()">${escapeHtml(it.t)}</button>`
+            ).join('');
+        }
+
+        function cmpArea() { return document.getElementById('composerText'); }
+        function cmpWrap(mark) { wrapPostSelection(cmpArea(), mark, mark); renderCmpPreview(); }
+        function cmpPrefix(pfx) { prefixPostLine(cmpArea(), pfx); renderCmpPreview(); }
+        function cmpLink() {
+            const url = prompt('Ссылка (http://, https:// или /внутренний-путь):', 'https://');
+            if (url === null) return;
+            const u = url.trim();
+            if (!/^(https?:\/\/|\/)/.test(u)) { alert('Такая ссылка не поддерживается.'); return; }
+            const ta = cmpArea();
+            const start = ta.selectionStart, end = ta.selectionEnd;
+            const text = ta.value.slice(start, end) || 'текст ссылки';
+            ta.value = ta.value.slice(0, start) + '[' + text + '](' + u + ')' + ta.value.slice(end);
+            ta.focus();
+            ta.setSelectionRange(start + 1, start + 1 + text.length);
+            renderCmpPreview();
+        }
+
+        function renderCmpPreview() {
+            const out = document.getElementById('composerPreview');
+            const ta = cmpArea();
+            if (!out || !ta) return;
+            out.innerHTML = ta.value.trim()
+                ? formatPostText(ta.value)
+                : '<span style="color:#9CA3AF;">Здесь появится оформленный текст</span>';
+        }
+
+        function openComposer() {
+            renderCmpToolbar();
+            const ta = cmpArea();
+            const input = document.getElementById('messageInput');
+            // переносим уже набранное, чтобы не пришлось перепечатывать
+            ta.value = input ? input.value : '';
+            ta.oninput = renderCmpPreview;
+            renderCmpPreview();
+            document.getElementById('composerModal').style.display = 'flex';
+            ta.focus();
+        }
+        function closeComposer() {
+            // не теряем набранное: возвращаем текст в обычное поле
+            const ta = cmpArea();
+            const input = document.getElementById('messageInput');
+            if (input && ta) { input.value = ta.value; autoGrowInput(input); }
+            document.getElementById('composerModal').style.display = 'none';
+        }
+        async function sendFromComposer() {
+            const ta = cmpArea();
+            const input = document.getElementById('messageInput');
+            if (!ta || !input) return;
+            if (!ta.value.trim()) { alert('Введите текст сообщения.'); return; }
+            input.value = ta.value;
+            document.getElementById('composerModal').style.display = 'none';
+            ta.value = '';
+            await sendMessage();
+        }
+
         async function sendMessage() {
             const input = document.getElementById('messageInput');
             // Маркер ответа приписывается один раз здесь — дальше все ветки (группа,
@@ -4490,6 +4749,7 @@
 
             if (typeof selectedUserId === 'string' && selectedUserId.indexOf(GROUP_PREFIX) === 0) {
                 input.value = '';
+                resetInputHeight();
                 const d = await groupApi('send', { group_id: selectedUserId.slice(GROUP_PREFIX.length), content });
                 if (!d.ok) {
                     // Главное отличие от прежнего поведения: ошибка видна, а текст не теряется.
@@ -4507,6 +4767,7 @@
 
             if (isSupportMode()) {
                 input.value = '';
+                resetInputHeight();
                 try {
                     await fetch('/api/support.php?action=reply', {
                         method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
@@ -4521,6 +4782,7 @@
 
             if (selectedUserId === FAVORITES_ID) {
                 input.value = '';
+                resetInputHeight();
                 try {
                     await fetch('/api/favorites.php?action=add', {
                         method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
@@ -4546,6 +4808,7 @@
             }
 
             input.value = '';
+            resetInputHeight();
 
             try {
                 const messageData = {
@@ -5790,7 +6053,7 @@
             const amount = (parseFloat(order.amount) || 0).toLocaleString('ru-RU');
             const st = order.status;
             const statusBadge = st === 'accepted'
-                ? '<span style="color:#16A34A;font-weight:700;">✅ Принят</span>'
+                ? '<span style="color:#15803D;font-weight:700;">✅ Принят</span>'
                 : st === 'declined'
                     ? '<span style="color:#DC2626;font-weight:700;">✕ Отклонён</span>'
                     : '<span style="color:#92400E;font-weight:700;">⏳ Ожидает ответа</span>';
@@ -5799,13 +6062,13 @@
             // Психолог видит свою выплату; клиент — только итог
             let extra = '';
             if (isMine && order.psychologist_payout != null) {
-                extra = `<div style="font-size:0.78rem;color:#16A34A;margin-top:0.25rem;">Вы получите: ${(parseFloat(order.psychologist_payout)||0).toLocaleString('ru-RU')} ₽</div>`;
+                extra = `<div style="font-size:0.78rem;color:#15803D;margin-top:0.25rem;">Вы получите: ${(parseFloat(order.psychologist_payout)||0).toLocaleString('ru-RU')} ₽</div>`;
             }
             // Кнопки принять/отклонить — только клиенту и только пока pending
             let actions = '';
             if (!isMine && st === 'pending') {
                 actions = `<div style="display:flex;gap:0.5rem;margin-top:0.6rem;">
-                    <button onclick="respondOrder(${order.id},1)" style="flex:1;padding:0.55rem;background:#16A34A;color:#fff;border:none;border-radius:0.6rem;font-weight:700;cursor:pointer;font-family:inherit;">Принять</button>
+                    <button onclick="respondOrder(${order.id},1)" style="flex:1;padding:0.55rem;background:#15803D;color:#fff;border:none;border-radius:0.6rem;font-weight:700;cursor:pointer;font-family:inherit;">Принять</button>
                     <button onclick="respondOrder(${order.id},0)" style="flex:1;padding:0.55rem;background:#fff;color:#DC2626;border:1.5px solid #FECACA;border-radius:0.6rem;font-weight:700;cursor:pointer;font-family:inherit;">Отклонить</button>
                 </div>`;
             }
