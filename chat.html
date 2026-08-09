@@ -65,6 +65,10 @@
         .conversations-list {
             flex: 1;
             min-width: 0;
+            /* Без min-height:0 флекс-элемент не сжимается ниже своего содержимого: на телефоне
+               (где панель выстроена колонкой) список вырастал на всю высоту чатов и переставал
+               скроллиться — прокрутка «заклинивала». */
+            min-height: 0;
             background: white;
             display: flex;
             flex-direction: column;
@@ -130,7 +134,8 @@
             display: flex; flex-direction: column; align-items: center; gap: 0.15rem;
             line-height: 1.15; text-align: center; position: relative;
         }
-        .folder-tab .ftab-ico { font-size: 1.05rem; line-height: 1; }
+        .folder-tab .ftab-ico { font-size: 1.05rem; line-height: 1; display: inline-flex; align-items: center; justify-content: center; }
+        .folder-tab .ftab-ico svg { width: 19px; height: 19px; }
         .folder-tab .ftab-name {
             display: block; max-width: 100%; overflow: hidden;
             text-overflow: ellipsis; white-space: nowrap;
@@ -151,6 +156,18 @@
         /* На широком экране действия видны кнопками, на узком — собраны в ⋮.
            Класс продублирован, чтобы перебить display у .chat-hdr-btn ниже по файлу. */
         .sb-narrow-only.sb-narrow-only { display: none; }
+        /* Узкая шторка на ПК ведёт себя как телефонная: одно «⋮» вместо трёх кнопок,
+           иначе последняя кнопка выезжала за край панели поверх переписки. */
+        .conversations-pane.pane-tight .sb-wide-only { display: none; }
+        .conversations-pane.pane-tight .sb-narrow-only { display: inline-flex; }
+        /* В узкой шторке рейка папок — только иконки: подписи всё равно обрезались
+           до одной буквы и лишь отнимали ширину у самого списка чатов. */
+        .conversations-pane.pane-tight .chat-folders { width: 50px; }
+        .conversations-pane.pane-tight .ftab-name { display: none; }
+        /* И сама шапка ничего не выпускает наружу, чем бы её ни наполнили */
+        .chat-sb-head { overflow: hidden; }
+        .chat-sb-head .chat-hdr-btn { flex-shrink: 0; }
+        .chat-sb-search { min-width: 0; }
         .folder-pick-btn {
             border: none; background: transparent; cursor: pointer; font-size: 0.9rem;
             opacity: 0.45; padding: 0; line-height: 1; flex-shrink: 0;
@@ -481,6 +498,11 @@
             overflow: hidden;
         }
 
+        /* Аватарка с угловым значком (канал): обрезка по кругу съедала бы сам значок,
+           поэтому круглим саму картинку, а контейнер ничего не режет. */
+        .conversation-avatar.has-badge { overflow: visible; position: relative; }
+        .conversation-avatar.has-badge img { border-radius: 50%; }
+
         .conversation-avatar img {
             width: 100%;
             height: 100%;
@@ -592,9 +614,30 @@
         .chat-header-actions {
             display: flex;
             align-items: center;
-            gap: 0.5rem;
-            flex-wrap: wrap;
+            gap: 0.4rem;
+            flex-wrap: nowrap;
+            flex-shrink: 0;
         }
+        /* Иконка вместо подписи: «В кабинет» и «⋮». Так шапка не растёт в две строки. */
+        .hdr-icon-btn {
+            width: 34px; height: 34px; flex-shrink: 0;
+            display: inline-flex; align-items: center; justify-content: center;
+            border: none; border-radius: 0.6rem; background: #F3F4F6; color: #6B7280;
+            cursor: pointer; padding: 0; text-decoration: none;
+        }
+        .hdr-icon-btn:hover { background: #EDE9FE; color: #7C3AED; }
+        /* Иконка внутри цветного круга-аватарки и значок канала на её углу */
+        .ava-ico { display: inline-flex; align-items: center; justify-content: center; color: #fff; }
+        .ava-ico svg { width: 22px; height: 22px; }
+        .ava-badge {
+            position: absolute; bottom: -2px; right: -2px; width: 20px; height: 20px;
+            background: #7C3AED; color: #fff; border-radius: 50%; border: 2px solid #fff;
+            display: inline-flex; align-items: center; justify-content: center;
+        }
+        .ava-badge svg { width: 12px; height: 12px; stroke-width: 2.6; }
+        body.dark .ava-badge { border-color: #252525; }
+        body.dark .hdr-icon-btn { background: #2F2F2F; color: #B5B5B5; }
+        body.dark .hdr-icon-btn:hover { background: #37254A; color: #C9AEFB; }
 
         /* ── Канал как раздел чата (задача #29, рефок): read-only лента постов вместо диалога ── */
         /* Пост канала: раньше растягивался на всю ширину области сообщений, а картинка шла
@@ -862,6 +905,11 @@
         /* Поле ввода отделяем от блока иконок, между самими иконками отступ маленький */
         .chat-input textarea { margin-left: 0.35rem; }
         .chat-input .send-btn { margin-left: 0.35rem; }
+        /* Форматирование: просто буква А — нарисованная иконка читалась как клякса */
+        .cin-format-a { font-size: 1.15rem; font-weight: 700; line-height: 1; font-family: inherit; }
+        /* Совмещённая кнопка микрофон/кружок/отправка — только для телефона.
+           Селектор с .chat-input: иначе display перебивается правилом .icon-btn ниже. */
+        .chat-input .cin-mic { display: none; }
 
         /* Поле ввода — textarea: Shift+Enter переносит строку, поле растёт до 6 строк,
            дальше появляется своя прокрутка. Раньше это был <input>, и перенос строки был
@@ -1299,7 +1347,7 @@
                на ПК он должен оставаться колонкой слева. */
             .sb-wide-only.sb-wide-only { display: none; }
             .sb-narrow-only.sb-narrow-only { display: flex; }
-            .conversations-pane { flex-direction: column; }
+            .conversations-pane { flex-direction: column; min-height: 0; overflow: hidden; }
             .chat-folders {
                 width: 100%; flex-direction: row; align-items: center;
                 padding: 0.4rem 0.5rem; gap: 0.3rem;
@@ -1368,10 +1416,12 @@
             .chat-header .video-call-btn { width: 36px; height: 36px; padding: 0; }
             /* Кнопки действий переносятся в отдельную строку под именем — не сжимают и не перекрывают имя/фамилию/фото (задача #36, доработка) */
             .chat-header-actions {
-                flex: 1 1 100%;
+                flex: 0 0 auto;
                 justify-content: flex-end;
-                gap: 0.35rem;
+                gap: 0.3rem;
             }
+            /* Кнопка сессии на телефоне короче: подпись прячем, время видно */
+            .chat-header-actions .session-btn { padding: 0.4rem 0.55rem; font-size: 0.78rem; }
 
             .conversation-item { padding: 0.75rem; gap: 0.65rem; }
             .conversation-avatar { width: 44px; height: 44px; }
@@ -1392,6 +1442,30 @@
             .chat-input .send-btn { width: 40px; height: 40px; }
             .icon-btn { width: 36px; height: 36px; }
             .icon-btn svg { width: 20px; height: 20px; }
+
+            /* Телефон, как в Telegram: слева смайлик, по центру поле, справа скрепка и
+               одна кнопка «микрофон / кружок / отправить». Пять иконок в ряд не влезали
+               и поле ввода сжималось до нечитаемой полоски. */
+            .chat-input { flex-wrap: nowrap; }
+            .cin-emoji  { order: 1; }
+            #messageInput { order: 2; flex: 1 1 auto; min-width: 0; margin-left: 0.2rem; }
+            .cin-attach { order: 3; }
+            .chat-input .cin-mic { order: 4; display: inline-flex; }
+            /* Остальное на телефоне спрятано: кружок и голосовое живут в совмещённой кнопке,
+               форматирование — в меню «⋮» шапки чата. */
+            .chat-input .cin-voice, .chat-input .cin-video,
+            .chat-input .cin-format, .chat-input .cin-send { display: none; }
+            /* Пока идёт запись — кнопка заметная, как в мессенджерах */
+            /* специфичность выше, чем у body.dark .icon-btn — иначе цвет перебивался темой */
+            .chat-input .cin-mic.rec { background: #DC2626; color: #fff; transform: scale(1.12); }
+            .chat-input .cin-mic.as-send { color: #7C3AED; }
+            .mic-hint {
+                position: absolute; left: 50%; transform: translateX(-50%);
+                bottom: 100%; margin-bottom: 0.4rem; white-space: nowrap;
+                background: rgba(20,18,30,0.92); color: #fff; font-size: 0.78rem;
+                padding: 0.35rem 0.7rem; border-radius: 1rem; pointer-events: none; z-index: 40;
+            }
+            .chat-input { position: relative; }
 
             .emoji-picker { width: 92vw; max-width: 340px; left: 4vw; bottom: 64px; }
             #chatSearchInput { font-size: 16px !important; }
@@ -1549,7 +1623,7 @@
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="6" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="12" cy="18" r="1.8"/></svg>
                 </button>
             </div>
-            <div id="conversationsList" style="overflow-y:auto;flex:1;">
+            <div id="conversationsList" style="overflow-y:auto;flex:1;min-height:0;">
                 <div class="no-conversations">Загрузка...</div>
             </div>
             </div>
@@ -1613,30 +1687,37 @@
                     <button class="rb-x" onclick="cancelReply()" title="Отменить ответ" aria-label="Отменить ответ">✕</button>
                 </div>
                 <div class="chat-input" id="chatInputBar">
-                    <button type="button" onclick="toggleEmojiPicker()" class="icon-btn" title="Эмодзи" aria-label="Эмодзи">
+                    <button type="button" onclick="toggleEmojiPicker()" class="icon-btn cin-emoji" title="Эмодзи" aria-label="Эмодзи">
                         <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8.5 14.5s1.3 1.6 3.5 1.6 3.5-1.6 3.5-1.6"/><path d="M9 9.5h.01M15 9.5h.01"/></svg>
                     </button>
-                    <label class="icon-btn" title="Прикрепить файл" aria-label="Прикрепить файл">
+                    <label class="icon-btn cin-attach" title="Прикрепить файл" aria-label="Прикрепить файл">
                         <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20.4 12.3l-7.9 7.9a5 5 0 01-7-7l8-8a3.3 3.3 0 014.7 4.7l-8 8a1.7 1.7 0 01-2.4-2.4l7.4-7.3"/></svg>
                         <input type="file" id="fileInput" style="display:none;" onchange="handleFileSelect(event)"
                             accept="image/*,.pdf,.doc,.docx,.txt">
                     </label>
-                    <button type="button" id="voiceBtn" onclick="toggleVoiceRecording()" class="icon-btn"
+                    <button type="button" id="voiceBtn" onclick="toggleVoiceRecording()" class="icon-btn cin-voice"
                         title="Голосовое сообщение" aria-label="Голосовое сообщение">
                         <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2.5" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0013 0"/><path d="M12 17.5V21"/></svg>
                     </button>
-                    <button type="button" id="videoNoteBtn" onclick="startVideoNote()" class="icon-btn"
+                    <button type="button" id="videoNoteBtn" onclick="startVideoNote()" class="icon-btn cin-video"
                         title="Видеосообщение-кружок" aria-label="Видеосообщение-кружок">
                         <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M10.3 9.2l4.6 2.8-4.6 2.8V9.2z"/></svg>
                     </button>
-                    <button type="button" id="formatBtn" onclick="openComposer()" class="icon-btn"
+                    <button type="button" id="formatBtn" onclick="openComposer()" class="icon-btn cin-format"
                         title="Форматирование текста" aria-label="Форматирование текста">
-                        <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 18l4.5-12 4.5 12"/><path d="M5.6 14h5.8"/><path d="M15 18c0-2.2 1.3-3.4 3-3.4s3 1.2 3 3.4"/><path d="M21 14.6V18"/></svg>
+                        <span class="cin-format-a" aria-hidden="true">A</span>
                     </button>
                     <textarea id="messageInput" rows="1" placeholder="Введите сообщение..."
                         oninput="autoGrowInput(this)"
                         onkeydown="onMessageKeyDown(event)"></textarea>
-                    <button onclick="sendMessage()" class="send-btn" title="Отправить" aria-label="Отправить">
+                    <!-- Телефон: одна кнопка на всё, как в Telegram. Пусто — микрофон (тап
+                         переключает на кружок, удержание пишет), есть текст — отправка. -->
+                    <button type="button" id="micSendBtn" class="icon-btn cin-mic"
+                        onpointerdown="micDown(event)" onpointermove="micMove(event)"
+                        onpointerup="micUp(event)" onpointercancel="micUp(event)"
+                        oncontextmenu="return false;"
+                        title="Голосовое сообщение" aria-label="Голосовое сообщение"></button>
+                    <button onclick="sendMessage()" class="send-btn cin-send" title="Отправить" aria-label="Отправить">
                         <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2.5L10.8 13.2"/><path d="M21.5 2.5l-7 19-3.7-8.3-8.3-3.7 19-7z"/></svg>
                     </button>
                 </div>
@@ -1998,9 +2079,9 @@
                 if (!chatVisible('channel', activeId, c.last_post_at)) return;
                 out.push({ key: activeId, html: `
                     <div class="conversation-item ${activeId === selectedUserId ? 'active' : ''}" onclick="openChannel('${c.psychologist_id}')" title="${escapeHtml(name)}">
-                        <div class="conversation-avatar" style="position:relative;">
+                        <div class="conversation-avatar has-badge">
                             ${ava ? `<img src="${escapeHtml(ava)}" alt="${escapeHtml(name)}">` : initial}
-                            <span style="position:absolute;bottom:-2px;right:-2px;background:#7C3AED;color:#fff;border-radius:50%;width:16px;height:16px;font-size:0.62rem;line-height:14px;text-align:center;border:2px solid #fff;">📡</span>
+                            <span class="ava-badge" title="Канал">${ICO_CHANNEL}</span>
                         </div>
                         <div class="conversation-info">
                             <div class="conversation-name"><span class="cn-text">${name}</span>${pinMarkHtml(activeId)}</div>
@@ -2051,7 +2132,7 @@
                 if (!chatVisible('group', activeId, g.last_message_at)) return;
                 out.push({ key: activeId, html: `
                     <div class="conversation-item ${activeId === selectedUserId ? 'active' : ''}" onclick="openGroupChat(${g.id})" title="${escapeHtml(g.name)}">
-                        <div class="conversation-avatar" style="background:linear-gradient(135deg,#059669,#10B981);">${g.avatar_url ? `<img src="${escapeHtml(g.avatar_url)}" alt="">` : '👥'}</div>
+                        <div class="conversation-avatar" style="background:linear-gradient(135deg,#059669,#10B981);">${g.avatar_url ? `<img src="${escapeHtml(g.avatar_url)}" alt="">` : `<span class="ava-ico">${ICO_GROUP}</span>`}</div>
                         <div class="conversation-info">
                             <div class="conversation-name"><span class="cn-text">${escapeHtml(g.name)}</span><span style="color:#9CA3AF;font-weight:400;font-size:0.78rem;flex-shrink:0;">· ${g.members_count}</span>${pinMarkHtml(activeId)}</div>
                             <div class="conversation-preview">${escapeHtml(lastMsg)}</div>
@@ -2112,15 +2193,17 @@
                 : `${g.members_count} участников · нажмите, чтобы открыть группу`;
             document.getElementById('chatHeader').innerHTML = `
                 <button class="chat-back-btn" onclick="goBackToList()" title="Назад к диалогам">←</button>
-                <div class="avatar" style="background:linear-gradient(135deg,#059669,#10B981);cursor:pointer;" onclick="openGroupInfo(${groupId})">${g.avatar_url ? `<img src="${escapeHtml(g.avatar_url)}" alt="">` : '👥'}</div>
+                <div class="avatar" style="background:linear-gradient(135deg,#059669,#10B981);cursor:pointer;" onclick="openGroupInfo(${groupId})">${g.avatar_url ? `<img src="${escapeHtml(g.avatar_url)}" alt="">` : `<span class="ava-ico">${ICO_GROUP}</span>`}</div>
                 <div style="flex:1;min-width:0;cursor:pointer;" onclick="openGroupInfo(${groupId})">
                     <div class="name">${escapeHtml(g.name)}</div>
                     <div class="role">${sub}</div>
                 </div>
-                <div class="chat-header-actions">
-                    <button class="session-btn" style="background:#0EA5E9;" onclick="openGroupInfo(${groupId})" title="Участники и настройки группы">ℹ️ Группа</button>
-                    <a href="${getDashboardUrl()}" class="session-btn" style="background:#6B7280;text-decoration:none;" title="Вернуться в личный кабинет">← В кабинет</a>
-                </div>`;
+                ${headerActionsHtml([
+                    { icon: 'ℹ️', label: 'Участники и настройки', run: () => openGroupInfo(groupId) },
+                    { icon: '👥', label: 'Добавить участников', run: () => openAddGroupMembers(groupId) },
+                    { icon: 'A', label: 'Форматирование текста', run: () => openComposer() },
+                    { icon: '🎨', label: 'Обои переписки', run: () => openWallpaperPicker() },
+                ], '')}`;
         }
 
         function groupBubbleHtml(m) {
@@ -2554,12 +2637,9 @@
                     <div class="name">${escapeHtml(name)}</div>
                     <div class="role">${sub}</div>
                 </div>
-                <div class="chat-header-actions">
-                    ${writeBtn}
-                    ${editBtn}
-                    <a href="/psychologist-profile.html?id=${encodeURIComponent(psychId)}" class="session-btn" style="background:#0EA5E9;text-decoration:none;" title="Профиль психолога">Профиль</a>
-                    <a href="${getDashboardUrl()}" class="session-btn" style="background:#6B7280;text-decoration:none;" title="Вернуться в личный кабинет">← В кабинет</a>
-                </div>`;
+                ${headerActionsHtml([
+                    { icon: '👤', label: 'Профиль психолога', href: '/psychologist-profile.html?id=' + encodeURIComponent(psychId) },
+                ], writeBtn + editBtn)}`;
 
             await loadChannelPosts(psychId);
         }
@@ -2762,6 +2842,59 @@
         }
 
         // ── Единая шапка диалога (роле-зависимая) ──
+        // ── Компактная шапка чата ──
+        // Раньше в шапку выкладывались все кнопки подряд («Начать сессию», «Счёт», «Заметки»,
+        // «Записаться», «В кабинет»…) — на телефоне они занимали две строки, да и на ПК шапка
+        // расползалась. Теперь: живая кнопка сессии (в ней бежит время), одно «⋮» со всеми
+        // остальными действиями и выход в кабинет одной иконкой.
+        let headerActions = [];      // [{icon, label, run, href, color}]
+
+        const HDR_DOTS_SVG = '<svg width="19" height="19" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="6" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="12" cy="18" r="1.8"/></svg>';
+        const HDR_EXIT_SVG = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 5V4a1 1 0 00-1-1H5a1 1 0 00-1 1v16a1 1 0 001 1h8a1 1 0 001-1v-1"/><path d="M20 12H9"/><path d="M12.5 8.5L9 12l3.5 3.5"/></svg>';
+
+        /**
+         * Собрать правую часть шапки. actions — то, что уходит в «⋮»;
+         * pinnedHtml — то, что должно остаться на виду (кнопка сессии с таймером).
+         */
+        function headerActionsHtml(actions, pinnedHtml) {
+            headerActions = (actions || []).filter(Boolean);
+            const dots = headerActions.length
+                ? `<button class="hdr-icon-btn" onclick="openHeaderActions(event)" title="Действия" aria-label="Действия">${HDR_DOTS_SVG}</button>`
+                : '';
+            return `<div class="chat-header-actions">
+                        ${pinnedHtml || ''}
+                        ${dots}
+                        <a href="${getDashboardUrl()}" class="hdr-icon-btn" title="Вернуться в личный кабинет" aria-label="В кабинет">${HDR_EXIT_SVG}</a>
+                    </div>`;
+        }
+
+        function openHeaderActions(evt) {
+            if (evt) { evt.stopPropagation(); evt.preventDefault(); }
+            closeFolderPicker();
+            const menu = document.createElement('div');
+            menu.className = 'folder-picker';
+            menu.id = 'folderPicker';
+            menu.innerHTML = headerActions.map((a, i) => a.href
+                ? `<a class="folder-picker-row" href="${a.href}" ${a.target ? 'target="_blank" rel="noopener"' : ''}>
+                       <span class="fp-mark">${a.icon}</span>${escapeHtml(a.label)}
+                   </a>`
+                : `<button class="folder-picker-row" onclick="event.stopPropagation();runHeaderAction(${i})">
+                       <span class="fp-mark">${a.icon}</span>${escapeHtml(a.label)}
+                   </button>`).join('');
+            document.body.appendChild(menu);
+            const r = evt.currentTarget.getBoundingClientRect();
+            menu.style.left = Math.max(8, Math.min(r.left, window.innerWidth - menu.offsetWidth - 8)) + 'px';
+            menu.style.top = (r.bottom + 6) + 'px';
+            setTimeout(() => document.addEventListener('click', closeFolderPicker, { once: true }), 0);
+        }
+        function runHeaderAction(i) {
+            const a = headerActions[i];
+            closeFolderPicker();
+            if (a && typeof a.run === 'function') a.run();
+        }
+        window.openHeaderActions = openHeaderActions;
+        window.runHeaderAction = runHeaderAction;
+
         function renderChatHeader(other) {
             const name = `${other.first_name || ''} ${other.last_name || ''}`.trim() || 'Пользователь';
             const roleText = other.role === 'psychologist' ? 'Психолог' : 'Клиент';
@@ -2770,19 +2903,18 @@
             const sessionBtn = isPsy
                 ? `<button id="sessionBtn" class="session-btn" onclick="toggleSession()" title="Засечь реальное время консультации"><span id="sessionBtnText">▶ Начать сессию</span></button>`
                 : '';
-            const videoBtn = isPsy
-                ? `<button onclick="startVideoCall()" class="video-call-btn" title="Создать видеовстречу в Телемост">📹</button>`
-                : '';
-            // Клиент, открывший диалог с психологом, может записаться к нему ещё раз прямо отсюда
-            const bookBtn = (!isPsy && other.role === 'psychologist')
-                ? `<a href="${bookPsychId ? ('/book.html?id=' + encodeURIComponent(bookPsychId)) : '/search.html'}" class="session-btn" style="background:#15803D;text-decoration:none;display:inline-flex;align-items:center;" title="Записаться к этому психологу">📅 Записаться</a>`
-                : '';
-            const notesBtn = isPsy
-                ? `<button onclick="openNotes()" class="session-btn" style="background:#0EA5E9;" title="Приватные заметки по клиенту">📝 Заметки</button>`
-                : '';
-            const orderBtn = isPsy
-                ? `<button onclick="openOrderModal()" class="session-btn" style="background:#7C3AED;" title="Выставить счёт: своя цена и формат">💳 Счёт</button>`
-                : '';
+            // Кнопка сессии остаётся на виду: в ней бежит время консультации, в меню его не видно
+            const actions = [
+                isPsy && { icon: '💳', label: 'Выставить счёт', run: () => openOrderModal() },
+                isPsy && { icon: '📝', label: 'Заметки по клиенту', run: () => openNotes() },
+                isPsy && { icon: '📹', label: 'Видеовстреча', run: () => startVideoCall() },
+                (!isPsy && other.role === 'psychologist') && {
+                    icon: '📅', label: 'Записаться на приём',
+                    href: bookPsychId ? ('/book.html?id=' + encodeURIComponent(bookPsychId)) : '/search.html'
+                },
+                { icon: 'A', label: 'Форматирование текста', run: () => openComposer() },
+                { icon: '🎨', label: 'Обои переписки', run: () => openWallpaperPicker() },
+            ];
             return `
                 <button class="chat-back-btn" onclick="goBackToList()" title="Назад к диалогам">←</button>
                 <div class="avatar" onclick="openUserCard('${selectedUserId}')" style="cursor:pointer;" title="Открыть карточку">${other.avatar ? `<img src="${other.avatar}" alt="${name}">` : name.charAt(0)}</div>
@@ -2790,14 +2922,7 @@
                     <div class="name">${name}</div>
                     <div class="role">${roleText}</div>
                 </div>
-                <div class="chat-header-actions">
-                    ${sessionBtn}
-                    ${orderBtn}
-                    ${notesBtn}
-                    ${bookBtn}
-                    ${videoBtn}
-                    <a href="${getDashboardUrl()}" class="session-btn" style="background:#6B7280;text-decoration:none;display:inline-flex;align-items:center;gap:0.3rem;" title="Вернуться в личный кабинет">← В кабинет</a>
-                </div>`;
+                ${headerActionsHtml(actions, sessionBtn)}`;
         }
 
         // ── Мини-карточка собеседника (клик по аватару/имени в шапке чата) ──
@@ -3364,10 +3489,25 @@
         function applyWallpaper(id) {
             document.body.setAttribute('data-wall', id || 'none');
         }
+        // Ниже этой ширины три кнопки-действия и поиск в шапке уже не помещаются: кнопки
+        // не сжимаются, и последняя (тема) выезжала за край панели, налезая на переписку.
+        const PANE_TIGHT = 268;
+
         function applyPaneWidth(px) {
             const w = Math.min(PANE_MAX, Math.max(PANE_MIN, parseInt(px, 10) || PANE_DEFAULT));
             document.documentElement.style.setProperty('--pane-w', w + 'px');
+            applyPaneTight(w);
             return w;
+        }
+
+        /** В узкой шторке действия собираются в одно «⋮», как на телефоне. */
+        function applyPaneTight(w) {
+            const pane = document.getElementById('conversationsPane');
+            if (!pane) return;
+            const tight = w < PANE_TIGHT;
+            pane.classList.toggle('pane-tight', tight);
+            const search = document.getElementById('chatSearchInput');
+            if (search) search.placeholder = tight ? '🔍 Поиск' : '🔍 Поиск по всем пользователям...';
         }
 
         /** Мгновенно применяем кэш, затем уточняем с сервера. */
@@ -3717,11 +3857,26 @@
             flashMessage(el, id);
         }
 
+        // Минималистичные линейные иконки вместо эмодзи: эмодзи рисуются шрифтом системы,
+        // выглядят по-разному на каждой ОС и рядом с аккуратной панелью ввода смотрелись грубо.
+        const ICO = (d, fill) => '<svg viewBox="0 0 24 24" width="19" height="19" fill="' +
+            (fill ? 'currentColor' : 'none') + '" stroke="currentColor" stroke-width="1.7" ' +
+            'stroke-linecap="round" stroke-linejoin="round">' + d + '</svg>';
+        const ICO_ALL      = ICO('<path d="M20.5 11.4c0 4-3.8 7.2-8.5 7.2-1 0-2-.15-2.9-.42L4 20l1.4-3.6C4.2 15.1 3.5 13.3 3.5 11.4c0-4 3.8-7.2 8.5-7.2s8.5 3.2 8.5 7.2z"/>');
+        const ICO_PERSON   = ICO('<circle cx="12" cy="8" r="3.6"/><path d="M4.8 20c.7-3.5 3.7-5.6 7.2-5.6S18.5 16.5 19.2 20"/>');
+        const ICO_CHANNEL  = ICO('<path d="M4.5 10.5v3M8 8.2v7.6"/><path d="M12.5 4.5l7 3.2v8.6l-7 3.2V4.5z"/>');
+        const ICO_GROUP    = ICO('<circle cx="9" cy="8.5" r="3.2"/><path d="M3.2 19.5c.6-3 3-4.8 5.8-4.8s5.2 1.8 5.8 4.8"/><path d="M16.2 6.2a3 3 0 010 5.6"/><path d="M17.6 14.9c2 .5 3.4 2.1 3.8 4.6"/>');
+        const ICO_FOLDER   = ICO('<path d="M3.5 7.8c0-1 .8-1.8 1.8-1.8h3.3l1.8 2.2h8.3c1 0 1.8.8 1.8 1.8v7.4c0 1-.8 1.8-1.8 1.8H5.3c-1 0-1.8-.8-1.8-1.8V7.8z"/>');
+        const ICO_STAR     = ICO('<path d="M12 3.8l2.6 5.3 5.9.85-4.25 4.15 1 5.85L12 17.15 6.75 19.9l1-5.85L3.5 9.95l5.9-.85L12 3.8z"/>');
+        const ICO_PLUS     = ICO('<path d="M12 5.5v13M5.5 12h13"/>');
+        const ICO_GEAR     = ICO('<circle cx="12" cy="12" r="3"/><path d="M12 3.5v2M12 18.5v2M4.9 7.8l1.7 1M17.4 15.2l1.7 1M4.9 16.2l1.7-1M17.4 8.8l1.7-1"/>');
+        const ICO_SUPPORT  = ICO('<path d="M12 3.5a8.5 8.5 0 018.5 8.5v4.5a3 3 0 01-3 3H14"/><path d="M3.5 16.5V12A8.5 8.5 0 0112 3.5"/><rect x="2.6" y="12.6" width="3.6" height="6" rx="1.4"/><rect x="17.8" y="12.6" width="3.6" height="6" rx="1.4"/>');
+
         const BUILTIN_FOLDERS = [
-            { id: 'all',      label: 'Все',     icon: '💬', kinds: null },
-            { id: 'personal', label: 'Личное',  icon: '👤', kinds: ['personal', 'fav'] },
-            { id: 'channels', label: 'Каналы',  icon: '📡', kinds: ['channel'] },
-            { id: 'groups',   label: 'Группы',  icon: '👥', kinds: ['group'] },
+            { id: 'all',      label: 'Все',     icon: ICO_ALL,     kinds: null },
+            { id: 'personal', label: 'Личное',  icon: ICO_PERSON,  kinds: ['personal', 'fav'] },
+            { id: 'channels', label: 'Каналы',  icon: ICO_CHANNEL, kinds: ['channel'] },
+            { id: 'groups',   label: 'Группы',  icon: ICO_GROUP,   kinds: ['group'] },
         ];
         let myFolders = [];              // [{id, name, keys:[]}]
         let activeFolder = 'all';
@@ -3836,13 +3991,13 @@
                     ${count ? `<span class="fcount">${count}</span>` : ''}
                 </button>`;
             let html = BUILTIN_FOLDERS.map(f => tab(f.id, f.label, f.icon, 0)).join('');
-            html += myFolders.map(f => tab('u' + f.id, f.name, '📁', (f.keys || []).length)).join('');
+            html += myFolders.map(f => tab('u' + f.id, f.name, ICO_FOLDER, (f.keys || []).length)).join('');
             html += `<button class="folder-tab folder-tab-add" onclick="createChatFolder()" title="Новая папка">
-                        <span class="ftab-ico">＋</span><span class="ftab-name">Папка</span>
+                        <span class="ftab-ico">${ICO_PLUS}</span><span class="ftab-name">Папка</span>
                     </button>`;
             if (myFolders.length && activeFolder.charAt(0) === 'u') {
                 html += `<button class="folder-tab folder-tab-add" onclick="manageActiveFolder()" title="Настроить папку">
-                            <span class="ftab-ico">⚙</span><span class="ftab-name">Правка</span>
+                            <span class="ftab-ico">${ICO_GEAR}</span><span class="ftab-name">Правка</span>
                         </button>`;
             }
             box.innerHTML = html;
@@ -4211,7 +4366,7 @@
             if (!chatVisible('fav', FAVORITES_ID, null)) return [];
             return [{ key: FAVORITES_ID, html: `
                 <div class="conversation-item ${selectedUserId === FAVORITES_ID ? 'active' : ''}" onclick="openFavorites()" style="border-bottom:2px solid #F3E8FF;" title="Избранное">
-                    <div class="conversation-avatar" style="background:linear-gradient(135deg,#F59E0B,#FBBF24);">⭐</div>
+                    <div class="conversation-avatar" style="background:linear-gradient(135deg,#F59E0B,#FBBF24);"><span class="ava-ico">${ICO_STAR}</span></div>
                     <div class="conversation-info">
                         <div class="conversation-name"><span class="cn-text">Избранное</span>${pinMarkHtml(FAVORITES_ID)}</div>
                         <div class="conversation-preview">Заметки себе, файлы, пересланные сообщения</div>
@@ -4351,12 +4506,15 @@
 
             document.getElementById('chatHeader').innerHTML = `
                 <button class="chat-back-btn" onclick="goBackToList()" title="Назад к диалогам">←</button>
-                <div class="avatar" style="background:linear-gradient(135deg,#F59E0B,#FBBF24);">⭐</div>
+                <div class="avatar" style="background:linear-gradient(135deg,#F59E0B,#FBBF24);"><span class="ava-ico">${ICO_STAR}</span></div>
                 <div style="flex:1;min-width:0;">
                     <div class="name">Избранное</div>
                     <div class="role">Заметки для себя</div>
                 </div>
-                <a href="${getDashboardUrl()}" class="session-btn" style="background:#6B7280;text-decoration:none;display:inline-flex;align-items:center;gap:0.3rem;" title="Вернуться в личный кабинет">← В кабинет</a>`;
+                ${headerActionsHtml([
+                    { icon: 'A', label: 'Форматирование текста', run: () => openComposer() },
+                    { icon: '🎨', label: 'Обои переписки', run: () => openWallpaperPicker() },
+                ], '')}`;
             try { if (window.lucide) lucide.createIcons(); } catch (e) {}
 
             await loadMessages();
@@ -4403,7 +4561,7 @@
                             <div class="name">${escapeHtml(name)}</div>
                             <div class="role">Обращение в поддержку · ${escapeHtml(t.role || '—')} · ${statusText}${t.email ? ' · ' + escapeHtml(t.email) : ''}</div>
                         </div>
-                        <a href="${getDashboardUrl()}" class="session-btn" style="background:#6B7280;text-decoration:none;display:inline-flex;align-items:center;gap:0.3rem;" title="Вернуться в личный кабинет">← В кабинет</a>`;
+                        ${headerActionsHtml([], '')}`;
                     headerRenderedFor = selectedUserId;
                 }
 
@@ -4666,12 +4824,12 @@
             const el = document.getElementById('forwardTargets');
             if (!el) return;
             const favRow = `<div class="conversation-item" onclick="forwardToFavorites()">
-                <div class="conversation-avatar" style="background:linear-gradient(135deg,#F59E0B,#FBBF24);">⭐</div>
+                <div class="conversation-avatar" style="background:linear-gradient(135deg,#F59E0B,#FBBF24);"><span class="ava-ico">${ICO_STAR}</span></div>
                 <div class="conversation-info"><div class="conversation-name">Избранное</div></div>
             </div>`;
             const groupRows = (groups || myGroups || []).map(g => `
                 <div class="conversation-item" onclick="forwardToGroup(${g.id})" title="${escapeHtml(g.name)}">
-                    <div class="conversation-avatar" style="background:linear-gradient(135deg,#059669,#10B981);">${g.avatar_url ? `<img src="${escapeHtml(g.avatar_url)}" alt="">` : '👥'}</div>
+                    <div class="conversation-avatar" style="background:linear-gradient(135deg,#059669,#10B981);">${g.avatar_url ? `<img src="${escapeHtml(g.avatar_url)}" alt="">` : `<span class="ava-ico">${ICO_GROUP}</span>`}</div>
                     <div class="conversation-info">
                         <div class="conversation-name">${escapeHtml(g.name)}</div>
                         <div class="conversation-preview">Группа · ${g.members_count} ${plural(g.members_count || 0, 'участник', 'участника', 'участников')}</div>
@@ -4950,6 +5108,7 @@
         //  Отдельная кнопка открывает окно с панелью форматирования и предпросмотром.
         // ══════════════════════════════════════════════════════════════════════════════
         function autoGrowInput(ta) {
+            updateMicButton();                     // пусто/не пусто — микрофон или отправка
             if (!ta || !ta.offsetParent) return;   // поле скрыто — измерять нечего
             ta.style.height = 'auto';
             // box-sizing: border-box, а scrollHeight рамку не учитывает: без этой добавки
@@ -4958,6 +5117,102 @@
             // предел совпадает с max-height в CSS, дальше textarea прокручивается сам
             ta.style.height = Math.min(ta.scrollHeight + border, 136) + 'px';
         }
+
+        // ── Совмещённая кнопка на телефоне: микрофон / кружок / отправка ──
+        // Тап по пустому полю переключает, чем писать; удержание (или потянуть вверх)
+        // начинает запись; появился текст — кнопка становится отправкой.
+        let micMode = 'voice';        // 'voice' | 'video'
+        let micHold = null;           // {timer, startY, recording, locked}
+        const MIC_HOLD_MS = 280;      // дольше — это уже «зажал», а не «тапнул»
+        const MIC_LOCK_DY = 44;       // потянул вверх — запись продолжается без пальца
+
+        const MIC_SVG = '<svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2.5" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0013 0"/><path d="M12 17.5V21"/></svg>';
+        const VIDEO_SVG = '<svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M10.3 9.2l4.6 2.8-4.6 2.8V9.2z"/></svg>';
+        const SEND_SVG = '<svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2.5L10.8 13.2"/><path d="M21.5 2.5l-7 19-3.7-8.3-8.3-3.7 19-7z"/></svg>';
+
+        function micHasText() {
+            const ta = document.getElementById('messageInput');
+            return !!(ta && (ta.value || '').trim());
+        }
+
+        function updateMicButton() {
+            const btn = document.getElementById('micSendBtn');
+            if (!btn) return;
+            const send = micHasText();
+            btn.classList.toggle('as-send', send);
+            btn.dataset.mode = send ? 'send' : micMode;
+            btn.innerHTML = send ? SEND_SVG : (micMode === 'video' ? VIDEO_SVG : MIC_SVG);
+            btn.title = send ? 'Отправить'
+                : (micMode === 'video'
+                    ? 'Кружок: удерживайте для записи, тап — переключить на голосовое'
+                    : 'Голосовое: удерживайте для записи, тап — переключить на кружок');
+            btn.setAttribute('aria-label', btn.title);
+        }
+
+        function micHint(text) {
+            const bar = document.getElementById('chatInputBar');
+            if (!bar) return;
+            let el = bar.querySelector('.mic-hint');
+            if (!text) { if (el) el.remove(); return; }
+            if (!el) { el = document.createElement('div'); el.className = 'mic-hint'; bar.appendChild(el); }
+            el.textContent = text;
+            clearTimeout(micHint._t);
+            micHint._t = setTimeout(() => { const e = bar.querySelector('.mic-hint'); if (e) e.remove(); }, 1800);
+        }
+
+        function micDown(evt) {
+            if (evt) evt.preventDefault();
+            if (micHasText()) { sendMessage(); return; }
+            const btn = document.getElementById('micSendBtn');
+            micHold = { startY: evt ? evt.clientY : 0, recording: false, locked: false, timer: null };
+            micHold.timer = setTimeout(async () => {
+                if (!micHold) return;
+                micHold.recording = true;
+                if (btn) btn.classList.add('rec');
+                micHint(micMode === 'video' ? 'Запись кружка… отпустите, чтобы отправить'
+                                            : 'Запись голосового… отпустите, чтобы отправить');
+                try {
+                    if (micMode === 'video') { await startVideoNote(); toggleVideoNoteRecording(); }
+                    else await toggleVoiceRecording();
+                } catch (e) { micStopUi(); }
+            }, MIC_HOLD_MS);
+        }
+
+        function micMove(evt) {
+            if (!micHold || !micHold.recording || micHold.locked) return;
+            if (micHold.startY - (evt ? evt.clientY : 0) > MIC_LOCK_DY) {
+                micHold.locked = true;
+                micHint('Запись закреплена — отправьте кнопкой');
+            }
+        }
+
+        function micStopUi() {
+            const btn = document.getElementById('micSendBtn');
+            if (btn) btn.classList.remove('rec');
+        }
+
+        async function micUp(evt) {
+            if (evt) evt.preventDefault();
+            if (!micHold) return;
+            clearTimeout(micHold.timer);
+            const { recording, locked } = micHold;
+            micHold = null;
+            if (!recording) {
+                // короткий тап — сменить, чем записывать
+                micMode = micMode === 'voice' ? 'video' : 'voice';
+                updateMicButton();
+                micHint(micMode === 'video' ? 'Режим: видеокружок' : 'Режим: голосовое');
+                return;
+            }
+            if (locked) return;                 // запись продолжается, отправит сам пользователь
+            micStopUi();
+            if (micMode === 'video') await sendVideoNote();
+            else await toggleVoiceRecording();  // остановка = отправка
+        }
+        window.micDown = micDown;
+        window.micMove = micMove;
+        window.micUp = micUp;
+        document.addEventListener('DOMContentLoaded', updateMicButton);
 
         function onMessageKeyDown(e) {
             if (e.key !== 'Enter') return;

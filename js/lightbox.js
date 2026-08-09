@@ -25,7 +25,10 @@
         box.setAttribute('aria-label', 'Просмотр изображения');
         box.innerHTML =
             '<button class="plb-close" type="button" aria-label="Закрыть">✕</button>' +
-            '<a class="plb-open" target="_blank" rel="noopener">Открыть оригинал</a>' +
+            '<a class="plb-save" download aria-label="Скачать">' +
+            '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
+            'stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+            '<path d="M12 3v12"/><path d="M7 11l5 5 5-5"/><path d="M4 20h16"/></svg>Скачать</a>' +
             '<img class="plb-img" alt="">';
         const css = document.createElement('style');
         css.textContent =
@@ -38,18 +41,27 @@
             'border:none;border-radius:50%;background:rgba(255,255,255,0.14);color:#fff;font-size:1.1rem;' +
             'cursor:pointer;line-height:1;}' +
             '#psyLightbox .plb-close:hover{background:rgba(255,255,255,0.26);}' +
-            '#psyLightbox .plb-open{position:absolute;bottom:1rem;left:50%;transform:translateX(-50%);' +
+            '#psyLightbox .plb-save{position:absolute;bottom:1rem;left:50%;transform:translateX(-50%);' +
+            'display:inline-flex;align-items:center;gap:0.4rem;' +
             'color:#fff;font-size:0.85rem;text-decoration:none;background:rgba(255,255,255,0.14);' +
             'padding:0.45rem 0.9rem;border-radius:2rem;font-family:inherit;}' +
-            '#psyLightbox .plb-open:hover{background:rgba(255,255,255,0.26);}';
+            '#psyLightbox .plb-save:hover{background:rgba(255,255,255,0.26);}';
         document.head.appendChild(css);
         document.body.appendChild(box);
         box.addEventListener('click', function (e) {
             // клик по самой картинке не закрывает, по фону и крестику — закрывает
-            if (e.target.classList.contains('plb-img') || e.target.classList.contains('plb-open')) return;
+            if (e.target.closest('.plb-img, .plb-save')) return;
             close();
         });
         return box;
+    }
+
+    /** Имя файла для сохранения: из адреса, а если там мусор — из подписи. */
+    function fileNameFor(src, alt) {
+        let name = '';
+        try { name = decodeURIComponent(String(src).split(/[?#]/)[0].split('/').pop() || ''); } catch (e) {}
+        if (!IMG_RE.test(name)) name = (alt && IMG_RE.test(alt)) ? alt : (name || 'image.jpg');
+        return name;
     }
 
     function open(src, alt) {
@@ -57,7 +69,10 @@
         const el = build();
         el.querySelector('.plb-img').src = src;
         el.querySelector('.plb-img').alt = alt || '';
-        el.querySelector('.plb-open').href = src;
+        const save = el.querySelector('.plb-save');
+        save.href = src;
+        // download работает для своего домена; для чужого браузер просто откроет файл
+        save.setAttribute('download', fileNameFor(src, alt));
         el.classList.add('open');
         document.body.style.overflow = 'hidden';
     }
