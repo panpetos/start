@@ -83,6 +83,11 @@ function ensureGroupTables(PDO $pdo) {
     // существующие группы; повторный запуск молча ничего не делает.
     try { $pdo->exec("ALTER TABLE chat_groups ADD COLUMN avatar_url VARCHAR(500) NULL"); } catch (Exception $e) {}
     try { $pdo->exec("ALTER TABLE chat_groups ADD COLUMN description VARCHAR(500) NULL"); } catch (Exception $e) {}
+    // Вложения в группах: без этих колонок в группу нельзя было отправить ни фото, ни файл,
+    // ни голосовое, ни кружок — запись просто не сохранялась (фидбэк админа).
+    try { $pdo->exec("ALTER TABLE chat_group_messages ADD COLUMN attachment_url VARCHAR(500) NULL"); } catch (Exception $e) {}
+    try { $pdo->exec("ALTER TABLE chat_group_messages ADD COLUMN attachment_type VARCHAR(60) NULL"); } catch (Exception $e) {}
+    try { $pdo->exec("ALTER TABLE chat_group_messages ADD COLUMN attachment_name VARCHAR(255) NULL"); } catch (Exception $e) {}
     // См. schema_util.php: без выравнивания сортировки JOIN на users в списке сообщений и
     // участников падает с ошибкой 1267, и группа выглядит пустой/неработающей.
     psy_align_collation($pdo, ['chat_groups', 'chat_group_members', 'chat_group_messages', 'group_message_edit_log']);
@@ -152,7 +157,9 @@ if ($action === 'messages') {
     if (!$groupId) out(['error' => 'Не передан номер группы'], 400);
     if (!isMember($pdo, $groupId, $userId)) out(['error' => 'Вы не участник этой группы (или группа удалена)'], 403);
     try {
-        $st = $pdo->prepare("SELECT m.id, m.sender_id, m.content, m.created_at, m.edited_at, u.first_name, u.last_name, u.avatar
+        $st = $pdo->prepare("SELECT m.id, m.sender_id, m.content, m.created_at, m.edited_at,
+                                     m.attachment_url, m.attachment_type, m.attachment_name,
+                                     u.first_name, u.last_name, u.avatar
                               FROM chat_group_messages m LEFT JOIN users u ON u.id = m.sender_id
                               WHERE m.group_id = ? ORDER BY m.id ASC LIMIT 500");
         $st->execute([$groupId]);
@@ -172,11 +179,21 @@ if ($action === 'send' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $content = trim((string)($body['content'] ?? ''));
     if (!$groupId) out(['error' => 'Не передан номер группы'], 400);
     if (!isMember($pdo, $groupId, $userId)) out(['error' => 'Вы не участник этой группы (или группа удалена)'], 403);
-    if ($content === '') out(['error' => 'Пустое сообщение'], 400);
+    // Вложение (фото, файл, голосовое, кружок). Ссылку принимаем только свою — либо
+    // относительный путь на сайте, либо https, иначе в группу можно было бы подсунуть что угодно.
+    $attUrl  = trim((string)($body['attachment_url'] ?? ''));
+    if ($attUrl !== '' && !preg_match('~^(/[^\s]*|https://[^\s]+)$~', $attUrl)) {
+        out(['error' => 'Некорректная ссылка на вложение'], 400);
+    }
+    $attType = mb_substr(trim((string)($body['attachment_type'] ?? '')), 0, 60);
+    $attName = mb_substr(trim((string)($body['attachment_name'] ?? '')), 0, 255);
+    if ($content === '' && $attUrl === '') out(['error' => 'Пустое сообщение'], 400);
     $content = mb_substr($content, 0, 5000);
     try {
-        $st = $pdo->prepare("INSERT INTO chat_group_messages (group_id, sender_id, content, created_at) VALUES (?, ?, ?, NOW())");
-        $st->execute([$groupId, $userId, $content]);
+        $st = $pdo->prepare("INSERT INTO chat_group_messages (group_id, sender_id, content, attachment_url, attachment_type, attachment_name, created_at)
+                             VALUES (?, ?, ?, ?, ?, ?, NOW())");
+        $st->execute([$groupId, $userId, $content, $attUrl !== '' ? $attUrl : null,
+                      $attType !== '' ? $attType : null, $attName !== '' ? $attName : null]);
         $mid = (int)$pdo->lastInsertId();
         // COALESCE: если last_read_message_id почему-то NULL, GREATEST(NULL, x) вернёт NULL,
         // а колонка NOT NULL — в strict-режиме MySQL это ошибка и всё сообщение бы «не отправилось».

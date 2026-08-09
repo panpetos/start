@@ -158,6 +158,17 @@
             border-radius: 50%;
         }
         .folder-pick-btn:hover { opacity: 1; }
+        .folder-picker-row.fp-danger { color: #B91C1C; }
+        body.dark .folder-picker-row.fp-danger { color: #F87171; }
+        /* Плашка «удалённые диалоги» — внизу списка, не мешает обычной работе */
+        .hidden-chats-btn {
+            display: block; width: 100%; border: none; background: transparent; cursor: pointer;
+            font-family: inherit; font-size: 0.8rem; color: #6B7280; padding: 0.7rem 0.75rem;
+            text-align: left; border-top: 1px solid #ECECF2;
+        }
+        .hidden-chats-btn:hover { background: #F6F3FF; color: #7C3AED; }
+        body.dark .hidden-chats-btn { color: #A0A0A0; border-top-color: #333; }
+        body.dark .hidden-chats-btn:hover { background: #2D2D2D; color: #B794F4; }
         .folder-pick-btn.in-folder { opacity: 1; color: #7C3AED; }
 
         /* Аватарка группы/канала с кнопкой замены */
@@ -1743,7 +1754,7 @@
     <div id="forwardModal" style="display:none;position:fixed;inset:0;background:rgba(26,26,46,0.6);z-index:1300;align-items:center;justify-content:center;padding:1rem;">
         <div style="background:#fff;border-radius:1rem;max-width:400px;width:100%;max-height:80vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
             <div style="padding:1rem 1.25rem;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;">
-                <div style="font-weight:700;">↪ Переслать сообщение</div>
+                <div style="font-weight:700;" id="forwardTitle">↪ Переслать сообщение</div>
                 <button onclick="closeForwardModal()" style="background:none;border:none;font-size:1.2rem;cursor:pointer;color:#6B7280;">✕</button>
             </div>
             <div style="padding:0.75rem 1rem;border-bottom:1px solid #eee;flex-shrink:0;">
@@ -1984,7 +1995,7 @@
                 const label = c._own ? 'Мой канал' : 'Канал';
                 const preview = c.last_post_text ? (label + ' · ' + previewText(c.last_post_text).slice(0, 30))
                     : (c.channel_description ? (label + ' · ' + c.channel_description.slice(0, 34)) : (label + ' · публикации психолога'));
-                if (!folderAllows('channel', activeId)) return;
+                if (!chatVisible('channel', activeId, c.last_post_at)) return;
                 out.push({ key: activeId, html: `
                     <div class="conversation-item ${activeId === selectedUserId ? 'active' : ''}" onclick="openChannel('${c.psychologist_id}')" title="${escapeHtml(name)}">
                         <div class="conversation-avatar" style="position:relative;">
@@ -1995,7 +2006,7 @@
                             <div class="conversation-name"><span class="cn-text">${name}</span>${pinMarkHtml(activeId)}</div>
                             <div class="conversation-preview">${preview}</div>
                         </div>
-                        ${folderPickHtml(activeId, 'channel', c.psychologist_id)}
+                        ${folderPickHtml(activeId, 'channel', c.psychologist_id, name)}
                     </div>` });
             });
             return out;
@@ -2037,7 +2048,7 @@
                 const lastMsg = g.last_message ? previewText(g.last_message).slice(0, 34)
                     : (g.description ? g.description.slice(0, 40) : 'Группа создана — напишите первым');
                 const time = g.last_message_at ? formatTime(g.last_message_at) : '';
-                if (!folderAllows('group', activeId)) return;
+                if (!chatVisible('group', activeId, g.last_message_at)) return;
                 out.push({ key: activeId, html: `
                     <div class="conversation-item ${activeId === selectedUserId ? 'active' : ''}" onclick="openGroupChat(${g.id})" title="${escapeHtml(g.name)}">
                         <div class="conversation-avatar" style="background:linear-gradient(135deg,#059669,#10B981);">${g.avatar_url ? `<img src="${escapeHtml(g.avatar_url)}" alt="">` : '👥'}</div>
@@ -2049,7 +2060,7 @@
                             <div class="conversation-time">${time}</div>
                             ${g.unread_count > 0 ? `<span class="unread-badge">${g.unread_count}</span>` : ''}
                         </div>
-                        ${folderPickHtml(activeId, 'group', g.id)}
+                        ${folderPickHtml(activeId, 'group', g.id, g.name)}
                     </div>` });
             });
             return out;
@@ -2116,10 +2127,15 @@
             const isMine = m.sender_id === currentUser.id;
             const name = `${m.first_name || ''} ${m.last_name || ''}`.trim() || 'Участник';
             const time = formatTime(m.created_at);
-            groupMsgCache[m.id] = { content: m.content };
+            groupMsgCache[m.id] = {
+                content: m.content, attachment_url: m.attachment_url,
+                attachment_type: m.attachment_type, attachment_name: m.attachment_name,
+            };
             msgCaps[m.id] = {
                 kind: 'group', author: isMine ? 'Вы' : name, text: splitReply(m.content).body,
-                canForward: false, canPin: true, canEdit: isMine, canDelete: (isMine || groupIsOwner),
+                // Править можно только текст: у вложения править нечего, а кнопка сбивала с толку
+                canForward: true, canPin: true, canEdit: isMine && !m.attachment_url,
+                canDelete: (isMine || groupIsOwner),
             };
             const editedTag = m.edited_at ? ` <span style="opacity:0.65;font-style:italic;" title="Отредактировано ${escapeHtml(formatTime(m.edited_at))}">(ред.)</span>` : '';
             const grp = splitReply(m.content);
@@ -2131,11 +2147,16 @@
             const ava = !isMine
                 ? `<div class="g-msg-ava" title="${escapeHtml(name)}" onclick="openUserCard('${m.sender_id}')">${m.avatar ? `<img src="${escapeHtml(m.avatar)}" alt="">` : escapeHtml(name.charAt(0).toUpperCase())}</div>`
                 : '';
+            // Вложения в группе рисуем тем же кодом, что и в личной переписке:
+            // фото — превью, голосовое — плеер, кружок — видеокружок.
+            const attachmentHtml = attachmentHtmlFor(m, 'grp-' + m.id);
+            const textHtml = (m.content && !isAttachmentPlaceholder(m)) ? `<div>${msgText(grp.body)}</div>` : '';
             const bubble = `
-                <div class="message ${isMine ? 'mine' : 'theirs'}" data-msg-id="${m.id}">
+                <div class="message ${isMine ? 'mine' : 'theirs'}${(isVideoNote(m) && !textHtml) ? ' vn-only' : ''}" data-msg-id="${m.id}">
                     ${!isMine ? `<div style="font-size:0.75rem;font-weight:700;opacity:0.8;margin-bottom:0.15rem;color:#7C3AED;">${escapeHtml(name)}</div>` : ''}
                     ${quoteHtml(grp.replyId)}
-                    <div id="gmsg-body-${m.id}"><div>${msgText(grp.body)}</div></div>
+                    <div id="gmsg-body-${m.id}">${textHtml}</div>
+                    ${attachmentHtml}
                     <div class="message-time">${time}${editedTag}</div>
                     ${msgHoverHtml(m.id)}
                 </div>`;
@@ -2169,6 +2190,9 @@
             const wasScrolledToBottom = container.scrollHeight - container.scrollTop <= container.clientHeight + 50;
             container.innerHTML = rows.length ? rows.map(groupBubbleHtml).join('')
                 : `<div class="empty-state"><div><p style="color:#9CA3AF;">👥 Группа создана — напишите первое сообщение.</p></div></div>`;
+            repaintAllVoice();
+            restoreVideoNote();
+            restoreFlash();
             if (wasScrolledToBottom) container.scrollTop = container.scrollHeight;
         }
 
@@ -3113,6 +3137,7 @@
             await loadMyGroups();
             await loadFolders();
             await loadPinnedChats();
+            await loadHiddenChats();
             await loadChatPrefs();
             initPaneResizer();
             await loadConversations();
@@ -3216,6 +3241,13 @@
         // отвечал на них через ту же форму чата, а не отдельную панель.
         const SUPPORT_PREFIX = 'support:';
         function isSupportMode() { return typeof selectedUserId === 'string' && selectedUserId.indexOf(SUPPORT_PREFIX) === 0; }
+        function isGroupMode() { return typeof selectedUserId === 'string' && selectedUserId.indexOf(GROUP_PREFIX) === 0; }
+        /**
+         * Нужно ли спрашивать согласие на особые данные о здоровье. Оно про личную переписку
+         * с психологом; в группе, в поддержке и в заметках себе его спрашивать не за что —
+         * а спрашивалось, и из-за этого в группе не начиналась запись кружка и голосового.
+         */
+        function consentNeeded() { return selectedUserId !== FAVORITES_ID && !isSupportMode() && !isGroupMode(); }
         function supportThreadIdOf() { return isSupportMode() ? selectedUserId.slice(SUPPORT_PREFIX.length) : null; }
 
         async function loadSupportConversations() {
@@ -3497,6 +3529,108 @@
             }
         }
 
+        // ── Удаление диалога (скрытие у себя) ──
+        // Стирать переписку целиком нельзя: она принадлежит обоим. Поэтому «удалить диалог» =
+        // убрать его из своего списка (как в Telegram). Придёт новое сообщение — вернётся сам.
+        let hiddenChats = {};        // chat_key -> hidden_at ('YYYY-MM-DD HH:MM:SS')
+        let showHidden = false;      // показывать ли удалённые (режим «корзина»)
+
+        async function hiddenApi(action, payload) {
+            const url = '/api/chat_hidden.php?action=' + action;
+            const res = payload
+                ? await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify(payload) })
+                : await fetch(url, { credentials: 'include' });
+            const d = await res.json().catch(() => ({}));
+            if (!res.ok || d.ok === false) throw new Error(d.error || ('HTTP ' + res.status));
+            return d;
+        }
+
+        async function loadHiddenChats() {
+            try {
+                const d = await hiddenApi('list');
+                hiddenChats = {};
+                (d.data || []).forEach(r => { hiddenChats[r.chat_key] = r.hidden_at; });
+            } catch (e) { hiddenChats = {}; }   // удобство: список чатов работает и без этого
+        }
+
+        /** Момент времени из строки БД или ISO — в миллисекунды, с запасом на разные форматы. */
+        function timeMs(v) {
+            if (!v) return 0;
+            const t = Date.parse(String(v).replace(' ', 'T'));
+            return isNaN(t) ? 0 : t;
+        }
+
+        /**
+         * Скрыт ли чат. Скрытие «до момента»: если в переписке появилось что-то новее,
+         * диалог возвращается в список сам — иначе человек не увидел бы нового сообщения.
+         */
+        function isChatHidden(chatKey, lastActivity) {
+            const at = hiddenChats[chatKey];
+            if (!at) return false;
+            const last = timeMs(lastActivity);
+            if (!last) return true;                       // активность неизвестна — держим скрытым
+            return last <= timeMs(at) + 1000;             // секунда на округление DATETIME
+        }
+
+        /** Единый фильтр строки списка: и папка, и «удалённые». */
+        function chatVisible(kind, chatKey, lastActivity) {
+            if (!folderAllows(kind, chatKey)) return false;
+            const hidden = isChatHidden(chatKey, lastActivity);
+            return showHidden ? hidden : !hidden;
+        }
+
+        async function deleteConversation(chatKey, title) {
+            closeFolderPicker();
+            const name = title ? `«${title}»` : 'этот диалог';
+            if (!confirm(`Удалить ${name} из своего списка?\n\nПереписка исчезнет только у вас — у собеседника она останется. ` +
+                         `Если придёт новое сообщение, диалог вернётся. Свои сообщения можно удалить по отдельности.`)) return;
+            try {
+                const d = await hiddenApi('hide', { chat_key: chatKey });
+                hiddenChats[chatKey] = d.hidden_at || new Date().toISOString().slice(0, 19).replace('T', ' ');
+                if (String(selectedUserId) === chatKey) closeCurrentChat();
+                renderConversationList(allConversations);
+            } catch (e) {
+                alert('Не удалось удалить диалог: ' + e.message);
+            }
+        }
+
+        async function restoreConversation(chatKey) {
+            closeFolderPicker();
+            try {
+                await hiddenApi('unhide', { chat_key: chatKey });
+                delete hiddenChats[chatKey];
+                if (showHidden && !Object.keys(hiddenChats).length) showHidden = false;
+                renderConversationList(allConversations);
+            } catch (e) {
+                alert('Не удалось вернуть диалог: ' + e.message);
+            }
+        }
+
+        function toggleShowHidden() {
+            showHidden = !showHidden;
+            renderConversationList(allConversations);
+        }
+
+        /** Плашка «Удалённые диалоги (N)» / «Вернуться к списку» под списком чатов. */
+        function hiddenFooterHtml() {
+            const n = Object.keys(hiddenChats).length;
+            if (!n && !showHidden) return '';
+            return `<button class="hidden-chats-btn" onclick="toggleShowHidden()">
+                        ${showHidden ? '← Вернуться к списку' : `🗑 Удалённые диалоги (${n})`}
+                    </button>`;
+        }
+
+        /** Закрыть открытую переписку — например, когда её удалили из списка. */
+        function closeCurrentChat() {
+            if (pollInterval) { clearInterval(pollInterval); pollInterval = null; }
+            selectedUserId = null;
+            headerRenderedFor = null;
+            const content = document.getElementById('chatContent');
+            const empty = document.getElementById('emptyState');
+            if (content) content.style.display = 'none';
+            if (empty) empty.style.display = 'flex';
+        }
+
         /** Ключ текущего открытого чата — тот же формат, что у папок и закреплений. */
         function currentChatKey() {
             if (!selectedUserId) return '';
@@ -3754,12 +3888,13 @@
          * находил, как добавить человека в группу и как закрепить диалог. Теперь все действия
          * над чатом собраны в одном меню: закрепить, разложить по папкам, добавить участников.
          */
-        function folderPickHtml(chatKey, kind, extraId) {
+        function folderPickHtml(chatKey, kind, extraId, rowTitle) {
             const inSome = myFolders.some(f => (f.keys || []).indexOf(chatKey) >= 0);
             const esc = chatKey.replace(/'/g, "\\'");
+            const escTitle = String(rowTitle || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
             return `<button class="folder-pick-btn${inSome ? ' in-folder' : ''}"
-                        title="Действия с чатом: закрепить, папки, участники"
-                        onclick="openChatRowMenu(event,'${esc}','${kind || ''}','${extraId == null ? '' : extraId}')" aria-label="Действия с чатом">
+                        title="Действия с чатом: закрепить, удалить, папки, участники"
+                        onclick="openChatRowMenu(event,'${esc}','${kind || ''}','${extraId == null ? '' : extraId}','${escTitle}')" aria-label="Действия с чатом">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="6" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="12" cy="18" r="1.7"/></svg>
                     </button>`;
         }
@@ -3862,7 +3997,7 @@
                 </button>`;
             let html = row('↩', 'Ответить', `startReply(null,'${id}')`);
             html += row('☑', 'Выделить', `enterSelectMode('${id}')`);
-            if (cap.canForward) html += row('↪', 'Переслать', `openForwardMenu(null,'${cap.kind === 'fav' ? 'fav' : 'msg'}','${id}')`);
+            if (cap.canForward) html += row('↪', 'Переслать', `openForwardMenu(null,'${cap.kind || 'msg'}','${id}')`);
             if (cap.canPin) html += row('📌', 'Закрепить', `pinMessageById('${id}')`);
             if (cap.canEdit) html += row('✏️', 'Изменить', cap.kind === 'group' ? `startEditGroupMessage(null,'${id}')` : `startEditMessage(null,'${id}')`);
             if (cap.canDelete) {
@@ -3946,15 +4081,19 @@
                 el.classList.toggle('selected', !!id && selectedIds.indexOf(id) >= 0);
             });
         }
-        /** Пересылка выделенных: по одному, тем же механизмом, что и одиночная. */
+        /** Пересылка выделенных: все сразу, одним выбором получателя. */
         async function forwardSelected() {
             if (!selectedIds.length) return;
             const ids = selectedIds.slice();
+            const items = ids
+                .map(id => forwardPayloadOf(forwardSourceOf(id, (msgCaps[id] || {}).kind)))
+                .filter(Boolean);
             exitSelectMode();
-            openForwardMenu(null, 'msg', ids[0]);
-            if (ids.length > 1) {
-                alert('Пока пересылается первое выбранное сообщение — остальные ' + (ids.length - 1) + ' перешлите по одному.');
+            if (!items.length) { alert('Эти сообщения нельзя переслать.'); return; }
+            if (items.length < ids.length) {
+                alert(`Переслать можно ${items.length} из ${ids.length} выбранных — остальные без текста и вложения.`);
             }
+            openForwardModalWith(items);
         }
         async function deleteSelected() {
             if (!selectedIds.length) return;
@@ -3997,7 +4136,7 @@
         }
 
         /** Меню действий над чатом: закрепление, папки и (для групп) участники. */
-        function openChatRowMenu(evt, chatKey, kind, extraId) {
+        function openChatRowMenu(evt, chatKey, kind, extraId, rowTitle) {
             if (evt) { evt.stopPropagation(); evt.preventDefault(); }
             closeFolderPicker();
             const esc = chatKey.replace(/'/g, "\\'");
@@ -4016,6 +4155,14 @@
                         <span class="fp-mark">ℹ️</span>Настройки группы
                     </button>`;
             }
+            const hiddenNow = !!hiddenChats[chatKey];
+            html += hiddenNow
+                ? `<button class="folder-picker-row" onclick="event.stopPropagation();restoreConversation('${esc}')">
+                        <span class="fp-mark">↩️</span>Вернуть диалог
+                   </button>`
+                : `<button class="folder-picker-row fp-danger" onclick="event.stopPropagation();deleteConversation('${esc}', '${(rowTitle || '').replace(/'/g, "\\'")}')">
+                        <span class="fp-mark">🗑</span>Удалить диалог
+                   </button>`;
             html += `<div class="folder-picker-sep">Папки</div>`;
             html += myFolders.map(f => {
                 const inIt = (f.keys || []).indexOf(chatKey) >= 0;
@@ -4061,7 +4208,7 @@
         // Пункт «⭐ Избранное» — личный диалог с самим собой, всегда закреплён сверху
         // списка диалогов, доступен в любой роли (задача #28).
         function favoritesRows() {
-            if (!folderAllows('fav', FAVORITES_ID)) return [];
+            if (!chatVisible('fav', FAVORITES_ID, null)) return [];
             return [{ key: FAVORITES_ID, html: `
                 <div class="conversation-item ${selectedUserId === FAVORITES_ID ? 'active' : ''}" onclick="openFavorites()" style="border-bottom:2px solid #F3E8FF;" title="Избранное">
                     <div class="conversation-avatar" style="background:linear-gradient(135deg,#F59E0B,#FBBF24);">⭐</div>
@@ -4069,7 +4216,7 @@
                         <div class="conversation-name"><span class="cn-text">Избранное</span>${pinMarkHtml(FAVORITES_ID)}</div>
                         <div class="conversation-preview">Заметки себе, файлы, пересланные сообщения</div>
                     </div>
-                    ${folderPickHtml(FAVORITES_ID, 'fav')}
+                    ${folderPickHtml(FAVORITES_ID, 'fav', null, 'Избранное')}
                 </div>` }];
         }
 
@@ -4095,9 +4242,9 @@
                 const only = sortPinnedFirst(rows).map(r => r.html).join('');
                 container.innerHTML = headHtml + only + (only.indexOf('conversation-item') >= 0 ? '' : `
                     <div class="no-conversations">
-                        <p>Ничего не найдено</p>
+                        <p>${showHidden ? 'Удалённых диалогов нет' : 'Ничего не найдено'}</p>
                     </div>
-                `);
+                `) + hiddenFooterHtml();
                 return;
             }
             conversations.forEach(c => {
@@ -4112,7 +4259,7 @@
                 const time = isNew ? '' : formatTime(c.last_message_time);
                 const clickHandler = isSupport ? `openSupportThread('${c._threadId}')` : (isNew ? `startNewChat('${c.id}')` : `openChat('${c.user_id}')`);
                 const activeId = isNew ? c.id : c.user_id;
-                if (!folderAllows('personal', String(activeId))) return;
+                if (!chatVisible('personal', String(activeId), c.last_message_time)) return;
                 rows.push({ key: String(activeId), html: `
                     <div class="conversation-item ${activeId === selectedUserId ? 'active' : ''}"
                          onclick="${clickHandler}" title="${escapeHtml(name)}">
@@ -4127,16 +4274,19 @@
                             <div class="conversation-time">${time}</div>
                             ${!isNew && c.unread_count > 0 ? `<span class="unread-badge">${c.unread_count}</span>` : ''}
                         </div>
-                        ${folderPickHtml(String(activeId), 'personal')}
+                        ${folderPickHtml(String(activeId), 'personal', null, name)}
                     </div>
                 ` });
             });
-            container.innerHTML = headHtml + sortPinnedFirst(rows).map(r => r.html).join('');
+            container.innerHTML = headHtml + sortPinnedFirst(rows).map(r => r.html).join('') + hiddenFooterHtml();
             // Папка может не содержать ни одного чата — иначе список выглядел бы «сломанным»
             if (container.querySelectorAll('.conversation-item').length === 0) {
                 const f = myFolders.find(x => 'u' + x.id === activeFolder);
-                container.innerHTML = `<div class="no-conversations"><p>${f ? 'В папке «' + escapeHtml(f.name) + '» пока нет чатов' : 'Ничего не найдено'}</p>` +
-                    (f ? `<p style="font-size:0.85rem;margin-top:0.4rem;">Откройте «Все» и нажмите ✚ у нужных чатов</p>` : '') + `</div>`;
+                const why = showHidden ? 'Удалённых диалогов нет'
+                    : (f ? 'В папке «' + escapeHtml(f.name) + '» пока нет чатов' : 'Ничего не найдено');
+                container.innerHTML = `<div class="no-conversations"><p>${why}</p>` +
+                    (f && !showHidden ? `<p style="font-size:0.85rem;margin-top:0.4rem;">Откройте «Все» и нажмите ✚ у нужных чатов</p>` : '') + `</div>` +
+                    hiddenFooterHtml();
             }
         }
 
@@ -4325,21 +4475,23 @@
             } catch (e) { console.error('Load favorites error:', e); }
         }
 
+        /**
+         * Разметка вложения — одна для личных, групповых и избранных сообщений.
+         * voiceKey нужен плееру голосовых: он должен быть уникален в пределах страницы.
+         */
+        function attachmentHtmlFor(m, voiceKey) {
+            if (!m || !m.attachment_url) return '';
+            if (isVideoNote(m)) return videoNoteHtml(m.attachment_url, m.attachment_name);
+            if (m.attachment_type === 'voice') return voicePlayerHtml(voiceKey, m.attachment_url, m.attachment_name);
+            if (isImageAttachment(m)) {
+                return `<div class="message-attachment"><a href="${m.attachment_url}" target="_blank"><img src="${m.attachment_url}" alt="${escapeHtml(m.attachment_name || 'Изображение')}" loading="lazy"></a></div>`;
+            }
+            return `<div class="message-attachment"><a href="${m.attachment_url}" target="_blank" download="${escapeHtml(m.attachment_name || 'file')}">📄 ${escapeHtml(m.attachment_name || 'Скачать файл')}</a></div>`;
+        }
+
         function favMessageBubbleHtml(m) {
             const time = formatTime(m.created_at);
-            let attachmentHtml = '';
-            if (m.attachment_url) {
-                if (isVideoNote(m)) {
-                    attachmentHtml = videoNoteHtml(m.attachment_url, m.attachment_name);
-                } else if (m.attachment_type === 'voice') {
-                    const msgId = 'fav-' + m.id;
-                    attachmentHtml = voicePlayerHtml(msgId, m.attachment_url, m.attachment_name);
-                } else if (isImageAttachment(m)) {
-                    attachmentHtml = `<div class="message-attachment"><a href="${m.attachment_url}" target="_blank"><img src="${m.attachment_url}" alt="${escapeHtml(m.attachment_name || 'Изображение')}" loading="lazy"></a></div>`;
-                } else {
-                    attachmentHtml = `<div class="message-attachment"><a href="${m.attachment_url}" target="_blank" download="${m.attachment_name || 'file'}">📄 ${m.attachment_name || 'Скачать файл'}</a></div>`;
-                }
-            }
+            const attachmentHtml = attachmentHtmlFor(m, 'fav-' + m.id);
             const sourceLine = m.source_label ? `<div style="font-size:0.72rem;font-weight:700;opacity:0.85;margin-bottom:0.25rem;">${escapeHtml(m.source_label)}</div>` : '';
             const fav = splitReply(m.content);
             const content = (m.content && !isAttachmentPlaceholder(m)) ? `<div>${msgText(fav.body)}</div>` : '';
@@ -4369,28 +4521,77 @@
             } catch (e) {}
         }
 
-        // ── Пересылка сообщения: в Избранное или другому пользователю (любая роль/чат) ──
-        function openForwardMenu(evt, type, id) {
-            if (evt) evt.stopPropagation();
-            const data = type === 'fav' ? favMessagesCache.find(x => String(x.id) === String(id)) : msgCache[id];
-            if (!data) return;
+        // ── Пересылка сообщений: в Избранное, другому человеку или в группу ──
+        // Пересылать можно сразу несколько: pendingForward.items идут по порядку.
+
+        /** Данные сообщения по его id — из того кэша, которому оно принадлежит. */
+        function forwardSourceOf(id, kind) {
+            const sid = String(id);
+            if (kind === 'fav') return (favMessagesCache || []).find(x => String(x.id) === sid) || null;
+            if (kind === 'group') return groupMsgCache[sid] || null;
+            return msgCache[sid] || (groupMsgCache[sid] || null);
+        }
+
+        function forwardPayloadOf(data) {
+            if (!data) return null;
+            // служебный маркер ответа не тащим в чужой чат: там на что отвечать нечему
+            const body = splitReply(data.content || '').body;
+            if (!body && !data.attachment_url) return null;
+            return {
+                content: body, attachment_url: data.attachment_url,
+                attachment_type: data.attachment_type, attachment_name: data.attachment_name
+            };
+        }
+
+        function openForwardModalWith(items) {
+            if (!items.length) return;
             const partnerName = selectedUserId !== FAVORITES_ID
                 ? ((document.querySelector('#chatHeader .name') || {}).textContent || '')
                 : '';
-            pendingForward = {
-                content: data.content, attachment_url: data.attachment_url,
-                attachment_type: data.attachment_type, attachment_name: data.attachment_name,
-                partnerName
-            };
+            pendingForward = { items, partnerName };
+            const title = document.getElementById('forwardTitle');
+            if (title) title.textContent = items.length > 1
+                ? `↪ Переслать ${items.length} ${plural(items.length, 'сообщение', 'сообщения', 'сообщений')}`
+                : '↪ Переслать сообщение';
             document.getElementById('forwardModal').style.display = 'flex';
             const si = document.getElementById('forwardSearchInput');
             if (si) si.value = '';
             renderForwardTargets(allConversations);
         }
 
+        function plural(n, one, few, many) {
+            const m10 = n % 10, m100 = n % 100;
+            if (m10 === 1 && m100 !== 11) return one;
+            if (m10 >= 2 && m10 <= 4 && (m100 < 10 || m100 >= 20)) return few;
+            return many;
+        }
+
+        function openForwardMenu(evt, type, id) {
+            if (evt) evt.stopPropagation();
+            const item = forwardPayloadOf(forwardSourceOf(id, type || (msgCaps[id] || {}).kind));
+            if (!item) return;
+            openForwardModalWith([item]);
+        }
+
         function closeForwardModal() {
             document.getElementById('forwardModal').style.display = 'none';
             pendingForward = null;
+        }
+
+        /** Отправить все выбранные сообщения одному получателю, по порядку. */
+        async function forwardAll(send) {
+            if (!pendingForward || !pendingForward.items.length) return 0;
+            const items = pendingForward.items;
+            const label = '↪ Переслано' + (pendingForward.partnerName ? ' из диалога с ' + pendingForward.partnerName : '');
+            let sent = 0, lastError = '';
+            for (const it of items) {
+                try { await send(it, label); sent++; }
+                catch (e) { lastError = e.message || 'ошибка отправки'; }
+            }
+            if (sent < items.length) {
+                alert(`Переслано ${sent} из ${items.length}. Не удалось: ${lastError}`);
+            }
+            return sent;
         }
 
         /** Удалить своё сообщение в личной переписке (текст остаётся в админском журнале). */
@@ -4461,60 +4662,74 @@
         window.saveEditMessage = saveEditMessage;
         window.cancelEditMessage = cancelEditMessage;
 
-        function renderForwardTargets(list) {
+        function renderForwardTargets(list, groups) {
             const el = document.getElementById('forwardTargets');
             if (!el) return;
             const favRow = `<div class="conversation-item" onclick="forwardToFavorites()">
                 <div class="conversation-avatar" style="background:linear-gradient(135deg,#F59E0B,#FBBF24);">⭐</div>
                 <div class="conversation-info"><div class="conversation-name">Избранное</div></div>
             </div>`;
-            const rows = (list || []).filter(c => !c._isNew).map(c => {
+            const groupRows = (groups || myGroups || []).map(g => `
+                <div class="conversation-item" onclick="forwardToGroup(${g.id})" title="${escapeHtml(g.name)}">
+                    <div class="conversation-avatar" style="background:linear-gradient(135deg,#059669,#10B981);">${g.avatar_url ? `<img src="${escapeHtml(g.avatar_url)}" alt="">` : '👥'}</div>
+                    <div class="conversation-info">
+                        <div class="conversation-name">${escapeHtml(g.name)}</div>
+                        <div class="conversation-preview">Группа · ${g.members_count} ${plural(g.members_count || 0, 'участник', 'участника', 'участников')}</div>
+                    </div>
+                </div>`).join('');
+            const rows = (list || []).filter(c => !c._isNew && !c._support).map(c => {
                 const name = `${c.first_name || ''} ${c.last_name || ''}`.trim() || 'Пользователь';
-                return `<div class="conversation-item" onclick="forwardToUser('${c.user_id}')">
-                    <div class="conversation-avatar">${c.avatar ? `<img src="${c.avatar}" alt="${name}">` : name.charAt(0)}</div>
-                    <div class="conversation-info"><div class="conversation-name">${name}</div></div>
+                return `<div class="conversation-item" onclick="forwardToUser('${c.user_id}')" title="${escapeHtml(name)}">
+                    <div class="conversation-avatar">${c.avatar ? `<img src="${c.avatar}" alt="${escapeHtml(name)}">` : escapeHtml(name.charAt(0))}</div>
+                    <div class="conversation-info"><div class="conversation-name">${escapeHtml(name)}</div></div>
                 </div>`;
             }).join('');
-            el.innerHTML = favRow + rows;
+            el.innerHTML = favRow + groupRows + rows
+                || `<div class="no-conversations"><p>Некому переслать — начните переписку или создайте группу</p></div>`;
         }
 
         function filterForwardTargets() {
             const q = ((document.getElementById('forwardSearchInput') || {}).value || '').trim().toLowerCase();
-            if (!q) { renderForwardTargets(allConversations); return; }
-            renderForwardTargets(allConversations.filter(c => `${c.first_name || ''} ${c.last_name || ''}`.toLowerCase().includes(q)));
+            if (!q) { renderForwardTargets(allConversations, myGroups); return; }
+            renderForwardTargets(
+                allConversations.filter(c => `${c.first_name || ''} ${c.last_name || ''}`.toLowerCase().includes(q)),
+                (myGroups || []).filter(g => String(g.name || '').toLowerCase().includes(q))
+            );
+        }
+
+        /** Одна отправка с проверкой ответа — иначе «переслано» показывалось и при ошибке. */
+        async function postJson(url, body) {
+            const res = await fetch(url, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                credentials: 'include', body: JSON.stringify(body)
+            });
+            const d = await res.json().catch(() => ({}));
+            if (!res.ok || d.ok === false || d.error) throw new Error(d.error || ('HTTP ' + res.status));
+            return d;
         }
 
         async function forwardToFavorites() {
-            if (!pendingForward) return;
-            try {
-                await fetch('/api/favorites.php?action=add', {
-                    method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
-                    body: JSON.stringify({
-                        content: pendingForward.content, attachment_url: pendingForward.attachment_url,
-                        attachment_type: pendingForward.attachment_type, attachment_name: pendingForward.attachment_name,
-                        source_label: '↪ Переслано' + (pendingForward.partnerName ? ' из диалога с ' + pendingForward.partnerName : '')
-                    })
-                });
-                closeForwardModal();
-                if (selectedUserId === FAVORITES_ID) await loadFavoritesMessages();
-            } catch (e) { alert('Не удалось переслать в избранное'); }
+            const n = await forwardAll((it, label) =>
+                postJson('/api/favorites.php?action=add', Object.assign({ source_label: label }, it)));
+            closeForwardModal();
+            if (n && selectedUserId === FAVORITES_ID) await loadFavoritesMessages();
         }
 
         async function forwardToUser(uid) {
-            if (!pendingForward) return;
-            try {
-                await fetch('/api/messages.php?action=send', {
-                    method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
-                    body: JSON.stringify({
-                        receiver_id: uid, content: pendingForward.content,
-                        attachment_url: pendingForward.attachment_url, attachment_type: pendingForward.attachment_type,
-                        attachment_name: pendingForward.attachment_name
-                    })
-                });
-                closeForwardModal();
-                if (String(selectedUserId) === String(uid)) await loadMessages();
-            } catch (e) { alert('Не удалось переслать'); }
+            const n = await forwardAll((it) =>
+                postJson('/api/messages.php?action=send', Object.assign({ receiver_id: uid }, it)));
+            closeForwardModal();
+            if (n && String(selectedUserId) === String(uid)) await loadMessages();
         }
+
+        /** Пересылка в группу — её раньше не было вовсе, в списке получателей были только люди. */
+        async function forwardToGroup(groupId) {
+            const n = await forwardAll((it) =>
+                postJson('/api/group_chat.php?action=send', Object.assign({ group_id: groupId }, it)));
+            closeForwardModal();
+            if (n && String(selectedUserId) === GROUP_PREFIX + groupId) await loadGroupMessages();
+        }
+        window.forwardToGroup = forwardToGroup;
 
         async function loadMessages() {
             if (!selectedUserId) return;
@@ -4895,7 +5110,7 @@
                 return;
             }
 
-            if (!requireHealthConsent()) return;
+            if (consentNeeded() && !requireHealthConsent()) return;
 
             if (detectContactShare(content)) {
                 const proceed = confirm(
@@ -4998,7 +5213,7 @@
         function vnEl(id) { return document.getElementById(id); }
 
         async function startVideoNote() {
-            if (selectedUserId !== FAVORITES_ID && !isSupportMode() && !requireHealthConsent()) return;
+            if (consentNeeded() && !requireHealthConsent()) return;
             if (!navigator.mediaDevices || !window.MediaRecorder) {
                 alert('Браузер не умеет записывать видео. Обновите его или воспользуйтесь другим.');
                 return;
@@ -5146,6 +5361,14 @@
                     body: JSON.stringify(payload)
                 });
                 await loadFavoritesMessages();
+            } else if (typeof selectedUserId === 'string' && selectedUserId.indexOf(GROUP_PREFIX) === 0) {
+                // Раньше этой ветки не было: вложение уходило в messages.php с receiver_id «group:5»
+                // и просто терялось — в группе не отправлялись ни кружки, ни голосовые, ни файлы.
+                const d = await groupApi('send', Object.assign({
+                    group_id: selectedUserId.slice(GROUP_PREFIX.length)
+                }, payload));
+                if (!d.ok) throw new Error(d.error || 'Не удалось отправить в группу');
+                await loadGroupMessages();
             } else if (isSupportMode()) {
                 await fetch('/api/support.php?action=reply', {
                     method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
@@ -5155,9 +5378,11 @@
                 });
                 await loadMessages();
             } else {
+                const dm = Object.assign({ receiver_id: selectedUserId }, payload);
+                if (isAdminMode) dm.as_support = true;
                 await fetch('/api/messages.php?action=send', {
                     method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
-                    body: JSON.stringify(Object.assign({ receiver_id: selectedUserId }, payload))
+                    body: JSON.stringify(dm)
                 });
                 await loadMessages();
             }
@@ -5294,7 +5519,7 @@
                 mediaRecorder.stop();
                 return;
             }
-            if (selectedUserId !== FAVORITES_ID && !requireHealthConsent()) return;
+            if (consentNeeded() && !requireHealthConsent()) return;
 
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -5402,60 +5627,14 @@
                     return;
                 }
 
-                if (selectedUserId === FAVORITES_ID) {
-                    await fetch('/api/favorites.php?action=add', {
-                        method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
-                        body: JSON.stringify({
-                            content: `[Голосовое сообщение: ${formatDuration(duration)}]`,
-                            attachment_url: uploadResult.url, attachment_type: 'voice',
-                            attachment_name: `${formatDuration(duration)}`
-                        })
-                    });
-                    await loadFavoritesMessages();
-                    const c = document.getElementById('messagesContainer');
-                    c.scrollTop = c.scrollHeight;
-                    return;
-                }
-
-                if (isSupportMode()) {
-                    await fetch('/api/support.php?action=reply', {
-                        method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
-                        body: JSON.stringify({
-                            thread_id: supportThreadIdOf(),
-                            message: `[Голосовое сообщение: ${formatDuration(duration)}]`,
-                            attachment_url: uploadResult.url, attachment_type: 'voice',
-                            attachment_name: `${formatDuration(duration)}`
-                        })
-                    });
-                    await loadMessages();
-                    const c = document.getElementById('messagesContainer');
-                    c.scrollTop = c.scrollHeight;
-                    return;
-                }
-
-                // Отправить сообщение с голосовым
-                const messageData = {
-                    receiver_id: selectedUserId,
+                // Одна отправка на все виды переписки (личная, группа, поддержка, избранное):
+                // раньше ветки были продублированы и ветки для групп просто не было.
+                await sendAttachmentMessage({
                     content: `[Голосовое сообщение: ${formatDuration(duration)}]`,
                     attachment_url: uploadResult.url,
                     attachment_type: 'voice',
                     attachment_name: `${formatDuration(duration)}`
-                };
-
-                if (isAdminMode) {
-                    messageData.as_support = true;
-                }
-
-                await fetch('/api/messages.php?action=send', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include',
-                    body: JSON.stringify(messageData)
                 });
-
-                await loadMessages();
-                const container = document.getElementById('messagesContainer');
-                container.scrollTop = container.scrollHeight;
 
             } catch (error) {
                 console.error('Voice message error:', error);
@@ -5978,7 +6157,7 @@
         async function handleFileSelect(event) {
             const file = event.target.files[0];
             if (!file) return;
-            if (selectedUserId !== FAVORITES_ID && !isSupportMode() && !requireHealthConsent()) { event.target.value = ''; return; }
+            if (consentNeeded() && !requireHealthConsent()) { event.target.value = ''; return; }
 
             // Проверка размера (5MB max)
             if (file.size > 5 * 1024 * 1024) {
@@ -6004,62 +6183,13 @@
                     return;
                 }
 
-                if (selectedUserId === FAVORITES_ID) {
-                    await fetch('/api/favorites.php?action=add', {
-                        method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
-                        body: JSON.stringify({
-                            content: `[Файл: ${file.name}]`, attachment_url: result.url,
-                            attachment_type: file.type.startsWith('image/') ? 'image' : 'file',
-                            attachment_name: file.name
-                        })
-                    });
-                    await loadFavoritesMessages();
-                    const c = document.getElementById('messagesContainer');
-                    c.scrollTop = c.scrollHeight;
-                    event.target.value = '';
-                    return;
-                }
-
-                if (isSupportMode()) {
-                    await fetch('/api/support.php?action=reply', {
-                        method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
-                        body: JSON.stringify({
-                            thread_id: supportThreadIdOf(), message: `[Файл: ${file.name}]`,
-                            attachment_url: result.url, attachment_type: file.type.startsWith('image/') ? 'image' : 'file',
-                            attachment_name: file.name
-                        })
-                    });
-                    await loadMessages();
-                    const c = document.getElementById('messagesContainer');
-                    c.scrollTop = c.scrollHeight;
-                    event.target.value = '';
-                    return;
-                }
-
-                // Отправить сообщение с прикреплённым файлом
-                const messageData = {
-                    receiver_id: selectedUserId,
+                await sendAttachmentMessage({
                     content: `[Файл: ${file.name}]`,
                     attachment_url: result.url,
                     attachment_type: file.type.startsWith('image/') ? 'image' : 'file',
                     attachment_name: file.name
-                };
-
-                if (isAdminMode) {
-                    messageData.as_support = true;
-                }
-
-                await fetch('/api/messages.php?action=send', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include',
-                    body: JSON.stringify(messageData)
                 });
-
-                await loadMessages();
-
-                const container = document.getElementById('messagesContainer');
-                container.scrollTop = container.scrollHeight;
+                event.target.value = '';
 
             } catch (error) {
                 console.error('File upload error:', error);
