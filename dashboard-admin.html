@@ -2219,6 +2219,37 @@
                   <span id="nchMsg" style="font-size:0.85rem;margin-left:0.5rem;"></span></div>
               </div></div>`;
 
+            // — Прогон рассылки: без него выбор каналов у людей оставался декоративным —
+            const dispatch = `
+              <div class="panel" style="margin-bottom:1rem;"><div class="panel-head"><h2>📨 Рассылка уведомлений</h2></div>
+              <div style="padding:1.1rem;">
+                <div class="muted" style="font-size:0.84rem;margin-bottom:0.7rem;line-height:1.55;">
+                  Проход по непрочитанным сообщениям и отправка в каналы, которые люди выбрали у себя
+                  в «🔔 Уведомлениях». Сообщения свежее пяти минут не берём — чтобы не дёргать тех,
+                  кто прямо сейчас в диалоге. Про одно и то же второй раз не пишем.
+                  Личные сообщения пишутся серверным messages.php, куда хук не поставить,
+                  поэтому проход периодический: запускайте по расписанию (cron) с токеном
+                  или вручную кнопкой ниже.
+                </div>
+                <div id="ndState" class="muted" style="font-size:0.84rem;margin-bottom:0.7rem;">Загрузка состояния…</div>
+                <div style="display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center;">
+                  <button class="btn-sm btn-outline" onclick="notifDispatchRun(true)">🧪 Прогон без отправки</button>
+                  <button class="btn-sm btn-purple" onclick="notifDispatchRun(false)">📨 Отправить сейчас</button>
+                </div>
+                <div id="ndMsg" style="font-size:0.84rem;margin-top:0.6rem;"></div>
+                <div style="margin-top:0.9rem;">
+                  <div style="font-weight:600;font-size:0.86rem;margin-bottom:0.35rem;">Токен для cron</div>
+                  <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+                    <input id="ndToken" type="password" placeholder="минимум 16 символов"
+                      style="flex:1;min-width:200px;padding:0.5rem 0.7rem;border:1.5px solid #E5E7EB;border-radius:0.6rem;font-family:monospace;">
+                    <button class="btn-sm btn-outline" onclick="notifDispatchSaveToken()">Сохранить токен</button>
+                  </div>
+                  <div class="muted" style="font-size:0.78rem;margin-top:0.35rem;">
+                    Вызов по расписанию: <code>curl -s "https://psytalk.pro/api/notify_dispatch.php?action=run&amp;token=ВАШ_ТОКЕН"</code>
+                  </div>
+                </div>
+              </div></div>`;
+
             // — Справочник переменных —
             const phBox = `<div class="panel" style="margin-bottom:1rem;"><div class="panel-head"><h2>🔤 Динамические переменные</h2></div><div style="padding:1.1rem;">
                 <div class="muted" style="font-size:0.83rem;margin-bottom:0.6rem;">Вставляйте эти коды в тексты — при отправке они заменятся на реальные данные. Не все переменные применимы к каждому событию.</div>
@@ -2253,11 +2284,64 @@
             }
 
             document.getElementById('content').innerHTML =
-                '<div class="note">🔔 Здесь вы настраиваете каналы доставки и редактируете тексты всех уведомлений. Реальная отправка в Telegram/MAX уже работает для события «Новое обращение в поддержку» — привяжите свой чат кнопкой «🧪 Тест отправки» ниже, чтобы получать эти уведомления. Остальные события (записи, оплаты и т.д.) пока не отправляют — под них нужно решить, писать ли всем админам или конкретным людям, заведите отдельной задачей какие именно события нужны в первую очередь. Email и push пока не подключены. Маркетинговые рассылки не включены.</div>'
-                + channels + phBox
+                '<div class="note">🔔 Здесь вы настраиваете каналы доставки и редактируете тексты всех уведомлений. Каждый пользователь сам выбирает, куда их получать — на своей странице «🔔 Уведомления» (почта, Telegram, MAX, браузер). Отправка о новых сообщениях идёт проходом «📨 Рассылка уведомлений» ниже. События про записи и оплаты пока не рассылаются — заведите отдельной задачей, какие нужны в первую очередь. Маркетинговые рассылки не включены.</div>'
+                + channels + dispatch + phBox
                 + '<h2 style="margin:1.2rem 0 0.3rem;">✍️ Шаблоны сообщений</h2>'
                 + '<div class="muted" style="font-size:0.83rem;margin-bottom:0.5rem;">Тексты можно менять как угодно, используя переменные выше. Обязательные (транзакционные) уведомления выключить нельзя — только отредактировать.</div>'
                 + tplHtml;
+            notifDispatchState();
+        }
+
+        // ── Рассылка уведомлений ──
+        const ND_API = '/api/notify_dispatch.php';
+        async function notifDispatchState(){
+            const el = document.getElementById('ndState');
+            if (!el) return;
+            try {
+                const d = await (await fetch(ND_API + '?action=status', { credentials:'include' })).json();
+                if (!d.ok) { el.textContent = 'Состояние недоступно: ' + (d.error || ''); return; }
+                const r = d.last_result || {};
+                el.innerHTML = 'Последний проход: <b>' + esc(d.last_run || 'ещё не было') + '</b>'
+                    + (r.sent !== undefined ? ` · отправлено ${r.sent}, пропущено ${r.skipped || 0}, ошибок ${r.failed || 0}` : '')
+                    + (r.gave_up ? ` · <span style="color:#DC2626;">не доставлено после ${r.gave_up} попыток: ${r.gave_up}</span>` : '')
+                    + ' · токен для cron: ' + (d.token_configured ? 'задан' : '<span style="color:#DC2626;">не задан</span>');
+            } catch(e){ el.textContent = 'Не удалось получить состояние'; }
+        }
+        async function notifDispatchRun(dry){
+            const msg = document.getElementById('ndMsg');
+            msg.textContent = dry ? 'Считаем, кому бы ушло…' : 'Отправляем…';
+            try {
+                const d = await (await fetch(ND_API + '?action=run' + (dry ? '&dry=1' : ''), { credentials:'include' })).json();
+                if (!d.ok) { msg.innerHTML = '<span style="color:#DC2626;">' + esc(d.error || 'ошибка') + '</span>'; return; }
+                const r = d.result || {};
+                msg.innerHTML = (dry ? 'Ушло бы: ' : 'Отправлено: ') + (r.sent || 0)
+                    + ' из ' + (r.candidates || 0) + ' · пропущено ' + (r.skipped || 0)
+                    + ' · ошибок ' + (r.failed || 0)
+                    + (r.gave_up ? ' · сдались после ' + r.gave_up : '')
+                    + (r.details && r.details.length
+                        ? '<div class="muted" style="font-size:0.8rem;margin-top:0.35rem;">'
+                          + r.details.slice(0, 10).map(x => esc(x.user) + ': ' + x.count + ' сообщ. → ' + x.channels.join(', ')).join('<br>')
+                          + '</div>'
+                        : '');
+                notifDispatchState();
+            } catch(e){ msg.innerHTML = '<span style="color:#DC2626;">Не удалось выполнить прогон</span>'; }
+        }
+        async function notifDispatchSaveToken(){
+            const inp = document.getElementById('ndToken');
+            const msg = document.getElementById('ndMsg');
+            const token = (inp.value || '').trim();
+            if (token.length < 16) { msg.innerHTML = '<span style="color:#DC2626;">Токен должен быть не короче 16 символов</span>'; return; }
+            try {
+                const r = await fetch(ND_API + '?action=save-token', {
+                    method:'POST', headers:{'Content-Type':'application/json'}, credentials:'include',
+                    body: JSON.stringify({ token })
+                });
+                const d = await r.json().catch(()=>({}));
+                if (!r.ok || d.ok === false) throw new Error(d.error || 'ошибка');
+                inp.value = '';
+                msg.textContent = 'Токен сохранён';
+                notifDispatchState();
+            } catch(e){ msg.innerHTML = '<span style="color:#DC2626;">Не сохранилось: ' + esc(e.message) + '</span>'; }
         }
         function notifToggleEmail(v){
             document.getElementById('nsmtp').style.display   = (v==='smtp')   ? 'grid' : 'none';
