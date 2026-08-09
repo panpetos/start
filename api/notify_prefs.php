@@ -171,6 +171,31 @@ try {
         ]);
     }
 
+    // Что реально уходило именно этому человеку и почему не дошло. Без этого при
+    // «включил каналы, а письма нет» остаётся только гадать.
+    if ($action === 'my-log') {
+        $rows = [];
+        try {
+            $st = $pdo->prepare("SELECT channel, kind, ok, note, sent_at FROM notify_sent_log
+                                 WHERE user_id = ? ORDER BY id DESC LIMIT 20");
+            $st->execute([$userId]);
+            $rows = $st->fetchAll(PDO::FETCH_ASSOC);
+        } catch (Exception $e) { /* таблицы может не быть, если проход ещё не запускался */ }
+        // last_run сдвигается только когда всё ушло без ошибок, а last_tick — на каждой проверке.
+        // Показываем именно проверку: иначе при неудачных отправках кажется, будто рассылка не работает вовсе.
+        $lastRun = $lastCheck = null;
+        try {
+            $st = $pdo->prepare("SELECT key_name, value FROM notify_dispatch_state
+                                 WHERE key_name IN ('last_run', 'last_tick')");
+            $st->execute();
+            foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $r) {
+                if ($r['key_name'] === 'last_run') $lastRun = $r['value'] ?: null;
+                else $lastCheck = $r['value'] ?: null;
+            }
+        } catch (Exception $e) {}
+        out(['ok' => true, 'data' => $rows, 'last_run' => $lastRun, 'last_check' => $lastCheck]);
+    }
+
     if ($action === 'save' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($initError) out(['ok' => false, 'error' => 'Настройки недоступны: ' . $initError], 500);
         $emailTo = trim((string)($body['email_to'] ?? ''));

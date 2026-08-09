@@ -310,8 +310,11 @@
             const last_name = parts.slice(1).join(' ') || '';
 
             try {
-                // window.Auth.register → POST /api/auth.php?action=register (реальный бэкенд)
-                const user = await window.Auth.register({ first_name, last_name, email, password });
+                // window.Auth.register → POST /api/auth.php?action=register (реальный бэкенд).
+                // role передаём обязательно: без неё сервер отвечал «Field role is required»
+                // и зарегистрироваться клиентом с этой страницы было нельзя вообще.
+                // Здесь всегда клиент — психологов отправляем на register.html?type=psychologist.
+                const user = await window.Auth.register({ first_name, last_name, email, password, role: 'client' });
                 if (user) {
                     await recordClientConsents();
                     document.getElementById('regSuccess').style.display = 'block';

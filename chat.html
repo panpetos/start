@@ -3421,6 +3421,12 @@
             // при открытии: браузеры блокируют запрос без жеста, да и это невежливо.
             ['click', 'keydown', 'touchstart'].forEach(ev =>
                 document.addEventListener(ev, askNotifyPermission, { once: true }));
+
+            // Проход рассылки в почту/Telegram/MAX. Сервер сам не проснётся, а cron может быть
+            // не настроен — тогда человек включал каналы и ничего не получал. Раз в пару минут
+            // просим сервер прогнать рассылку; он сам не даст запускать её чаще, чем нужно.
+            notifyTick();
+            setInterval(notifyTick, 120000);
         }
 
         // ── Звук + тост при новом сообщении (во всех чатах, любая роль) ──
@@ -3484,6 +3490,12 @@
             if (Notification.permission === 'default') {
                 try { Notification.requestPermission(); } catch (e) {}
             }
+        }
+
+        /** Попросить сервер разослать уведомления тем, кто их ждёт (см. api/notify_dispatch.php). */
+        async function notifyTick() {
+            try { await fetch('/api/notify_dispatch.php?action=tick', { credentials: 'include' }); }
+            catch (e) { /* не наша забота: не вышло — попробуем через две минуты */ }
         }
 
         function notifyNewMessage(title, body, chatKey) {
@@ -6702,7 +6714,9 @@
             stickyEl('spTime').textContent = fmtSec(pos) + (total ? ' / ' + fmtSec(total) : '');
             stickyEl('spFill').style.width = (total ? Math.min(100, (pos / total) * 100) : 0) + '%';
             stickyEl('spSpeed').textContent = voiceSpeed + 'x';
-            stickyEl('spSpeed').style.display = stickyKind === 'voice' ? '' : 'none';
+            // Скорость нужна и кружку: раньше кнопку прятали для всего, кроме голосовых,
+            // и в закреплённом плеере ускорить видео было нечем.
+            stickyEl('spSpeed').style.display = '';
             const btn = stickyEl('spToggle');
             btn.title = playing ? 'Пауза' : 'Продолжить';
             btn.innerHTML = playing

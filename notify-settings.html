@@ -193,6 +193,13 @@
                 </div>
 
                 <div class="card">
+                    <h2>📋 Что уже отправлялось</h2>
+                    <div class="hint">Здесь видно, дошло ли уведомление и почему нет — чтобы не гадать,
+                        если каналы включены, а сообщений не приходит.</div>
+                    <div id="deliveryLog" class="hint" style="margin:0;">Загрузка…</div>
+                </div>
+
+                <div class="card">
                     <h2>О чём уведомлять</h2>
                     <div class="hint">Настройка общая для всех включённых каналов.</div>
                     <div class="ev">${evRows}</div>
@@ -316,10 +323,36 @@
             };
         }
 
+        async function loadLog() {
+            const box = document.getElementById('deliveryLog');
+            if (!box) return;
+            try {
+                const d = await api('my-log');
+                const rows = d.data || [];
+                const checked = d.last_check || d.last_run;
+                if (!rows.length) {
+                    box.innerHTML = 'Пока ничего не отправлялось.'
+                        + (checked ? ' Последняя проверка рассылки: ' + esc(checked) + '.' : '')
+                        + ' Уведомления о новых сообщениях уходят через несколько минут после того,'
+                        + ' как сообщение пришло и осталось непрочитанным.';
+                    return;
+                }
+                const label = { email: '✉️ почта', telegram: '✈️ Telegram', max: '🟣 MAX' };
+                box.innerHTML = rows.map(r => {
+                    const okTxt = +r.ok ? '<span style="color:#15803D;">доставлено</span>'
+                                        : '<span style="color:#DC2626;">не доставлено</span>';
+                    return `<div style="margin-bottom:0.3rem;">${esc(r.sent_at)} · ${label[r.channel] || esc(r.channel)} · ${okTxt}`
+                         + (r.note && !+r.ok ? ' — ' + esc(r.note) : '') + '</div>';
+                }).join('')
+                    + (checked ? `<div style="margin-top:0.5rem;opacity:0.75;">Последняя проверка рассылки: ${esc(checked)}.</div>` : '');
+            } catch (e) { box.textContent = 'Не удалось загрузить историю: ' + e.message; }
+        }
+
         async function load() {
             const d = await api('get');
             state = d;
             render();
+            loadLog();
         }
 
         (async function init() {

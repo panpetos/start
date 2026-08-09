@@ -64,6 +64,7 @@ const NOTIFY_QUIET_MIN = 5;      // сообщения свежее этого �
 const NOTIFY_LOOKBACK_H = 48;    // насколько назад смотрим при самом первом прогоне
 const NOTIFY_MAX_USERS = 200;    // предохранитель на один прогон
 const NOTIFY_MAX_RETRIES = 5;    // столько раз пробуем одно и то же уведомление
+const TICK_MIN_MIN = 4;          // не чаще раза в столько минут запускаем проход «сам собой»
 
 try {
     $pdo->exec("CREATE TABLE IF NOT EXISTS notify_dispatch_state (
@@ -197,9 +198,11 @@ if ($action === 'save-token' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     out(['ok' => true]);
 }
 
-if ($action === 'run') {
-    if (!$isAdmin && !$validToken) out(['ok' => false, 'error' => 'Требуется доступ'], 403);
-    $dry = !empty($_GET['dry']) || !empty($body['dry']);
+/**
+ * Один проход рассылки. Вынесен в функцию, потому что запускается двумя путями:
+ * вручную/по cron (action=run) и «сам собой», когда кто-то открыл сайт (action=tick).
+ */
+function dispatchRun(PDO $pdo, $dry) {
     $chCfg = notify_channels_config();
 
     $since = stateGet($pdo, 'last_run');
@@ -316,7 +319,30 @@ if ($action === 'run') {
         }
         stateSet($pdo, 'last_result', json_encode($result, JSON_UNESCAPED_UNICODE));
     }
-    out(['ok' => true, 'dry' => $dry, 'since' => $since, 'cutoff' => $cutoff, 'result' => $result]);
+    return ['ok' => true, 'dry' => $dry, 'since' => $since, 'cutoff' => $cutoff, 'result' => $result];
+}
+
+if ($action === 'run') {
+    if (!$isAdmin && !$validToken) out(['ok' => false, 'error' => 'Требуется доступ'], 403);
+    $dry = !empty($_GET['dry']) || !empty($body['dry']);
+    out(dispatchRun($pdo, $dry));
+}
+
+/**
+ * «Сам собой»: любой вошедший пользователь может дёрнуть проход, но не чаще, чем раз
+ * в TICK_MIN_MIN минут на всю платформу. Так уведомления работают и без настроенного cron —
+ * без этого человек включал каналы, а в боты и почту ничего не приходило, потому что
+ * запускать проход было некому (фидбэк админа: «приходят только на пуши»).
+ */
+if ($action === 'tick') {
+    if (!$uid) out(['ok' => false, 'error' => 'Требуется авторизация'], 401);
+    $lastTick = stateGet($pdo, 'last_tick');
+    if ($lastTick && strtotime($lastTick) > time() - TICK_MIN_MIN * 60) {
+        out(['ok' => true, 'skipped' => 'рано', 'next_after' => date('Y-m-d H:i:s', strtotime($lastTick) + TICK_MIN_MIN * 60)]);
+    }
+    stateSet($pdo, 'last_tick', date('Y-m-d H:i:s'));   // ставим метку ДО прогона, чтобы не запустить два разом
+    $r = dispatchRun($pdo, false);
+    out(['ok' => true, 'ticked' => true, 'result' => $r['result'] ?? null]);
 }
 
 out(['ok' => false, 'error' => 'Неизвестное действие'], 400);
