@@ -305,16 +305,41 @@
             btn.textContent = 'Регистрируем...';
             btn.disabled = true;
 
-            const parts = name.split(' ');
-            const first_name = parts[0] || name;
-            const last_name = parts.slice(1).join(' ') || '';
+            // Сервер требует и имя, и фамилию непустыми («Field lastName is required»),
+            // а поле здесь одно — поэтому проверяем сами и говорим по-человечески.
+            const parts = name.split(/\s+/).filter(Boolean);
+            const firstName = parts[0] || '';
+            const lastName = parts.slice(1).join(' ');
+            if (!firstName || !lastName) {
+                showError('regError', 'Укажите имя и фамилию через пробел — например «Юлия Вакульская».');
+                btn.textContent = 'Зарегистрироваться';
+                btn.disabled = false;
+                return;
+            }
+            // Тот же список, что на register.html: регистрация только с российской почты.
+            // Сервер это тоже проверяет, но лучше сказать заранее, чем показать отказ после отправки.
+            const domain = (email.split('@')[1] || '').trim().toLowerCase();
+            const ruOk = ['yandex.com', 'ya.ru', 'vk.com', 'vk.ru'].includes(domain)
+                || ['.ru', '.su', '.рф', '.xn--p1ai'].some(t => domain.endsWith(t));
+            if (!ruOk) {
+                showError('regError', 'Регистрация доступна только с российской почты — например на yandex.ru или mail.ru.');
+                btn.textContent = 'Зарегистрироваться';
+                btn.disabled = false;
+                return;
+            }
 
             try {
                 // window.Auth.register → POST /api/auth.php?action=register (реальный бэкенд).
-                // role передаём обязательно: без неё сервер отвечал «Field role is required»
-                // и зарегистрироваться клиентом с этой страницы было нельзя вообще.
+                // Имена полей — ровно как на register.html, которая работает: сервер ждёт
+                // camelCase (firstName/lastName) и обязательную role, иначе отвечает
+                // «Field firstName is required» / «Field role is required» и регистрация
+                // клиента с этой страницы не проходит вообще.
                 // Здесь всегда клиент — психологов отправляем на register.html?type=psychologist.
-                const user = await window.Auth.register({ first_name, last_name, email, password, role: 'client' });
+                const user = await window.Auth.register({
+                    firstName, lastName, email, password, role: 'client',
+                    // здесь одна общая галочка покрывает и оферту, и согласие на обработку ПД
+                    acceptedTerms: gOk, acceptedConsent: gOk,
+                });
                 if (user) {
                     await recordClientConsents();
                     document.getElementById('regSuccess').style.display = 'block';
