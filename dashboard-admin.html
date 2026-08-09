@@ -473,6 +473,7 @@
                 });
             }
             supStartPolling();
+            noteReminderStartPolling();
             switchTab((myAdminSections && !myAdminSections.includes('overview')) ? myAdminSections[0] : 'overview');
         }
 
@@ -2562,6 +2563,83 @@
                     alert(r.error || 'Не удалось перенести задачу');
                 }
             } catch(e) { alert('Ошибка сети'); }
+        }
+
+        // ── Напоминания о сроке записки (задача #41, доработка) — за 5 минут до срока и в момент срока ──
+        let noteReminderTimer = null;
+        function noteReminderKey(n){ return n.id + '_' + (n.due_date||'') + '_' + (n.due_time||''); }
+        function noteReminderSeen(key, stage){ try { return localStorage.getItem('psyNoteReminder_' + stage + '_' + key) === '1'; } catch(e){ return false; } }
+        function noteReminderMarkSeen(key, stage){ try { localStorage.setItem('psyNoteReminder_' + stage + '_' + key, '1'); } catch(e){} }
+        function noteReminderBeep(){
+            try {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.connect(gain); gain.connect(ctx.destination);
+                osc.frequency.setValueAtTime(880, ctx.currentTime);
+                osc.frequency.setValueAtTime(660, ctx.currentTime + 0.15);
+                osc.frequency.setValueAtTime(880, ctx.currentTime + 0.3);
+                gain.gain.setValueAtTime(0.18, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.6);
+                osc.start(ctx.currentTime);
+                osc.stop(ctx.currentTime + 0.6);
+            } catch(e){}
+        }
+        function noteReminderToast(title, text){
+            let el = document.getElementById('noteReminderToast');
+            if (!el) {
+                el = document.createElement('div');
+                el.id = 'noteReminderToast';
+                el.style.cssText = 'position:fixed;top:14px;right:14px;z-index:3000;background:#fff;border:1px solid #FCA5A5;border-left:3px solid #DC2626;border-radius:0.6rem;padding:0.6rem 1rem;box-shadow:0 8px 24px rgba(0,0,0,0.15);max-width:320px;font-size:0.85rem;cursor:pointer;color:#333;';
+                el.onclick = () => { el.style.display = 'none'; };
+                document.body.appendChild(el);
+            }
+            el.innerHTML = `<div style="font-weight:700;font-size:0.75rem;color:#DC2626;margin-bottom:0.15rem;">⏰ ${esc(title)}</div>` + esc(text);
+            el.style.display = 'block';
+            setTimeout(() => { if (el) el.style.display = 'none'; }, 8000);
+        }
+        function noteReminderNotify(title, body){
+            noteReminderBeep();
+            noteReminderToast(title, body);
+            try {
+                if (window.Notification && Notification.permission === 'granted') {
+                    new Notification(title, { body, icon: '/assets/favicon.svg' });
+                }
+            } catch(e){}
+        }
+        function checkNoteReminders(notes){
+            const now = Date.now();
+            (notes || []).forEach(n => {
+                if (parseInt(n.is_done)) return;
+                if (!n.due_date || !n.due_time) return;
+                const due = new Date(n.due_date + 'T' + String(n.due_time).slice(0,5) + ':00');
+                if (isNaN(due)) return;
+                const diffMs = due.getTime() - now;
+                const key = noteReminderKey(n);
+                const label = n.title || n.body || 'Записка';
+                if (diffMs > 0 && diffMs <= 5 * 60 * 1000 && !noteReminderSeen(key, '5m')) {
+                    noteReminderMarkSeen(key, '5m');
+                    noteReminderNotify('Через 5 минут — срок записки', label);
+                }
+                if (diffMs <= 0 && diffMs > -10 * 60 * 1000 && !noteReminderSeen(key, 'due')) {
+                    noteReminderMarkSeen(key, 'due');
+                    noteReminderNotify('Срок записки наступил', label);
+                }
+            });
+        }
+        async function pollNoteReminders(){
+            try {
+                const res = await (await fetch('/api/admin_notes.php?action=list', { credentials:'include' })).json();
+                if (res && res.ok) checkNoteReminders(res.data || []);
+            } catch(e){}
+        }
+        function noteReminderStartPolling(){
+            if (window.Notification && Notification.permission === 'default') {
+                try { Notification.requestPermission(); } catch(e){}
+            }
+            pollNoteReminders();
+            if (noteReminderTimer) clearInterval(noteReminderTimer);
+            noteReminderTimer = setInterval(pollNoteReminders, 20000);
         }
 
         // ── Права дополнительных акков админа ──────────────────────────────────
