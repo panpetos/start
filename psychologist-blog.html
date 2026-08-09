@@ -85,7 +85,7 @@
         .empty { color: var(--d-text-muted); font-size: .88rem; padding: .8rem 0; }
         .hint { background: var(--d-accent-bg); border-radius: .6rem; padding: .6rem .8rem; font-size: .8rem; color: var(--d-text-sec); margin-bottom: .7rem; line-height: 1.5; }
         @media (max-width: 768px) {
-            .dash-sidebar { position: fixed; top: 0; left: -260px; bottom: 0; z-index: 1000; width: 240px; transition: left .25s ease; padding-top: 84px; height: 100vh; }
+            .dash-sidebar { position: fixed; top: 0; left: -260px; bottom: 0; z-index: 1000; width: 240px; transition: left .25s ease; padding-top: 0.5rem; height: 100vh; height: 100dvh; max-height: 100dvh; overflow-y: auto; overscroll-behavior: contain; }
             .dash-sidebar.open { left: 0; }
             .dash-sidebar-toggle { display: flex; }
             .dash-layout { display: block; }

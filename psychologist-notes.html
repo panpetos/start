@@ -46,7 +46,8 @@
         .dash-sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.35); z-index: 999; }
         .dash-sidebar-overlay.open { display: block; }
         @media (max-width: 768px) {
-            .dash-sidebar { position: fixed; left: -260px; top: 0; height: 100vh; transition: left 0.2s; }
+            /* 100dvh и прокрутка: иначе нижние пункты меню уезжают за видимую часть экрана */
+            .dash-sidebar { position: fixed; left: -260px; top: 0; height: 100vh; height: 100dvh; max-height: 100dvh; overflow-y: auto; overscroll-behavior: contain; padding-top: 0.5rem; transition: left 0.2s; }
             .dash-sidebar.open { left: 0; }
             .dash-sidebar-toggle { display: flex; }
         }
@@ -120,9 +121,6 @@
                 </div>
                 <div class="dash-sidebar-group">
                     <div class="dash-sidebar-group-label">Инструменты</div>
-                    <a class="dash-sidebar-item" href="/ai-chat.html">
-                        <span class="dash-sidebar-icon">🤖</span> ИИ Ассистент
-                    </a>
                     <a class="dash-sidebar-item active" href="/psychologist-notes.html">
                         <span class="dash-sidebar-icon">📝</span> Записки
                     </a>

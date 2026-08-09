@@ -294,6 +294,28 @@ if ($action === 'leave' && $_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 /**
+ * Удалить группу целиком — только владелец. Выход (leave) убирает из группы одного
+ * человека, а группа продолжает жить у остальных; здесь исчезает и сама группа
+ * со всей перепиской (по просьбе админа: «добавь возможность удалить свою группу»).
+ */
+if ($action === 'delete-group' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    if ($groupTablesError) out(['error' => 'Групповые чаты недоступны: ' . $groupTablesError], 500);
+    $groupId = (int)($body['group_id'] ?? 0);
+    if (!$groupId) out(['error' => 'group_id обязателен'], 400);
+    try {
+        $st = $pdo->prepare("SELECT created_by FROM chat_groups WHERE id = ? LIMIT 1");
+        $st->execute([$groupId]);
+        $owner = $st->fetchColumn();
+        if (!$owner) out(['error' => 'Группа не найдена'], 404);
+        if ((string)$owner !== (string)$userId) out(['error' => 'Удалить группу может только её владелец'], 403);
+        $pdo->prepare("DELETE FROM chat_group_messages WHERE group_id = ?")->execute([$groupId]);
+        $pdo->prepare("DELETE FROM chat_group_members WHERE group_id = ?")->execute([$groupId]);
+        $pdo->prepare("DELETE FROM chat_groups WHERE id = ?")->execute([$groupId]);
+        out(['ok' => true]);
+    } catch (Exception $e) { out(['error' => 'Не удалось удалить группу: ' . $e->getMessage()], 500); }
+}
+
+/**
  * Название, описание и аватарка группы — одним запросом. Меняет только владелец.
  * Передавать можно любое подмножество полей; пустая строка в description/avatar_url
  * означает «убрать», отсутствие ключа — «не трогать».

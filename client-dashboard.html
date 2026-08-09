@@ -147,7 +147,9 @@
         .dash-sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.35); z-index: 999; }
         .dash-sidebar-overlay.open { display: block; }
         @media (max-width: 768px) {
-            .dash-sidebar { position: fixed; top: 0; left: -260px; bottom: 0; z-index: 1000; width: 240px; transition: left 0.25s ease; padding-top: 84px; height: 100vh; }
+            /* Отступ под шапку не нужен — шторка её накрывает; 100dvh и прокрутка нужны,
+               чтобы нижние пункты меню («Выйти») не оказывались за пределами экрана. */
+            .dash-sidebar { position: fixed; top: 0; left: -260px; bottom: 0; z-index: 1000; width: 240px; transition: left 0.25s ease; padding-top: 0.5rem; height: 100vh; height: 100dvh; max-height: 100dvh; overflow-y: auto; overscroll-behavior: contain; }
             .dash-sidebar.open { left: 0; }
             .dash-sidebar-toggle { display: flex; }
             .dash-layout { display: block; }

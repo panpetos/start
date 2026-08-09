@@ -561,10 +561,19 @@
 
         .chat-area {
             flex: 1;
+            /* Без min-width:0 флекс-элемент не сжимается ниже своего содержимого: длинный
+               закреплённый текст или широкая карточка раздували область переписки за экран,
+               и свои (правые) сообщения уезжали в невидимую часть без всякой прокрутки. */
+            min-width: 0;
             display: flex;
             flex-direction: column;
             background: #f5f7fa;
         }
+        /* То же для самой ленты сообщений и всего, что лежит в шапке чата */
+        #chatContent { min-width: 0; }
+        #messagesContainer { min-width: 0; }
+        .chat-header { min-width: 0; }
+        .chat-header > div { min-width: 0; }
 
         .chat-header {
             background: white;
@@ -905,6 +914,38 @@
         /* Поле ввода отделяем от блока иконок, между самими иконками отступ маленький */
         .chat-input textarea { margin-left: 0.35rem; }
         .chat-input .send-btn { margin-left: 0.35rem; }
+        /* Окно жалобы */
+        .cmpl-card { background: #fff; border-radius: 1rem; max-width: 440px; width: 100%; max-height: 88vh;
+                     display: flex; flex-direction: column; box-shadow: 0 20px 60px rgba(0,0,0,0.3); color: #1A1A1A; }
+        .cmpl-head { padding: 1rem 1.25rem; border-bottom: 1px solid #eee; display: flex;
+                     justify-content: space-between; align-items: center; flex-shrink: 0; }
+        .cmpl-body { padding: 1rem 1.25rem; overflow-y: auto; }
+        .cmpl-body textarea { width: 100%; border: 1.5px solid #E5E7EB; border-radius: 0.6rem; padding: 0.6rem;
+                              font-family: inherit; font-size: 0.9rem; resize: vertical; outline: none;
+                              background: #fff; color: #1A1A1A; }
+        .cmpl-body textarea:focus { border-color: #7C3AED; }
+        .cmpl-check { display: flex; gap: 0.5rem; align-items: flex-start; margin-top: 0.8rem;
+                      font-size: 0.78rem; line-height: 1.45; color: #4B5563; cursor: pointer; }
+        .cmpl-check input { margin-top: 0.15rem; flex-shrink: 0; }
+        .cmpl-foot { padding: 0.9rem 1.25rem; border-top: 1px solid #eee; display: flex; gap: 0.5rem;
+                     justify-content: flex-end; flex-shrink: 0; }
+        .cmpl-btn { padding: 0.55rem 1rem; border-radius: 0.6rem; font-family: inherit; font-size: 0.88rem;
+                    font-weight: 600; cursor: pointer; border: none; }
+        .cmpl-btn-ghost { background: #F3F4F6; color: #4B5563; }
+        .cmpl-btn-main { background: #DC2626; color: #fff; }
+        .cmpl-btn-main:disabled { opacity: 0.6; cursor: default; }
+        body.dark .cmpl-card { background: #252525; color: #E6E6E6; }
+        body.dark .cmpl-head, body.dark .cmpl-foot { border-color: #333; }
+        body.dark .cmpl-body textarea { background: #1E1E1E; border-color: #444; color: #E6E6E6; }
+        body.dark .cmpl-check { color: #B5B5B5; }
+        body.dark .cmpl-btn-ghost { background: #333; color: #C9C9C9; }
+
+        /* «Печатает…» у бота и скрытые для него кнопки вложений */
+        .ai-typing { opacity: 0.6; letter-spacing: 0.2em; }
+        body.ai-chat .cin-attach,
+        body.ai-chat .cin-voice,
+        body.ai-chat .cin-video,
+        body.ai-chat .chat-input .cin-mic { display: none; }
         /* Форматирование: просто буква А — нарисованная иконка читалась как клякса */
         .cin-format-a { font-size: 1.15rem; font-weight: 700; line-height: 1; font-family: inherit; }
         /* Совмещённая кнопка микрофон/кружок/отправка — только для телефона.
@@ -1888,6 +1929,34 @@
     </div>
 
     <!-- Видеосообщение-кружок: запись с камеры, круглое превью, максимум 60 секунд -->
+    <!-- Жалоба на собеседника: админ подключается, только если человек сам разрешил
+         посмотреть переписку, и доступ живёт ограниченное время. -->
+    <div id="complaintModal" style="display:none;position:fixed;inset:0;background:rgba(26,26,46,0.6);z-index:1450;align-items:center;justify-content:center;padding:1rem;">
+        <div class="cmpl-card">
+            <div class="cmpl-head">
+                <div style="font-weight:700;">🚩 Жалоба на собеседника</div>
+                <button onclick="closeComplaint()" style="background:none;border:none;font-size:1.2rem;cursor:pointer;color:#6B7280;">✕</button>
+            </div>
+            <div class="cmpl-body">
+                <div id="complaintWho" style="font-size:0.88rem;margin-bottom:0.6rem;"></div>
+                <label style="display:block;font-size:0.82rem;font-weight:600;margin-bottom:0.3rem;">Что произошло?</label>
+                <textarea id="complaintReason" rows="4" maxlength="3000"
+                    placeholder="Спам, грубость, попытка увести оплату мимо платформы, угрозы…"></textarea>
+                <label class="cmpl-check">
+                    <input type="checkbox" id="complaintAllow" checked>
+                    <span>Разрешаю администратору посмотреть эту переписку в течение 72 часов, чтобы разобраться.
+                          Без разрешения переписку никто не откроет; каждое открытие записывается, и вы увидите,
+                          что её смотрели. Доступ можно отозвать раньше.</span>
+                </label>
+                <div id="complaintErr" style="display:none;color:#DC2626;font-size:0.82rem;margin-top:0.5rem;"></div>
+            </div>
+            <div class="cmpl-foot">
+                <button onclick="closeComplaint()" class="cmpl-btn cmpl-btn-ghost">Отмена</button>
+                <button onclick="sendComplaint()" class="cmpl-btn cmpl-btn-main" id="complaintSendBtn">Отправить жалобу</button>
+            </div>
+        </div>
+    </div>
+
     <div id="videoNoteModal" style="display:none;position:fixed;inset:0;background:rgba(16,16,26,0.82);z-index:1400;align-items:center;justify-content:center;padding:1rem;">
         <div style="display:flex;flex-direction:column;align-items:center;gap:0.9rem;max-width:100%;">
             <div class="vn-ring">
@@ -2158,6 +2227,7 @@
             pinnedMessage = null; renderPinnedBar();
             editingMessageId = null;
             selectedUserId = GROUP_PREFIX + groupId;
+            document.body.classList.remove('ai-chat');
             editingMessageId = null;
             headerRenderedFor = selectedUserId;
 
@@ -2595,6 +2665,7 @@
         async function openChannel(psychId) {
             pinnedMessage = null; renderPinnedBar();
             selectedUserId = CHANNEL_PREFIX + psychId;
+            document.body.classList.remove('ai-chat');
             editingMessageId = null;
             headerRenderedFor = selectedUserId;
 
@@ -2915,6 +2986,7 @@
                 isPsy && { icon: '💳', label: 'Выставить счёт', run: () => openOrderModal() },
                 isPsy && { icon: '📝', label: 'Заметки по клиенту', run: () => openNotes() },
                 isPsy && { icon: '📹', label: 'Видеовстреча', run: () => startVideoCall() },
+                { icon: '🚩', label: 'Пожаловаться на собеседника', run: () => openComplaint(selectedUserId, name) },
                 (!isPsy && other.role === 'psychologist') && {
                     icon: '📅', label: 'Записаться на приём',
                     href: bookPsychId ? ('/book.html?id=' + encodeURIComponent(bookPsychId)) : '/search.html'
@@ -3342,6 +3414,7 @@
         function openChatByKey(key) {
             const k = String(key || '');
             if (!k) return;
+            if (k === AI_ID) { openAiBot(); return; }
             if (k === FAVORITES_ID) { openFavorites(); return; }
             if (k.indexOf(GROUP_PREFIX) === 0) { openGroupChat(k.slice(GROUP_PREFIX.length)); return; }
             if (k.indexOf(CHANNEL_PREFIX) === 0) { openChannel(k.slice(CHANNEL_PREFIX.length)); return; }
@@ -3405,6 +3478,7 @@
         // Начать новый чат с пользователем (даже если нет истории)
         async function startNewChat(userId) {
             selectedUserId = userId;
+            document.body.classList.remove('ai-chat');
             editingMessageId = null;
 
             // Получить информацию о пользователе
@@ -3490,7 +3564,7 @@
                 const container = document.getElementById('conversationsList');
 
                 if (!conversations || conversations.length === 0) {
-                    const rows = sortPinnedFirst(favoritesRows().concat(channelsRows(), groupsRows()));
+                    const rows = sortPinnedFirst(favoritesRows().concat(aiRows(), channelsRows(), groupsRows()));
                     container.innerHTML = channelsErrHtml() + groupsErrHtml() + rows.map(r => r.html).join('') + `
                         <div class="no-conversations">
                             <p>У вас пока нет диалогов</p>
@@ -3821,6 +3895,110 @@
             }
         }
 
+        // ── Жалоба на собеседника ──
+        let complaintTarget = null;   // {id, name}
+
+        function openComplaint(userId, name) {
+            closeFolderPicker();
+            if (!userId || userId === FAVORITES_ID || userId === AI_ID) return;
+            complaintTarget = { id: String(userId), name: name || 'собеседник' };
+            document.getElementById('complaintWho').innerHTML =
+                'Жалоба на <b>' + escapeHtml(complaintTarget.name) + '</b>. Её увидит только администратор платформы.';
+            document.getElementById('complaintReason').value = '';
+            document.getElementById('complaintAllow').checked = true;
+            const err = document.getElementById('complaintErr');
+            err.style.display = 'none';
+            document.getElementById('complaintSendBtn').disabled = false;
+            document.getElementById('complaintModal').style.display = 'flex';
+            setTimeout(() => document.getElementById('complaintReason').focus(), 50);
+        }
+        window.openComplaint = openComplaint;
+
+        function closeComplaint() {
+            document.getElementById('complaintModal').style.display = 'none';
+            complaintTarget = null;
+        }
+        window.closeComplaint = closeComplaint;
+
+        async function sendComplaint() {
+            if (!complaintTarget) return;
+            const reason = document.getElementById('complaintReason').value.trim();
+            const allow = document.getElementById('complaintAllow').checked;
+            const err = document.getElementById('complaintErr');
+            const btn = document.getElementById('complaintSendBtn');
+            if (reason.length < 5) {
+                err.textContent = 'Опишите, что произошло — хотя бы пару фраз.';
+                err.style.display = 'block';
+                return;
+            }
+            btn.disabled = true;
+            try {
+                const r = await fetch('/api/complaints.php?action=create', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+                    body: JSON.stringify({ against_id: complaintTarget.id, reason, allow_access: allow ? 1 : 0 })
+                });
+                const d = await r.json().catch(() => ({}));
+                if (!r.ok || d.ok === false) throw new Error(d.error || ('HTTP ' + r.status));
+                closeComplaint();
+                alert(allow
+                    ? 'Жалоба отправлена. Администратор сможет посмотреть переписку в течение ' +
+                      (d.access_hours || 72) + ' часов; доступ можно отозвать раньше.'
+                    : 'Жалоба отправлена. Переписку без вашего разрешения никто не откроет.');
+            } catch (e) {
+                err.textContent = 'Не удалось отправить: ' + e.message;
+                err.style.display = 'block';
+                btn.disabled = false;
+            }
+        }
+        window.sendComplaint = sendComplaint;
+
+        function isOwnGroup(groupId) {
+            const g = (myGroups || []).find(x => String(x.id) === String(groupId));
+            return !!(g && g.role === 'owner');
+        }
+        function isOwnChannel(psychId) {
+            const c = (myChannels || []).find(x => String(x.psychologist_id) === String(psychId));
+            return !!(c && c._own);
+        }
+
+        /** Удалить свою группу целиком — у всех участников. */
+        async function deleteGroupForever(groupId, title) {
+            closeFolderPicker();
+            if (!confirm(`Удалить группу ${title ? '«' + title + '»' : ''} полностью?\n\n` +
+                         'Переписка исчезнет у всех участников. Отменить будет нельзя.')) return;
+            try {
+                const d = await groupApi('delete-group', { group_id: groupId });
+                if (!d.ok) throw new Error(d.error || 'ошибка');
+                if (String(selectedUserId) === GROUP_PREFIX + groupId) closeCurrentChat();
+                await loadMyGroups();
+                renderConversationList(allConversations);
+            } catch (e) {
+                alert('Не удалось удалить группу: ' + e.message);
+            }
+        }
+        window.deleteGroupForever = deleteGroupForever;
+
+        /** Удалить свой канал: посты, подписки и оформление. */
+        async function deleteChannelForever(psychId, title) {
+            closeFolderPicker();
+            if (!confirm(`Удалить канал ${title ? '«' + title + '»' : ''}?\n\n` +
+                         'Все посты, подписчики и оформление канала будут удалены. Отменить будет нельзя.')) return;
+            try {
+                const r = await fetch('/api/channels.php?action=delete-channel', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+                    body: JSON.stringify({})
+                });
+                const d = await r.json().catch(() => ({}));
+                if (!r.ok || d.ok === false) throw new Error(d.error || ('HTTP ' + r.status));
+                if (String(selectedUserId) === CHANNEL_PREFIX + psychId) closeCurrentChat();
+                await loadMyChannels();
+                renderConversationList(allConversations);
+            } catch (e) {
+                alert('Не удалось удалить канал: ' + e.message);
+            }
+        }
+        window.deleteChannelForever = deleteChannelForever;
+
         function toggleShowHidden() {
             showHidden = !showHidden;
             renderConversationList(allConversations);
@@ -3839,6 +4017,7 @@
         function closeCurrentChat() {
             if (pollInterval) { clearInterval(pollInterval); pollInterval = null; }
             selectedUserId = null;
+            document.body.classList.remove('ai-chat');
             headerRenderedFor = null;
             const content = document.getElementById('chatContent');
             const empty = document.getElementById('emptyState');
@@ -3945,11 +4124,12 @@
         const ICO_STAR     = ICO('<path d="M12 3.8l2.6 5.3 5.9.85-4.25 4.15 1 5.85L12 17.15 6.75 19.9l1-5.85L3.5 9.95l5.9-.85L12 3.8z"/>');
         const ICO_PLUS     = ICO('<path d="M12 5.5v13M5.5 12h13"/>');
         const ICO_GEAR     = ICO('<circle cx="12" cy="12" r="3"/><path d="M12 3.5v2M12 18.5v2M4.9 7.8l1.7 1M17.4 15.2l1.7 1M4.9 16.2l1.7-1M17.4 8.8l1.7-1"/>');
+        const ICO_BOT      = ICO('<rect x="4.5" y="7.5" width="15" height="11" rx="3"/><path d="M12 4.5v3"/><circle cx="9.3" cy="13" r="1.1" fill="currentColor" stroke="none"/><circle cx="14.7" cy="13" r="1.1" fill="currentColor" stroke="none"/><path d="M2.8 12v3M21.2 12v3"/>');
         const ICO_SUPPORT  = ICO('<path d="M12 3.5a8.5 8.5 0 018.5 8.5v4.5a3 3 0 01-3 3H14"/><path d="M3.5 16.5V12A8.5 8.5 0 0112 3.5"/><rect x="2.6" y="12.6" width="3.6" height="6" rx="1.4"/><rect x="17.8" y="12.6" width="3.6" height="6" rx="1.4"/>');
 
         const BUILTIN_FOLDERS = [
             { id: 'all',      label: 'Все',     icon: ICO_ALL,     kinds: null },
-            { id: 'personal', label: 'Личное',  icon: ICO_PERSON,  kinds: ['personal', 'fav'] },
+            { id: 'personal', label: 'Личное',  icon: ICO_PERSON,  kinds: ['personal', 'fav', 'ai'] },
             { id: 'channels', label: 'Каналы',  icon: ICO_CHANNEL, kinds: ['channel'] },
             { id: 'groups',   label: 'Группы',  icon: ICO_GROUP,   kinds: ['group'] },
         ];
@@ -4386,13 +4566,36 @@
                     </button>`;
             }
             const hiddenNow = !!hiddenChats[chatKey];
-            html += hiddenNow
-                ? `<button class="folder-picker-row" onclick="event.stopPropagation();restoreConversation('${esc}')">
-                        <span class="fp-mark">↩️</span>Вернуть диалог
-                   </button>`
-                : `<button class="folder-picker-row fp-danger" onclick="event.stopPropagation();deleteConversation('${esc}', '${(rowTitle || '').replace(/'/g, "\\'")}')">
-                        <span class="fp-mark">🗑</span>Удалить диалог
-                   </button>`;
+            // «Избранное» и ассистент — не переписки с людьми, удалять их нечего:
+            // раньше пункт был и приводил к пустому месту в списке без внятной причины.
+            const canDelete = chatKey !== FAVORITES_ID && chatKey !== AI_ID;
+            const escTitle = (rowTitle || '').replace(/'/g, "\\'");
+            if (canDelete) {
+                html += hiddenNow
+                    ? `<button class="folder-picker-row" onclick="event.stopPropagation();restoreConversation('${esc}')">
+                            <span class="fp-mark">↩️</span>Вернуть диалог
+                       </button>`
+                    : `<button class="folder-picker-row fp-danger" onclick="event.stopPropagation();deleteConversation('${esc}', '${escTitle}')">
+                            <span class="fp-mark">🗑</span>Удалить диалог
+                       </button>`;
+            }
+            // Своя группа и свой канал удаляются целиком — у всех участников
+            if (kind === 'group' && extraId && isOwnGroup(extraId)) {
+                html += `<button class="folder-picker-row fp-danger" onclick="event.stopPropagation();deleteGroupForever(${extraId}, '${escTitle}')">
+                            <span class="fp-mark">🗑</span>Удалить группу совсем
+                         </button>`;
+            }
+            if (kind === 'channel' && extraId && isOwnChannel(extraId)) {
+                html += `<button class="folder-picker-row fp-danger" onclick="event.stopPropagation();deleteChannelForever('${String(extraId).replace(/'/g, "\\'")}', '${escTitle}')">
+                            <span class="fp-mark">🗑</span>Удалить канал
+                         </button>`;
+            }
+            // Жалоба на собеседника — для личных переписок
+            if (kind === 'personal') {
+                html += `<button class="folder-picker-row" onclick="event.stopPropagation();openComplaint('${esc}', '${escTitle}')">
+                            <span class="fp-mark">🚩</span>Пожаловаться
+                         </button>`;
+            }
             html += `<div class="folder-picker-sep">Папки</div>`;
             html += myFolders.map(f => {
                 const inIt = (f.keys || []).indexOf(chatKey) >= 0;
@@ -4450,6 +4653,20 @@
                 </div>` }];
         }
 
+        /** Строка «ИИ-ассистент» — бот, всегда рядом с Избранным. */
+        function aiRows() {
+            if (!chatVisible('ai', AI_ID, null)) return [];
+            return [{ key: AI_ID, html: `
+                <div class="conversation-item ${selectedUserId === AI_ID ? 'active' : ''}" onclick="openAiBot()" title="ИИ-ассистент">
+                    <div class="conversation-avatar" style="background:linear-gradient(135deg,#0EA5E9,#7C3AED);"><span class="ava-ico">${ICO_BOT}</span></div>
+                    <div class="conversation-info">
+                        <div class="conversation-name"><span class="cn-text">ИИ-ассистент</span>${pinMarkHtml(AI_ID)}</div>
+                        <div class="conversation-preview">Спросить совет, формулировку, план сессии</div>
+                    </div>
+                    ${folderPickHtml(AI_ID, 'ai', null, 'ИИ-ассистент')}
+                </div>` }];
+        }
+
         /** Закреплённые чаты — первыми, остальные в исходном порядке (устойчивая сортировка). */
         function sortPinnedFirst(rows) {
             const pinned = [], rest = [];
@@ -4465,6 +4682,7 @@
             const rows = [];
             const err = channelsErrHtml() + groupsErrHtml();   // сообщения об ошибках всегда сверху
             favoritesRows().forEach(r => rows.push(r));
+            aiRows().forEach(r => rows.push(r));
             channelsRows().forEach(r => rows.push(r));
             groupsRows().forEach(r => rows.push(r));
             const headHtml = err;
@@ -4565,9 +4783,185 @@
         }
 
         // Личный диалог «Избранное» — доступен в любой роли, пишет сам себе (задача #28).
+        // ── ИИ-ассистент как диалог с ботом ──────────────────────────────────────────
+        // Раньше это была отдельная страница ai-chat.html в меню кабинета. По просьбе админа
+        // ассистент переехал в чаты: обычный диалог, только собеседник — модель.
+        const AI_ID = '__ai__';
+        const AI_STORE = 'psy-chat-ai';        // переписка с ботом хранится локально
+        const AI_MODEL_KEY = 'ai_model';
+        let aiMessages = [];                   // [{role:'user'|'assistant', content}]
+        let aiModels = [];
+        let aiBusy = false;
+
+        function isAiMode() { return selectedUserId === AI_ID; }
+
+        function aiLoad() {
+            try { aiMessages = JSON.parse(localStorage.getItem(AI_STORE) || '[]') || []; }
+            catch (e) { aiMessages = []; }
+            if (!Array.isArray(aiMessages)) aiMessages = [];
+        }
+        function aiSave() {
+            // держим последние 200 реплик: больше в localStorage складывать незачем
+            try { localStorage.setItem(AI_STORE, JSON.stringify(aiMessages.slice(-200))); } catch (e) {}
+        }
+        function aiModel() {
+            try { return localStorage.getItem(AI_MODEL_KEY) || (aiModels[0] && aiModels[0].id) || ''; }
+            catch (e) { return (aiModels[0] && aiModels[0].id) || ''; }
+        }
+
+        async function loadAiModels() {
+            if (aiModels.length) return aiModels;
+            try {
+                const r = await fetch('/api/ai_chat.php?action=models', { credentials: 'include' });
+                const d = await r.json();
+                aiModels = (d && d.models) || [];
+            } catch (e) { aiModels = []; }
+            return aiModels;
+        }
+
+        function pickAiModel() {
+            if (!aiModels.length) { alert('Список моделей недоступен.'); return; }
+            const cur = aiModel();
+            const list = aiModels.map((m, i) => `${i + 1}. ${m.name}${m.id === cur ? ' (текущая)' : ''}`).join('\n');
+            const ans = prompt('Какую модель использовать?\n\n' + list + '\n\nВведите номер:', '');
+            const n = parseInt(ans, 10);
+            if (!n || n < 1 || n > aiModels.length) return;
+            try { localStorage.setItem(AI_MODEL_KEY, aiModels[n - 1].id); } catch (e) {}
+            renderAiMessages();
+        }
+
+        function clearAiChat() {
+            if (!confirm('Очистить переписку с ассистентом? Отменить будет нельзя.')) return;
+            aiMessages = [];
+            aiSave();
+            renderAiMessages();
+        }
+
+        async function openAiBot() {
+            pinnedMessage = null; renderPinnedBar();
+            selectedUserId = AI_ID;
+            editingMessageId = null;
+            headerRenderedFor = AI_ID;
+            if (pollInterval) { clearInterval(pollInterval); pollInterval = null; }  // боту опрос не нужен
+
+            document.querySelectorAll('.conversation-item').forEach(el => {
+                el.classList.toggle('active', el.getAttribute('onclick') === 'openAiBot()');
+            });
+            document.getElementById('emptyState').style.display = 'none';
+            document.getElementById('chatContent').style.display = 'flex';
+            document.querySelector('.chat-container').classList.add('mobile-chat-open');
+            const inputBar = document.getElementById('chatInputBar');
+            if (inputBar) inputBar.style.display = '';
+            // Боту нельзя отправить файл, голосовое или кружок — прячем эти кнопки
+            document.body.classList.add('ai-chat');
+
+            await loadAiModels();
+            const cur = aiModels.find(m => m.id === aiModel());
+            document.getElementById('chatHeader').innerHTML = `
+                <button class="chat-back-btn" onclick="goBackToList()" title="Назад к диалогам">←</button>
+                <div class="avatar" style="background:linear-gradient(135deg,#0EA5E9,#7C3AED);"><span class="ava-ico">${ICO_BOT}</span></div>
+                <div style="flex:1;min-width:0;">
+                    <div class="name">ИИ-ассистент</div>
+                    <div class="role">${cur ? escapeHtml(cur.name) : 'бот платформы'}</div>
+                </div>
+                ${headerActionsHtml([
+                    { icon: '🧠', label: 'Выбрать модель', run: () => pickAiModel() },
+                    { icon: 'A', label: 'Форматирование текста', run: () => openComposer() },
+                    { icon: '🗑', label: 'Очистить переписку', run: () => clearAiChat() },
+                ], '')}`;
+            aiLoad();
+            renderAiMessages();
+        }
+        window.openAiBot = openAiBot;
+        window.pickAiModel = pickAiModel;
+        window.clearAiChat = clearAiChat;
+
+        function renderAiMessages() {
+            const c = document.getElementById('messagesContainer');
+            if (!c) return;
+            dropRenderCache();
+            if (!aiMessages.length) {
+                c.innerHTML = `<div class="empty-state"><div>
+                    <p style="color:#9CA3AF;">🤖 Спросите что угодно: формулировки для клиента, план сессии,
+                    разбор случая. Ассистент не заменяет супервизию и не видит ваши переписки.</p></div></div>`;
+                return;
+            }
+            c.innerHTML = aiMessages.map((m, i) => `
+                <div class="message ${m.role === 'user' ? 'mine' : 'theirs'}" data-ai-idx="${i}">
+                    <div>${msgText(String(m.content || ''))}</div>
+                </div>`).join('') + '<div id="aiTail"></div>';
+            c.scrollTop = c.scrollHeight;
+        }
+
+        /** Отправить вопрос ассистенту и вывести ответ по мере поступления. */
+        async function sendToAi(text) {
+            if (aiBusy) return;
+            aiBusy = true;
+            aiMessages.push({ role: 'user', content: text });
+            aiSave();
+            renderAiMessages();
+            const c = document.getElementById('messagesContainer');
+            const bubble = document.createElement('div');
+            bubble.className = 'message theirs';
+            bubble.innerHTML = '<div class="ai-typing">…</div>';
+            c.appendChild(bubble);
+            c.scrollTop = c.scrollHeight;
+            let full = '';
+            try {
+                const res = await fetch('/api/ai_chat.php?action=chat', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+                    body: JSON.stringify({ messages: aiMessages.map(m => ({ role: m.role, content: m.content })), model: aiModel() })
+                });
+                if (!res.ok) {
+                    const d = await res.json().catch(() => ({}));
+                    throw new Error(d.error || ('сервер ответил ' + res.status));
+                }
+                // ответ приходит потоком (SSE) — показываем по мере набора
+                const reader = res.body && res.body.getReader ? res.body.getReader() : null;
+                if (!reader) {
+                    full = await res.text();
+                } else {
+                    const dec = new TextDecoder();
+                    let buf = '';
+                    while (true) {
+                        const { done, value } = await reader.read();
+                        if (done) break;
+                        buf += dec.decode(value, { stream: true });
+                        const lines = buf.split('\n');
+                        buf = lines.pop();
+                        for (const line of lines) {
+                            if (line.indexOf('data: ') !== 0) continue;
+                            const raw = line.slice(6);
+                            if (raw === '[DONE]') continue;
+                            try {
+                                const obj = JSON.parse(raw);
+                                if (obj.error) { full += '\n\nОшибка: ' + (obj.error.message || 'неизвестная'); continue; }
+                                const piece = obj.choices && obj.choices[0] &&
+                                    ((obj.choices[0].delta && obj.choices[0].delta.content) ||
+                                     (obj.choices[0].message && obj.choices[0].message.content));
+                                if (piece) {
+                                    full += piece;
+                                    bubble.innerHTML = `<div>${msgText(full)}</div>`;
+                                    c.scrollTop = c.scrollHeight;
+                                }
+                            } catch (e) {}
+                        }
+                    }
+                }
+            } catch (e) {
+                full = full || ('Не удалось получить ответ: ' + e.message);
+            }
+            aiBusy = false;
+            bubble.remove();
+            aiMessages.push({ role: 'assistant', content: full || 'Пустой ответ' });
+            aiSave();
+            renderAiMessages();
+        }
+
         async function openFavorites() {
             pinnedMessage = null; renderPinnedBar();
             selectedUserId = FAVORITES_ID;
+            document.body.classList.remove('ai-chat');
             editingMessageId = null;
             headerRenderedFor = FAVORITES_ID;
 
@@ -4601,6 +4995,7 @@
 
         async function openSupportThread(threadId) {
             selectedUserId = SUPPORT_PREFIX + threadId;
+            document.body.classList.remove('ai-chat');
             editingMessageId = null;
             headerRenderedFor = null;
 
@@ -4668,6 +5063,7 @@
 
         async function openChat(userId) {
             selectedUserId = userId;
+            document.body.classList.remove('ai-chat');
             editingMessageId = null;
             headerRenderedFor = null; // пересобрать шапку под нового собеседника
 
@@ -4965,6 +5361,7 @@
 
         async function loadMessages() {
             if (!selectedUserId) return;
+            if (isAiMode()) { renderAiMessages(); return; }   // у бота переписка локальная
             if (editingMessageId) return; // не перерисовывать список поверх открытой формы редактирования (иначе она пропадает на середине печати)
             // Реальная переписка (в отличие от read-only канала) — вернуть панель ввода сообщений, если она была скрыта.
             const inputBar = document.getElementById('chatInputBar');
@@ -5391,6 +5788,14 @@
 
             if (!input.value.trim() || !selectedUserId) return;
             cancelReply();
+
+            if (isAiMode()) {
+                const text = input.value.trim();
+                input.value = '';
+                resetInputHeight();
+                await sendToAi(text);
+                return;
+            }
 
             if (typeof selectedUserId === 'string' && selectedUserId.indexOf(GROUP_PREFIX) === 0) {
                 input.value = '';
@@ -5826,7 +6231,20 @@
             if (c) { c.dataset.rendered = ''; c.dataset.renderedChat = ''; }
         }
 
+        /** Остановить играющий кружок, если он есть. */
+        function pauseAnyVideoNote() {
+            document.querySelectorAll('.video-note.playing').forEach(box => {
+                const v = box.querySelector('video');
+                if (v) v.pause();
+                box.classList.remove('playing');
+            });
+            playingVideoNote = null;
+            updateStickyPlayer();
+        }
+
         function startVideoNotePlayback(box, v, fromTime) {
+            // и наоборот: кружок глушит играющее голосовое
+            if (currentPlayingVoiceId) stopVoicePlayer(currentPlayingVoiceId, false);
             document.querySelectorAll('.video-note.playing').forEach(other => {
                 if (other === box) return;
                 const ov = other.querySelector('video');
@@ -6546,6 +6964,9 @@
             if (currentPlayingVoiceId && currentPlayingVoiceId !== msgId) {
                 stopVoicePlayer(currentPlayingVoiceId, false);
             }
+            // Одновременно звучит что-то одно: включили голосовое — играющий кружок замолкает
+            // (раньше они накладывались друг на друга и слушать было невозможно).
+            pauseAnyVideoNote();
             stickyOwnerKey = currentChatKey();
             const existing = voicePlayers[msgId];
             if (existing && existing.playing) { stopVoicePlayer(msgId, false); return; }

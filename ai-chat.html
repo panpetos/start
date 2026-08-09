@@ -1,6 +1,11 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
+    <!-- Ассистент переехал в чаты как диалог с ботом (в меню кабинета его больше нет).
+         Страницу оставляем только как перенаправление: по старым ссылкам и закладкам
+         человек попадёт в тот же ассистент, а не на пустой экран. -->
+    <script>location.replace('/chat.html?open=__ai__' + (location.hash || ''));</script>
+    <meta http-equiv="refresh" content="0;url=/chat.html?open=__ai__">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ИИ Ассистент — psytalk.pro</title>

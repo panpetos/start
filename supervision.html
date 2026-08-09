@@ -9,6 +9,7 @@
     <script src="/js/layout.js"></script>
     <script src="/js/api.js"></script>
     <script src="/js/auth.js"></script>
+    <script src="/js/dash-sidebar.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
         *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
@@ -41,6 +42,44 @@
         .b-gray { background: #F3F4F6; color: #6B7280; border: 1px solid #E5E7EB; }
         .muted { color: #9CA3AF; }
         .reqrow { border-bottom: 1px solid #F3F0FA; padding: 0.7rem 0; display: flex; justify-content: space-between; gap: 0.75rem; flex-wrap: wrap; align-items: center; }
+        /* Переменные и стили общей боковой менюшки кабинета — те же, что на остальных
+           страницах (задача: «в разделе супервизии нет шторки меню»). */
+        :root {
+            --d-bg: #F4F0FF; --d-panel: #FFFFFF; --d-panel-alt: #FAFAFA;
+            --d-border: #F0ECF8; --d-border-light: #F0F0F0; --d-border-accent: #EDE9FF;
+            --d-text: #1A1A1A; --d-text-sec: #6B7280; --d-text-muted: #9CA3AF; --d-text-dark: #374151;
+            --d-accent: #7C3AED; --d-accent-bg: #F3E8FF; --d-accent-hover: #FAF5FF;
+        }
+        body.dark {
+            --d-bg: #191919; --d-panel: #252525; --d-panel-alt: #2A2A2A;
+            --d-border: #333; --d-border-light: #333; --d-border-accent: #37254A;
+            --d-text: #E6E6E6; --d-text-sec: #A0A0A0; --d-text-muted: #707070; --d-text-dark: #C0C0C0;
+            --d-accent: #B794F4; --d-accent-bg: #2D1F4E; --d-accent-hover: #37254A;
+        }
+        /* ── Notion-style sidebar layout (общая для всех кабинетных страниц, задача — единый сайдбар) ── */
+        .dash-layout { display: flex; min-height: calc(100vh - 84px); }
+        .dash-sidebar { width: 240px; background: var(--d-panel); border-right: 1px solid var(--d-border); display: flex; flex-direction: column; position: sticky; top: 84px; height: calc(100vh - 84px); flex-shrink: 0; transition: background 0.2s, border-color 0.2s; z-index: 10; }
+        .dash-sidebar-header { padding: 1rem 1rem 0.75rem; border-bottom: 1px solid var(--d-border); }
+        .dash-sidebar-header h2 { font-size: 0.95rem; font-weight: 700; color: var(--d-text); margin-bottom: 0.15rem; }
+        .dash-sidebar-header p { font-size: 0.75rem; color: var(--d-text-muted); }
+        .dash-sidebar-nav { flex: 1; padding: 0.5rem 0; overflow-y: auto; }
+        .dash-sidebar-group { padding: 0.5rem 0 0.15rem; }
+        .dash-sidebar-group-label { padding: 0.25rem 1rem 0.35rem; font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--d-text-muted); user-select: none; }
+        .dash-sidebar-item { display: flex; align-items: center; gap: 0.55rem; padding: 0.45rem 0.75rem; margin: 0.06rem 0.5rem; border-radius: 0.45rem; font-size: 0.875rem; color: var(--d-text-sec); cursor: pointer; transition: background 0.12s, color 0.12s; font-weight: 500; text-decoration: none; border: none; background: none; width: calc(100% - 1rem); text-align: left; font-family: inherit; line-height: 1.4; }
+        .dash-sidebar-item:hover { background: var(--d-accent-hover); color: var(--d-text); }
+        .dash-sidebar-item.active { background: var(--d-accent-bg); color: var(--d-accent); font-weight: 600; }
+        .dash-sidebar-icon { font-size: 1rem; width: 1.35rem; text-align: center; flex-shrink: 0; }
+        .dash-sidebar-footer { padding: 0.6rem 0.5rem; border-top: 1px solid var(--d-border); display: flex; flex-direction: column; gap: 0.15rem; }
+        .dash-sidebar-footer .dash-sidebar-item { margin: 0.06rem 0; }
+        .dash-sidebar-toggle { display: none; position: fixed; top: 92px; left: 0.75rem; z-index: 1001; width: 38px; height: 38px; border-radius: 0.5rem; border: 1px solid var(--d-border); background: var(--d-panel); color: var(--d-text); font-size: 1.2rem; cursor: pointer; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+        .dash-sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.35); z-index: 999; }
+        .dash-sidebar-overlay.open { display: block; }
+        @media (max-width: 768px) {
+            .dash-sidebar { position: fixed; top: 0; left: -260px; bottom: 0; z-index: 1000; width: 240px; transition: left 0.25s ease; padding-top: 0.5rem; height: 100vh; height: 100dvh; max-height: 100dvh; overflow-y: auto; overscroll-behavior: contain; }
+            .dash-sidebar.open { left: 0; }
+            .dash-sidebar-toggle { display: flex; }
+            .dash-layout { display: block; }
+        }
         body.dark { background: #191919 !important; color: #E6E6E6; }
         body.dark .card { background: #252525 !important; border-color: #333 !important; }
         body.dark .card h2 { color: #E6E6E6; }
@@ -81,11 +120,14 @@
 <body>
     <script>(function(){ var t = localStorage.getItem('psy-theme'); if (t === 'dark' || (!t && window.matchMedia('(prefers-color-scheme:dark)').matches)) document.body.classList.add('dark'); })();</script>
     <script>psyWriteHeader();</script>
-    <main>
+    <div class="dash-layout">
+    <div id="dashSidebarMount"></div>
+    <main style="flex:1;min-width:0;">
         <div class="wrap" id="wrap">
             <div class="card">Загрузка...</div>
         </div>
     </main>
+    </div>
     <script>psyWriteFooter();</script>
     <script>
         let user = null;
@@ -97,6 +139,13 @@
             try { if (window.Auth) user = await window.Auth.getCurrentUser(); } catch(e){}
             const wrap = document.getElementById('wrap');
             if (!user) { window.location.href = '/login.html?redirect=' + encodeURIComponent('/supervision.html'); return; }
+            // Боковая менюшка кабинета — как на остальных страницах психолога
+            try {
+                if (window.mountDashSidebar) {
+                    await mountDashSidebar(user.role === 'admin' ? 'psychologist' : user.role,
+                        ((user.first_name || '') + ' ' + (user.last_name || '')).trim() || user.email || '');
+                }
+            } catch (e) {}
             if (user.role !== 'psychologist' && user.role !== 'admin') {
                 wrap.innerHTML = `<div class="hero"><h1>Супервизия</h1><p>Раздел доступен психологам платформы. Если вы психолог — войдите в профессиональный аккаунт.</p></div>
                     <div class="card">Этот раздел — для психологов: групповая и индивидуальная супервизия с опытными коллегами. <a href="/" style="color:#7C3AED;font-weight:600;">На главную</a></div>`;

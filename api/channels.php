@@ -320,6 +320,35 @@ function channelSettings(PDO $pdo, $psychId) {
  * Оформление СВОЕГО канала: название, описание, аватарка. Только психолог, и только свой канал.
  * Пустая строка означает «убрать» (вернуться к имени/фото из профиля).
  */
+/**
+ * Удалить свой канал: посты, подписки и оформление. Сам профиль психолога остаётся —
+ * канал можно будет начать заново (по просьбе админа: «добавь возможность удалить свой канал»).
+ */
+if ($action === 'delete-channel' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (!$userId) { http_response_code(401); echo json_encode(['error' => 'Требуется авторизация']); exit; }
+    $psychId = myPsychologistId($pdo, $userId);
+    if (!$psychId) { http_response_code(403); echo json_encode(['error' => 'Доступно только психологам с созданным профилем']); exit; }
+    try {
+        // комментарии и лайки чистим по постам канала, чтобы не оставлять сирот
+        $ids = $pdo->prepare("SELECT id FROM channel_posts WHERE psychologist_id = ?");
+        $ids->execute([$psychId]);
+        $postIds = $ids->fetchAll(PDO::FETCH_COLUMN);
+        foreach (['channel_post_comments', 'channel_post_likes', 'channel_post_views'] as $tbl) {
+            foreach ($postIds as $pid) {
+                try { $pdo->prepare("DELETE FROM $tbl WHERE post_id = ?")->execute([$pid]); } catch (Exception $e) {}
+            }
+        }
+        $pdo->prepare("DELETE FROM channel_posts WHERE psychologist_id = ?")->execute([$psychId]);
+        try { $pdo->prepare("DELETE FROM channel_subscriptions WHERE psychologist_id = ?")->execute([$psychId]); } catch (Exception $e) {}
+        try { $pdo->prepare("DELETE FROM channel_settings WHERE psychologist_id = ?")->execute([$psychId]); } catch (Exception $e) {}
+        echo json_encode(['ok' => true, 'deleted_posts' => count($postIds)], JSON_UNESCAPED_UNICODE);
+    } catch (Exception $e) {
+        http_response_code(500);
+        echo json_encode(['ok' => false, 'error' => 'Не удалось удалить канал: ' . $e->getMessage()], JSON_UNESCAPED_UNICODE);
+    }
+    exit;
+}
+
 if ($action === 'save-settings' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!$userId) { http_response_code(401); echo json_encode(['error' => 'Требуется авторизация']); exit; }
     $psychId = myPsychologistId($pdo, $userId);

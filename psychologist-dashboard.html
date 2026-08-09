@@ -64,7 +64,9 @@
         .dash-sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.35); z-index: 999; }
         .dash-sidebar-overlay.open { display: block; }
         @media (max-width: 768px) {
-            .dash-sidebar { position: fixed; top: 0; left: -260px; bottom: 0; z-index: 1000; width: 240px; transition: left 0.25s ease; padding-top: 84px; height: 100vh; }
+            /* Отступ под шапку не нужен — шторка её накрывает; 100dvh и прокрутка нужны,
+               чтобы нижние пункты меню («Выйти») не оказывались за пределами экрана. */
+            .dash-sidebar { position: fixed; top: 0; left: -260px; bottom: 0; z-index: 1000; width: 240px; transition: left 0.25s ease; padding-top: 0.5rem; height: 100vh; height: 100dvh; max-height: 100dvh; overflow-y: auto; overscroll-behavior: contain; }
             .dash-sidebar.open { left: 0; }
             .dash-sidebar-toggle { display: flex; }
             .dash-layout { display: block; }
@@ -184,9 +186,6 @@
                 </div>
                 <div class="dash-sidebar-group">
                     <div class="dash-sidebar-group-label">Инструменты</div>
-                    <a class="dash-sidebar-item" href="/ai-chat.html">
-                        <span class="dash-sidebar-icon">🤖</span> ИИ Ассистент
-                    </a>
                     <a class="dash-sidebar-item" href="/psychologist-notes.html">
                         <span class="dash-sidebar-icon">📝</span> Записки
                     </a>
@@ -281,19 +280,13 @@
                     Мой канал <span id="channelSubsCount" style="font-size:0.8rem;font-weight:500;color:var(--d-text-sec);"></span>
                 </h2>
                 <p style="margin-bottom: 1rem;">Публичная лента постов на вашей странице в каталоге и в общей <a href="/feed.html" style="color:#7C3AED;font-weight:600;">Ленте</a> сайта — клиенты могут подписаться, ставить лайки и делиться постами.</p>
-                <div style="display:flex;gap:0.35rem;margin-bottom:0.35rem;">
-                    <button type="button" title="Жирный" onclick="wrapPostSelection(document.getElementById('channelPostText'),'**')" style="width:2rem;height:2rem;border:1.5px solid var(--d-border);border-radius:0.4rem;background:var(--d-panel);color:var(--d-text);cursor:pointer;font-weight:700;">Ж</button>
-                    <button type="button" title="Курсив" onclick="wrapPostSelection(document.getElementById('channelPostText'),'_')" style="width:2rem;height:2rem;border:1.5px solid var(--d-border);border-radius:0.4rem;background:var(--d-panel);color:var(--d-text);cursor:pointer;font-style:italic;">К</button>
-                    <button type="button" title="Список" onclick="prefixPostLine(document.getElementById('channelPostText'),'- ')" style="width:2rem;height:2rem;border:1.5px solid var(--d-border);border-radius:0.4rem;background:var(--d-panel);color:var(--d-text);cursor:pointer;">☰</button>
-                </div>
-                <textarea id="channelPostText" placeholder="Текст поста... Выделите текст и нажмите Ж/К для форматирования" style="width:100%;min-height:70px;border:1.5px solid var(--d-border);border-radius:0.625rem;padding:0.6rem;font-family:inherit;font-size:0.9rem;resize:vertical;outline:none;background:var(--d-panel);color:var(--d-text);margin-bottom:0.5rem;"></textarea>
-                <div id="channelPostImagePreview" style="display:none;margin-bottom:0.6rem;"></div>
+                <!-- Писать посты теперь только из чатов: там канал устроен как в Telegram —
+                     нормальный редактор, форматирование, вложения. Здесь оставлен список
+                     опубликованного, чтобы можно было просмотреть и удалить пост. -->
                 <div style="display:flex;gap:0.5rem;margin-bottom:1rem;flex-wrap:wrap;">
-                    <label class="btn" style="background:var(--d-panel-alt);color:var(--d-text);border:1.5px solid var(--d-border);cursor:pointer;">
-                        📎 Фото
-                        <input type="file" id="channelPostImage" accept="image/*" style="display:none;" onchange="channelImageSelected(event)">
-                    </label>
-                    <button type="button" class="btn" onclick="publishChannelPost()">Опубликовать</button>
+                    <a class="btn" id="channelChatLink" href="/chat.html" style="text-decoration:none;display:inline-flex;align-items:center;gap:0.4rem;">
+                        ✍️ Написать пост в чате
+                    </a>
                 </div>
                 <div id="channelPostsList" style="display:flex;flex-direction:column;gap:0.6rem;"></div>
             </div>
@@ -384,7 +377,6 @@
 
             // ── Мой канал (задача #29, MVP) ──
             let myPsychId = null;
-            let channelPendingImageUrl = null;
 
             async function initChannel() {
                 try {
@@ -393,6 +385,8 @@
                     if (d && d.ok && d.profile) myPsychId = d.profile.id;
                 } catch (e) {}
                 if (myPsychId) {
+                    const link = document.getElementById('channelChatLink');
+                    if (link) link.href = '/chat.html?open=channel:' + encodeURIComponent(myPsychId);
                     await loadChannelPosts();
                     try {
                         const r2 = await fetch('/api/channels.php?action=info&psychologist_id=' + encodeURIComponent(myPsychId), { credentials: 'include' });
@@ -403,39 +397,7 @@
                 }
             }
 
-            async function channelImageSelected(event) {
-                const file = event.target.files[0];
-                if (!file) return;
-                const fd = new FormData();
-                fd.append('file', file);
-                try {
-                    const r = await fetch('/api/upload.php', { method: 'POST', credentials: 'include', body: fd });
-                    const d = await r.json();
-                    if (d.error) { alert(d.error); return; }
-                    channelPendingImageUrl = d.url;
-                    const prev = document.getElementById('channelPostImagePreview');
-                    prev.style.display = 'block';
-                    prev.innerHTML = `<img src="${d.url}" style="max-height:100px;border-radius:0.5rem;"> <button type="button" onclick="channelPendingImageUrl=null;document.getElementById('channelPostImagePreview').style.display='none';" style="margin-left:0.5rem;border:none;background:none;color:#EF4444;cursor:pointer;">✕ убрать</button>`;
-                } catch (e) { alert('Не удалось загрузить фото'); }
-            }
-
-            async function publishChannelPost() {
-                if (!myPsychId) { alert('Ваш профиль психолога ещё не создан'); return; }
-                const ta = document.getElementById('channelPostText');
-                const text = ta.value.trim();
-                if (!text && !channelPendingImageUrl) return;
-                try {
-                    await fetch('/api/channels.php?action=post', {
-                        method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
-                        body: JSON.stringify({ text, image_url: channelPendingImageUrl })
-                    });
-                    ta.value = '';
-                    channelPendingImageUrl = null;
-                    const prev = document.getElementById('channelPostImagePreview');
-                    if (prev) { prev.style.display = 'none'; prev.innerHTML = ''; }
-                    await loadChannelPosts();
-                } catch (e) { alert('Не удалось опубликовать пост'); }
-            }
+            // Публикация постов переехала в чаты (канал открывается кнопкой выше).
 
             function escapeChannelHtml(s) { const d = document.createElement('div'); d.textContent = s == null ? '' : String(s); return d.innerHTML; }
             let channelPostsCache = {};
@@ -525,8 +487,6 @@
                     await loadChannelPosts();
                 } catch (e) {}
             }
-            window.channelImageSelected = channelImageSelected;
-            window.publishChannelPost = publishChannelPost;
             window.deleteChannelPost = deleteChannelPost;
 
             async function loadAppointments() {

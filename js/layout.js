@@ -262,8 +262,11 @@
       if (!h) return;
       document.body.style.paddingTop = (h + 2) + 'px';
       document.documentElement.style.setProperty('--psy-nav-h', h + 'px');
+      // Шторку кабинета отступом под шапку больше не сдвигаем: на телефоне она накрывает
+      // шапку сайта целиком (z-index 1000 против 999), поэтому сверху просто пустовало
+      // ~75px, из-за которых нижние пункты меню («Выйти») уезжали за видимую часть.
       var sb = document.querySelector('.dash-sidebar');
-      if (sb && window.matchMedia('(max-width: 768px)').matches) sb.style.paddingTop = (h + 2) + 'px';
+      if (sb && sb.style.paddingTop) sb.style.paddingTop = '';
     } catch (e) {}
   }
   // Кнопка «☰» боковой менюшки кабинета висела на фиксированных top:92px/left:12px и после

@@ -101,7 +101,11 @@
         .sidebar-overlay.open { display: block; }
 
         @media (max-width: 768px) {
-            .sidebar { position: fixed; top: 0; left: -290px; bottom: 0; z-index: 1000; width: 280px; transition: left 0.25s ease; padding-top: 84px; height: 100vh; }
+            /* Шторка накрывает шапку сайта (её z-index 999), поэтому отступ под шапку не нужен:
+               раньше сверху пустовало 84px, а нижние пункты (в том числе «Выйти») уезжали
+               за пределы видимой части — и долистать до них было нельзя. 100dvh учитывает
+               панели браузера, overflow-y возвращает прокрутку. */
+            .sidebar { position: fixed; top: 0; left: -290px; bottom: 0; z-index: 1000; width: 280px; transition: left 0.25s ease; padding-top: 0.5rem; height: 100vh; height: 100dvh; max-height: 100dvh; overflow-y: auto; overscroll-behavior: contain; }
             .sidebar.open { left: 0; }
             /* Бургер встроен в шапку сайта (справа), а не плавает поверх контента */
             .sidebar-toggle { display: flex; top: 17px; left: auto; right: 12px; width: 34px; height: 34px; font-size: 1.05rem; }
@@ -338,9 +342,6 @@
 
                 <div class="sidebar-group">
                     <div class="sidebar-group-label">Инструменты</div>
-                    <a class="sidebar-item" href="/ai-chat.html" style="text-decoration:none;">
-                        <span class="sidebar-item-icon">🤖</span> ИИ Ассистент
-                    </a>
                 </div>
 
                 <div class="sidebar-group">
@@ -359,6 +360,9 @@
                     </button>
                     <button class="sidebar-item" data-tab="adminperms" onclick="switchTab('adminperms')">
                         <span class="sidebar-item-icon">🔐</span> Права админов
+                    </button>
+                    <button class="sidebar-item" data-tab="complaints" onclick="switchTab('complaints')">
+                        <span class="sidebar-item-icon">🚩</span> Жалобы
                     </button>
                     <button class="sidebar-item" data-tab="content" onclick="switchTab('content')">
                         <span class="sidebar-item-icon">🛡</span> Контент
@@ -492,7 +496,104 @@
             // Close mobile sidebar
             document.getElementById('sidebar').classList.remove('open');
             document.getElementById('sidebarOverlay').classList.remove('open');
-            ({ overview:renderOverview, support:renderSupport, users:renderUsers, psychologists:renderPsych, tariffs:renderTariffs, robokassa:renderRobokassa, yookassa:renderYookassa, devtasks:renderDevTasks, appointments:renderAppointments, replacements:renderReplacements, supervision:renderSupervision, calls:renderCalls, payments:renderPayments, subscribers:renderSubscribers, referrals:renderReferrals, activity:renderActivity, notes:renderNotes, notifications:renderNotifications, adminperms:renderAdminPerms, metrics:renderMetrics, sitemap:renderSitemap, content:renderContentMod }[tab])();
+            ({ overview:renderOverview, support:renderSupport, users:renderUsers, psychologists:renderPsych, tariffs:renderTariffs, robokassa:renderRobokassa, yookassa:renderYookassa, devtasks:renderDevTasks, appointments:renderAppointments, replacements:renderReplacements, supervision:renderSupervision, calls:renderCalls, payments:renderPayments, subscribers:renderSubscribers, referrals:renderReferrals, activity:renderActivity, notes:renderNotes, notifications:renderNotifications, adminperms:renderAdminPerms, metrics:renderMetrics, sitemap:renderSitemap, content:renderContentMod, complaints:renderComplaints }[tab])();
+        }
+
+        // ── Жалобы на пользователей ─────────────────────────────────────────
+        // Переписку показываем ТОЛЬКО если её автор сам разрешил и срок доступа не истёк.
+        // Каждое открытие пишется в журнал, автор жалобы видит, сколько раз смотрели.
+        let complaintsFilter = 'open';
+
+        async function renderComplaints(){
+            const el = document.getElementById('content');
+            let rows = [], err = '';
+            try {
+                const d = await (await fetch('/api/complaints.php?action=list&status=' + complaintsFilter, { credentials:'include' })).json();
+                if (d && d.ok) rows = d.data || []; else err = (d && d.error) || 'ошибка';
+            } catch(e){ err = 'нет связи с сервером'; }
+            const tabs = ['open','all'].map(f => `<button class="btn ${complaintsFilter===f?'':'btn-ghost'}" onclick="complaintsFilter='${f}';renderComplaints()">${f==='open'?'Открытые':'Все'}</button>`).join(' ');
+            if (err) { el.innerHTML = `<div class="panel"><div class="empty">⚠️ Не удалось загрузить жалобы: ${esc(err)}</div></div>`; return; }
+            const name = (f,l,e) => ((f||'')+' '+(l||'')).trim() || e || '—';
+            const body = rows.length ? rows.map(c => `
+                <div class="panel" style="margin-bottom:0.75rem;">
+                    <div style="display:flex;justify-content:space-between;gap:0.75rem;flex-wrap:wrap;align-items:flex-start;">
+                        <div style="min-width:0;">
+                            <div style="font-weight:700;">На ${esc(name(c.against_first,c.against_last,c.against_email))}
+                                <span style="font-weight:400;color:var(--a-text-sec);font-size:0.85rem;">· ${esc(c.against_role||'')}</span></div>
+                            <div style="font-size:0.82rem;color:var(--a-text-sec);">от ${esc(name(c.author_first,c.author_last,c.author_email))} · ${esc(c.created_at||'')}</div>
+                        </div>
+                        <div style="text-align:right;font-size:0.8rem;">
+                            <div>${c.status==='open'?'🟠 открыта':(c.status==='closed'?'✅ закрыта':'⛔ отклонена')}</div>
+                            <div style="color:var(--a-text-sec);">${c.access_alive ? ('доступ до ' + esc(c.access_until)) : (c.allow_access ? 'срок доступа истёк' : 'доступ не давали')}</div>
+                        </div>
+                    </div>
+                    <div style="margin-top:0.6rem;white-space:pre-wrap;line-height:1.5;">${esc(c.reason||'')}</div>
+                    ${c.admin_comment ? `<div style="margin-top:0.5rem;font-size:0.85rem;color:var(--a-text-sec);">Комментарий: ${esc(c.admin_comment)}</div>` : ''}
+                    <div style="display:flex;gap:0.4rem;margin-top:0.75rem;flex-wrap:wrap;">
+                        ${c.access_alive ? `<button class="btn" onclick="openComplaintThread(${c.id})">👁 Посмотреть переписку</button>` : ''}
+                        <button class="btn btn-ghost" onclick="showComplaintLog(${c.id})">Журнал открытий</button>
+                        ${c.status==='open' ? `<button class="btn btn-ghost" onclick="resolveComplaint(${c.id},'closed')">Закрыть</button>
+                                               <button class="btn btn-ghost" onclick="resolveComplaint(${c.id},'rejected')">Отклонить</button>` : ''}
+                    </div>
+                    <div id="cmpl-thread-${c.id}"></div>
+                </div>`).join('') : '<div class="panel"><div class="empty">Жалоб нет</div></div>';
+            el.innerHTML = `<div class="panel" style="margin-bottom:0.75rem;">
+                    <h2 style="margin-bottom:0.35rem;">🚩 Жалобы</h2>
+                    <div style="font-size:0.85rem;color:var(--a-text-sec);margin-bottom:0.6rem;">
+                        Переписка открывается только с разрешения того, кто подал жалобу, и только пока
+                        не истёк срок. Каждое открытие видно автору жалобы.
+                    </div>
+                    <div style="display:flex;gap:0.4rem;">${tabs}</div>
+                </div>${body}`;
+        }
+
+        async function openComplaintThread(id){
+            const box = document.getElementById('cmpl-thread-' + id);
+            if (!box) return;
+            if (box.dataset.open === '1') { box.innerHTML = ''; box.dataset.open = ''; return; }
+            box.dataset.open = '1';
+            box.innerHTML = '<div class="loading">Загрузка переписки…</div>';
+            try {
+                const d = await (await fetch('/api/complaints.php?action=thread&id=' + id, { credentials:'include' })).json();
+                if (!d || d.ok === false) { box.innerHTML = `<div class="empty">${esc((d&&d.error)||'Нет доступа')}</div>`; return; }
+                const rows = d.data || [];
+                const who = (uid) => uid === d.author.id ? esc(((d.author.first_name||'')+' '+(d.author.last_name||'')).trim()||'автор жалобы')
+                                                        : esc(((d.against.first_name||'')+' '+(d.against.last_name||'')).trim()||'собеседник');
+                box.innerHTML = `<div style="margin-top:0.75rem;border-top:1px solid var(--a-sidebar-border);padding-top:0.6rem;">
+                    <div style="font-size:0.8rem;color:var(--a-text-sec);margin-bottom:0.5rem;">
+                        Доступ до ${esc(d.access_until||'')} · открытие записано в журнал</div>
+                    ${rows.length ? rows.map(m => `
+                        <div style="margin-bottom:0.5rem;">
+                            <div style="font-size:0.78rem;color:var(--a-text-sec);">${who(m.sender_id)} · ${esc(m.created_at||'')}</div>
+                            <div style="white-space:pre-wrap;line-height:1.45;">${esc(m.content||'')}</div>
+                            ${m.attachment_url ? `<div style="font-size:0.8rem;"><a href="${esc(m.attachment_url)}" target="_blank" rel="noopener">вложение: ${esc(m.attachment_name||'файл')}</a></div>` : ''}
+                        </div>`).join('') : '<div class="empty">Переписка пуста</div>'}
+                </div>`;
+            } catch(e){ box.innerHTML = '<div class="empty">Не удалось загрузить переписку</div>'; }
+        }
+
+        async function showComplaintLog(id){
+            try {
+                const d = await (await fetch('/api/complaints.php?action=access-log&id=' + id, { credentials:'include' })).json();
+                const rows = (d && d.data) || [];
+                alert(rows.length
+                    ? 'Переписку открывали:\n' + rows.map(r => `${r.opened_at} — ${((r.first_name||'')+' '+(r.last_name||'')).trim()||r.admin_id}`).join('\n')
+                    : 'Переписку ещё никто не открывал.');
+            } catch(e){ alert('Не удалось загрузить журнал'); }
+        }
+
+        async function resolveComplaint(id, status){
+            const comment = prompt(status==='closed' ? 'Что сделали по жалобе? (видно только админам)' : 'Почему отклонили?', '');
+            if (comment === null) return;
+            try {
+                const r = await fetch('/api/complaints.php?action=resolve', {
+                    method:'POST', headers:{'Content-Type':'application/json'}, credentials:'include',
+                    body: JSON.stringify({ id, status, admin_comment: comment })
+                });
+                const d = await r.json().catch(()=>({}));
+                if (!r.ok || d.ok === false) throw new Error(d.error||'ошибка');
+                renderComplaints();
+            } catch(e){ alert('Не удалось сохранить: ' + e.message); }
         }
 
         // ── Overview ────────────────────────────────────────────────────────

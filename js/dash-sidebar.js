@@ -21,7 +21,6 @@
                 { href: '/feed.html', icon: '📰', label: 'Лента' },
             ]},
             { group: 'Инструменты', items: [
-                { href: '/ai-chat.html', icon: '🤖', label: 'ИИ Ассистент' },
                 { href: '/psychologist-notes.html', icon: '📝', label: 'Записки' },
                 { href: '/psychologist-blog.html', icon: '✍️', label: 'Мой блог' },
             ]},
