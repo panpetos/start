@@ -1899,6 +1899,9 @@
             <div style="display:flex;gap:0.6rem;align-items:center;">
                 <button onclick="cancelVideoNote()" class="vn-btn vn-btn-ghost" title="Отменить">✕ Отмена</button>
                 <button id="vnRecBtn" onclick="toggleVideoNoteRecording()" class="vn-btn vn-btn-rec" title="Начать запись">● Записать</button>
+                <!-- После записи можно посмотреть, что получилось, и перезаписать, а не отправлять наугад -->
+                <button id="vnReplayBtn" onclick="replayVideoNote()" class="vn-btn vn-btn-ghost" style="display:none;" title="Посмотреть запись">▶ Посмотреть</button>
+                <button id="vnAgainBtn" onclick="redoVideoNote()" class="vn-btn vn-btn-ghost" style="display:none;" title="Записать заново">↻ Заново</button>
                 <button id="vnSendBtn" onclick="sendVideoNote()" class="vn-btn vn-btn-send" style="display:none;" title="Отправить кружок">Отправить</button>
             </div>
         </div>
@@ -2267,12 +2270,13 @@
             if (!d.ok) {
                 // Раньше ошибка просто игнорировалась и лента оставалась пустой без объяснений.
                 container.innerHTML = `<div class="empty-state"><div><p style="color:#DC2626;">⚠️ Не удалось загрузить сообщения группы: ${escapeHtml(d.error)}</p></div></div>`;
+                dropRenderCache();
                 return;
             }
             const rows = d.data || [];
             const wasScrolledToBottom = container.scrollHeight - container.scrollTop <= container.clientHeight + 50;
-            container.innerHTML = rows.length ? rows.map(groupBubbleHtml).join('')
-                : `<div class="empty-state"><div><p style="color:#9CA3AF;">👥 Группа создана — напишите первое сообщение.</p></div></div>`;
+            renderIfChanged(container, rows.length ? rows.map(groupBubbleHtml).join('')
+                : `<div class="empty-state"><div><p style="color:#9CA3AF;">👥 Группа создана — напишите первое сообщение.</p></div></div>`);
             repaintAllVoice();
             restoreVideoNote();
             restoreFlash();
@@ -2737,6 +2741,7 @@
         async function loadChannelPosts(psychId) {
             const container = document.getElementById('messagesContainer');
             container.innerHTML = '<div class="empty-state"><p style="color:#9CA3AF;">Загрузка постов…</p></div>';
+            dropRenderCache();
             let rows = [];
             try {
                 const r = await fetch('/api/channels.php?action=posts&psychologist_id=' + encodeURIComponent(psychId), { credentials: 'include' });
@@ -2745,9 +2750,11 @@
             } catch (e) {}
             if (!rows.length) {
                 container.innerHTML = `<div class="empty-state"><div><p style="color:#9CA3AF;">📡 Здесь появятся публикации психолога — писать в этот раздел нельзя, это только чтение и комментарии к постам.</p></div></div>`;
+                dropRenderCache();
                 return;
             }
             container.innerHTML = rows.map(chPostHtml).join('');
+            dropRenderCache();      // канал писал в контейнер напрямую
         }
 
         function chPostHtml(p) {
@@ -3234,6 +3241,8 @@
             const urlParams = new URLSearchParams(window.location.search);
             const userIdFromUrl = urlParams.get('user');
             const supportIdFromUrl = urlParams.get('support');
+            // ?open=<ключ чата> — по этой ссылке уходит клик по браузерному уведомлению
+            const openFromUrl = urlParams.get('open');
             bookPsychId = urlParams.get('pid');
             isAdminMode = urlParams.get('admin') === '1' && currentUser.role === 'admin';
 
@@ -3268,7 +3277,9 @@
             await loadConversations();
 
             // Автоматически открыть чат если есть user в URL
-            if (userIdFromUrl) {
+            if (openFromUrl) {
+                openChatByKey(openFromUrl);
+            } else if (userIdFromUrl) {
                 await startNewChat(userIdFromUrl);
             } else if (supportIdFromUrl && currentUser.role === 'admin') {
                 await openSupportThread(supportIdFromUrl);
@@ -3282,6 +3293,10 @@
             // всегда (не только когда открыт конкретный чат), как у админа в поддержке.
             if (unreadPollTimer) clearInterval(unreadPollTimer);
             unreadPollTimer = setInterval(loadConversations, 6000);
+            // Разрешение на уведомления спрашиваем по первому действию человека, а не сразу
+            // при открытии: браузеры блокируют запрос без жеста, да и это невежливо.
+            ['click', 'keydown', 'touchstart'].forEach(ev =>
+                document.addEventListener(ev, askNotifyPermission, { once: true }));
         }
 
         // ── Звук + тост при новом сообщении (во всех чатах, любая роль) ──
@@ -3301,19 +3316,73 @@
                 osc.stop(ctx.currentTime + 0.5);
             } catch (e) {}
         }
-        function chatShowToast(text) {
+        /** Уведомление кликабельное: открывает тот диалог, откуда пришло сообщение. */
+        function chatShowToast(text, chatKey) {
             let el = document.getElementById('chatNewMsgToast');
             if (!el) {
                 el = document.createElement('div');
                 el.id = 'chatNewMsgToast';
                 el.style.cssText = 'position:fixed;top:14px;right:14px;z-index:3000;background:#fff;border:1px solid #E5E7EB;border-left:3px solid #7C3AED;border-radius:0.6rem;padding:0.6rem 1rem;box-shadow:0 8px 24px rgba(0,0,0,0.15);max-width:300px;font-size:0.85rem;cursor:pointer;color:#333;';
-                el.onclick = () => { el.style.display = 'none'; };
                 document.body.appendChild(el);
             }
+            el.onclick = () => {
+                el.style.display = 'none';
+                if (chatKey) openChatByKey(chatKey);
+            };
+            el.title = chatKey ? 'Открыть диалог' : '';
             el.innerHTML = '<div style="font-weight:700;font-size:0.75rem;color:#7C3AED;margin-bottom:0.15rem;">💬 Новое сообщение</div>' + escapeHtml(text.length > 90 ? text.slice(0, 90) + '…' : text);
             el.style.display = 'block';
             setTimeout(() => { if (el) el.style.display = 'none'; }, 5000);
         }
+
+        /**
+         * Открыть чат по его ключу — тому же, что у папок, закреплений и уведомлений:
+         *   <user_id> | group:<id> | channel:<psy_id> | support:<thread> | __fav__
+         */
+        function openChatByKey(key) {
+            const k = String(key || '');
+            if (!k) return;
+            if (k === FAVORITES_ID) { openFavorites(); return; }
+            if (k.indexOf(GROUP_PREFIX) === 0) { openGroupChat(k.slice(GROUP_PREFIX.length)); return; }
+            if (k.indexOf(CHANNEL_PREFIX) === 0) { openChannel(k.slice(CHANNEL_PREFIX.length)); return; }
+            if (k.indexOf(SUPPORT_PREFIX) === 0) { openSupportThread(k.slice(SUPPORT_PREFIX.length)); return; }
+            openChat(k);
+        }
+        window.openChatByKey = openChatByKey;
+
+        // Браузерное уведомление о новом сообщении. Клик по нему открывает нужный диалог:
+        // раньше уведомления не было вовсе, и о сообщении узнавали, только вернувшись в чат.
+        let notifyAsked = false;
+        function askNotifyPermission() {
+            if (notifyAsked || !window.Notification) return;
+            notifyAsked = true;
+            if (Notification.permission === 'default') {
+                try { Notification.requestPermission(); } catch (e) {}
+            }
+        }
+
+        function notifyNewMessage(title, body, chatKey) {
+            try {
+                if (!window.Notification || Notification.permission !== 'granted') return;
+                const n = new Notification(title, {
+                    body: (body || '').slice(0, 160),
+                    icon: '/assets/favicon.svg',
+                    tag: 'psy-chat-' + chatKey,     // одно уведомление на диалог, а не десять
+                });
+                n.onclick = () => {
+                    try { window.focus(); } catch (e) {}
+                    n.close();
+                    // если чат уже открыт в этой вкладке — просто переключаем диалог,
+                    // иначе переходим на страницу чата с нужным диалогом в адресе
+                    if (typeof openChatByKey === 'function' && document.getElementById('conversationsList')) {
+                        openChatByKey(chatKey);
+                    } else {
+                        location.href = '/chat.html?open=' + encodeURIComponent(chatKey);
+                    }
+                };
+            } catch (e) {}
+        }
+
         function checkUnreadForSound(conversations) {
             const total = (conversations || []).reduce((s, c) => s + (c.unread_count || 0), 0);
             if (lastKnownUnreadTotal >= 0 && total > lastKnownUnreadTotal) {
@@ -3321,7 +3390,13 @@
                 const withUnread = (conversations || []).find(c => (c.unread_count || 0) > 0);
                 if (withUnread) {
                     const name = `${withUnread.first_name || ''} ${withUnread.last_name || ''}`.trim() || 'Пользователь';
-                    chatShowToast(name + ': ' + (withUnread.last_message || ''));
+                    const key = withUnread._support ? (SUPPORT_PREFIX + withUnread._threadId) : String(withUnread.user_id || withUnread.id);
+                    const text = previewText(withUnread.last_message || '');
+                    // Пока смотришь именно этот диалог, дёргать уведомлением не за что
+                    if (String(selectedUserId) !== key || document.hidden) {
+                        chatShowToast(name + ': ' + text, key);
+                        notifyNewMessage(name, text, key);
+                    }
                 }
             }
             lastKnownUnreadTotal = total;
@@ -4568,6 +4643,7 @@
                 const container = document.getElementById('messagesContainer');
                 const wasScrolledToBottom = container.scrollHeight - container.scrollTop <= container.clientHeight + 50;
 
+                dropRenderCache();      // ветка поддержки заполняет контейнер сама
                 container.innerHTML = msgs.map(m => {
                     const isMine = m.sender === 'admin';
                     const time = formatTime(m.created_at);
@@ -4621,11 +4697,9 @@
                 favMessagesCache = rows;
                 const container = document.getElementById('messagesContainer');
                 const wasScrolledToBottom = container.scrollHeight - container.scrollTop <= container.clientHeight + 50;
-                if (!rows.length) {
-                    container.innerHTML = `<div class="empty-state"><div><p style="color:#9CA3AF;">⭐ Тут будут ваши заметки, файлы и пересланные сообщения — видны только вам</p></div></div>`;
-                } else {
-                    container.innerHTML = rows.map(favMessageBubbleHtml).join('');
-                }
+                renderIfChanged(container, rows.length
+                    ? rows.map(favMessageBubbleHtml).join('')
+                    : `<div class="empty-state"><div><p style="color:#9CA3AF;">⭐ Тут будут ваши заметки, файлы и пересланные сообщения — видны только вам</p></div></div>`);
                 repaintAllVoice();
                 restoreVideoNote();
                 restoreFlash();
@@ -4940,7 +5014,7 @@
                 const container = document.getElementById('messagesContainer');
                 const wasScrolledToBottom = container.scrollHeight - container.scrollTop <= container.clientHeight + 50;
 
-                container.innerHTML = messages.map(m => {
+                const dmHtml = messages.map(m => {
                     // Для админа: сообщения от support тоже считаются "своими"
                     const isMine = String(m.sender_id) === String(currentUser.id) ||
                         (isAdminMode && (m.sender_id === 'support' || m.sender_first_name === 'Техподдержка'));
@@ -5033,6 +5107,7 @@
                         </div>
                     `;
                 }).join('');
+                renderIfChanged(container, dmHtml);
 
                 repaintAllVoice();
                 restoreVideoNote();
@@ -5496,6 +5571,8 @@
             vnEl('vnRecBtn').classList.remove('stop');
             vnEl('vnRecBtn').style.display = '';
             vnEl('vnSendBtn').style.display = 'none';
+            vnEl('vnReplayBtn').style.display = 'none';
+            vnEl('vnAgainBtn').style.display = 'none';
             vnEl('vnProgress').classList.remove('rec');
             vnEl('videoNoteModal').style.display = 'flex';
         }
@@ -5506,6 +5583,9 @@
                 return;
             }
             if (!videoNoteStream) return;
+            // если сейчас показывается предыдущая запись — вернуть камеру перед новой записью
+            const prevEl = vnEl('vnPreview');
+            if (prevEl && prevEl.getAttribute('src')) redoVideoNote();
             const candidates = ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm', 'video/mp4'];
             const mime = candidates.find(m => MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(m));
             videoNoteRecorder = mime ? new MediaRecorder(videoNoteStream, { mimeType: mime })
@@ -5519,9 +5599,14 @@
                 vnEl('vnProgress').classList.remove('rec');
                 vnEl('vnRecBtn').style.display = 'none';
                 vnEl('vnSendBtn').style.display = videoNoteBlob ? '' : 'none';
+                vnEl('vnReplayBtn').style.display = videoNoteBlob ? '' : 'none';
+                vnEl('vnAgainBtn').style.display = videoNoteBlob ? '' : 'none';
                 vnEl('vnHint').textContent = videoNoteBlob
-                    ? 'Готово — отправляем кружок?'
+                    ? 'Посмотрите, что получилось — и отправляйте'
                     : 'Запись не получилась, попробуйте ещё раз';
+                // Раньше в кружке продолжала идти живая камера, и увидеть свою запись перед
+                // отправкой было нельзя. Показываем запись и даём её пересмотреть.
+                if (videoNoteBlob) showRecordedVideoNote();
             };
             videoNoteRecorder.start(500);
             videoNoteStart = Date.now();
@@ -5557,7 +5642,8 @@
                 videoNoteStream.getTracks().forEach(t => t.stop());
             }
             const prev = vnEl('vnPreview');
-            if (prev) { prev.pause(); prev.srcObject = null; }
+            if (prev) { prev.pause(); prev.srcObject = null; prev.removeAttribute('src'); }
+            if (vnPlaybackUrl) { try { URL.revokeObjectURL(vnPlaybackUrl); } catch (e) {} vnPlaybackUrl = null; }
             vnEl('videoNoteModal').style.display = 'none';
         }
 
@@ -5566,6 +5652,58 @@
             videoNoteChunks = [];
             closeVideoNote();
         }
+
+        let vnPlaybackUrl = null;      // objectURL записи в окне отправки
+
+        /** Показать в кружке саму запись вместо живой камеры и сразу проиграть. */
+        function showRecordedVideoNote() {
+            const prev = vnEl('vnPreview');
+            if (!prev || !videoNoteBlob) return;
+            if (vnPlaybackUrl) { try { URL.revokeObjectURL(vnPlaybackUrl); } catch (e) {} }
+            vnPlaybackUrl = URL.createObjectURL(videoNoteBlob);
+            prev.srcObject = null;
+            prev.muted = false;          // живой звук уже не идёт, эха не будет
+            prev.autoplay = false;
+            prev.src = vnPlaybackUrl;
+            prev.currentTime = 0;
+            prev.play().catch(() => {});
+        }
+
+        function replayVideoNote() {
+            const prev = vnEl('vnPreview');
+            if (!prev) return;
+            if (!prev.src && videoNoteBlob) { showRecordedVideoNote(); return; }
+            prev.currentTime = 0;
+            prev.play().catch(() => {});
+        }
+        window.replayVideoNote = replayVideoNote;
+
+        /** Записать заново: возвращаем живую камеру и исходное состояние окна. */
+        function redoVideoNote() {
+            const prev = vnEl('vnPreview');
+            videoNoteBlob = null;
+            videoNoteChunks = [];
+            videoNoteSeconds = 0;
+            if (vnPlaybackUrl) { try { URL.revokeObjectURL(vnPlaybackUrl); } catch (e) {} vnPlaybackUrl = null; }
+            if (prev) {
+                prev.pause();
+                prev.removeAttribute('src');
+                prev.load();
+                prev.muted = true;
+                prev.autoplay = true;
+                if (videoNoteStream) { prev.srcObject = videoNoteStream; prev.play().catch(() => {}); }
+            }
+            vnEl('vnTime').textContent = '00:00';
+            vnEl('vnHint').textContent = 'Нажмите «Записать» — кружок пишется до 60 секунд';
+            vnEl('vnRecBtn').textContent = '● Записать';
+            vnEl('vnRecBtn').classList.remove('stop');
+            vnEl('vnRecBtn').style.display = '';
+            vnEl('vnSendBtn').style.display = 'none';
+            vnEl('vnReplayBtn').style.display = 'none';
+            vnEl('vnAgainBtn').style.display = 'none';
+            vnEl('vnProgress').classList.remove('rec');
+        }
+        window.redoVideoNote = redoVideoNote;
 
         async function sendVideoNote() {
             if (videoNoteRecorder && videoNoteRecorder.state === 'recording') {
@@ -5658,7 +5796,35 @@
         // Какой кружок сейчас играет и с какой секунды. Список сообщений перерисовывается
         // опросом раз в 5 секунд, вместе с ним пересоздаётся <video> — без этого кружок
         // останавливался сам по себе на середине. Помним и возвращаем воспроизведение.
-        let playingVideoNote = null;   // {url, time}
+        let playingVideoNote = null;   // {url, time, msgId}
+        let stickyOwnerKey = '';       // в каком диалоге началась запись из закреплённой плашки
+
+        /**
+         * Записать разметку в контейнер, только если она правда изменилась.
+         *
+         * Опрос перечитывает переписку каждые 5 секунд и раньше всегда переписывал
+         * innerHTML — даже когда ничего не поменялось. Вместе с разметкой пересоздавался
+         * <video>, и кружок при воспроизведении заметно дёргался (а голосовое теряло место).
+         * Переносить сам узел бесполезно: браузер ставит видео на паузу, как только элемент
+         * вынут из документа. Поэтому просто не трогаем DOM, когда нечего менять.
+         */
+        function renderIfChanged(container, html) {
+            if (!container) return false;
+            // Ключом идёт и сам чат: иначе, вернувшись из канала (его посты пишутся в тот же
+            // контейнер напрямую), одинаковая разметка приняла бы экран за уже отрисованный.
+            const key = String(selectedUserId || '');
+            if (container.dataset.renderedChat === key && container.dataset.rendered === html) return false;
+            container.dataset.renderedChat = key;
+            container.dataset.rendered = html;
+            container.innerHTML = html;
+            return true;
+        }
+
+        /** Сбросить кэш отрисовки — когда контейнер переписки заполняет кто-то другой. */
+        function dropRenderCache() {
+            const c = document.getElementById('messagesContainer');
+            if (c) { c.dataset.rendered = ''; c.dataset.renderedChat = ''; }
+        }
 
         function startVideoNotePlayback(box, v, fromTime) {
             document.querySelectorAll('.video-note.playing').forEach(other => {
@@ -5668,8 +5834,51 @@
                 other.classList.remove('playing');
             });
             v.muted = false;
+            // Скорость общая с голосовыми: выставил 1.5x у голосового — кружок играет так же
+            try { v.playbackRate = voiceSpeed; } catch (e) {}
             box.classList.add('playing');
-            playingVideoNote = { url: v.getAttribute('src'), time: fromTime || 0 };
+            // Помним и сообщение: один и тот же файл может лежать в нескольких сообщениях
+            // (например, кружок переслали), и по одной ссылке играющий кружок не опознать —
+            // после перерисовки запускался чужой, а этот вставал на паузу.
+            playingVideoNote = { url: v.getAttribute('src'), time: fromTime || 0, msgId: msgIdOfNode(box) };
+            stickyOwnerKey = currentChatKey();
+            wireVideoNoteHandlers(box, v);
+            const fail = () => { box.classList.remove('playing'); playingVideoNote = null; };
+            const tryPlay = () => {
+                if (fromTime) { try { v.currentTime = fromTime; } catch (e) {} }
+                const pr = v.play();
+                if (pr && pr.catch) pr.catch(() => {
+                    // не готов прямо сейчас — повторим, когда подъедут данные
+                    v.addEventListener('canplay', () => { v.play().catch(fail); }, { once: true });
+                });
+            };
+            // Играть пробуем сразу, а не только «когда готов»: раньше при readyState < 2 мы
+            // ждали loadeddata, а это событие приходит один раз за загрузку. После перемотки
+            // (в том числе после просмотра) readyState падает, loadeddata больше не случается —
+            // и кружок молча отказывался играть. Поэтому вызываем play() и подстраховываемся
+            // событиями canplay/loadeddata, которые приходят и после сика.
+            tryPlay();
+            if (v.readyState < 2) {
+                const retry = () => { if (v.paused && playingVideoNote) tryPlay(); };
+                v.addEventListener('loadeddata', retry, { once: true });
+                v.addEventListener('canplay', retry, { once: true });
+                v.addEventListener('error', fail, { once: true });
+                if (v.networkState === 0 /* NETWORK_EMPTY */) v.load();
+            }
+            playQueueOn = true;
+            voiceStartTicking();
+            updateStickyPlayer();
+        }
+
+        /** id сообщения, в котором лежит узел (личное, групповое или в избранном). */
+        function msgIdOfNode(node) {
+            const msg = node && node.closest ? node.closest('.message') : null;
+            if (!msg) return '';
+            return msg.getAttribute('data-msg-id') || msg.getAttribute('data-fav-id') || '';
+        }
+
+        /** Слежение за позицией и переход к следующей записи — на любом узле кружка. */
+        function wireVideoNoteHandlers(box, v) {
             v.ontimeupdate = () => {
                 if (playingVideoNote && playingVideoNote.url === v.getAttribute('src')) {
                     playingVideoNote.time = v.currentTime;
@@ -5682,23 +5891,6 @@
                 playingVideoNote = null;
                 if (!playNextAfter('vn', url)) updateStickyPlayer();
             };
-            const fail = () => { box.classList.remove('playing'); playingVideoNote = null; };
-            // Только что отправленный кружок (или медленная сеть) ещё не готов —
-            // play() в этот момент ничего не делает, и первый тап выглядел как «не работает».
-            const tryPlay = () => {
-                if (fromTime) { try { v.currentTime = fromTime; } catch (e) {} }
-                v.play().catch(fail);
-            };
-            if (v.readyState >= 2) {
-                tryPlay();
-            } else {
-                v.addEventListener('loadeddata', tryPlay, { once: true });
-                v.addEventListener('error', fail, { once: true });
-                if (v.networkState === 0 /* NETWORK_EMPTY */) v.load();
-            }
-            playQueueOn = true;
-            voiceStartTicking();
-            updateStickyPlayer();
         }
 
         /** Тап по кружку — играть/пауза. Одновременно играет только один кружок. */
@@ -5718,12 +5910,20 @@
         /** Вернуть воспроизведение кружка после перерисовки списка сообщений. */
         function restoreVideoNote() {
             if (!playingVideoNote) return;
-            const boxes = document.querySelectorAll('.video-note');
-            for (let i = 0; i < boxes.length; i++) {
-                const v = boxes[i].querySelector('video');
-                if (!v || v.getAttribute('src') !== playingVideoNote.url) continue;
-                if (!v.paused) return;                     // этот узел уцелел — ничего не делаем
-                startVideoNotePlayback(boxes[i], v, playingVideoNote.time);
+            const boxes = [...document.querySelectorAll('.video-note')];
+            const byMsg = playingVideoNote.msgId
+                ? boxes.filter(b => msgIdOfNode(b) === playingVideoNote.msgId)
+                : [];
+            const candidates = byMsg.length ? byMsg
+                : boxes.filter(b => {
+                    const v = b.querySelector('video');
+                    return v && v.getAttribute('src') === playingVideoNote.url;
+                });
+            for (const box of candidates) {
+                const fresh = box.querySelector('video');
+                if (!fresh) continue;
+                if (!fresh.paused) return;                 // этот узел уцелел — ничего не делаем
+                startVideoNotePlayback(box, fresh, playingVideoNote.time);
                 return;
             }
             playingVideoNote = null;   // кружок исчез из переписки (удалили) — забываем
@@ -6051,13 +6251,34 @@
             updateStickyPlayer();
         }
 
-        /** Прокрутить переписку к записи, которая сейчас в плашке. */
-        function stickyJumpTo() {
-            let el = null;
-            if (currentPlayingVoiceId || stickyPausedId) {
-                el = document.querySelector(`.voice-message[data-id="${currentPlayingVoiceId || stickyPausedId}"]`);
-            } else if (playingVideoNote) {
-                el = document.querySelector('.video-note.playing');
+        /**
+         * Прокрутить переписку к записи, которая сейчас в плашке. Запись могла начаться
+         * в другом диалоге — тогда сначала открываем тот диалог: раньше нажатие на плашку
+         * из другого чата просто ничего не делало.
+         */
+        async function stickyJumpTo() {
+            const findEl = () => {
+                if (currentPlayingVoiceId || stickyPausedId) {
+                    return document.querySelector(`.voice-message[data-id="${currentPlayingVoiceId || stickyPausedId}"]`);
+                }
+                if (playingVideoNote) {
+                    return document.querySelector('.video-note.playing') ||
+                           [...document.querySelectorAll('.video-note')]
+                               .find(b => playingVideoNote.msgId && msgIdOfNode(b) === playingVideoNote.msgId) ||
+                           [...document.querySelectorAll('.video-note video')]
+                               .filter(v => v.getAttribute('src') === playingVideoNote.url)
+                               .map(v => v.parentElement)[0];
+                }
+                return null;
+            };
+            let el = findEl();
+            if (!el && stickyOwnerKey && String(selectedUserId) !== stickyOwnerKey) {
+                openChatByKey(stickyOwnerKey);
+                // ждём отрисовки переписки, но не больше трёх секунд
+                for (let i = 0; i < 15 && !el; i++) {
+                    await new Promise(r => setTimeout(r, 200));
+                    el = findEl();
+                }
             }
             if (!el) return;
             try { el.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (e) {}
@@ -6325,6 +6546,7 @@
             if (currentPlayingVoiceId && currentPlayingVoiceId !== msgId) {
                 stopVoicePlayer(currentPlayingVoiceId, false);
             }
+            stickyOwnerKey = currentChatKey();
             const existing = voicePlayers[msgId];
             if (existing && existing.playing) { stopVoicePlayer(msgId, false); return; }
 
@@ -6346,6 +6568,10 @@
             voiceSpeed = steps[(steps.indexOf(voiceSpeed) + 1) % steps.length];
             try { localStorage.setItem('psy-voice-speed', String(voiceSpeed)); } catch (e) {}
             document.querySelectorAll('.voice-speed').forEach(b => { b.textContent = voiceSpeed + 'x'; });
+            // Скорость одна на все записи: кружки подхватывают её сразу, даже на ходу
+            document.querySelectorAll('.video-note video').forEach(v => {
+                try { v.playbackRate = voiceSpeed; } catch (e) {}
+            });
             const p = voicePlayers[msgId];
             if (p && p.playing) {
                 const pos = voicePosition(msgId);
