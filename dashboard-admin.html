@@ -361,6 +361,9 @@
                     <button class="sidebar-item" data-tab="adminperms" onclick="switchTab('adminperms')">
                         <span class="sidebar-item-icon">🔐</span> Права админов
                     </button>
+                    <a class="sidebar-item" href="/notify-settings.html" style="text-decoration:none;">
+                        <span class="sidebar-item-icon">🔔</span> Куда мне присылать
+                    </a>
                     <button class="sidebar-item" data-tab="complaints" onclick="switchTab('complaints')">
                         <span class="sidebar-item-icon">🚩</span> Жалобы
                     </button>
@@ -1529,7 +1532,8 @@
         function supRenderAttachment(m) {
             if (!m.attachment_url) return '';
             const isImg = (m.attachment_type || '').includes('image');
-            if (isImg) return `<div style="margin-top:0.3rem;"><img src="${esc(m.attachment_url)}" style="max-width:200px;max-height:150px;border-radius:0.5rem;cursor:pointer;" onclick="window.open(this.src,'_blank')"></div>`;
+            // просмотр во весь экран берёт на себя lightbox.js — window.open здесь открывал второе окно
+            if (isImg) return `<div style="margin-top:0.3rem;"><img src="${esc(m.attachment_url)}" style="max-width:200px;max-height:150px;border-radius:0.5rem;cursor:pointer;" data-zoom></div>`;
             return `<div style="margin-top:0.3rem;"><a href="${esc(m.attachment_url)}" target="_blank" style="color:inherit;text-decoration:underline;font-size:0.8rem;">📎 ${esc(m.attachment_name || 'файл')}</a></div>`;
         }
 

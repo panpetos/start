@@ -388,6 +388,10 @@
         body.selecting .message { cursor: pointer; }
         .message.selected { outline: 2px solid #7C3AED; outline-offset: 2px; }
         body.selecting .msg-hover { display: none; }
+        /* Долгое нажатие по сообщению — жест выделения, поэтому системное «выделить текст»
+           и контекстное меню на пузыре не мешают (текст по-прежнему копируется из меню). */
+        .message { -webkit-touch-callout: none; }
+        body.selecting .message { user-select: none; -webkit-user-select: none; }
 
         /* Подсветка сообщения, к которому перешли по закреплённому/плееру */
         .message.flash { animation: msgFlash 1.4s ease; }
@@ -420,6 +424,12 @@
             padding: 1px 8px; border-radius: 1rem; pointer-events: none;
             font-variant-numeric: tabular-nums;
         }
+        /* Кнопка скорости на кружке — в правом верхнем углу, поверх видео */
+        .video-note .vn-speed {
+            position: absolute; top: 6px; right: 6px; z-index: 2;
+            background: rgba(0,0,0,0.55); color: #fff; padding: 2px 6px;
+        }
+        .video-note .vn-speed:hover { background: rgba(0,0,0,0.75); }
         .folder-picker {
             position: fixed; z-index: 4000; min-width: 170px; max-height: 60vh; overflow-y: auto;
             background: #fff; border: 1px solid #E5E7EB; border-radius: 0.75rem;
@@ -476,6 +486,10 @@
             .conversation-item > .folder-pick-btn { opacity: 0.5; }
         }
 
+        /* Разделитель после «Избранного»: инлайновый светлый цвет в тёмной теме выглядел
+           белой щелью, режущей список. Цвет теперь зависит от темы. */
+        .conversation-item.conv-sep { border-bottom: 2px solid #F3E8FF; }
+        body.dark .conversation-item.conv-sep { border-bottom-color: #3A3A3A; }
         .conversation-item:hover {
             background: #f8f9fa;
         }
@@ -653,7 +667,9 @@
            без ограничения высоты и занимала целый экран. Ограничиваем колонку и высоту медиа —
            в лоб на весь экран пост больше не разворачивается, картинка открывается по клику. */
         .ch-post { background: white; border-radius: 1rem; padding: 0.85rem 1rem; margin: 0 auto 0.75rem; box-shadow: 0 2px 8px rgba(0,0,0,0.08); max-width: 620px; width: 100%; }
-        .ch-post-text { white-space: pre-wrap; line-height: 1.5; color: #333; font-size: 0.94rem; }
+        /* overflow-wrap: длинная ссылка целиком распирала пост и уводила ленту за экран */
+        .ch-post-text { white-space: pre-wrap; line-height: 1.5; color: #333; font-size: 0.94rem;
+                        overflow-wrap: anywhere; word-break: break-word; }
         .ch-post-img { width: 100%; max-height: 300px; object-fit: cover; border-radius: 0.7rem; margin-top: 0.5rem; display: block; cursor: zoom-in; }
         @media (max-width: 768px) { .ch-post-img { max-height: 220px; } }
         .ch-post-date { color: #999; font-size: 0.75rem; margin-bottom: 0.4rem; }
@@ -1463,6 +1479,10 @@
             }
             /* Кнопка сессии на телефоне короче: подпись прячем, время видно */
             .chat-header-actions .session-btn { padding: 0.4rem 0.55rem; font-size: 0.78rem; }
+            /* Длинные подписи чипов («Написать», «Оформление», «Мой канал») на телефоне
+               прятали шапку в две строки и уезжали вправо — оставляем только значок,
+               смысл подсказывает title. */
+            .chat-header-actions .btn-label { display: none; }
 
             .conversation-item { padding: 0.75rem; gap: 0.65rem; }
             .conversation-avatar { width: 44px; height: 44px; }
@@ -1564,6 +1584,34 @@
         body.dark .btn-cancel { background: #555; }
         body.dark .message-time { color: rgba(255,255,255,0.5); }
         body.dark .message.theirs .message-time { color: #9A9A9A; }
+        /* ── Тёмная тема: светлые разделители и белые поля во всплывающих окнах ──
+           Раньше каждое окно правилось отдельно, и стоило добавить новое — в нём снова
+           появлялись белые полосы, режущие окно на части (фидбэк по «Новой группе»).
+           Эти правила разом накрывают любые инлайновые #eee/#e0e0e0/#e6e6e6. */
+        body.dark [style*="1px solid #eee"],
+        body.dark [style*="1px solid #E5E7EB"],
+        body.dark [style*="1px solid #e6e6e6"],
+        body.dark [style*="1px solid #E6E6E6"] { border-color: #333 !important; }
+        body.dark [style*="solid #e0e0e0"],
+        body.dark [style*="solid #E0E0E0"] { border-color: #444 !important; }
+        /* Поля ввода в окнах: белая подложка в тёмной теме слепит.
+           Цепляемся за собственный инлайновый стиль поля, а не за родителя-окно: у окна
+           style переписывается из JS (display), и браузер пересобирает атрибут с пробелами
+           после двоеточий — селектор по родителю после этого перестаёт совпадать. */
+        body.dark input[style*="solid #e0e0e0"],
+        body.dark input[style*="solid #E0E0E0"],
+        body.dark textarea[style*="solid #e0e0e0"],
+        body.dark select[style*="solid #e0e0e0"],
+        body.dark input[style*="solid #E5E7EB"],
+        body.dark textarea[style*="solid #E5E7EB"] {
+            background: #1E1E1E !important; border-color: #444 !important; color: #E6E6E6 !important;
+        }
+        body.dark input[style*="solid #e0e0e0"]::placeholder,
+        body.dark textarea[style*="solid #e0e0e0"]::placeholder { color: #8A8A8A !important; }
+        /* Кнопка «⋮» у строки чата: в тёмной теме она была чёрной на чёрном */
+        body.dark .folder-pick-btn { color: #C9C9C9; }
+        body.dark .folder-pick-btn.in-folder { color: #B794F4; }
+
         /* Modal overrides (inline styles) */
         body.dark #videoModal > div,
         body.dark #orderModal > div,
@@ -2697,10 +2745,10 @@
             const descr = info.description || c.channel_description || '';
 
             const writeBtn = (!isOwn && c.user_id)
-                ? `<a href="/chat.html?user=${encodeURIComponent(c.user_id)}" class="session-btn" style="background:#15803D;text-decoration:none;" title="Написать психологу лично">✉️ Написать</a>`
-                : (isOwn ? `<a href="/psychologist-dashboard.html" class="session-btn" style="background:#7C3AED;text-decoration:none;" title="Опубликовать пост">✍️ Мой канал</a>` : '');
+                ? `<a href="/chat.html?user=${encodeURIComponent(c.user_id)}" class="session-btn" style="background:#15803D;text-decoration:none;" title="Написать психологу лично">✉️<span class="btn-label"> Написать</span></a>`
+                : (isOwn ? `<a href="/psychologist-dashboard.html" class="session-btn" style="background:#7C3AED;text-decoration:none;" title="Мой канал в кабинете">✍️<span class="btn-label"> Мой канал</span></a>` : '');
             const editBtn = isOwn
-                ? `<button class="session-btn" style="background:#0EA5E9;" onclick="openChannelSettings('${psychId}')" title="Аватарка, название и описание канала">🎨 Оформление</button>`
+                ? `<button class="session-btn" style="background:#0EA5E9;" onclick="openChannelSettings('${psychId}')" title="Аватарка, название и описание канала">🎨<span class="btn-label"> Оформление</span></button>`
                 : '';
             const sub = descr
                 ? `📡 ${escapeHtml(descr.slice(0, 70))}`
@@ -2830,7 +2878,9 @@
 
         function chPostHtml(p) {
             const date = new Date(p.created_at).toLocaleString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
-            const img = p.image_url ? `<img class="ch-post-img" src="${escapeHtml(p.image_url)}" alt="" title="Открыть оригинал" onclick="window.open(this.src,'_blank')">` : '';
+            // Открывает только просмотр во весь экран: раньше здесь ещё и window.open
+            // уводил на прямую ссылку, и по клику вылезали сразу оба (фидбэк админа).
+            const img = p.image_url ? `<img class="ch-post-img" src="${escapeHtml(p.image_url)}" alt="" title="Открыть фото">` : '';
             const text = p.text ? `<div class="ch-post-text">${formatPostText(p.text)}</div>` : '';
             return `
                 <div class="ch-post" data-post-id="${p.id}">
@@ -3034,9 +3084,11 @@
                             ${c.price ? `<span style="background:#F3E8FF;color:#7C3AED;padding:0.35rem 0.7rem;border-radius:0.6rem;font-size:0.82rem;font-weight:600;">от ${c.price} ₽/сессия</span>` : ''}
                             ${c.experience ? `<span style="background:#F3E8FF;color:#7C3AED;padding:0.35rem 0.7rem;border-radius:0.6rem;font-size:0.82rem;font-weight:600;">Опыт: ${escapeHtml(String(c.experience))}</span>` : ''}
                         </div>
-                        <div style="display:flex;gap:0.6rem;margin-top:1.2rem;">
-                            <a href="/psychologist-profile.html?id=${encodeURIComponent(c.psychologist_id)}" target="_blank" class="session-btn" style="background:#7C3AED;text-decoration:none;">Открыть профиль и канал</a>
-                            <a href="/book.html?id=${encodeURIComponent(c.psychologist_id)}" class="session-btn" style="background:#15803D;text-decoration:none;">📅 Записаться</a>
+                        <!-- flex-wrap и короткая подпись: на телефоне «Открыть профиль и канал»
+                             + «Записаться» не влезали в ряд и карточку приходилось скроллить -->
+                        <div style="display:flex;gap:0.6rem;margin-top:1.2rem;flex-wrap:wrap;">
+                            <a href="/psychologist-profile.html?id=${encodeURIComponent(c.psychologist_id)}" target="_blank" class="session-btn" style="background:#7C3AED;text-decoration:none;" title="Открыть профиль и канал психолога">👤 Профиль</a>
+                            <a href="/book.html?id=${encodeURIComponent(c.psychologist_id)}" class="session-btn" style="background:#15803D;text-decoration:none;" title="Записаться на консультацию">📅 Записаться</a>
                         </div>`;
                 } else {
                     body.innerHTML = `
@@ -4530,6 +4582,46 @@
             }
             await loadMessages();
         }
+        // ── Долгое нажатие по сообщению = начать выделение ──
+        // На телефоне выделять было нечем: приходилось открывать «⋮» и искать «Выделить».
+        // Теперь как в Telegram: зажал сообщение — оно и выделилось, дальше добираешь тапами.
+        const LONGPRESS_MS = 420;
+        const LONGPRESS_SLOP = 12;      // сдвинул палец сильнее — это скролл, а не удержание
+        let lpTimer = null, lpStart = null, lpId = null;
+
+        function longPressCancel() {
+            if (lpTimer) { clearTimeout(lpTimer); lpTimer = null; }
+            lpStart = null; lpId = null;
+        }
+
+        document.addEventListener('pointerdown', function (e) {
+            if (selectMode) return;                       // уже выделяем — тапы работают как выбор
+            if (e.button !== undefined && e.button !== 0) return;
+            const msg = e.target.closest && e.target.closest('.message');
+            if (!msg) return;
+            // не мешаем плеерам, кнопкам и ссылкам внутри пузыря
+            if (e.target.closest('button, a, input, textarea, .voice-message, .video-note, .msg-hover')) return;
+            const id = msg.getAttribute('data-msg-id') || msg.getAttribute('data-fav-id');
+            if (!id) return;
+            lpStart = { x: e.clientX, y: e.clientY };
+            lpId = id;
+            lpTimer = setTimeout(() => {
+                lpTimer = null;
+                if (!lpId) return;
+                enterSelectMode(lpId);                    // именно то сообщение, которое держали
+                try { if (navigator.vibrate) navigator.vibrate(15); } catch (err) {}
+                lpId = null;
+            }, LONGPRESS_MS);
+        }, { passive: true });
+
+        document.addEventListener('pointermove', function (e) {
+            if (!lpStart) return;
+            if (Math.abs(e.clientX - lpStart.x) > LONGPRESS_SLOP ||
+                Math.abs(e.clientY - lpStart.y) > LONGPRESS_SLOP) longPressCancel();
+        }, { passive: true });
+        ['pointerup', 'pointercancel', 'scroll'].forEach(ev =>
+            document.addEventListener(ev, longPressCancel, { passive: true, capture: true }));
+
         // Клик по сообщению в режиме выделения переключает выбор
         document.addEventListener('click', function (e) {
             if (!selectMode) return;
@@ -4643,7 +4735,7 @@
         function favoritesRows() {
             if (!chatVisible('fav', FAVORITES_ID, null)) return [];
             return [{ key: FAVORITES_ID, html: `
-                <div class="conversation-item ${selectedUserId === FAVORITES_ID ? 'active' : ''}" onclick="openFavorites()" style="border-bottom:2px solid #F3E8FF;" title="Избранное">
+                <div class="conversation-item conv-sep ${selectedUserId === FAVORITES_ID ? 'active' : ''}" onclick="openFavorites()" title="Избранное">
                     <div class="conversation-avatar" style="background:linear-gradient(135deg,#F59E0B,#FBBF24);"><span class="ava-ico">${ICO_STAR}</span></div>
                     <div class="conversation-info">
                         <div class="conversation-name"><span class="cn-text">Избранное</span>${pinMarkHtml(FAVORITES_ID)}</div>
@@ -6190,11 +6282,15 @@
 
         /** Разметка кружка в переписке. */
         function videoNoteHtml(url, label) {
+            // Скорость у кружка своя кнопка, как у голосового: значение общее на все записи,
+            // раньше менять её у кружка было нечем (фидбэк админа).
             return `
                 <div class="video-note" onclick="toggleVideoNotePlay(this)" title="Видеосообщение">
                     <video src="${escapeHtml(url)}" playsinline preload="auto"></video>
                     <div class="vn-play">▶</div>
                     ${label ? `<div class="vn-dur">${escapeHtml(label)}</div>` : ''}
+                    <button class="vn-speed voice-speed" onclick="event.stopPropagation();cycleVoiceSpeed(null)"
+                            title="Скорость воспроизведения">${voiceSpeed}x</button>
                 </div>`;
         }
 
@@ -6988,7 +7084,7 @@
             const steps = [1, 1.5, 2];
             voiceSpeed = steps[(steps.indexOf(voiceSpeed) + 1) % steps.length];
             try { localStorage.setItem('psy-voice-speed', String(voiceSpeed)); } catch (e) {}
-            document.querySelectorAll('.voice-speed').forEach(b => { b.textContent = voiceSpeed + 'x'; });
+            document.querySelectorAll('.voice-speed, .vn-speed').forEach(b => { b.textContent = voiceSpeed + 'x'; });
             // Скорость одна на все записи: кружки подхватывают её сразу, даже на ходу
             document.querySelectorAll('.video-note video').forEach(v => {
                 try { v.playbackRate = voiceSpeed; } catch (e) {}

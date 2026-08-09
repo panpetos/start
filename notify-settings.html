@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Уведомления — psytalk.pro</title>
+    <link rel="stylesheet" href="/css/styles.css">
+    <script src="/js/layout.js"></script>
+    <script src="/js/api.js"></script>
+    <script src="/js/auth.js"></script>
+    <script src="/js/dash-sidebar.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --d-bg: #F4F0FF; --d-panel: #FFFFFF; --d-panel-alt: #FAFAFA;
+            --d-border: #F0ECF8; --d-border-light: #F0F0F0; --d-border-accent: #EDE9FF;
+            --d-text: #1A1A1A; --d-text-sec: #6B7280; --d-text-muted: #9CA3AF; --d-text-dark: #374151;
+            --d-accent: #7C3AED; --d-accent-bg: #F3E8FF; --d-accent-hover: #FAF5FF;
+        }
+        body.dark {
+            --d-bg: #191919; --d-panel: #252525; --d-panel-alt: #2A2A2A;
+            --d-border: #333; --d-border-light: #333; --d-border-accent: #37254A;
+            --d-text: #E6E6E6; --d-text-sec: #A0A0A0; --d-text-muted: #8A8A8A; --d-text-dark: #C4C4C4;
+            --d-accent: #B794F4; --d-accent-bg: #37254A; --d-accent-hover: #2D2D2D;
+        }
+        body { font-family: 'Inter', -apple-system, sans-serif; background: var(--d-bg); color: var(--d-text);
+               min-height: 100vh; padding-top: 84px; transition: background 0.2s, color 0.2s; }
+        /* ── общая боковая менюшка кабинета ── */
+        .dash-layout { display: flex; min-height: calc(100vh - 84px); }
+        .dash-sidebar { width: 240px; background: var(--d-panel); border-right: 1px solid var(--d-border); display: flex; flex-direction: column; position: sticky; top: 84px; height: calc(100vh - 84px); flex-shrink: 0; z-index: 10; }
+        .dash-sidebar-header { padding: 1rem 1rem 0.75rem; border-bottom: 1px solid var(--d-border); }
+        .dash-sidebar-header h2 { font-size: 0.95rem; font-weight: 700; color: var(--d-text); margin-bottom: 0.15rem; }
+        .dash-sidebar-header p { font-size: 0.75rem; color: var(--d-text-muted); }
+        .dash-sidebar-nav { flex: 1; padding: 0.5rem 0; overflow-y: auto; }
+        .dash-sidebar-group { padding: 0.5rem 0 0.15rem; }
+        .dash-sidebar-group-label { padding: 0.25rem 1rem 0.35rem; font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--d-text-muted); }
+        .dash-sidebar-item { display: flex; align-items: center; gap: 0.55rem; padding: 0.45rem 0.75rem; margin: 0.06rem 0.5rem; border-radius: 0.45rem; font-size: 0.875rem; color: var(--d-text-sec); cursor: pointer; text-decoration: none; border: none; background: none; width: calc(100% - 1rem); text-align: left; font-family: inherit; line-height: 1.4; }
+        .dash-sidebar-item:hover { background: var(--d-accent-hover); color: var(--d-text); }
+        .dash-sidebar-item.active { background: var(--d-accent-bg); color: var(--d-accent); font-weight: 600; }
+        .dash-sidebar-icon { font-size: 1rem; width: 1.35rem; text-align: center; flex-shrink: 0; }
+        .dash-sidebar-footer { padding: 0.6rem 0.5rem; border-top: 1px solid var(--d-border); display: flex; flex-direction: column; gap: 0.15rem; }
+        .dash-sidebar-footer .dash-sidebar-item { margin: 0.06rem 0; }
+        .dash-sidebar-toggle { display: none; position: fixed; top: 92px; left: 0.75rem; z-index: 1001; width: 38px; height: 38px; border-radius: 0.5rem; border: 1px solid var(--d-border); background: var(--d-panel); color: var(--d-text); font-size: 1.2rem; cursor: pointer; align-items: center; justify-content: center; }
+        .dash-sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.35); z-index: 999; }
+        .dash-sidebar-overlay.open { display: block; }
+        @media (max-width: 768px) {
+            .dash-sidebar { position: fixed; top: 0; left: -260px; bottom: 0; z-index: 1000; width: 240px; transition: left 0.25s ease; padding-top: 0.5rem; height: 100vh; height: 100dvh; max-height: 100dvh; overflow-y: auto; overscroll-behavior: contain; }
+            .dash-sidebar.open { left: 0; }
+            .dash-sidebar-toggle { display: flex; }
+            .dash-layout { display: block; }
+        }
+        .wrap { max-width: 720px; margin: 0 auto; padding: 1.5rem 1.25rem 4rem; }
+        h1 { font-size: 1.5rem; font-weight: 800; letter-spacing: -0.02em; margin-bottom: 0.3rem; }
+        .sub { color: var(--d-text-sec); font-size: 0.9rem; margin-bottom: 1.25rem; line-height: 1.55; }
+        .card { background: var(--d-panel); border: 1px solid var(--d-border); border-radius: 1rem; padding: 1.1rem 1.25rem; margin-bottom: 0.9rem; }
+        .card h2 { font-size: 1.02rem; font-weight: 700; margin-bottom: 0.2rem; display: flex; align-items: center; gap: 0.5rem; }
+        .card .hint { color: var(--d-text-sec); font-size: 0.84rem; line-height: 1.5; margin-bottom: 0.8rem; }
+        .row { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; margin-top: 0.6rem; }
+        .sw { display: flex; align-items: center; gap: 0.55rem; cursor: pointer; font-size: 0.92rem; font-weight: 600; }
+        .sw input { width: 18px; height: 18px; accent-color: #7C3AED; cursor: pointer; }
+        input[type="email"], input[type="text"] {
+            padding: 0.55rem 0.75rem; border: 1.5px solid var(--d-border-accent); border-radius: 0.55rem;
+            font-family: inherit; font-size: 0.9rem; outline: none; background: var(--d-panel); color: var(--d-text);
+            min-width: 0; flex: 1;
+        }
+        input:focus { border-color: #7C3AED; }
+        .btn { padding: 0.5rem 0.9rem; border-radius: 0.55rem; border: none; background: #7C3AED; color: #fff;
+               font-family: inherit; font-size: 0.86rem; font-weight: 600; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 0.35rem; }
+        .btn:disabled { opacity: 0.55; cursor: default; }
+        .btn-ghost { background: var(--d-panel-alt); color: var(--d-text); border: 1.5px solid var(--d-border); }
+        .badge { font-size: 0.74rem; font-weight: 700; padding: 0.15rem 0.5rem; border-radius: 1rem; }
+        .b-on { background: #DCFCE7; color: #15803D; }
+        .b-off { background: #F3F4F6; color: #6B7280; }
+        .b-warn { background: #FEF3C7; color: #92400E; }
+        body.dark .b-on { background: #14321F; color: #4ADE80; }
+        body.dark .b-off { background: #333; color: #A0A0A0; }
+        body.dark .b-warn { background: #3D3520; color: #E3B341; }
+        .code { font-family: ui-monospace, monospace; font-size: 1.1rem; font-weight: 700; letter-spacing: 0.08em;
+                background: var(--d-accent-bg); color: var(--d-accent); padding: 0.4rem 0.7rem; border-radius: 0.5rem; }
+        .msg { font-size: 0.85rem; margin-top: 0.6rem; line-height: 1.5; }
+        .msg.err { color: #DC2626; }
+        .msg.ok { color: #15803D; }
+        body.dark .msg.err { color: #FF8080; }
+        body.dark .msg.ok { color: #4ADE80; }
+        .ev { display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.5rem; }
+        .save-bar { position: sticky; bottom: 0; background: var(--d-bg); padding: 0.75rem 0; display: flex; gap: 0.6rem; align-items: center; }
+    </style>
+</head>
+<body>
+    <script>(function(){var t=localStorage.getItem('psy-theme');if(t==='dark'||(!t&&window.matchMedia('(prefers-color-scheme:dark)').matches))document.body.classList.add('dark');})()</script>
+    <script>psyWriteHeader();</script>
+    <div class="dash-layout">
+        <div id="dashSidebarMount"></div>
+        <main style="flex:1;min-width:0;">
+            <div class="wrap">
+                <h1>🔔 Уведомления</h1>
+                <div class="sub">Выберите, куда присылать сообщения о новых чатах, записях и оплатах.
+                    Каналов можно включить сколько угодно — уведомление придёт в каждый включённый.</div>
+                <div id="body"><div class="card">Загрузка…</div></div>
+            </div>
+        </main>
+    </div>
+    <script>psyWriteFooter();</script>
+    <script>
+        let user = null, state = null;
+        const esc = (s) => { const d = document.createElement('div'); d.textContent = (s == null ? '' : String(s)); return d.innerHTML; };
+        const api = async (action, payload) => {
+            const url = '/api/notify_prefs.php?action=' + action;
+            const r = payload
+                ? await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify(payload) })
+                : await fetch(url, { credentials: 'include' });
+            const d = await r.json().catch(() => ({}));
+            if (!r.ok || d.ok === false) throw new Error(d.error || ('HTTP ' + r.status));
+            return d;
+        };
+
+        function pushState() {
+            if (!('Notification' in window)) return { txt: 'Браузер не умеет показывать уведомления', cls: 'b-warn' };
+            if (Notification.permission === 'granted') return { txt: 'разрешены', cls: 'b-on' };
+            if (Notification.permission === 'denied') return { txt: 'запрещены в браузере', cls: 'b-warn' };
+            return { txt: 'не спрошены', cls: 'b-off' };
+        }
+
+        function render() {
+            const p = state.prefs, a = state.available, links = state.links || {};
+            const ps = pushState();
+            const evRows = Object.entries(state.events).map(([k, label]) => `
+                <label class="sw" style="font-weight:500;">
+                    <input type="checkbox" id="ev-${k}" ${p.events[k] ? 'checked' : ''}>
+                    <span>${esc(label)}</span>
+                </label>`).join('');
+
+            document.getElementById('body').innerHTML = `
+                <div class="card">
+                    <h2>✉️ Почта ${a.email ? '<span class="badge b-on">доступна</span>' : '<span class="badge b-warn">не настроена на платформе</span>'}</h2>
+                    <div class="hint">${a.email
+                        ? 'Письма уходят через ' + esc(a.email_via || 'настроенный сервис') + '. Проверьте адрес и отправьте себе тестовое письмо.'
+                        : 'Администратор ещё не подключил отправку писем — как только подключит, канал заработает.'}</div>
+                    <label class="sw"><input type="checkbox" id="emailOn" ${p.email_enabled ? 'checked' : ''} ${a.email ? '' : 'disabled'}><span>Присылать на почту</span></label>
+                    <div class="row">
+                        <input type="email" id="emailTo" value="${esc(p.email_to || '')}" placeholder="${esc(state.account_email || 'вы@почта.ру')}">
+                        <button class="btn btn-ghost" id="testEmail" ${a.email ? '' : 'disabled'}>Проверить</button>
+                    </div>
+                    <div class="msg" id="emailMsg"></div>
+                </div>
+
+                <div class="card">
+                    <h2>✈️ Telegram ${links.telegram ? '<span class="badge b-on">подключён</span>' : (a.telegram ? '<span class="badge b-off">не подключён</span>' : '<span class="badge b-warn">бот не настроен</span>')}</h2>
+                    <div class="hint">${links.telegram
+                        ? 'Уведомления приходят в чат «' + esc(links.telegram.label || links.telegram.chat_id) + '».'
+                        : (a.telegram
+                            ? 'Получите код, отправьте его боту' + (state.telegram_bot ? ' @' + esc(state.telegram_bot) : '') + ' и нажмите «Проверить». Так мы поймём, в какой чат писать именно вам.'
+                            : 'Администратор ещё не подключил Telegram-бота.')}</div>
+                    <label class="sw"><input type="checkbox" id="tgOn" ${p.telegram_enabled ? 'checked' : ''} ${links.telegram ? '' : 'disabled'}><span>Присылать в Telegram</span></label>
+                    <div class="row" id="tgRow">
+                        ${links.telegram
+                            ? `<button class="btn btn-ghost" id="testTg">Проверить</button>
+                               <button class="btn btn-ghost" id="unlinkTg">Отключить</button>`
+                            : `<button class="btn" id="codeTg" ${a.telegram ? '' : 'disabled'}>Получить код</button>`}
+                    </div>
+                    <div class="msg" id="tgMsg"></div>
+                </div>
+
+                <div class="card">
+                    <h2>🟣 MAX ${links.max ? '<span class="badge b-on">подключён</span>' : (a.max ? '<span class="badge b-off">не подключён</span>' : '<span class="badge b-warn">бот не настроен</span>')}</h2>
+                    <div class="hint">${links.max
+                        ? 'Уведомления приходят в чат «' + esc(links.max.label || links.max.chat_id) + '».'
+                        : (a.max ? 'Получите код, отправьте его боту платформы в MAX и нажмите «Проверить».' : 'Администратор ещё не подключил бота MAX.')}</div>
+                    <label class="sw"><input type="checkbox" id="maxOn" ${p.max_enabled ? 'checked' : ''} ${links.max ? '' : 'disabled'}><span>Присылать в MAX</span></label>
+                    <div class="row" id="maxRow">
+                        ${links.max
+                            ? `<button class="btn btn-ghost" id="testMax">Проверить</button>
+                               <button class="btn btn-ghost" id="unlinkMax">Отключить</button>`
+                            : `<button class="btn" id="codeMax" ${a.max ? '' : 'disabled'}>Получить код</button>`}
+                    </div>
+                    <div class="msg" id="maxMsg"></div>
+                </div>
+
+                <div class="card">
+                    <h2>🔔 Уведомления в браузере <span class="badge ${ps.cls}">${ps.txt}</span></h2>
+                    <div class="hint">Всплывают на этом устройстве, пока сайт открыт хотя бы в одной вкладке.
+                        Нажатие на уведомление открывает нужный диалог.
+                        ${Notification.permission === 'denied' ? 'Сейчас они запрещены в настройках браузера — разрешите их для psytalk.pro и обновите страницу.' : ''}</div>
+                    <label class="sw"><input type="checkbox" id="pushOn" ${p.push_enabled ? 'checked' : ''}><span>Показывать в браузере</span></label>
+                    <div class="row">
+                        <button class="btn btn-ghost" id="askPush">Разрешить в браузере</button>
+                        <button class="btn btn-ghost" id="testPush">Проверить</button>
+                    </div>
+                    <div class="msg" id="pushMsg"></div>
+                </div>
+
+                <div class="card">
+                    <h2>О чём уведомлять</h2>
+                    <div class="hint">Настройка общая для всех включённых каналов.</div>
+                    <div class="ev">${evRows}</div>
+                </div>
+
+                <div class="save-bar">
+                    <button class="btn" id="saveBtn">Сохранить</button>
+                    <span class="msg" id="saveMsg"></span>
+                </div>`;
+            wire();
+        }
+
+        function collect() {
+            const events = {};
+            Object.keys(state.events).forEach(k => { events[k] = document.getElementById('ev-' + k).checked; });
+            return {
+                email_enabled: document.getElementById('emailOn').checked,
+                email_to: document.getElementById('emailTo').value.trim(),
+                telegram_enabled: document.getElementById('tgOn').checked,
+                max_enabled: document.getElementById('maxOn').checked,
+                push_enabled: document.getElementById('pushOn').checked,
+                events,
+            };
+        }
+
+        const say = (id, text, cls) => {
+            const el = document.getElementById(id);
+            el.className = 'msg ' + (cls || '');
+            el.textContent = text;
+        };
+
+        function wire() {
+            document.getElementById('saveBtn').onclick = async () => {
+                const btn = document.getElementById('saveBtn');
+                btn.disabled = true;
+                try {
+                    const d = await api('save', collect());
+                    state.prefs = d.prefs;
+                    say('saveMsg', 'Сохранено', 'ok');
+                } catch (e) { say('saveMsg', 'Не сохранилось: ' + e.message, 'err'); }
+                btn.disabled = false;
+            };
+
+            document.getElementById('testEmail').onclick = async () => {
+                say('emailMsg', 'Отправляем…', '');
+                try {
+                    const d = await api('test', { channel: 'email', email_to: document.getElementById('emailTo').value.trim() });
+                    say('emailMsg', 'Письмо отправлено на ' + d.to + (d.note ? ' (' + d.note + ')' : '') + ' — проверьте почту и папку «Спам».', 'ok');
+                } catch (e) { say('emailMsg', 'Не отправилось: ' + e.message, 'err'); }
+            };
+
+            const codeFlow = (channel, btnId, msgId, rowId) => {
+                const btn = document.getElementById(btnId);
+                if (!btn) return;
+                btn.onclick = async () => {
+                    try {
+                        const d = await api('link-code&channel=' + channel);
+                        const where = channel === 'telegram'
+                            ? (d.bot ? 'боту @' + d.bot : 'боту платформы в Telegram')
+                            : 'боту платформы в MAX';
+                        document.getElementById(rowId).innerHTML =
+                            `<span class="code">${esc(d.code)}</span>
+                             <button class="btn" id="check-${channel}">Проверить</button>`;
+                        say(msgId, 'Отправьте этот код ' + where + ' — и нажмите «Проверить». Код действует ' + d.ttl_min + ' минут.', '');
+                        document.getElementById('check-' + channel).onclick = async () => {
+                            say(msgId, 'Ищем ваше сообщение…', '');
+                            try {
+                                const r = await api('link-check', { channel });
+                                say(msgId, 'Готово: уведомления пойдут в чат «' + (r.label || r.chat_id) + '».', 'ok');
+                                await load();
+                            } catch (e) { say(msgId, e.message, 'err'); }
+                        };
+                    } catch (e) { say(msgId, e.message, 'err'); }
+                };
+            };
+            codeFlow('telegram', 'codeTg', 'tgMsg', 'tgRow');
+            codeFlow('max', 'codeMax', 'maxMsg', 'maxRow');
+
+            const testBot = (channel, btnId, msgId) => {
+                const btn = document.getElementById(btnId);
+                if (!btn) return;
+                btn.onclick = async () => {
+                    say(msgId, 'Отправляем…', '');
+                    try { await api('test', { channel }); say(msgId, 'Сообщение отправлено — проверьте бота.', 'ok'); }
+                    catch (e) { say(msgId, 'Не отправилось: ' + e.message, 'err'); }
+                };
+            };
+            testBot('telegram', 'testTg', 'tgMsg');
+            testBot('max', 'testMax', 'maxMsg');
+
+            const unlink = (channel, btnId, msgId) => {
+                const btn = document.getElementById(btnId);
+                if (!btn) return;
+                btn.onclick = async () => {
+                    if (!confirm('Отключить этот канал уведомлений?')) return;
+                    try { await api('unlink', { channel }); await load(); }
+                    catch (e) { say(msgId, e.message, 'err'); }
+                };
+            };
+            unlink('telegram', 'unlinkTg', 'tgMsg');
+            unlink('max', 'unlinkMax', 'maxMsg');
+
+            document.getElementById('askPush').onclick = async () => {
+                if (!('Notification' in window)) { say('pushMsg', 'Браузер не умеет показывать уведомления.', 'err'); return; }
+                if (Notification.permission === 'denied') {
+                    say('pushMsg', 'Уведомления запрещены в настройках браузера — разрешите их для psytalk.pro и обновите страницу.', 'err');
+                    return;
+                }
+                const res = await Notification.requestPermission();
+                say('pushMsg', res === 'granted' ? 'Разрешено.' : 'Разрешение не выдано.', res === 'granted' ? 'ok' : 'err');
+                document.getElementById('pushOn').checked = res === 'granted';
+                render();
+            };
+            document.getElementById('testPush').onclick = () => {
+                if (!('Notification' in window) || Notification.permission !== 'granted') {
+                    say('pushMsg', 'Сначала разрешите уведомления в браузере.', 'err');
+                    return;
+                }
+                new Notification('psytalk.pro', { body: 'Проверка: уведомления в браузере работают.', icon: '/assets/favicon.svg' });
+                say('pushMsg', 'Показали уведомление.', 'ok');
+            };
+        }
+
+        async function load() {
+            const d = await api('get');
+            state = d;
+            render();
+        }
+
+        (async function init() {
+            try { if (window.Auth) user = await window.Auth.getCurrentUser(); } catch (e) {}
+            if (!user) { location.href = '/login.html?redirect=' + encodeURIComponent('/notify-settings.html'); return; }
+            try {
+                if (window.mountDashSidebar) {
+                    await mountDashSidebar(user.role === 'psychologist' ? 'psychologist' : 'client',
+                        ((user.first_name || '') + ' ' + (user.last_name || '')).trim() || user.email || '');
+                }
+            } catch (e) {}
+            try { await load(); }
+            catch (e) {
+                document.getElementById('body').innerHTML =
+                    '<div class="card">Не удалось загрузить настройки: ' + esc(e.message) + '</div>';
+            }
+        })();
+    </script>
+</body>
+</html>

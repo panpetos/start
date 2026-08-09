@@ -25,6 +25,7 @@
                 { href: '/psychologist-blog.html', icon: '✍️', label: 'Мой блог' },
             ]},
             { group: 'Профиль', items: [
+                { href: '/notify-settings.html', icon: '🔔', label: 'Уведомления' },
                 { href: '/edit-profile.html', icon: '⚙️', label: 'Настройки' },
             ]},
         ],
@@ -36,6 +37,7 @@
                 { href: '/feed.html', icon: '📰', label: 'Лента' },
             ]},
             { group: 'Профиль', items: [
+                { href: '/notify-settings.html', icon: '🔔', label: 'Уведомления' },
                 { href: '/edit-profile.html', icon: '⚙️', label: 'Настройки' },
             ]},
         ],

@@ -152,6 +152,58 @@ function notify_max_recent_chats($token, $proxy = null) {
     return ['ok' => true, 'data' => array_values($seen)];
 }
 
+// ── Почта ─────────────────────────────────────────────────────────────────────────
+/**
+ * Отправить письмо тем способом, который настроен в админке: Resend (HTTP API),
+ * либо обычная mail(). SMTP без библиотеки поднимать не стали — если выбран smtp,
+ * письмо уйдёт через mail(), а причина возвращается в ответе, чтобы это было видно,
+ * а не выглядело как «отправлено».
+ */
+function notify_send_email($cfg, $to, $subject, $text) {
+    $to = trim((string)$to);
+    if ($to === '' || !filter_var($to, FILTER_VALIDATE_EMAIL)) {
+        return ['ok' => false, 'error' => 'Некорректный адрес получателя'];
+    }
+    $method = $cfg['email_method'] ?? '';
+    if ($method === 'resend' && !empty($cfg['resend_key'])) {
+        $from = trim((string)($cfg['resend_from'] ?? '')) ?: 'psytalk.pro <noreply@psytalk.pro>';
+        $payload = [
+            'from' => $from,
+            'to' => [$to],
+            'subject' => (string)$subject,
+            'text' => (string)$text,
+        ];
+        $reply = trim((string)($cfg['resend_replyto'] ?? ''));
+        if ($reply !== '') $payload['reply_to'] = $reply;
+        $ch = curl_init('https://api.resend.com/emails');
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_POST => true,
+            CURLOPT_POSTFIELDS => json_encode($payload, JSON_UNESCAPED_UNICODE),
+            CURLOPT_HTTPHEADER => ['Authorization: Bearer ' . $cfg['resend_key'], 'Content-Type: application/json'],
+            CURLOPT_CONNECTTIMEOUT => 8,
+            CURLOPT_TIMEOUT => 15,
+            CURLOPT_SSL_VERIFYPEER => true,
+        ]);
+        $res = curl_exec($ch);
+        $errno = curl_errno($ch);
+        $err = curl_error($ch);
+        $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+        if ($errno) return ['ok' => false, 'transport_error' => true, 'error' => 'Не удалось связаться с Resend: ' . $err];
+        $d = json_decode($res, true);
+        if ($code >= 200 && $code < 300) return ['ok' => true, 'id' => $d['id'] ?? null, 'via' => 'resend'];
+        $msg = is_array($d) ? ($d['message'] ?? $d['error'] ?? $res) : $res;
+        return ['ok' => false, 'error' => 'Resend отказал (' . $code . '): ' . (is_string($msg) ? $msg : json_encode($msg)), 'via' => 'resend'];
+    }
+    // mail() и заодно запасной путь для smtp
+    $from = trim((string)($cfg['smtp_from'] ?? $cfg['resend_from'] ?? '')) ?: 'noreply@psytalk.pro';
+    $headers = "MIME-Version: 1.0\r\nContent-Type: text/plain; charset=UTF-8\r\nFrom: " . $from . "\r\n";
+    $sent = @mail($to, '=?UTF-8?B?' . base64_encode((string)$subject) . '?=', (string)$text, $headers);
+    if (!$sent) return ['ok' => false, 'error' => 'Не удалось отправить письмо через mail()', 'via' => 'mail'];
+    return ['ok' => true, 'via' => 'mail', 'note' => $method === 'smtp' ? 'SMTP не поддерживается, письмо ушло через mail()' : null];
+}
+
 /** Подставить {{переменные}} в шаблон уведомления (notification_templates). */
 function notify_render(PDO $pdo, $code, $vars) {
     $title = ''; $body = '';

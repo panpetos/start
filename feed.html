@@ -29,7 +29,10 @@
         .post-author a:hover { text-decoration: underline; }
         .post-spec { color: #7C3AED; font-size: 0.8rem; }
         .post-date { color: var(--fd-text-sec); font-size: 0.75rem; margin-left: auto; white-space: nowrap; }
-        .post-text { margin-top: 0.7rem; white-space: pre-wrap; line-height: 1.6; color: var(--fd-text); }
+        /* overflow-wrap: длинная ссылка без пробелов (её постят целиком) раньше распирала
+           карточку и выезжала за экран на телефоне */
+        .post-text { margin-top: 0.7rem; white-space: pre-wrap; line-height: 1.6; color: var(--fd-text);
+                     overflow-wrap: anywhere; word-break: break-word; }
         .post-text img, .post-img { max-width: 100%; border-radius: 0.7rem; margin-top: 0.6rem; display: block; }
         /* В ленте показываем начало поста, целиком он открывается попапом */
         .post-body { cursor: pointer; }

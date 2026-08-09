@@ -272,6 +272,17 @@
   // Кнопка «☰» боковой менюшки кабинета висела на фиксированных top:92px/left:12px и после
   // подгонки отступа шапки наезжала на заголовок карточки («Личный кабинет»). Ставим её в
   // свободный правый верхний угол контента и считаем top от реальной высоты шапки.
+  // Просмотр фото во весь экран должен работать на любой странице, а не только там,
+  // где скрипт подключён руками: иначе картинки в виджете поддержки открывались новой вкладкой.
+  try {
+    if (!document.querySelector('script[src*="/js/lightbox.js"]')) {
+      var lb = document.createElement('script');
+      lb.src = '/js/lightbox.js';
+      lb.async = true;
+      document.head.appendChild(lb);
+    }
+  } catch (e) {}
+
   var sbCss = document.createElement('style');
   sbCss.textContent =
     '@media (max-width: 768px){' +
@@ -517,7 +528,8 @@
       if (!m.attachment_url) return '';
       var isImg = (m.attachment_type || '').indexOf('image') === 0;
       if (isImg) {
-        return '<div style="margin-top:0.3rem;"><img src="' + escSup(m.attachment_url) + '" style="max-width:200px;max-height:150px;border-radius:0.5rem;cursor:pointer;" onclick="window.open(this.src,\'_blank\')"></div>';
+        // просмотр во весь экран делает lightbox.js; window.open открывал вторую вкладку поверх него
+        return '<div style="margin-top:0.3rem;"><img src="' + escSup(m.attachment_url) + '" style="max-width:200px;max-height:150px;border-radius:0.5rem;cursor:pointer;" data-zoom></div>';
       }
       return '<div style="margin-top:0.3rem;"><a href="' + escSup(m.attachment_url) + '" target="_blank" style="color:inherit;text-decoration:underline;font-size:0.8rem;">📎 ' + escSup(m.attachment_name || 'файл') + '</a></div>';
     }
