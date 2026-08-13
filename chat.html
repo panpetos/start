@@ -1152,6 +1152,17 @@
         }
 
         .vr-hint { font-size: 0.8rem; color: #6B7280; }
+        /* Плашка стоит на месте строки ввода, поэтому повторяет её отступы и фон —
+           иначе при переключении «ввод ↔ запись» дёргалась высота. */
+        .voice-recording { margin: 0; padding: 0.6rem 0.75rem; border-radius: 0; gap: 8px; }
+        .voice-recording .recording-indicator { gap: 10px; }
+        .vr-redo { background: #7C3AED; font-size: 1rem; }
+        body.dark .voice-recording { background: #252525; }
+        @media (max-width: 768px) {
+            /* На телефоне места мало: подсказку убираем, кнопки оставляем крупными */
+            .vr-hint { display: none; }
+            .voice-recording .btn-send-voice { padding: 8px 14px; }
+        }
         /* Превью записи: послушать до отправки, стереть крестиком и записать заново */
         .vr-preview { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; }
         .vr-play {
@@ -1826,23 +1837,31 @@
                     </button>
                 </div>
                 <!-- Запись голоса -->
+                <!-- Плашка записи занимает МЕСТО строки ввода, а не появляется под ней:
+                     иначе на телефоне она вылезала второй строкой ровно под пальцем и
+                     перехватывала нажатие. Пока она видна, строка ввода скрыта. -->
                 <div id="voiceRecording" class="voice-recording" style="display:none;">
-                    <!-- Идёт запись: точка, секунды, подсказка -->
+                    <!-- Идёт запись: отменить, секунды, стоп. Палец можно убрать — пишем дальше -->
                     <div class="recording-indicator" id="vrRecRow">
+                        <button type="button" onclick="cancelVoiceRecording()" class="btn-cancel"
+                            title="Отменить запись" aria-label="Отменить запись">✕</button>
                         <span class="recording-dot"></span>
                         <span id="recordingTime">00:00</span>
                         <span class="vr-hint" id="vrHint">идёт запись…</span>
+                        <button type="button" onclick="stopVoiceRecording()" class="btn-send-voice" id="vrStopBtn">■ Готово</button>
                     </div>
-                    <!-- Отпустили: можно послушать, стереть и записать заново -->
+                    <!-- Записали: послушать, перезаписать, отправить -->
                     <div class="vr-preview" id="vrPrevRow" style="display:none;">
                         <button type="button" class="vr-play" id="vrPlayBtn" onclick="voicePreviewToggle()"
                             title="Прослушать" aria-label="Прослушать">▶</button>
                         <div class="vr-bar" id="vrBar" onclick="voicePreviewSeek(event)"><div class="vr-fill" id="vrFill"></div></div>
                         <span id="vrTime">00:00</span>
+                        <button type="button" onclick="redoVoiceRecording()" class="btn-cancel vr-redo"
+                            title="Записать заново" aria-label="Записать заново">↻</button>
+                        <button type="button" onclick="cancelVoiceRecording()" class="btn-cancel"
+                            title="Удалить запись" aria-label="Удалить запись">✕</button>
+                        <button type="button" onclick="sendVoiceMessage()" class="btn-send-voice">Отправить</button>
                     </div>
-                    <button type="button" onclick="cancelVoiceRecording()" class="btn-cancel"
-                        title="Стереть и записать заново" aria-label="Стереть и записать заново">✕</button>
-                    <button type="button" onclick="sendVoiceMessage()" class="btn-send-voice">Отправить</button>
                 </div>
                 <!-- Emoji Picker -->
                 <div id="emojiPicker" class="emoji-picker" style="display:none;">
@@ -5774,8 +5793,8 @@
             if (btn) btn.classList.add('rec');
             // Запись и секунды начинаются с самого нажатия — без задержки «а вдруг это тап».
             // Если окажется, что это был тап, запись отменим на отпускании.
-            micHint(micMode === 'video' ? 'Запись кружка… отпустите, чтобы прослушать'
-                                        : 'Запись голосового… отпустите, чтобы прослушать');
+            micHint(micMode === 'video' ? 'Пишем кружок — палец можно убрать'
+                                        : 'Пишем голосовое — палец можно убрать');
             (async () => {
                 try {
                     if (micMode === 'video') { await startVideoNote(); toggleVideoNoteRecording(); }
@@ -5784,13 +5803,9 @@
             })();
         }
 
-        function micMove(evt) {
-            if (!micHold || !micHold.recording || micHold.locked) return;
-            if (micHold.startY - (evt ? evt.clientY : 0) > MIC_LOCK_DY) {
-                micHold.locked = true;
-                micHint('Запись закреплена — отправьте кнопкой');
-            }
-        }
+        // Раньше запись нужно было «закреплять» протяжкой вверх, чтобы она не оборвалась
+        // на отпускании. Теперь она и так не обрывается, поэтому закреплять больше нечего.
+        function micMove() { /* жест не нужен: запись продолжается и без пальца */ }
 
         function micStopUi() {
             const btn = document.getElementById('micSendBtn');
@@ -5800,7 +5815,7 @@
         async function micUp(evt) {
             if (evt) evt.preventDefault();
             if (!micHold) return;
-            const { locked, at } = micHold;
+            const { at } = micHold;
             micHold = null;
             const held = Date.now() - at;
             if (held < MIC_HOLD_MS) {
@@ -5812,11 +5827,12 @@
                 micHint(micMode === 'video' ? 'Режим: видеокружок' : 'Режим: голосовое');
                 return;
             }
-            if (locked) return;                 // запись закреплена и продолжается
+            // Палец убрали — запись НЕ останавливаем: она идёт дальше, пока не нажмут «Готово».
+            // Так на телефоне не нужно держать палец, и ничего не срывается от случайного
+            // отпускания (раньше запись сбрасывалась ровно в этот момент).
             micStopUi();
-            // Отпустили — не отправляем сразу: даём послушать, стереть крестиком и перезаписать
-            if (micMode === 'video') stopVideoNoteRecording();   // кружок и так показывает запись перед отправкой
-            else await stopVoiceRecording();
+            micHint(micMode === 'video' ? 'Пишем кружок — нажмите «Стоп», когда закончите'
+                                        : 'Пишем — нажмите «Готово», когда закончите');
         }
         window.micDown = micDown;
         window.micMove = micMove;
@@ -6538,13 +6554,16 @@
 
         function vrEl(id) { return document.getElementById(id); }
 
-        /** Показать плашку записи. Панель ввода НЕ прячем: на телефоне кнопка микрофона
-         *  находится под пальцем, и если её убрать из разметки, событие отпускания теряется —
-         *  запись «зависала», а кнопки плашки уже не работали. */
+        /** Показать плашку записи ВМЕСТО строки ввода — на её месте, а не второй строкой.
+         *  Раньше плашка появлялась под панелью ввода и на телефоне оказывалась ровно под
+         *  пальцем, перехватывая нажатие. Прятать строку ввода теперь безопасно: отпускание
+         *  пальца больше не управляет записью, поэтому терять его событие не страшно. */
         function showVoicePanel(mode) {
             vrEl('voiceRecording').style.display = 'flex';
             vrEl('vrRecRow').style.display = mode === 'rec' ? 'flex' : 'none';
             vrEl('vrPrevRow').style.display = mode === 'preview' ? 'flex' : 'none';
+            const bar = document.getElementById('chatInputBar');
+            if (bar) bar.style.display = 'none';
             const vb = vrEl('voiceBtn');
             if (vb) vb.classList.toggle('recording', mode === 'rec');
         }
@@ -6649,6 +6668,12 @@
             };
         }
 
+        /** «Записать заново»: стираем то, что записали, и сразу начинаем новую запись. */
+        async function redoVoiceRecording() {
+            cancelVoiceRecording();
+            await startVoiceRecording();
+        }
+
         function voicePreviewToggle() {
             if (!previewAudio) return;
             if (previewAudio.paused) { previewAudio.play(); vrEl('vrPlayBtn').textContent = '⏸'; }
@@ -6689,6 +6714,8 @@
             vrEl('voiceRecording').style.display = 'none';
             vrEl('vrRecRow').style.display = 'flex';
             vrEl('vrPrevRow').style.display = 'none';
+            const bar = document.getElementById('chatInputBar');
+            if (bar) bar.style.display = '';        // возвращаем обычный ввод на своё место
             const vb = vrEl('voiceBtn');
             if (vb) vb.classList.remove('recording');
             vrEl('recordingTime').textContent = '00:00';

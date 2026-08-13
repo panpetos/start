@@ -117,6 +117,12 @@
             return d;
         };
 
+        // В Safari на iPhone объекта Notification нет вовсе. Обращение к нему без проверки
+        // роняло разметку страницы прямо во время сборки — и раздел уведомлений не
+        // открывался совсем, вместо него была ошибка. Поэтому только через эти две функции.
+        function pushUnsupported() { return !('Notification' in window); }
+        function pushDenied() { return !pushUnsupported() && Notification.permission === 'denied'; }
+
         function pushState() {
             if (!('Notification' in window)) return { txt: 'Браузер не умеет показывать уведомления', cls: 'b-warn' };
             if (Notification.permission === 'granted') return { txt: 'разрешены', cls: 'b-on' };
@@ -183,7 +189,8 @@
                     <h2>🔔 Уведомления в браузере <span class="badge ${ps.cls}">${ps.txt}</span></h2>
                     <div class="hint">Всплывают на этом устройстве, пока сайт открыт хотя бы в одной вкладке.
                         Нажатие на уведомление открывает нужный диалог.
-                        ${Notification.permission === 'denied' ? 'Сейчас они запрещены в настройках браузера — разрешите их для psytalk.pro и обновите страницу.' : ''}</div>
+                        ${pushDenied() ? 'Сейчас они запрещены в настройках браузера — разрешите их для psytalk.pro и обновите страницу.' : ''}
+                        ${pushUnsupported() ? 'На этом устройстве браузер не умеет показывать уведомления — так работает Safari на iPhone. Выберите Telegram, MAX или почту: туда сообщения дойдут.' : ''}</div>
                     <label class="sw"><input type="checkbox" id="pushOn" ${p.push_enabled ? 'checked' : ''}><span>Показывать в браузере</span></label>
                     <div class="row">
                         <button class="btn btn-ghost" id="askPush">Разрешить в браузере</button>
