@@ -27,7 +27,7 @@
                                            close.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g');
 
     function inlineFmt(s) {
-        return escapeHtml(s)
+        const out = escapeHtml(s)
             .replace(rx('**', '**'), '<b>$1</b>')
             .replace(rx('~~', '~~'), '<s>$1</s>')
             .replace(rx('`', '`'), '<code style="background:rgba(127,127,127,0.18);padding:0.05em 0.3em;border-radius:0.25em;font-size:0.92em;">$1</code>')
@@ -38,6 +38,43 @@
             // ссылка [текст](url) — пускаем только http(s) и внутренние /пути, иначе оставляем текстом
             .replace(/\[([^\]\n]+)\]\((https?:\/\/[^\s)]+|\/[^\s)]*)\)/g,
                 '<a href="$2" target="_blank" rel="noopener nofollow">$1</a>');
+        return autoLink(out);
+    }
+
+    /**
+     * Голые ссылки и домены делаем кликабельными: люди редко пишут разметкой,
+     * а адрес в переписке должен открываться нажатием.
+     *
+     * Работает по УЖЕ собранному html, поэтому пропускаем то, что внутри тегов
+     * (<a href="…">) — иначе адрес внутри атрибута разорвало бы вложенной ссылкой.
+     */
+    function autoLink(html) {
+        if (!html || !/[.:@]/.test(html)) return html;
+        const parts = html.split(/(<[^>]+>)/);      // нечётные элементы — сами теги
+        let insideLink = 0;
+        for (let i = 0; i < parts.length; i++) {
+            const p = parts[i];
+            if (i % 2 === 1) {                       // это тег
+                if (/^<a\b/i.test(p)) insideLink++;
+                else if (/^<\/a>/i.test(p)) insideLink = Math.max(0, insideLink - 1);
+                continue;
+            }
+            if (insideLink) continue;                // внутри ссылки второй раз не оборачиваем
+            parts[i] = p
+                // полный адрес со схемой
+                .replace(/(^|[\s(])((?:https?:\/\/)[^\s<>()]+[^\s<>().,;:!?])/g,
+                    '$1<a href="$2" target="_blank" rel="noopener nofollow">$2</a>')
+                // домен без схемы: site.ru, www.site.com/path
+                .replace(/(^|[\s(])((?:www\.)?[a-zA-Zа-яА-Я0-9][-a-zA-Zа-яА-Я0-9]*(?:\.[-a-zA-Zа-яА-Я0-9]+)*\.(?:ru|рф|com|net|org|io|dev|me|pro|su|info|biz|online|site|store|app|ai)(?:\/[^\s<>()]*)?)(?=$|[\s).,;:!?])/g,
+                    function (m, pre, dom) {
+                        if (/@/.test(dom)) return m;             // это часть почты — не трогаем
+                        return pre + '<a href="https://' + dom + '" target="_blank" rel="noopener nofollow">' + dom + '</a>';
+                    })
+                // почта
+                .replace(/(^|[\s(])([^\s<>()@]+@[^\s<>()@]+\.[a-zA-Zа-яА-Я]{2,})(?=$|[\s).,;:!?])/g,
+                    '$1<a href="mailto:$2">$2</a>');
+        }
+        return parts.join('');
     }
 
     function formatPostText(raw) {
