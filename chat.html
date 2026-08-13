@@ -1151,6 +1151,26 @@
             }
         }
 
+        /* Действия над ответом ассистента: копировать, переслать, в задачи */
+        .ai-acts { display: flex; gap: 0.25rem; margin-top: 0.35rem; opacity: 0; transition: opacity 0.15s; }
+        .message:hover .ai-acts, .ai-acts:focus-within { opacity: 1; }
+        .ai-acts button {
+            border: none; background: rgba(124,58,237,0.12); color: inherit; cursor: pointer;
+            border-radius: 0.45rem; padding: 0.2rem 0.45rem; font-size: 0.86rem; line-height: 1.2;
+        }
+        .ai-acts button:hover { background: rgba(124,58,237,0.26); }
+        @media (max-width: 768px) { .ai-acts { opacity: 1; } }   /* на телефоне наведения нет */
+        body.dark .ai-acts button { background: rgba(255,255,255,0.10); }
+
+        /* Всплывающая подсказка о результате действия */
+        .psy-toast {
+            position: fixed; left: 50%; bottom: 90px; transform: translateX(-50%) translateY(12px);
+            background: rgba(24,24,27,0.94); color: #fff; padding: 0.6rem 1rem; border-radius: 0.8rem;
+            font-size: 0.88rem; z-index: 4000; opacity: 0; pointer-events: none;
+            transition: opacity 0.18s, transform 0.18s; max-width: 86vw; text-align: center;
+        }
+        .psy-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
         /* ── Упоминания @ ── */
         .mention { color: #7C3AED; font-weight: 600; }
         .mention-me { background: rgba(124,58,237,0.18); border-radius: 0.3rem; padding: 0 0.2rem; }
@@ -4693,7 +4713,11 @@
                 </button>`;
             let html = row('↩', 'Ответить', `startReply(null,'${id}')`);
             html += row('☑', 'Выделить', `enterSelectMode('${id}')`);
+            if ((cap.text || '').trim()) html += row('📋', 'Скопировать текст', `copyMessageText('${id}')`);
             if (cap.canForward) html += row('↪', 'Переслать', `openForwardMenu(null,'${cap.kind || 'msg'}','${id}')`);
+            // Админу — быстрый путь из любой переписки в очередь доработок
+            if (currentUser && currentUser.role === 'admin')
+                html += row('🧩', 'В задачи Клоду', `sendToDevTasks('${id}')`);
             if (cap.canPin) html += row('📌', 'Закрепить', `pinMessageById('${id}')`);
             if (cap.canEdit) html += row('✏️', 'Изменить', cap.kind === 'group' ? `startEditGroupMessage(null,'${id}')` : `startEditMessage(null,'${id}')`);
             if (cap.canDelete) {
@@ -4710,6 +4734,66 @@
             menu.style.top = (r.bottom + mh > window.innerHeight ? Math.max(8, r.top - mh) : r.bottom + 4) + 'px';
             setTimeout(() => document.addEventListener('click', closeFolderPicker, { once: true }), 0);
         }
+
+        /** Короткое всплывающее сообщение внизу экрана — вместо alert(), который
+         *  перебивает работу и требует нажать «ОК». */
+        function toast(text) {
+            let el = document.getElementById('psyToast');
+            if (!el) {
+                el = document.createElement('div');
+                el.id = 'psyToast';
+                el.className = 'psy-toast';
+                document.body.appendChild(el);
+            }
+            el.textContent = text;
+            el.classList.add('show');
+            clearTimeout(toast._t);
+            toast._t = setTimeout(() => el.classList.remove('show'), 2200);
+        }
+        window.toast = toast;
+
+        /** Скопировать текст сообщения. Кроме буфера обмена — запасной путь для старых
+         *  браузеров и для страниц без https, где clipboard недоступен. */
+        async function copyText(text) {
+            const t = String(text == null ? '' : text);
+            try {
+                if (navigator.clipboard && window.isSecureContext) { await navigator.clipboard.writeText(t); return true; }
+            } catch (e) {}
+            try {
+                const ta = document.createElement('textarea');
+                ta.value = t;
+                ta.style.cssText = 'position:fixed;left:-9999px;top:0;';
+                document.body.appendChild(ta);
+                ta.select();
+                const okc = document.execCommand('copy');
+                ta.remove();
+                return okc;
+            } catch (e) { return false; }
+        }
+        window.copyText = copyText;
+
+        async function copyMessageText(id) {
+            const cap = msgCaps[id] || {};
+            const okc = await copyText(cap.text || '');
+            toast(okc ? 'Текст скопирован' : 'Не удалось скопировать');
+        }
+        window.copyMessageText = copyMessageText;
+
+        /** Отправить сообщение в очередь «Задачи Клоду» (только админ). */
+        async function sendToDevTasks(id, textOverride) {
+            const cap = msgCaps[id] || {};
+            const text = String(textOverride != null ? textOverride : (cap.text || '')).trim();
+            if (!text) { toast('В сообщении нет текста'); return; }
+            const title = text.split('\n')[0].slice(0, 80);
+            try {
+                const r = await (await fetch('/api/dev_tasks.php?action=add', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+                    body: JSON.stringify({ title, body: text })
+                })).json();
+                toast(r && r.ok ? 'Задача №' + r.id + ' поставлена' : (r && r.error) || 'Не удалось поставить задачу');
+            } catch (e) { toast('Ошибка сети'); }
+        }
+        window.sendToDevTasks = sendToDevTasks;
 
         /** Закрепить по id — берём текст из собранных прав, чтобы не дублировать разметку. */
         function pinMessageById(id) {
@@ -5213,12 +5297,35 @@
                     разбор случая. Ассистент не заменяет супервизию и не видит ваши переписки.</p></div></div>`;
                 return;
             }
+            const isAdm = currentUser && currentUser.role === 'admin';
             c.innerHTML = aiMessages.map((m, i) => `
                 <div class="message ${m.role === 'user' ? 'mine' : 'theirs'}" data-ai-idx="${i}">
                     <div>${msgText(String(m.content || ''))}</div>
+                    <div class="ai-acts">
+                        <button onclick="aiCopy(${i})" title="Скопировать">📋</button>
+                        <button onclick="aiForward(${i})" title="Переслать в переписку">↪</button>
+                        ${isAdm ? `<button onclick="aiToTask(${i})" title="В задачи Клоду">🧩</button>` : ''}
+                    </div>
                 </div>`).join('') + '<div id="aiTail"></div>';
             c.scrollTop = c.scrollHeight;
         }
+
+        // Действия над сообщением ассистента — то же, что и в обычной переписке:
+        // скопировать, переслать человеку, а админу ещё и отправить в очередь доработок.
+        function aiText(i) { const m = aiMessages[i]; return m ? String(m.content || '') : ''; }
+
+        async function aiCopy(i) {
+            const okc = await copyText(aiText(i));
+            toast(okc ? 'Ответ скопирован' : 'Не удалось скопировать');
+        }
+        function aiForward(i) {
+            const t = aiText(i);
+            if (!t.trim()) { toast('Нечего пересылать'); return; }
+            // Тем же окном выбора получателя, что и для обычных сообщений
+            openForwardModalWith([{ content: t, attachment_url: null, attachment_type: null, attachment_name: null }]);
+        }
+        function aiToTask(i) { sendToDevTasks(null, aiText(i)); }
+        window.aiCopy = aiCopy; window.aiForward = aiForward; window.aiToTask = aiToTask;
 
         /** Отправить вопрос ассистенту и вывести ответ по мере поступления. */
         async function sendToAi(text) {
@@ -5393,6 +5500,7 @@
             // Открыли переписку — значит прочитали: у собеседника появится вторая галочка
             presenceMarkRead();
             presenceRefresh();
+            setTimeout(() => loadMentionMembers(), 800);   // после отрисовки шапки — оттуда берём имя
             document.body.classList.remove('ai-chat');
             editingMessageId = null;
             headerRenderedFor = null; // пересобрать шапку под нового собеседника
@@ -5827,7 +5935,7 @@
                         <div class="message ${isMine ? 'mine' : 'theirs'}${(isVideoNote(m) && !content) ? ' vn-only' : ''}" data-msg-id="${m.id || ''}">
                             ${quote}
                             ${callBtn}
-                            <div id="msg-body-${m.id || ''}">${content ? `<div id="msg-content-${m.id || ''}">${content}</div>` : ''}</div>
+                            <div id="msg-body-${m.id || ''}">${content ? `<div id="msg-content-${m.id || ''}">${highlightMentions(content)}</div>` : ''}</div>
                             ${attachmentHtml}
                             <div class="message-time">${time}${editedTag}${isMine ? msgTicks(m) : ''}</div>
                             ${msgHoverHtml(m.id)}
@@ -6030,9 +6138,17 @@
         async function loadMentionMembers(groupId) {
             const gid = groupId != null ? String(groupId)
                 : (isGroupKey(presenceKey()) ? presenceKey().slice(GROUP_PREFIX.length) : '');
-            if (!gid) { mentionMembers = []; return; }
-            try { mentionMembers = await fetchGroupMembers(gid); }
-            catch (e) { mentionMembers = []; }
+            if (gid) {
+                try { mentionMembers = await fetchGroupMembers(gid); }
+                catch (e) { mentionMembers = []; }
+                return;
+            }
+            // В личной переписке упоминать некого, кроме собеседника — но подсказка всё равно
+            // должна появляться: иначе человек жмёт «@» и не понимает, почему ничего не происходит.
+            const nm = (document.querySelector('#chatHeader .name') || {}).textContent || '';
+            mentionMembers = (selectedUserId && selectedUserId !== FAVORITES_ID && selectedUserId !== AI_ID && nm)
+                ? [{ user_id: selectedUserId, first_name: nm.trim(), last_name: '' }]
+                : [];
         }
 
         function mentionName(m) {
@@ -6054,7 +6170,7 @@
 
         function updateMentionBox() {
             const ta = document.getElementById('messageInput');
-            if (!ta || !isGroupKey(presenceKey())) { closeMentionBox(); return; }
+            if (!ta || !mentionMembers.length) { closeMentionBox(); return; }
             const q = mentionQuery(ta);
             if (q === null) { closeMentionBox(); return; }
             const ql = q.toLowerCase();

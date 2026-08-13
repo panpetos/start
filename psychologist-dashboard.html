@@ -277,21 +277,20 @@
                 </a>
             </div>
 
+            <!-- Плашка канала убрана: посты пишутся только из чата, там канал устроен как
+                 в Telegram — обычная переписка с редактором и вложениями, а каждый пост
+                 дополнительно попадает в общую Ленту. Здесь оставлена только ссылка. -->
             <div class="card">
                 <h2>
                     <i data-lucide="megaphone" style="width: 24px; height: 24px;"></i>
                     Мой канал <span id="channelSubsCount" style="font-size:0.8rem;font-weight:500;color:var(--d-text-sec);"></span>
                 </h2>
-                <p style="margin-bottom: 1rem;">Публичная лента постов на вашей странице в каталоге и в общей <a href="/feed.html" style="color:#7C3AED;font-weight:600;">Ленте</a> сайта — клиенты могут подписаться, ставить лайки и делиться постами.</p>
-                <!-- Писать посты теперь только из чатов: там канал устроен как в Telegram —
-                     нормальный редактор, форматирование, вложения. Здесь оставлен список
-                     опубликованного, чтобы можно было просмотреть и удалить пост. -->
-                <div style="display:flex;gap:0.5rem;margin-bottom:1rem;flex-wrap:wrap;">
-                    <a class="btn" id="channelChatLink" href="/chat.html" style="text-decoration:none;display:inline-flex;align-items:center;gap:0.4rem;">
-                        ✍️ Написать пост в чате
-                    </a>
-                </div>
-                <div id="channelPostsList" style="display:flex;flex-direction:column;gap:0.6rem;"></div>
+                <p style="margin-bottom: 1rem;">Посты пишутся в чате — там же, где переписка. Каждый пост
+                    появляется у подписчиков, на вашей странице в каталоге и в общей
+                    <a href="/feed.html" style="color:#7C3AED;font-weight:600;">Ленте</a> сайта.</p>
+                <a class="btn" id="channelChatLink" href="/chat.html" style="text-decoration:none;display:inline-flex;align-items:center;gap:0.4rem;">
+                    ✍️ Открыть свой канал в чате
+                </a>
             </div>
         </div>
 
