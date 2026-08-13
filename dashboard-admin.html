@@ -1696,7 +1696,7 @@
                     <div id="supAttachPreview" style="display:none;padding:0.3rem 0.75rem;font-size:0.78rem;color:#7C3AED;border-top:1px solid var(--a-panel-head-border);background:var(--a-panel);flex-shrink:0;"></div>
                     <div style="display:flex;gap:0.5rem;padding:0.75rem;border-top:1px solid var(--a-panel-head-border);align-items:center;background:var(--a-panel);flex-shrink:0;">
                         <button onclick="document.getElementById('supFileInput').click()" style="border:1px solid var(--a-input-border);background:none;cursor:pointer;padding:0.4rem;border-radius:0.4rem;font-size:1rem;color:var(--a-text-sec);" title="Прикрепить файл">📎</button>
-                        <input type="file" id="supFileInput" accept="image/*,.pdf,.txt,.doc,.docx" style="display:none;" onchange="supHandleFile(this)">
+                        <input type="file" id="supFileInput" accept="image/*,.pdf,.txt,.doc,.docx" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0;padding:0;margin:-1px;" onchange="supHandleFile(this)">
                         <input id="supReplyInput" placeholder="Ответ клиенту..." style="flex:1;padding:0.6rem 0.85rem;border:1.5px solid var(--a-input-border);border-radius:0.6rem;font-family:inherit;outline:none;background:var(--a-input-bg);color:var(--a-text);" onkeypress="if(event.key==='Enter')sendSupportReply()">
                         <button class="btn-sm btn-purple" style="padding:0.6rem 1.2rem;" onclick="sendSupportReply()">Ответить</button>
                     </div>
@@ -1954,7 +1954,7 @@
                         <div style="font-size:1.6rem;line-height:1;">📎</div>
                         <div style="font-size:0.9rem;color:#6D28D9;margin-top:0.3rem;"><b>Перетащите фото или документы сюда</b> или нажмите, чтобы выбрать</div>
                         <div class="muted" style="font-size:0.76rem;margin-top:0.2rem;">Изображения, PDF, DOC/DOCX, TXT — до 20 МБ. Можно вставить из буфера обмена (Ctrl+V).</div>
-                        <input id="devFiles" type="file" accept="image/*,.pdf,.doc,.docx,.txt,.rtf" multiple style="display:none;">
+                        <input id="devFiles" type="file" accept="image/*,.pdf,.doc,.docx,.txt,.rtf" multiple style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0;padding:0;margin:-1px;">
                     </div>
                     <div id="devFilePrev" style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-top:0.6rem;"></div>
                     <button class="btn-sm btn-purple" style="margin-top:0.7rem;padding:0.65rem 1.4rem;" onclick="devAdd(this)">Добавить задачу</button>
@@ -2092,7 +2092,7 @@
                 <div id="devRwDrop" style="margin-top:0.7rem;border:2px dashed var(--a-drop-border);border-radius:0.7rem;padding:1rem;text-align:center;cursor:pointer;background:var(--a-drop-bg);transition:background .15s,border-color .15s;">
                     <div style="font-size:1.4rem;line-height:1;">📎</div>
                     <div style="font-size:0.88rem;color:#6D28D9;margin-top:0.3rem;"><b>Перетащите фото сюда</b>, нажмите или вставьте из буфера (Ctrl+V)</div>
-                    <input id="devRwFiles" type="file" accept="image/*,.pdf,.doc,.docx,.txt,.rtf" multiple style="display:none;">
+                    <input id="devRwFiles" type="file" accept="image/*,.pdf,.doc,.docx,.txt,.rtf" multiple style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0;padding:0;margin:-1px;">
                 </div>
                 <div id="devRwPrev" style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-top:0.6rem;"></div>
                 <div style="display:flex;gap:0.5rem;justify-content:flex-end;margin-top:1rem;align-items:center;">

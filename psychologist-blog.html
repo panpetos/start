@@ -121,7 +121,7 @@
                         <label class="fl">Обложка (необязательно)</label>
                         <div style="display:flex;gap:.4rem;align-items:center;">
                             <label class="btn sec" style="padding:.5rem .8rem;font-size:.85rem;cursor:pointer;white-space:nowrap;">📎 Фото
-                                <input type="file" id="aCoverFile" accept="image/*" style="display:none;" onchange="uploadCover(event)">
+                                <input type="file" id="aCoverFile" accept="image/*" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0;padding:0;margin:-1px;" onchange="uploadCover(event)">
                             </label>
                             <span id="aCoverName" style="font-size:.78rem;color:var(--d-text-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">не выбрана</span>
                         </div>

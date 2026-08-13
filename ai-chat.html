@@ -531,7 +531,7 @@
                     <div class="ai-input-bottom">
                         <div class="ai-input-actions">
                             <button class="ai-input-btn" onclick="triggerFileUpload()" title="Прикрепить файл">&#128206;</button>
-                            <input type="file" id="fileInput" multiple accept="image/*,.pdf,.txt,.doc,.docx" style="display:none;" onchange="handleFiles(this.files)">
+                            <input type="file" id="fileInput" multiple accept="image/*,.pdf,.txt,.doc,.docx" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0;padding:0;margin:-1px;" onchange="handleFiles(this.files)">
                             <select class="ai-model-select" id="modelSelect" title="Выбрать модель"></select>
                         </div>
                         <button class="ai-send-btn" id="sendBtn" onclick="sendMessage()" title="Отправить">&#10148;</button>

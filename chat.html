@@ -905,7 +905,10 @@
         body.dark .chat-hdr-btn { background: #2A2A2A; border-color: #444; color: #C9C9C9; }
         body.dark .chat-hdr-btn:hover { background: #37254A; border-color: #7C3AED; color: #B794F4; }
 
-        .message.editing { max-width: 90%; }
+        /* Пузырь сжимается по содержимому, поэтому width:100% у textarea упирался в её
+           min-width и поле для правки получалось узкой полоской (220px в переписке шириной
+           под тысячу). Задаём редактируемому пузырю нормальную ширину явно. */
+        .message.editing { max-width: 90%; width: min(560px, 90%); }
         /* Группа: аватар автора рядом с чужим сообщением (как в Телеграме) */
         .g-msg-row { display: flex; align-items: flex-end; gap: 0.45rem; align-self: flex-start; max-width: 85%; }
         .g-msg-row .message { max-width: 100%; }
@@ -1147,6 +1150,18 @@
                 opacity: 0.3;
             }
         }
+
+        .vr-hint { font-size: 0.8rem; color: #6B7280; }
+        /* Превью записи: послушать до отправки, стереть крестиком и записать заново */
+        .vr-preview { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; }
+        .vr-play {
+            width: 34px; height: 34px; flex-shrink: 0; border-radius: 50%; border: none;
+            background: #7C3AED; color: #fff; cursor: pointer; font-size: 0.85rem; line-height: 1;
+        }
+        .vr-bar { flex: 1; min-width: 40px; height: 6px; border-radius: 3px; background: #D8D3E4; cursor: pointer; }
+        .vr-fill { height: 100%; width: 0; border-radius: 3px; background: #7C3AED; }
+        body.dark .vr-hint { color: #9CA3AF; }
+        body.dark .vr-bar { background: #4B4B55; }
 
         .btn-cancel {
             width: 36px;
@@ -1781,7 +1796,7 @@
                     </button>
                     <label class="icon-btn cin-attach" title="Прикрепить файл" aria-label="Прикрепить файл">
                         <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20.4 12.3l-7.9 7.9a5 5 0 01-7-7l8-8a3.3 3.3 0 014.7 4.7l-8 8a1.7 1.7 0 01-2.4-2.4l7.4-7.3"/></svg>
-                        <input type="file" id="fileInput" style="display:none;" onchange="handleFileSelect(event)"
+                        <input type="file" id="fileInput" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0;padding:0;margin:-1px;" onchange="handleFileSelect(event)"
                             accept="image/*,.pdf,.doc,.docx,.txt">
                     </label>
                     <button type="button" id="voiceBtn" onclick="toggleVoiceRecording()" class="icon-btn cin-voice"
@@ -1812,12 +1827,22 @@
                 </div>
                 <!-- Запись голоса -->
                 <div id="voiceRecording" class="voice-recording" style="display:none;">
-                    <div class="recording-indicator">
+                    <!-- Идёт запись: точка, секунды, подсказка -->
+                    <div class="recording-indicator" id="vrRecRow">
                         <span class="recording-dot"></span>
                         <span id="recordingTime">00:00</span>
+                        <span class="vr-hint" id="vrHint">идёт запись…</span>
                     </div>
-                    <button onclick="cancelVoiceRecording()" class="btn-cancel">✕</button>
-                    <button onclick="sendVoiceMessage()" class="btn-send-voice">Отправить</button>
+                    <!-- Отпустили: можно послушать, стереть и записать заново -->
+                    <div class="vr-preview" id="vrPrevRow" style="display:none;">
+                        <button type="button" class="vr-play" id="vrPlayBtn" onclick="voicePreviewToggle()"
+                            title="Прослушать" aria-label="Прослушать">▶</button>
+                        <div class="vr-bar" id="vrBar" onclick="voicePreviewSeek(event)"><div class="vr-fill" id="vrFill"></div></div>
+                        <span id="vrTime">00:00</span>
+                    </div>
+                    <button type="button" onclick="cancelVoiceRecording()" class="btn-cancel"
+                        title="Стереть и записать заново" aria-label="Стереть и записать заново">✕</button>
+                    <button type="button" onclick="sendVoiceMessage()" class="btn-send-voice">Отправить</button>
                 </div>
                 <!-- Emoji Picker -->
                 <div id="emojiPicker" class="emoji-picker" style="display:none;">
@@ -2108,6 +2133,7 @@
     <script src="/js/header.js"></script>
     <script>
         const FAVORITES_ID = '__fav__'; // псевдо-собеседник «Избранное» (свой личный диалог)
+        const MAX_UPLOAD_MB = 10;       // потолок вложения: было 5, подняли до 10 (видеосообщения не влезали)
         let msgCache = {};   // id сообщения -> {content, attachment_*} — для пересылки
         let favMessagesCache = [];
         let pendingForward = null;
@@ -2583,7 +2609,7 @@
                     <div class="chat-ava-edit" style="margin:0 auto 0.5rem;">
                         <div class="conversation-avatar" id="giAvatar" style="width:72px;height:72px;background:linear-gradient(135deg,#059669,#10B981);font-size:1.7rem;">${g.avatar_url ? `<img src="${escapeHtml(g.avatar_url)}" alt="">` : '👥'}</div>
                         ${isOwner ? `<label class="chat-ava-btn" title="Сменить аватарку группы">📷
-                            <input type="file" accept="image/*" style="display:none;" onchange="uploadGroupAvatar(event)">
+                            <input type="file" accept="image/*" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0;padding:0;margin:-1px;" onchange="uploadGroupAvatar(event)">
                         </label>` : ''}
                     </div>
                     <div style="font-weight:700;font-size:1.05rem;" id="giName">${escapeHtml(g.name || 'Группа')}</div>
@@ -2633,7 +2659,7 @@
             evt.target.value = '';
             if (!file) return;
             if (!/^image\//.test(file.type)) { alert('Выберите картинку.'); return; }
-            if (file.size > 5 * 1024 * 1024) { alert('Картинка больше 5 МБ — выберите поменьше.'); return; }
+            if (file.size > MAX_UPLOAD_MB * 1024 * 1024) { alert(`Картинка больше ${MAX_UPLOAD_MB} МБ — выберите поменьше.`); return; }
             const box = document.getElementById('giAvatar');
             const prev = box ? box.innerHTML : '';
             if (box) box.innerHTML = '⏳';
@@ -2783,7 +2809,7 @@
                     <div class="chat-ava-edit" style="margin:0 auto 0.5rem;">
                         <div class="conversation-avatar" id="csAvatar" style="width:72px;height:72px;font-size:1.7rem;">${ava ? `<img src="${escapeHtml(ava)}" alt="">` : '📡'}</div>
                         <label class="chat-ava-btn" title="Сменить аватарку канала">📷
-                            <input type="file" accept="image/*" style="display:none;" onchange="uploadChannelAvatar(event)">
+                            <input type="file" accept="image/*" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0;padding:0;margin:-1px;" onchange="uploadChannelAvatar(event)">
                         </label>
                     </div>
                     <div style="color:#9CA3AF;font-size:0.78rem;">Аватарка канала — отдельно от вашего фото в профиле</div>
@@ -2840,7 +2866,7 @@
             evt.target.value = '';
             if (!file || !channelSettingsFor) return;
             if (!/^image\//.test(file.type)) { alert('Выберите картинку.'); return; }
-            if (file.size > 5 * 1024 * 1024) { alert('Картинка больше 5 МБ — выберите поменьше.'); return; }
+            if (file.size > MAX_UPLOAD_MB * 1024 * 1024) { alert(`Картинка больше ${MAX_UPLOAD_MB} МБ — выберите поменьше.`); return; }
             const box = document.getElementById('csAvatar');
             const prev = box ? box.innerHTML : '';
             if (box) box.innerHTML = '⏳';
@@ -5739,19 +5765,23 @@
         function micDown(evt) {
             if (evt) evt.preventDefault();
             if (micHasText()) { sendMessage(); return; }
+            if (voiceState !== 'idle') return;          // уже пишем или слушаем запись
             const btn = document.getElementById('micSendBtn');
-            micHold = { startY: evt ? evt.clientY : 0, recording: false, locked: false, timer: null };
-            micHold.timer = setTimeout(async () => {
-                if (!micHold) return;
-                micHold.recording = true;
-                if (btn) btn.classList.add('rec');
-                micHint(micMode === 'video' ? 'Запись кружка… отпустите, чтобы отправить'
-                                            : 'Запись голосового… отпустите, чтобы отправить');
+            // Палец может уехать с кнопки, а плашка записи — перестроить разметку. Забираем
+            // указатель себе, иначе отпускание не дойдёт и запись останется висеть.
+            try { if (btn && evt && evt.pointerId != null) btn.setPointerCapture(evt.pointerId); } catch (e) {}
+            micHold = { startY: evt ? evt.clientY : 0, at: Date.now(), recording: true, locked: false };
+            if (btn) btn.classList.add('rec');
+            // Запись и секунды начинаются с самого нажатия — без задержки «а вдруг это тап».
+            // Если окажется, что это был тап, запись отменим на отпускании.
+            micHint(micMode === 'video' ? 'Запись кружка… отпустите, чтобы прослушать'
+                                        : 'Запись голосового… отпустите, чтобы прослушать');
+            (async () => {
                 try {
                     if (micMode === 'video') { await startVideoNote(); toggleVideoNoteRecording(); }
-                    else await toggleVoiceRecording();
+                    else await startVoiceRecording();
                 } catch (e) { micStopUi(); }
-            }, MIC_HOLD_MS);
+            })();
         }
 
         function micMove(evt) {
@@ -5770,20 +5800,23 @@
         async function micUp(evt) {
             if (evt) evt.preventDefault();
             if (!micHold) return;
-            clearTimeout(micHold.timer);
-            const { recording, locked } = micHold;
+            const { locked, at } = micHold;
             micHold = null;
-            if (!recording) {
-                // короткий тап — сменить, чем записывать
+            const held = Date.now() - at;
+            if (held < MIC_HOLD_MS) {
+                // Это был тап, а не удержание: запись отменяем и просто меняем, чем писать
+                micStopUi();
+                if (micMode === 'video') cancelVideoNote(); else cancelVoiceRecording();
                 micMode = micMode === 'voice' ? 'video' : 'voice';
                 updateMicButton();
                 micHint(micMode === 'video' ? 'Режим: видеокружок' : 'Режим: голосовое');
                 return;
             }
-            if (locked) return;                 // запись продолжается, отправит сам пользователь
+            if (locked) return;                 // запись закреплена и продолжается
             micStopUi();
-            if (micMode === 'video') await sendVideoNote();
-            else await toggleVoiceRecording();  // остановка = отправка
+            // Отпустили — не отправляем сразу: даём послушать, стереть крестиком и перезаписать
+            if (micMode === 'video') stopVideoNoteRecording();   // кружок и так показывает запись перед отправкой
+            else await stopVoiceRecording();
         }
         window.micDown = micDown;
         window.micMove = micMove;
@@ -6489,105 +6522,197 @@
         }
 
         // === ГОЛОСОВЫЕ СООБЩЕНИЯ ===
+        // Состояние одно на всю запись: 'idle' → 'starting' → 'recording' → 'preview'.
+        // Раньше состояния не было, и удержание кнопки запускало запись дважды (по таймеру
+        // удержания и ещё раз на отпускании): два рекордера писали в один audioChunks, отчего
+        // голос двоился с эхом. Теперь второй вход просто не пускают.
+        let voiceState = 'idle';
         let mediaRecorder = null;
         let audioChunks = [];
         let recordingStartTime = null;
         let recordingTimer = null;
+        let voiceStream = null;
+        let recordedBlob = null;      // готовая запись — ждёт, пока её послушают и отправят
+        let recordedSeconds = 0;      // длительность фиксируем в момент остановки, а не отправки
+        let previewAudio = null;      // <audio> для прослушивания перед отправкой
 
-        async function toggleVoiceRecording() {
-            if (mediaRecorder && mediaRecorder.state === 'recording') {
-                // Уже идёт запись - остановить
-                mediaRecorder.stop();
-                return;
-            }
-            if (consentNeeded() && !requireHealthConsent()) return;
+        function vrEl(id) { return document.getElementById(id); }
 
+        /** Показать плашку записи. Панель ввода НЕ прячем: на телефоне кнопка микрофона
+         *  находится под пальцем, и если её убрать из разметки, событие отпускания теряется —
+         *  запись «зависала», а кнопки плашки уже не работали. */
+        function showVoicePanel(mode) {
+            vrEl('voiceRecording').style.display = 'flex';
+            vrEl('vrRecRow').style.display = mode === 'rec' ? 'flex' : 'none';
+            vrEl('vrPrevRow').style.display = mode === 'preview' ? 'flex' : 'none';
+            const vb = vrEl('voiceBtn');
+            if (vb) vb.classList.toggle('recording', mode === 'rec');
+        }
+
+        function paintRecTime() {
+            const elapsed = Math.max(0, (Date.now() - recordingStartTime) / 1000);
+            vrEl('recordingTime').textContent = formatDuration(Math.floor(elapsed));
+        }
+
+        /** Начать запись. Возвращает true, если запись действительно пошла. */
+        async function startVoiceRecording() {
+            if (voiceState !== 'idle') return false;
+            if (consentNeeded() && !requireHealthConsent()) return false;
+            voiceState = 'starting';                 // занимаем состояние ДО await, иначе успеет войти второй
+            // Плашку показываем сразу, чтобы человек видел реакцию на нажатие, а не пустоту
+            vrEl('recordingTime').textContent = '00:00';
+            vrEl('vrHint').textContent = 'включаем микрофон…';
+            showVoicePanel('rec');
             try {
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                voiceStream = await navigator.mediaDevices.getUserMedia({ audio: true });
                 const mimeCandidates = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg;codecs=opus'];
                 const supportedMime = mimeCandidates.find(m => window.MediaRecorder && MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(m));
-                mediaRecorder = supportedMime ? new MediaRecorder(stream, { mimeType: supportedMime }) : new MediaRecorder(stream);
+                mediaRecorder = supportedMime ? new MediaRecorder(voiceStream, { mimeType: supportedMime })
+                                              : new MediaRecorder(voiceStream);
                 audioChunks = [];
-
-                mediaRecorder.ondataavailable = (e) => {
-                    if (e.data && e.data.size > 0) audioChunks.push(e.data);
-                };
-
-                mediaRecorder.onstop = () => {
-                    stream.getTracks().forEach(track => track.stop());
-                    clearInterval(recordingTimer);
-                };
-
-                // Периодические чанки (каждые 500мс), чтобы не терять данные при долгой записи
-                mediaRecorder.start(500);
+                mediaRecorder.ondataavailable = (e) => { if (e.data && e.data.size > 0) audioChunks.push(e.data); };
+                mediaRecorder.start(500);            // чанками, чтобы не терять длинную запись
+                voiceState = 'recording';
                 recordingStartTime = Date.now();
-
-                // Показать UI записи
-                document.getElementById('voiceRecording').style.display = 'flex';
-                document.querySelector('.chat-input').style.display = 'none';
-                document.getElementById('voiceBtn').classList.add('recording');
-
-                // Таймер
-                recordingTimer = setInterval(() => {
-                    const elapsed = Math.floor((Date.now() - recordingStartTime) / 1000);
-                    const mins = Math.floor(elapsed / 60).toString().padStart(2, '0');
-                    const secs = (elapsed % 60).toString().padStart(2, '0');
-                    document.getElementById('recordingTime').textContent = `${mins}:${secs}`;
-                }, 1000);
-
+                vrEl('vrHint').textContent = 'идёт запись…';
+                paintRecTime();
+                clearInterval(recordingTimer);
+                recordingTimer = setInterval(paintRecTime, 200);   // секунды бегут сразу и ровно
+                return true;
             } catch (error) {
                 console.error('Microphone access error:', error);
-                alert('Не удалось получить доступ к микрофону');
+                releaseVoiceStream();
+                voiceState = 'idle';
+                hideVoiceRecording();
+                alert('Не удалось получить доступ к микрофону. Разрешите доступ в настройках браузера.');
+                return false;
             }
         }
 
-        function cancelVoiceRecording() {
-            if (mediaRecorder && mediaRecorder.state === 'recording') {
-                mediaRecorder.stop();
+        function releaseVoiceStream() {
+            if (voiceStream) { try { voiceStream.getTracks().forEach(t => t.stop()); } catch (e) {} }
+            voiceStream = null;
+        }
+
+        /** Остановить запись и перейти к прослушиванию. */
+        async function stopVoiceRecording() {
+            if (voiceState === 'starting') {
+                // Отпустили раньше, чем микрофон успел включиться — дождёмся и остановим
+                for (let i = 0; i < 40 && voiceState === 'starting'; i++) await new Promise(r => setTimeout(r, 50));
             }
+            if (voiceState !== 'recording') return false;
+            voiceState = 'stopping';
+            clearInterval(recordingTimer);
+            recordedSeconds = Math.max(1, Math.round((Date.now() - recordingStartTime) / 1000));
+            await new Promise(resolve => {
+                let done = false;
+                const finish = () => { if (!done) { done = true; resolve(); } };
+                mediaRecorder.onstop = finish;
+                try { mediaRecorder.stop(); } catch (e) { finish(); }
+                setTimeout(finish, 1500);            // страховка: не зависать, если onstop не придёт
+            });
+            await new Promise(r => setTimeout(r, 120));   // добираем последний чанк
+            releaseVoiceStream();
+            const mime = (mediaRecorder && mediaRecorder.mimeType) || 'audio/webm';
+            recordedBlob = audioChunks.length ? new Blob(audioChunks, { type: mime }) : null;
             audioChunks = [];
+            if (!recordedBlob || recordedBlob.size < 800) {   // слишком короткое нажатие — записывать нечего
+                recordedBlob = null;
+                voiceState = 'idle';
+                hideVoiceRecording();
+                return false;
+            }
+            voiceState = 'preview';
+            openVoicePreview();
+            return true;
+        }
+
+        /** Прослушивание записи перед отправкой. */
+        function openVoicePreview() {
+            showVoicePanel('preview');
+            vrEl('vrTime').textContent = formatDuration(recordedSeconds);
+            vrEl('vrFill').style.width = '0%';
+            vrEl('vrPlayBtn').textContent = '▶';
+            if (previewAudio) { try { previewAudio.pause(); } catch (e) {} URL.revokeObjectURL(previewAudio.src); }
+            previewAudio = new Audio(URL.createObjectURL(recordedBlob));
+            previewAudio.preload = 'metadata';
+            previewAudio.ontimeupdate = () => {
+                const total = isFinite(previewAudio.duration) && previewAudio.duration > 0
+                    ? previewAudio.duration : recordedSeconds;
+                vrEl('vrFill').style.width = Math.min(100, (previewAudio.currentTime / total) * 100) + '%';
+                vrEl('vrTime').textContent = formatDuration(Math.floor(previewAudio.currentTime));
+            };
+            previewAudio.onended = () => {
+                vrEl('vrPlayBtn').textContent = '▶';
+                vrEl('vrFill').style.width = '0%';
+                vrEl('vrTime').textContent = formatDuration(recordedSeconds);
+            };
+        }
+
+        function voicePreviewToggle() {
+            if (!previewAudio) return;
+            if (previewAudio.paused) { previewAudio.play(); vrEl('vrPlayBtn').textContent = '⏸'; }
+            else { previewAudio.pause(); vrEl('vrPlayBtn').textContent = '▶'; }
+        }
+
+        function voicePreviewSeek(evt) {
+            if (!previewAudio) return;
+            const bar = vrEl('vrBar');
+            const r = bar.getBoundingClientRect();
+            const ratio = Math.min(1, Math.max(0, (evt.clientX - r.left) / r.width));
+            const total = isFinite(previewAudio.duration) && previewAudio.duration > 0
+                ? previewAudio.duration : recordedSeconds;
+            previewAudio.currentTime = ratio * total;
+        }
+
+        /** Кнопка микрофона на компьютере: нажал — пишем, нажал ещё раз — слушаем. */
+        async function toggleVoiceRecording() {
+            if (voiceState === 'recording' || voiceState === 'starting') { await stopVoiceRecording(); return; }
+            if (voiceState === 'preview') return;
+            await startVoiceRecording();
+        }
+
+        /** Крестик: стереть запись и вернуться к обычному вводу — можно записать заново. */
+        function cancelVoiceRecording() {
+            if (voiceState === 'recording' || voiceState === 'starting') {
+                try { if (mediaRecorder && mediaRecorder.state === 'recording') mediaRecorder.stop(); } catch (e) {}
+            }
+            clearInterval(recordingTimer);
+            releaseVoiceStream();
+            audioChunks = [];
+            recordedBlob = null;
+            voiceState = 'idle';
             hideVoiceRecording();
         }
 
         function hideVoiceRecording() {
-            document.getElementById('voiceRecording').style.display = 'none';
-            document.querySelector('.chat-input').style.display = 'flex';
-            document.getElementById('voiceBtn').classList.remove('recording');
-            document.getElementById('recordingTime').textContent = '00:00';
+            vrEl('voiceRecording').style.display = 'none';
+            vrEl('vrRecRow').style.display = 'flex';
+            vrEl('vrPrevRow').style.display = 'none';
+            const vb = vrEl('voiceBtn');
+            if (vb) vb.classList.remove('recording');
+            vrEl('recordingTime').textContent = '00:00';
             clearInterval(recordingTimer);
+            if (previewAudio) {
+                try { previewAudio.pause(); URL.revokeObjectURL(previewAudio.src); } catch (e) {}
+                previewAudio = null;
+            }
+            micStopUi();
         }
 
         async function sendVoiceMessage() {
-            if (!mediaRecorder) {
-                hideVoiceRecording();
-                return;
+            if (voiceState === 'recording' || voiceState === 'starting') {
+                if (!await stopVoiceRecording()) return;      // сначала корректно закрываем запись
             }
+            if (voiceState !== 'preview' || !recordedBlob) { hideVoiceRecording(); return; }
 
-            // Ждём корректного завершения записи через Promise
-            if (mediaRecorder.state === 'recording') {
-                await new Promise(resolve => {
-                    mediaRecorder.onstop = () => {
-                        resolve();
-                    };
-                    mediaRecorder.stop();
-                });
-            }
-
-            // Дополнительная пауза для буферизации
-            await new Promise(resolve => setTimeout(resolve, 200));
-
-            if (audioChunks.length === 0) {
-                hideVoiceRecording();
-                return;
-            }
-
-            // Используем реальный mimeType рекордера, а не захардкоженный - иначе браузер
-            // может неверно распознать контейнер и оборвать воспроизведение раньше конца записи
-            const recordedMime = (mediaRecorder && mediaRecorder.mimeType) || 'audio/webm';
-            const audioBlob = new Blob(audioChunks, { type: recordedMime });
-            const duration = Math.floor((Date.now() - recordingStartTime) / 1000);
+            const audioBlob = recordedBlob;
+            const duration = recordedSeconds;                 // длительность записи, а не время раздумий
+            const recordedMime = audioBlob.type || 'audio/webm';
             const ext = recordedMime.includes('mp4') ? 'm4a' : (recordedMime.includes('ogg') ? 'ogg' : 'webm');
 
+            recordedBlob = null;
+            voiceState = 'idle';
             hideVoiceRecording();
 
             // Загрузить аудио файл
@@ -6891,7 +7016,7 @@
         // конца записи (примерно на трети трека). decodeAudioData() декодирует реальные
         // сэмплы независимо от метаданных контейнера, поэтому проигрывается запись целиком.
         let voiceCtx = null;
-        let voicePlayers = {}; // msgId -> {buffer, offset, playing, source, startCtxTime, rate}
+        let voicePlayers = {}; // msgId -> {buffer, el, offset, playing, rate}
         let currentPlayingVoiceId = null;
         let voiceSpeed = 1;            // общая скорость воспроизведения: 1 → 1.5 → 2 → 1
         let voiceRafId = null;
@@ -6908,8 +7033,7 @@
             const p = voicePlayers[msgId];
             if (!p) return 0;
             if (!p.playing) return p.offset || 0;
-            const elapsed = (getVoiceCtx().currentTime - p.startCtxTime) * (p.rate || 1);
-            return Math.min(p.buffer.duration, Math.max(0, elapsed));
+            return Math.min(p.buffer.duration, Math.max(0, p.el ? p.el.currentTime : 0));
         }
 
         function fmtSec(sec) {
@@ -6985,6 +7109,41 @@
             if (wave) wave.innerHTML = voiceBarsHtml(msgId);
         }
 
+        /** Декодированный звук → WAV-блоб. Заголовок с честной длиной делает запись
+         *  «нормальным файлом» для <audio>: ничего не обрывается и скорость меняется
+         *  без изменения тона. Формат простой, библиотека не нужна. */
+        function audioBufferToWav(buffer) {
+            const chans = Math.min(2, buffer.numberOfChannels);
+            const len = buffer.length;
+            const rate = buffer.sampleRate;
+            const bytes = 44 + len * chans * 2;
+            const view = new DataView(new ArrayBuffer(bytes));
+            const str = (off, s) => { for (let i = 0; i < s.length; i++) view.setUint8(off + i, s.charCodeAt(i)); };
+            str(0, 'RIFF');
+            view.setUint32(4, bytes - 8, true);
+            str(8, 'WAVEfmt ');
+            view.setUint32(16, 16, true);          // размер fmt-блока
+            view.setUint16(20, 1, true);           // PCM без сжатия
+            view.setUint16(22, chans, true);
+            view.setUint32(24, rate, true);
+            view.setUint32(28, rate * chans * 2, true);
+            view.setUint16(32, chans * 2, true);
+            view.setUint16(34, 16, true);          // 16 бит на отсчёт
+            str(36, 'data');
+            view.setUint32(40, len * chans * 2, true);
+            const data = [];
+            for (let c = 0; c < chans; c++) data.push(buffer.getChannelData(c));
+            let off = 44;
+            for (let i = 0; i < len; i++) {
+                for (let c = 0; c < chans; c++) {
+                    const v = Math.max(-1, Math.min(1, data[c][i]));
+                    view.setInt16(off, v < 0 ? v * 0x8000 : v * 0x7FFF, true);
+                    off += 2;
+                }
+            }
+            return new Blob([view.buffer], { type: 'audio/wav' });
+        }
+
         /** Скачать и декодировать запись. Возвращает состояние плеера либо null при ошибке. */
         async function ensureVoiceLoaded(msgId, audioUrl) {
             if (voicePlayers[msgId]) return voicePlayers[msgId];
@@ -6996,7 +7155,14 @@
                     const resp = await fetch(audioUrl, { credentials: 'include' });
                     const arrBuf = await resp.arrayBuffer();
                     const buffer = await getVoiceCtx().decodeAudioData(arrBuf);
-                    voicePlayers[msgId] = { buffer, offset: 0, playing: false, source: null, rate: voiceSpeed };
+                    // Декодированный звук заворачиваем в WAV и играем обычным <audio>:
+                    // так работает ускорение без изменения тона. Исходный webm с записи
+                    // отдавать элементу нельзя — у него нет длительности в заголовке, и часть
+                    // браузеров обрывает такой файл на трети (ради этого и был Web Audio).
+                    const el = new Audio(URL.createObjectURL(audioBufferToWav(buffer)));
+                    el.preload = 'auto';
+                    voicePlayers[msgId] = { buffer, el, offset: 0, playing: false, rate: voiceSpeed };
+                    applyVoiceRate(voicePlayers[msgId]);
                     applyVoicePeaks(msgId, buffer);
                     paintVoice(msgId);
                     return voicePlayers[msgId];
@@ -7016,17 +7182,17 @@
         function stopVoicePlayer(msgId, resetOffset) {
             const p = voicePlayers[msgId];
             if (!p) return;
-            if (p.source) {
+            if (p.el) {
                 p.offset = resetOffset ? 0 : voicePosition(msgId);
                 // Пауза (а не сброс) — помним запись, чтобы плашка сверху осталась и с неё
                 // можно было продолжить, даже если паузу нажали в самом сообщении.
                 if (!resetOffset) stickyPausedId = msgId;
-                // onended снимаем ДО stop(): событие приходит асинхронно, и если к этому моменту
-                // уже запущен новый источник (перемотка, смена скорости), старый обработчик
-                // сбрасывал позицию в ноль и глушил только что начатое воспроизведение.
-                p.source.onended = null;
-                try { p.source.stop(); } catch (e) {}
-                p.source = null;
+                // onended снимаем ДО паузы: событие приходит асинхронно, и если к этому моменту
+                // уже идёт новое воспроизведение (перемотка, смена скорости), старый обработчик
+                // сбрасывал позицию в ноль и глушил только что начатое.
+                p.el.onended = null;
+                try { p.el.pause(); } catch (e) {}
+                if (resetOffset) { try { p.el.currentTime = 0; } catch (e) {} }
             } else if (resetOffset) {
                 p.offset = 0;
             }
@@ -7037,37 +7203,43 @@
         }
 
         function startVoicePlayer(msgId) {
-            const ctx = getVoiceCtx();
             const p = voicePlayers[msgId];
-            if (!p) return;
-            const source = ctx.createBufferSource();
-            source.buffer = p.buffer;
-            source.playbackRate.value = voiceSpeed;
-            source.connect(ctx.destination);
+            if (!p || !p.el) return;
             const offset = (p.offset && p.offset < p.buffer.duration - 0.05) ? p.offset : 0;
-            source.start(0, offset);
-            p.source = source;
+            try { p.el.currentTime = offset; } catch (e) {}
+            applyVoiceRate(p);
             p.rate = voiceSpeed;
-            // startCtxTime приведён к «нулю записи»: позиция = (сейчас - startCtxTime) * rate
-            p.startCtxTime = ctx.currentTime - offset / voiceSpeed;
             p.playing = true;
             currentPlayingVoiceId = msgId;
-            source.onended = () => {
-                if (p.source !== source) return;   // источник уже заменён — это не конец записи
+            p.el.onended = () => {
+                if (currentPlayingVoiceId !== msgId) return;   // уже переключились — это не конец записи
                 p.playing = false;
                 p.offset = 0;
-                p.source = null;
-                if (currentPlayingVoiceId === msgId) currentPlayingVoiceId = null;
+                currentPlayingVoiceId = null;
                 paintVoice(msgId);
                 // Запись догралась до конца — включаем следующую по списку (как в Telegram).
                 // Если следующей нет, плашка сама скроется на ближайшем обновлении.
                 if (!playNextAfter('voice', msgId)) { stickyPausedId = null; updateStickyPlayer(); }
             };
+            p.el.play().catch(() => {});
             stickyPausedId = null;
             playQueueOn = true;
             voiceStartTicking();
             paintVoice(msgId);
             updateStickyPlayer();
+        }
+
+        /** Скорость без «мультяшного» голоса: элемент <audio> умеет растягивать время,
+         *  сохраняя тон. Web Audio так не умеет — он просто переигрывал сэмплы быстрее,
+         *  из-за чего на 1.5x и 2x голос становился писклявым. */
+        function applyVoiceRate(p) {
+            if (!p || !p.el) return;
+            try {
+                p.el.preservesPitch = true;
+                p.el.mozPreservesPitch = true;
+                p.el.webkitPreservesPitch = true;
+            } catch (e) {}
+            try { p.el.playbackRate = voiceSpeed; } catch (e) {}
         }
 
         async function toggleVoicePlay(msgId, audioUrl) {
@@ -7103,13 +7275,10 @@
             document.querySelectorAll('.video-note video').forEach(v => {
                 try { v.playbackRate = voiceSpeed; } catch (e) {}
             });
-            const p = voicePlayers[msgId];
-            if (p && p.playing) {
-                const pos = voicePosition(msgId);
-                stopVoicePlayer(msgId, false);
-                p.offset = pos;
-                startVoicePlayer(msgId);
-            }
+            // Достаточно поменять скорость на ходу — перезапускать воспроизведение больше не нужно
+            const p = voicePlayers[msgId] || voicePlayers[currentPlayingVoiceId];
+            applyVoiceRate(p);
+            if (p) p.rate = voiceSpeed;
         }
 
         // === Перемотка тычком/протяжкой по таймлайну ===
@@ -7172,8 +7341,8 @@
             if (consentNeeded() && !requireHealthConsent()) { event.target.value = ''; return; }
 
             // Проверка размера (5MB max)
-            if (file.size > 5 * 1024 * 1024) {
-                alert('Файл слишком большой. Максимальный размер: 5MB');
+            if (file.size > MAX_UPLOAD_MB * 1024 * 1024) {
+                alert(`Файл слишком большой. Максимальный размер: ${MAX_UPLOAD_MB} МБ`);
                 return;
             }
 

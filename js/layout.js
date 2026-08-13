@@ -459,7 +459,7 @@
           '<div id="psySupAttachPreview" style="display:none;padding:0.3rem 0.6rem;border-top:1px solid #eee;font-size:0.78rem;color:#7C3AED;"></div>' +
           '<div style="display:flex;gap:0.5rem;padding:0.6rem;border-top:1px solid #eee;align-items:center;">' +
             '<button id="psySupAttachBtn" title="Прикрепить файл" style="width:36px;height:36px;border-radius:50%;border:1px solid #E5E7EB;background:none;cursor:pointer;font-size:1rem;flex-shrink:0;display:flex;align-items:center;justify-content:center;color:#6B7280;">📎</button>' +
-            '<input type="file" id="psySupFileInput" accept="image/*,.pdf,.txt,.doc,.docx" style="display:none;">' +
+            '<input type="file" id="psySupFileInput" accept="image/*,.pdf,.txt,.doc,.docx" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0;padding:0;margin:-1px;">' +
             '<input id="psySupInput" placeholder="Сообщение..." style="flex:1;padding:0.6rem 0.8rem;border:1.5px solid #E5E7EB;border-radius:1.2rem;font-family:inherit;font-size:0.9rem;outline:none;">' +
             '<button id="psySupSend" style="width:42px;height:42px;border-radius:50%;border:none;background:linear-gradient(135deg,#7C3AED,#9F67FA);color:#fff;cursor:pointer;font-size:1.05rem;flex-shrink:0;">➤</button>' +
           '</div>' +
