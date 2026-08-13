@@ -1217,6 +1217,45 @@
         }
         body.dark .scroll-down-btn { background: #2A2A2A; color: #D0D0D0; border-color: #3A3A3A; }
 
+        /* Нижняя строка списка чатов — вход в настройки */
+        .chat-sb-settings {
+            display: flex; align-items: center; gap: 0.55rem; width: 100%;
+            padding: 0.7rem 0.9rem; border: none; border-top: 1px solid rgba(128,128,128,0.22);
+            background: transparent; color: inherit; cursor: pointer; font-family: inherit;
+            font-size: 0.9rem; font-weight: 600; flex-shrink: 0; text-align: left;
+        }
+        .chat-sb-settings:hover { background: rgba(124,58,237,0.10); }
+        .sbs-ico { font-size: 1.1rem; }
+        .conversations-pane.collapsed .sbs-name { display: none; }
+        .conversations-pane.collapsed .chat-sb-settings { justify-content: center; }
+
+        /* Окно настроек чатов */
+        .cs-modal {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 3000;
+            display: none; align-items: center; justify-content: center; padding: 1rem;
+        }
+        .cs-box {
+            background: #fff; color: #1A1A1A; border-radius: 1rem; width: min(420px, 100%);
+            max-height: 84vh; overflow-y: auto; padding: 0.9rem;
+        }
+        .cs-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem; }
+        .cs-head button { border: none; background: none; font-size: 1.1rem; cursor: pointer; color: inherit; }
+        .cs-group-title {
+            font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em;
+            color: #9CA3AF; font-weight: 700; margin: 0.7rem 0 0.25rem;
+        }
+        .cs-row {
+            display: flex; align-items: center; gap: 0.7rem; width: 100%; text-align: left;
+            padding: 0.6rem 0.5rem; border: none; background: none; border-radius: 0.6rem;
+            cursor: pointer; font-family: inherit; font-size: 0.92rem; color: inherit; text-decoration: none;
+        }
+        .cs-row:hover { background: rgba(124,58,237,0.10); }
+        .cs-row > span { font-size: 1.2rem; width: 1.6rem; text-align: center; flex-shrink: 0; }
+        .cs-row b { display: block; font-weight: 600; }
+        .cs-row i { display: block; font-style: normal; font-size: 0.78rem; color: #6B7280; }
+        body.dark .cs-box { background: #252525; color: #E6E6E6; }
+        body.dark .cs-row i { color: #9CA3AF; }
+
         /* Поиск по переписке */
         .chat-search {
             display: flex; align-items: center; gap: 0.4rem; padding: 0.5rem 0.9rem;
@@ -1273,6 +1312,20 @@
             border: none; border-radius: 50%; background: rgba(0,0,0,0.6); color: #fff;
             font-size: 0.7rem; cursor: pointer; padding: 0;
         }
+        /* Сетка альбома: несколько фото одной отправки в одном сообщении */
+        .album-grid {
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(78px, 1fr));
+            gap: 3px; margin-top: 3px; max-width: 250px;
+        }
+        .album-grid img { width: 100%; height: 78px; object-fit: cover; border-radius: 6px; display: block; cursor: pointer; }
+        .album-file {
+            grid-column: 1 / -1; font-size: 0.8rem; color: inherit; text-decoration: none;
+            background: rgba(128,128,128,0.18); border-radius: 6px; padding: 0.25rem 0.45rem;
+        }
+
+        .ab-opts { display: flex; gap: 0.9rem; flex-wrap: wrap; font-size: 0.8rem; }
+        .ab-opts label { display: inline-flex; align-items: center; gap: 0.3rem; cursor: pointer; }
+        .ab-opts input { accent-color: #7C3AED; cursor: pointer; }
         .ab-hint { font-size: 0.76rem; color: #6B7280; }
         body.dark .ab-hint { color: #9CA3AF; }
 
@@ -1305,8 +1358,19 @@
         .psy-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
         /* ── Упоминания @ ── */
+        /* На своём (фиолетовом) пузыре фиолетовые ссылки и упоминания сливались с фоном.
+           Внутри своих сообщений красим их светлым и подчёркиваем, чужие оставляем как были. */
         .mention { color: #7C3AED; font-weight: 600; }
         .mention-me { background: rgba(124,58,237,0.18); border-radius: 0.3rem; padding: 0 0.2rem; }
+        .message.mine .mention { color: #FFF3B0; }
+        .message.mine .mention-me { background: rgba(255,255,255,0.26); color: #fff; }
+        .message a { color: #6D28D9; text-decoration: underline; text-underline-offset: 2px; }
+        .message.mine a { color: #FFFFFF; text-decoration-color: rgba(255,255,255,0.7); }
+        body.dark .message a { color: #C4B5FD; }
+        body.dark .message.mine a { color: #FFFFFF; }
+        /* В группах имя автора и подсветка своего упоминания тоже должны читаться */
+        body.dark .mention { color: #C4B5FD; }
+        body.dark .mention-me { background: rgba(196,181,253,0.22); color: #EDE9FE; }
         .mention-box {
             position: absolute; bottom: 100%; left: 0.75rem; z-index: 40;
             background: #fff; border: 1px solid #E5E7EB; border-radius: 0.75rem;
@@ -1950,21 +2014,18 @@
             <!-- Вертикальная рейка папок слева, как в Telegram/MAX -->
             <div class="chat-folders" id="chatFolders"></div>
             <div class="conversations-list">
+            <!-- Сверху только поиск: кнопки создания, обоев и темы переехали вниз,
+                 в «Настройки» — так шапка списка занимает меньше места. -->
             <div class="chat-sb-head">
-                <input id="chatSearchInput" class="chat-sb-search" type="text" placeholder="🔍 Поиск по всем пользователям..." oninput="filterConversations()">
-                <button class="chat-hdr-btn sb-wide-only" onclick="openCreateGroupModal()" title="Новая группа" aria-label="Новая группа">
-                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
-                </button>
-                <button class="chat-hdr-btn sb-wide-only" onclick="openWallpaperPicker()" title="Обои переписки" aria-label="Обои переписки">🎨</button>
-                <button id="chatThemeToggle" class="chat-hdr-btn sb-wide-only" onclick="toggleChatTheme()" title="Светлая/тёмная тема" aria-label="Сменить тему">🌙</button>
-                <!-- На телефоне всё это собрано в одно меню, как в мобильном Telegram -->
-                <button class="chat-hdr-btn sb-narrow-only" onclick="openSidebarMenu(event)" title="Ещё" aria-label="Ещё">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="6" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="12" cy="18" r="1.8"/></svg>
-                </button>
+                <input id="chatSearchInput" class="chat-sb-search" type="text" placeholder="🔍 Поиск..." oninput="filterConversations()">
             </div>
             <div id="conversationsList" style="overflow-y:auto;flex:1;min-height:0;">
                 <div class="no-conversations">Загрузка...</div>
             </div>
+            <!-- Нижняя строка списка, как в Telegram: с виду такая же строка, но это настройки -->
+            <button type="button" class="chat-sb-settings" onclick="openChatSettings()" title="Настройки">
+                <span class="sbs-ico">⚙️</span><span class="sbs-name">Настройки</span>
+            </button>
             </div>
             <!-- Край для перетаскивания ширины списка -->
             <div class="pane-resizer" id="paneResizer" title="Потяните, чтобы изменить ширину"></div>
@@ -4710,6 +4771,45 @@
         window.addEventListener('resize', syncFolderPlacement);
         window.addEventListener('orientationchange', syncFolderPlacement);
 
+        /** Настройки чатов: то, что раньше висело кнопками в шапке списка.
+         *  Внизу списка, как папка в Telegram, — сверху остался только поиск. */
+        function openChatSettings() {
+            const dark = document.body.classList.contains('dark');
+            let m = document.getElementById('chatSettingsModal');
+            if (!m) {
+                m = document.createElement('div');
+                m.id = 'chatSettingsModal';
+                m.className = 'cs-modal';
+                m.onclick = (e) => { if (e.target === m) closeChatSettings(); };
+                document.body.appendChild(m);
+            }
+            m.innerHTML = `
+                <div class="cs-box">
+                    <div class="cs-head">
+                        <b>⚙️ Настройки</b>
+                        <button type="button" onclick="closeChatSettings()" title="Закрыть">✕</button>
+                    </div>
+                    <div class="cs-group-title">Создать</div>
+                    <button class="cs-row" onclick="closeChatSettings();openCreateGroupModal()">
+                        <span>👥</span><div><b>Группу</b><i>общая переписка на несколько человек</i></div></button>
+                    <div class="cs-group-title">Оформление</div>
+                    <button class="cs-row" onclick="closeChatSettings();openWallpaperPicker()">
+                        <span>🎨</span><div><b>Обои переписки</b><i>фон для окна сообщений</i></div></button>
+                    <button class="cs-row" onclick="toggleChatTheme();openChatSettings()">
+                        <span>${dark ? '☀️' : '🌙'}</span><div><b>${dark ? 'Светлая тема' : 'Тёмная тема'}</b><i>сейчас ${dark ? 'тёмная' : 'светлая'}</i></div></button>
+                    <div class="cs-group-title">Ещё</div>
+                    <a class="cs-row" href="/notify-settings.html">
+                        <span>🔔</span><div><b>Уведомления</b><i>куда присылать сообщения</i></div></a>
+                </div>`;
+            m.style.display = 'flex';
+        }
+        window.openChatSettings = openChatSettings;
+        function closeChatSettings() {
+            const m = document.getElementById('chatSettingsModal');
+            if (m) m.style.display = 'none';
+        }
+        window.closeChatSettings = closeChatSettings;
+
         /** Меню действий списка чатов для телефона: новая группа, обои, тема. */
         function openSidebarMenu(evt) {
             if (evt) { evt.stopPropagation(); evt.preventDefault(); }
@@ -4818,6 +4918,44 @@
         //  работает сразу и в личных чатах, и в группах, и в «Избранном».
         // ══════════════════════════════════════════════════════════════════════════════
         const RE_MARK = /^\[RE#([A-Za-z0-9_-]+)\]\s*/;
+        // Метка альбома: несколько фото, отправленных одним разом. В тексте её не показываем.
+        const ALB_MARK = /^\[ALB#(\d+)\]\s*/;
+        function albumIdOf(text) { const m = ALB_MARK.exec(String(text || '')); return m ? m[1] : null; }
+        function stripAlbum(text) { return String(text || '').replace(ALB_MARK, ''); }
+
+        /**
+         * Свернуть подряд идущие фото одного альбома в одно сообщение с сеткой.
+         * Вложение в сообщении может быть только одно, а серверный messages.php менять
+         * нельзя — поэтому альбом собирается здесь, при отрисовке.
+         */
+        function foldAlbums(list) {
+            const out = [];
+            for (const m of (list || [])) {
+                const alb = albumIdOf(m.content);
+                const prev = out[out.length - 1];
+                if (alb && prev && prev.__album === alb && String(prev.sender_id) === String(m.sender_id)) {
+                    prev.__extra = prev.__extra || [];
+                    prev.__extra.push({ url: m.attachment_url, name: m.attachment_name, type: m.attachment_type });
+                    prev.__ids = (prev.__ids || []).concat([m.id]);
+                    continue;
+                }
+                const copy = Object.assign({}, m);
+                if (alb) { copy.__album = alb; copy.content = stripAlbum(copy.content); }
+                out.push(copy);
+            }
+            return out;
+        }
+
+        /** Сетка альбома: первое вложение уже нарисовано обычным способом, добавляем остальные. */
+        function albumExtraHtml(m) {
+            if (!m.__extra || !m.__extra.length) return '';
+            return '<div class="album-grid">' + m.__extra.map(a => {
+                const isImg = a.type === 'image' || /\.(png|jpe?g|gif|webp|bmp)(\?|$)/i.test(String(a.url || ''));
+                return isImg
+                    ? `<a href="${escapeHtml(a.url)}" target="_blank"><img src="${escapeHtml(a.url)}" loading="lazy" alt=""></a>`
+                    : `<a class="album-file" href="${escapeHtml(a.url)}" target="_blank" download>📄 ${escapeHtml(a.name || 'файл')}</a>`;
+            }).join('') + '</div>';
+        }
         let msgCaps = {};            // id -> что можно делать с этим сообщением
         let replyTo = null;          // {id, name, text} — на что отвечаем
         let selectMode = false;
@@ -5384,8 +5522,7 @@
             const dark = !document.body.classList.contains('dark');
             document.body.classList.toggle('dark', dark);
             try { localStorage.setItem('psy-theme', dark ? 'dark' : 'light'); } catch (e) {}
-            const btn = document.getElementById('chatThemeToggle');
-            if (btn) btn.textContent = dark ? '☀️' : '🌙';
+            // кнопка темы теперь живёт в окне настроек и перерисовывается вместе с ним
         }
 
         // Личный диалог «Избранное» — доступен в любой роли, пишет сам себе (задача #28).
@@ -6051,7 +6188,9 @@
                 const container = document.getElementById('messagesContainer');
                 const wasScrolledToBottom = container.scrollHeight - container.scrollTop <= container.clientHeight + 50;
 
-                const dmHtml = messages.map(m => {
+                // Альбомы сворачиваем до отрисовки: подряд идущие фото одной отправки
+                // становятся одним сообщением с сеткой вместо череды одинаковых пузырей.
+                const dmHtml = foldAlbums(messages).map(m => {
                     // Для админа: сообщения от support тоже считаются "своими"
                     const isMine = String(m.sender_id) === String(currentUser.id) ||
                         (isAdminMode && (m.sender_id === 'support' || m.sender_first_name === 'Техподдержка'));
@@ -6141,6 +6280,7 @@
                             ${callBtn}
                             <div id="msg-body-${m.id || ''}">${content ? `<div id="msg-content-${m.id || ''}">${highlightMentions(content)}</div>` : ''}</div>
                             ${attachmentHtml}
+                            ${albumExtraHtml(m)}
                             <div class="message-time">${time}${editedTag}${isMine ? msgTicks(m) : ''}</div>
                             ${msgHoverHtml(m.id)}
                         </div>
@@ -7464,6 +7604,9 @@
          * сохраняет картинку как обычный файл, и тогда вместо превью показывалась ссылка.
          */
         function isImageAttachment(m) {
+            // Отправлено «как документ» — показываем ссылкой на скачивание, даже если это .png:
+            // человек нарочно выбрал сохранить файл в исходном виде.
+            if (m.attachment_type === 'file') return false;
             if ((m.attachment_type || '').indexOf('image') === 0) return true;
             const u = String(m.attachment_url || '');
             return typeof psyIsImageUrl === 'function' ? psyIsImageUrl(u) : /\.(jpe?g|png|gif|webp|avif|bmp)(\?|$)/i.test(u);
@@ -8441,6 +8584,8 @@
 
         // ── Отправка вложений: несколько файлов сразу и подпись к ним ──
         let pendingAttachments = [];   // [{url, name, type, isImage}]
+        let attachGrouped = true;      // несколько файлов — одним сообщением-альбомом
+        let attachAsFile = false;      // отправить картинки документом, без превью
 
         async function uploadOne(file) {
             const formData = new FormData();
@@ -8496,12 +8641,19 @@
                 const input = document.getElementById('chatInputBar');
                 input.parentNode.insertBefore(bar, input);
             }
-            bar.innerHTML = `<div class="ab-items">` + pendingAttachments.map((a, i) => a.isImage
+            const images = pendingAttachments.filter(a => a.isImage).length;
+            bar.innerHTML = `<div class="ab-items">` + pendingAttachments.map((a, i) => a.isImage && !attachAsFile
                 ? `<div class="ab-item"><img src="${escapeHtml(a.url)}" alt="">
                        <button type="button" onclick="dropAttachment(${i})" title="Убрать">✕</button></div>`
                 : `<div class="ab-item ab-file"><span>📄 ${escapeHtml(a.name.slice(0, 18))}</span>
                        <button type="button" onclick="dropAttachment(${i})" title="Убрать">✕</button></div>`
             ).join('') + `</div>
+                <div class="ab-opts">
+                    ${pendingAttachments.length > 1 ? `<label><input type="checkbox" ${attachGrouped ? 'checked' : ''}
+                        onchange="attachGrouped=this.checked;renderAttachBar()"> Сгруппировать в одно сообщение</label>` : ''}
+                    ${images ? `<label title="Файл уйдёт как есть, без превью — так его сохранят в исходном виде"><input type="checkbox" ${attachAsFile ? 'checked' : ''}
+                        onchange="attachAsFile=this.checked;renderAttachBar()"> Отправить как документ</label>` : ''}
+                </div>
                 <div class="ab-hint">${pendingAttachments.length > 1
                     ? pendingAttachments.length + ' файла(ов) — подпись добавится к первому'
                     : 'Можно добавить подпись и отправить'}</div>`;
@@ -8515,15 +8667,24 @@
         /** Отправить накопленные вложения. Подпись уходит вместе с первым из них. */
         async function sendPendingAttachments(caption) {
             const items = pendingAttachments;
+            const asFile = attachAsFile;
+            // Метка альбома: по ней несколько сообщений рисуются одним блоком с сеткой фото.
+            // Так сделано потому, что в сообщении может быть только одно вложение, а менять
+            // серверный messages.php нельзя — метка живёт в тексте и переживает пересылку.
+            const album = (attachGrouped && items.length > 1) ? ('[ALB#' + Date.now() + '] ') : '';
             pendingAttachments = [];
+            attachAsFile = false;
             renderAttachBar();
             for (let i = 0; i < items.length; i++) {
                 const a = items[i];
-                const text = (i === 0 && caption) ? caption : `[${a.isImage ? 'Фото' : 'Файл'}: ${a.name}]`;
+                const body = (i === 0 && caption) ? caption
+                    : `[${(a.isImage && !asFile) ? 'Фото' : 'Файл'}: ${a.name}]`;
                 await sendAttachmentMessage({
-                    content: text,
+                    content: album + body,
                     attachment_url: a.url,
-                    attachment_type: a.type,
+                    // «Как документ» — не просто вид: вложение помечается файлом, поэтому
+                    // открывается и скачивается как есть, без превью и без пережатия.
+                    attachment_type: asFile ? 'file' : a.type,
                     attachment_name: a.name,
                 });
             }

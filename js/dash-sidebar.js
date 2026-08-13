@@ -64,9 +64,9 @@
                 </div>
                 <nav class="dash-sidebar-nav">${groupsHtml}</nav>
                 <div class="dash-sidebar-footer">
-                    <button class="dash-sidebar-item" onclick="toggleDashTheme()" id="themeBtn" title="Сменить тему">
-                        <span class="dash-sidebar-icon">🌙</span> <span id="themeBtnLabel">Тёмная тема</span>
-                    </button>
+                    <!-- Переключатель темы убран из бокового меню кабинета: он теперь в
+                         настройках (чаты → «Настройки») и в общем меню сайта. Здесь он
+                         только занимал строку в каждом разделе. -->
                     <button class="dash-sidebar-item" onclick="psyLogout()">
                         <span class="dash-sidebar-icon">🚪</span> Выйти
                     </button>
