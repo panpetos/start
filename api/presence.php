@@ -45,8 +45,11 @@ try {
         user_id VARCHAR(64) PRIMARY KEY,
         last_seen DATETIME NOT NULL,
         typing_to VARCHAR(64) NULL,
-        typing_at DATETIME NULL
+        typing_at DATETIME NULL,
+        hide_last_seen TINYINT(1) NOT NULL DEFAULT 0
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+    // Колонку могли не застать те, у кого таблица уже создана прошлой версией
+    try { $pdo->exec("ALTER TABLE user_presence ADD COLUMN hide_last_seen TINYINT(1) NOT NULL DEFAULT 0"); } catch (Exception $e) {}
     $pdo->exec("CREATE TABLE IF NOT EXISTS chat_reads (
         user_id VARCHAR(64) NOT NULL,
         peer_id VARCHAR(64) NOT NULL,
@@ -60,9 +63,46 @@ try {
     exit;
 }
 
+/** Грубая оценка «когда заходил» для тех, кто скрыл точное время. */
+function presenceBucket($seen) {
+    if (!$seen) return 'давно';
+    $ago = time() - $seen;
+    if ($ago < 3600) return 'недавно';
+    if ($ago < 86400) return 'сегодня';
+    if ($ago < 7 * 86400) return 'на этой неделе';
+    return 'давно';
+}
+
 $action = $_GET['action'] ?? '';
 $body = json_decode(file_get_contents('php://input'), true) ?: [];
 $now = date('Y-m-d H:i:s');
+
+// ── Настройка приватности: скрыть от других, когда я в сети ──
+if ($action === 'privacy') {
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        $hide = !empty($body['hide_last_seen']) ? 1 : 0;
+        try {
+            $st = $pdo->prepare("INSERT INTO user_presence (user_id, last_seen, hide_last_seen)
+                                 VALUES (?, ?, ?)
+                                 ON DUPLICATE KEY UPDATE hide_last_seen = VALUES(hide_last_seen)");
+            $st->execute([$userId, $now, $hide]);
+        } catch (Exception $e) {
+            try {
+                $pdo->prepare("UPDATE user_presence SET hide_last_seen = ? WHERE user_id = ?")->execute([$hide, $userId]);
+            } catch (Exception $e2) { http_response_code(500); echo json_encode(['error'=>$e2->getMessage()]); exit; }
+        }
+        echo json_encode(['ok' => true, 'hide_last_seen' => (bool)$hide]);
+        exit;
+    }
+    $hide = 0;
+    try {
+        $st = $pdo->prepare("SELECT hide_last_seen FROM user_presence WHERE user_id = ? LIMIT 1");
+        $st->execute([$userId]);
+        $hide = (int)$st->fetchColumn();
+    } catch (Exception $e) {}
+    echo json_encode(['ok' => true, 'hide_last_seen' => (bool)$hide]);
+    exit;
+}
 
 if ($action === 'ping') {
     // typing_to — с кем сейчас идёт набор: id человека или 'g:<id>' для группы.
@@ -74,7 +114,7 @@ if ($action === 'ping') {
                              ON DUPLICATE KEY UPDATE last_seen = VALUES(last_seen),
                                                     typing_to = VALUES(typing_to),
                                                     typing_at = VALUES(typing_at)");
-        $st->execute([$userId, $now, $typingTo, $typingAt]);
+        $st->execute([$userId, $now, $typingTo, $typingAt]);   // hide_last_seen не трогаем — он живёт своей жизнью
     } catch (Exception $e) {
         // sqlite на стенде не знает ON DUPLICATE KEY — там подойдёт REPLACE
         try {
@@ -113,15 +153,21 @@ if ($action === 'state') {
     if ($peers) {
         $in = implode(',', array_fill(0, count($peers), '?'));
         try {
-            $st = $pdo->prepare("SELECT user_id, last_seen, typing_to, typing_at FROM user_presence WHERE user_id IN ($in)");
+            $st = $pdo->prepare("SELECT user_id, last_seen, typing_to, typing_at, hide_last_seen
+                                 FROM user_presence WHERE user_id IN ($in)");
             $st->execute($peers);
             foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $r) {
                 $seen = strtotime((string)$r['last_seen']);
                 $typing = $r['typing_to'] !== null && $r['typing_at']
                        && strtotime((string)$r['typing_at']) > time() - TYPING_TTL_SEC;
+                $hidden = !empty($r['hide_last_seen']);
                 $out[(string)$r['user_id']] = [
-                    'online' => $seen > time() - ONLINE_WINDOW_SEC,
-                    'last_seen' => $r['last_seen'],
+                    // Если человек скрыл своё присутствие, точного времени не отдаём вообще:
+                    // прятать его на стороне браузера бессмысленно — данные всё равно уедут.
+                    'online' => $hidden ? false : ($seen > time() - ONLINE_WINDOW_SEC),
+                    'last_seen' => $hidden ? null : $r['last_seen'],
+                    'hidden' => $hidden,
+                    'seen_bucket' => $hidden ? presenceBucket($seen) : null,
                     // печатает именно мне (или в группу, которую я сейчас смотрю)
                     'typing_to' => $typing ? (string)$r['typing_to'] : null,
                 ];

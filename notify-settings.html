@@ -200,6 +200,15 @@
                 </div>
 
                 <div class="card">
+                    <h2>👁 Кто видит, когда я в сети</h2>
+                    <div class="hint">Если выключить показ, собеседники не увидят ни «в сети», ни точное
+                        время последнего захода — только приблизительно: «недавно», «сегодня», «давно».
+                        Ваши галочки о прочтении это не отключает.</div>
+                    <label class="sw"><input type="checkbox" id="showLastSeen"><span>Показывать, когда я в сети и когда заходил</span></label>
+                    <div class="msg" id="lastSeenMsg"></div>
+                </div>
+
+                <div class="card">
                     <h2>📋 Что уже отправлялось</h2>
                     <div class="hint">Здесь видно, дошло ли уведомление и почему нет — чтобы не гадать,
                         если каналы включены, а сообщений не приходит.</div>
@@ -330,6 +339,32 @@
             };
         }
 
+        // ── Показывать ли другим, когда я в сети (api/presence.php) ──
+        async function loadLastSeenPref() {
+            const el = document.getElementById('showLastSeen');
+            if (!el) return;
+            try {
+                const r = await (await fetch('/api/presence.php?action=privacy', { credentials: 'include' })).json();
+                el.checked = !(r && r.hide_last_seen);          // галочка = «показывать»
+            } catch (e) { el.checked = true; }
+            el.onchange = async () => {
+                const msg = document.getElementById('lastSeenMsg');
+                msg.textContent = 'Сохраняем…';
+                try {
+                    const r = await (await fetch('/api/presence.php?action=privacy', {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+                        body: JSON.stringify({ hide_last_seen: !el.checked })
+                    })).json();
+                    if (r && r.ok) {
+                        msg.textContent = el.checked
+                            ? 'Собеседники видят, когда вы в сети.'
+                            : 'Скрыто: другие увидят только «недавно» или «давно».';
+                        msg.className = 'msg ok';
+                    } else { msg.textContent = (r && r.error) || 'Не сохранилось'; msg.className = 'msg err'; }
+                } catch (e) { msg.textContent = 'Не сохранилось: ' + e.message; msg.className = 'msg err'; }
+            };
+        }
+
         async function loadLog() {
             const box = document.getElementById('deliveryLog');
             if (!box) return;
@@ -360,6 +395,7 @@
             state = d;
             render();
             loadLog();
+            loadLastSeenPref();
         }
 
         (async function init() {

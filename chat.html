@@ -1208,8 +1208,17 @@
             background: #16A34A; border: 2px solid #fff;
         }
         body.dark .conversation-item.is-online .conversation-avatar::after { border-color: #252525; }
-        .msg-ticks { margin-left: 0.3rem; letter-spacing: -0.12em; opacity: 0.75; }
-        .msg-ticks.read { color: #38BDF8; opacity: 1; }
+        /* Галочки были почти незаметны — теперь крупнее, плотнее и с явным цветом:
+           прочитанное голубое, остальное белое/тёмное с полной непрозрачностью. */
+        .msg-ticks {
+            /* размер в rem, а не в em: подпись времени мелкая, и относительный размер
+               давал галочки меньше 13px — их и было почти не видно */
+            margin-left: 0.4rem; letter-spacing: -0.16em; font-size: 0.95rem;
+            font-weight: 800; opacity: 1; vertical-align: -1px;
+        }
+        .message.mine .msg-ticks.sent { color: #EDE9FE; }
+        .msg-ticks.read { color: #38BDF8; text-shadow: 0 0 1px rgba(56,189,248,0.6); }
+        body.dark .message.mine .msg-ticks.sent { color: #D6D3E4; }
 
         .vr-hint { font-size: 0.8rem; color: #6B7280; }
         /* Плашка стоит на месте строки ввода, поэтому повторяет её отступы и фон —
@@ -3166,6 +3175,7 @@
         async function openUserCard(userId) {
             if (!userId || userId === FAVORITES_ID) return;
             const modal = document.getElementById('userCardModal');
+            presenceRefresh();          // чтобы в карточке сразу был свежий статус
             const body = document.getElementById('userCardBody');
             modal.style.display = 'flex';
             body.innerHTML = '<div style="padding:2rem;text-align:center;color:#9CA3AF;">Загрузка…</div>';
@@ -3185,6 +3195,7 @@
                                 <div style="font-weight:700;font-size:1.1rem;">${escapeHtml(name)}</div>
                                 <div style="color:#6B7280;font-size:0.85rem;">${escapeHtml(c.specialization || 'Психолог')}</div>
                                 <div style="color:#6B7280;font-size:0.8rem;">${rating} · ${c.subscribers_count || 0} подписчиков</div>
+                                <div style="font-size:0.82rem;margin-top:0.2rem;">${presenceLabelHtml(userId)}</div>
                             </div>
                         </div>
                         ${c.description ? `<div style="font-size:0.9rem;color:#374151;margin-bottom:1rem;line-height:1.5;">${escapeHtml(c.description)}</div>` : ''}
@@ -3205,11 +3216,22 @@
                             <div style="min-width:0;">
                                 <div style="font-weight:700;font-size:1.1rem;">${escapeHtml(name)}</div>
                                 <div style="color:#6B7280;font-size:0.85rem;">Клиент${since ? ' · на платформе с ' + since : ''}</div>
+                                <div style="font-size:0.82rem;margin-top:0.2rem;">${presenceLabelHtml(userId)}</div>
                             </div>
                         </div>`;
                 }
             } catch (e) { body.innerHTML = '<div style="padding:2rem;text-align:center;color:#DC2626;">Не удалось загрузить карточку</div>'; }
         }
+        /** Подпись «в сети / был(а) …» для карточки собеседника. */
+        function presenceLabelHtml(userId) {
+            const p = presence[userId];
+            if (!p) return '<span style="color:#9CA3AF;">статус уточняется…</span>';
+            if (p.online) return '<span class="online-txt">● в сети</span>';
+            if (p.hidden) return '<span style="color:#6B7280;">заходил(а) ' + escapeHtml(p.seen_bucket || 'давно') + '</span>';
+            return '<span style="color:#6B7280;">' + escapeHtml(humanLastSeen(p.last_seen)) + '</span>';
+        }
+        window.presenceLabelHtml = presenceLabelHtml;
+
         function closeUserCard() { document.getElementById('userCardModal').style.display = 'none'; }
 
         // ── Учёт реального времени консультации (логируется в /api/calls.php) ──
@@ -3670,6 +3692,16 @@
             } catch (e) {}
         }
 
+        /** Когда именно прочитали: сегодня — время, раньше — дата и время. */
+        function readTimeLabel(ts) {
+            if (!ts) return 'неизвестно когда';
+            const t = new Date(String(ts).replace(' ', 'T'));
+            const today = new Date();
+            const sameDay = t.toDateString() === today.toDateString();
+            const hhmm = t.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+            return sameDay ? hhmm : (t.toLocaleDateString('ru-RU') + ' в ' + hhmm);
+        }
+
         function humanLastSeen(ts) {
             if (!ts) return 'давно не заходил(а)';
             const t = new Date(String(ts).replace(' ', 'T'));
@@ -3691,7 +3723,9 @@
                 const typingHere = p && p.typing_to
                     && p.typing_to === (currentUser ? String(currentUser.id) : '');
                 if (typingHere) st.innerHTML = '<span class="typing-now">печатает<span class="td">.</span><span class="td">.</span><span class="td">.</span></span>';
-                else if (p && p.online) st.innerHTML = '<span class="online-txt">в сети</span>';
+                else if (p && p.online) st.innerHTML = '<span class="online-txt">● в сети</span>';
+                // Скрыл точное время — показываем только грубую оценку, которую прислал сервер
+                else if (p && p.hidden) st.textContent = 'заходил(а) ' + (p.seen_bucket || 'давно');
                 else st.textContent = p ? humanLastSeen(p.last_seen) : (st.dataset.role || '');
             }
             document.querySelectorAll('.conversation-item[data-user-id]').forEach(el => {
@@ -3713,9 +3747,10 @@
             const at = new Date(String(m.created_at || '').replace(' ', 'T')).getTime();
             const read = p && p.read_until ? new Date(String(p.read_until).replace(' ', 'T')).getTime() : 0;
             const seen = p && p.last_seen ? new Date(String(p.last_seen).replace(' ', 'T')).getTime() : 0;
-            if (read && at && read >= at) return `<span class="msg-ticks read"${stamp} title="Прочитано">✓✓</span>`;
-            if (seen && at && seen >= at) return `<span class="msg-ticks"${stamp} title="Доставлено">✓✓</span>`;
-            return `<span class="msg-ticks"${stamp} title="Отправлено">✓</span>`;
+            if (read && at && read >= at)
+                return `<span class="msg-ticks read"${stamp} title="Прочитано в ${escapeHtml(readTimeLabel(p.read_until))}">✓✓</span>`;
+            if (seen && at && seen >= at) return `<span class="msg-ticks sent"${stamp} title="Доставлено">✓✓</span>`;
+            return `<span class="msg-ticks sent"${stamp} title="Отправлено">✓</span>`;
         }
 
         /** Перекрасить уже отрисованные галочки, не перерисовывая всю переписку. */
@@ -3728,9 +3763,14 @@
             document.querySelectorAll('.message.mine .msg-ticks').forEach(el => {
                 const at = new Date(String(el.dataset.at || '').replace(' ', 'T')).getTime();
                 if (!at) return;
-                if (read && read >= at) { el.textContent = '✓✓'; el.classList.add('read'); el.title = 'Прочитано'; }
-                else if (seen && seen >= at) { el.textContent = '✓✓'; el.classList.remove('read'); el.title = 'Доставлено'; }
-                else { el.textContent = '✓'; el.classList.remove('read'); el.title = 'Отправлено'; }
+                if (read && read >= at) {
+                    el.textContent = '✓✓'; el.classList.add('read'); el.classList.remove('sent');
+                    el.title = 'Прочитано в ' + readTimeLabel(p.read_until);
+                } else if (seen && seen >= at) {
+                    el.textContent = '✓✓'; el.classList.remove('read'); el.classList.add('sent'); el.title = 'Доставлено';
+                } else {
+                    el.textContent = '✓'; el.classList.remove('read'); el.classList.add('sent'); el.title = 'Отправлено';
+                }
             });
         }
 

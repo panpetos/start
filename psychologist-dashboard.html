@@ -288,8 +288,11 @@
                 <p style="margin-bottom: 1rem;">Посты пишутся в чате — там же, где переписка. Каждый пост
                     появляется у подписчиков, на вашей странице в каталоге и в общей
                     <a href="/feed.html" style="color:#7C3AED;font-weight:600;">Ленте</a> сайта.</p>
-                <a class="btn" id="channelChatLink" href="/chat.html" style="text-decoration:none;display:inline-flex;align-items:center;gap:0.4rem;">
-                    ✍️ Открыть свой канал в чате
+                <!-- max-width и перенос обязательны: inline-flex с длинной надписью задавал
+                     колонке минимальную ширину, и на узком экране карточки уезжали за край -->
+                <a class="btn" id="channelChatLink" href="/chat.html"
+                   style="text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:0.4rem;flex-wrap:wrap;max-width:100%;text-align:center;white-space:normal;">
+                    ✍️ Мой канал в чате
                 </a>
             </div>
         </div>
