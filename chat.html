@@ -1063,7 +1063,22 @@
             grid-template-columns: repeat(8, 36px);
             gap: 2px;
             justify-content: center;
+            /* смайликов теперь много — список прокручивается, а не растёт на весь экран */
+            max-height: 244px;
+            overflow-y: auto;
+            padding: 4px 2px;
         }
+        .emoji-tabs {
+            display: flex; gap: 2px; justify-content: center;
+            padding-bottom: 6px; margin-bottom: 4px; border-bottom: 1px solid rgba(128,128,128,0.25);
+        }
+        .emoji-tab {
+            border: none; background: none; cursor: pointer; font-size: 1.15rem;
+            padding: 4px 7px; border-radius: 8px; line-height: 1;
+        }
+        .emoji-tab:hover { background: rgba(124,58,237,0.12); }
+        .emoji-tab.active { background: rgba(124,58,237,0.22); }
+        .emoji-empty { grid-column: 1 / -1; font-size: 0.82rem; color: #6B7280; padding: 0.75rem; text-align: center; }
 
         .emoji-grid span {
             font-size: 1.5rem;
@@ -1162,6 +1177,25 @@
         @media (max-width: 768px) { .ai-acts { opacity: 1; } }   /* на телефоне наведения нет */
         body.dark .ai-acts button { background: rgba(255,255,255,0.10); }
 
+        /* Расшифровка голосового или кружка */
+        .stt-box { margin-top: 0.35rem; }
+        .stt-btn {
+            border: 1px solid rgba(124,58,237,0.45); background: rgba(124,58,237,0.10);
+            color: inherit; cursor: pointer; border-radius: 0.5rem;
+            padding: 0.2rem 0.55rem; font-size: 0.78rem; font-family: inherit; font-weight: 600;
+        }
+        .stt-btn:hover { background: rgba(124,58,237,0.22); }
+        .stt-wait { font-size: 0.8rem; opacity: 0.8; }
+        .stt-err { font-size: 0.8rem; color: #DC2626; }
+        .stt-text {
+            font-size: 0.88rem; line-height: 1.45; margin-top: 0.15rem;
+            padding: 0.45rem 0.6rem; border-radius: 0.55rem;
+            background: rgba(0,0,0,0.06); white-space: pre-wrap;
+        }
+        .message.mine .stt-text { background: rgba(255,255,255,0.18); }
+        body.dark .stt-text { background: rgba(255,255,255,0.10); }
+        body.dark .stt-err { color: #FF8080; }
+
         /* Всплывающая подсказка о результате действия */
         .psy-toast {
             position: fixed; left: 50%; bottom: 90px; transform: translateX(-50%) translateY(12px);
@@ -1200,14 +1234,29 @@
         .typing-now .td:nth-child(2) { animation-delay: 0.2s; }
         .typing-now .td:nth-child(3) { animation-delay: 0.4s; }
         @keyframes typingDot { 0%, 60%, 100% { opacity: 0.25; } 30% { opacity: 1; } }
-        /* Точка «в сети» на аватарке в списке диалогов */
+        /* Кружок у аватарки: зелёный — в сети, серый — не в сети. Показываем оба состояния,
+           иначе непонятно, человек офлайн или статус просто ещё не приехал. */
         .conversation-item .conversation-avatar { position: relative; }
-        .conversation-item.is-online .conversation-avatar::after {
+        /* Кружок рисуем у всех личных диалогов сразу — серый по умолчанию. Если ждать
+           ответа сервера, у людей без записи о присутствии кружка не было вовсе. */
+        .conversation-item[data-user-id] .conversation-avatar::after {
             content: ''; position: absolute; right: -1px; bottom: -1px;
-            width: 11px; height: 11px; border-radius: 50%;
-            background: #16A34A; border: 2px solid #fff;
+            width: 12px; height: 12px; border-radius: 50%;
+            border: 2px solid #fff; background: #9CA3AF;
         }
-        body.dark .conversation-item.is-online .conversation-avatar::after { border-color: #252525; }
+        .conversation-item.is-online .conversation-avatar::after { background: #16A34A; }
+        body.dark .conversation-item.is-online .conversation-avatar::after,
+        body.dark .conversation-item.is-offline .conversation-avatar::after { border-color: #252525; }
+
+        /* Тот же кружок у аватарки в шапке открытого чата */
+        #chatHeader .avatar.has-dot { position: relative; overflow: visible; }
+        #chatHeader .avatar.has-dot::after {
+            content: ''; position: absolute; right: -1px; bottom: -1px;
+            width: 13px; height: 13px; border-radius: 50%;
+            border: 2px solid #fff; background: #9CA3AF;
+        }
+        #chatHeader .avatar.has-dot.is-online::after { background: #16A34A; }
+        body.dark #chatHeader .avatar.has-dot::after { border-color: #252525; }
         /* Галочки были почти незаметны — теперь крупнее, плотнее и с явным цветом:
            прочитанное голубое, остальное белое/тёмное с полной непрозрачностью. */
         .msg-ticks {
@@ -1933,41 +1982,11 @@
                     </div>
                 </div>
                 <!-- Emoji Picker -->
+                <!-- Смайликов было три десятка — мало. Теперь стандартный набор по разделам,
+                     как в привычных мессенджерах, с запоминанием последних использованных. -->
                 <div id="emojiPicker" class="emoji-picker" style="display:none;">
-                    <div class="emoji-grid">
-                        <span onclick="insertEmoji('😊')">😊</span>
-                        <span onclick="insertEmoji('😂')">😂</span>
-                        <span onclick="insertEmoji('🥰')">🥰</span>
-                        <span onclick="insertEmoji('😍')">😍</span>
-                        <span onclick="insertEmoji('🤗')">🤗</span>
-                        <span onclick="insertEmoji('😎')">😎</span>
-                        <span onclick="insertEmoji('🙏')">🙏</span>
-                        <span onclick="insertEmoji('👍')">👍</span>
-                        <span onclick="insertEmoji('👋')">👋</span>
-                        <span onclick="insertEmoji('❤️')">❤️</span>
-                        <span onclick="insertEmoji('💜')">💜</span>
-                        <span onclick="insertEmoji('💙')">💙</span>
-                        <span onclick="insertEmoji('🔥')">🔥</span>
-                        <span onclick="insertEmoji('✨')">✨</span>
-                        <span onclick="insertEmoji('🎉')">🎉</span>
-                        <span onclick="insertEmoji('💪')">💪</span>
-                        <span onclick="insertEmoji('🤔')">🤔</span>
-                        <span onclick="insertEmoji('😢')">😢</span>
-                        <span onclick="insertEmoji('😅')">😅</span>
-                        <span onclick="insertEmoji('🥺')">🥺</span>
-                        <span onclick="insertEmoji('😇')">😇</span>
-                        <span onclick="insertEmoji('🤩')">🤩</span>
-                        <span onclick="insertEmoji('😌')">😌</span>
-                        <span onclick="insertEmoji('💯')">💯</span>
-                        <span onclick="insertEmoji('🙌')">🙌</span>
-                        <span onclick="insertEmoji('👏')">👏</span>
-                        <span onclick="insertEmoji('🤝')">🤝</span>
-                        <span onclick="insertEmoji('💕')">💕</span>
-                        <span onclick="insertEmoji('🌟')">🌟</span>
-                        <span onclick="insertEmoji('☀️')">☀️</span>
-                        <span onclick="insertEmoji('🌈')">🌈</span>
-                        <span onclick="insertEmoji('🍀')">🍀</span>
-                    </div>
+                    <div class="emoji-tabs" id="emojiTabs"></div>
+                    <div class="emoji-grid" id="emojiGrid"></div>
                 </div>
             </div>
         </div>
@@ -3175,7 +3194,7 @@
         async function openUserCard(userId) {
             if (!userId || userId === FAVORITES_ID) return;
             const modal = document.getElementById('userCardModal');
-            presenceRefresh();          // чтобы в карточке сразу был свежий статус
+            await presenceRefresh();    // ждём ответ, иначе в карточке будет «уточняется…»
             const body = document.getElementById('userCardBody');
             modal.style.display = 'flex';
             body.innerHTML = '<div style="padding:2rem;text-align:center;color:#9CA3AF;">Загрузка…</div>';
@@ -3195,7 +3214,7 @@
                                 <div style="font-weight:700;font-size:1.1rem;">${escapeHtml(name)}</div>
                                 <div style="color:#6B7280;font-size:0.85rem;">${escapeHtml(c.specialization || 'Психолог')}</div>
                                 <div style="color:#6B7280;font-size:0.8rem;">${rating} · ${c.subscribers_count || 0} подписчиков</div>
-                                <div style="font-size:0.82rem;margin-top:0.2rem;">${presenceLabelHtml(userId)}</div>
+                                <div style="font-size:0.82rem;margin-top:0.2rem;" data-presence-for="${escapeHtml(String(userId))}">${presenceLabelHtml(userId)}</div>
                             </div>
                         </div>
                         ${c.description ? `<div style="font-size:0.9rem;color:#374151;margin-bottom:1rem;line-height:1.5;">${escapeHtml(c.description)}</div>` : ''}
@@ -3216,7 +3235,7 @@
                             <div style="min-width:0;">
                                 <div style="font-weight:700;font-size:1.1rem;">${escapeHtml(name)}</div>
                                 <div style="color:#6B7280;font-size:0.85rem;">Клиент${since ? ' · на платформе с ' + since : ''}</div>
-                                <div style="font-size:0.82rem;margin-top:0.2rem;">${presenceLabelHtml(userId)}</div>
+                                <div style="font-size:0.82rem;margin-top:0.2rem;" data-presence-for="${escapeHtml(String(userId))}">${presenceLabelHtml(userId)}</div>
                             </div>
                         </div>`;
                 }
@@ -3732,6 +3751,21 @@
                 const id = el.getAttribute('data-user-id');
                 const p = presence[id];
                 el.classList.toggle('is-online', !!(p && p.online));
+                el.classList.toggle('is-offline', !!(p && !p.online));
+            });
+            // Кружок у аватарки в шапке чата
+            const hdrAva = document.querySelector('#chatHeader .avatar');
+            if (hdrAva && selectedUserId && selectedUserId !== FAVORITES_ID && !isGroupKey(selectedUserId)) {
+                const p = presence[selectedUserId];
+                hdrAva.classList.add('has-dot');
+                hdrAva.classList.toggle('is-online', !!(p && p.online));
+                hdrAva.classList.toggle('is-offline', !!(p && !p.online));
+            }
+            // Карточка собеседника открывается быстрее, чем приходит ответ сервера,
+            // поэтому подпись в ней обновляем здесь же — иначе там навсегда оставалось
+            // «статус уточняется…».
+            document.querySelectorAll('[data-presence-for]').forEach(el => {
+                el.innerHTML = presenceLabelHtml(el.getAttribute('data-presence-for'));
             });
             paintTicks();
         }
@@ -5587,8 +5621,12 @@
          */
         function attachmentHtmlFor(m, voiceKey) {
             if (!m || !m.attachment_url) return '';
-            if (isVideoNote(m)) return videoNoteHtml(m.attachment_url, m.attachment_name);
-            if (m.attachment_type === 'voice') return voicePlayerHtml(voiceKey, m.attachment_url, m.attachment_name);
+            // Под голосовым и кружком — кнопка расшифровки: она нужна и своим записям тоже,
+            // например чтобы быстро перечитать сказанное вместо повторного прослушивания.
+            if (isVideoNote(m)) return videoNoteHtml(m.attachment_url, m.attachment_name)
+                + sttButtonHtml(voiceKey || m.id, m.attachment_url);
+            if (m.attachment_type === 'voice') return voicePlayerHtml(voiceKey, m.attachment_url, m.attachment_name)
+                + sttButtonHtml(voiceKey || m.id, m.attachment_url);
             if (isImageAttachment(m)) {
                 return `<div class="message-attachment"><a href="${m.attachment_url}" target="_blank"><img src="${m.attachment_url}" alt="${escapeHtml(m.attachment_name || 'Изображение')}" loading="lazy"></a></div>`;
             }
@@ -5905,13 +5943,15 @@
                     let attachmentHtml = '';
                     if (m.attachment_url) {
                         if (isVideoNote(m)) {
-                            attachmentHtml = videoNoteHtml(m.attachment_url, m.attachment_name);
+                            attachmentHtml = videoNoteHtml(m.attachment_url, m.attachment_name)
+                                + sttButtonHtml(m.id != null ? String(m.id) : '', m.attachment_url);
                         } else if (m.attachment_type === 'voice') {
                             // Голосовое сообщение с плеером.
                             // id обязан быть стабильным: по нему кэшируются волна и позиция
                             // воспроизведения, иначе после опроса (раз в 5с) плеер сбрасывался.
                             const msgId = m.id != null ? String(m.id) : ('u-' + (m.created_at || '') + (m.attachment_url || ''));
-                            attachmentHtml = voicePlayerHtml(msgId, m.attachment_url, m.attachment_name);
+                            attachmentHtml = voicePlayerHtml(msgId, m.attachment_url, m.attachment_name)
+                                + sttButtonHtml(msgId, m.attachment_url);
                         } else if (isImageAttachment(m)) {
                             attachmentHtml = `
                                 <div class="message-attachment">
@@ -6493,13 +6533,71 @@
         // Emoji функции
         function toggleEmojiPicker() {
             const picker = document.getElementById('emojiPicker');
-            picker.style.display = picker.style.display === 'none' ? 'block' : 'none';
+            const show = picker.style.display === 'none';
+            if (show) renderEmojiPicker();      // список собираем при открытии — там «недавние»
+            picker.style.display = show ? 'block' : 'none';
         }
+
+        // ── Смайлики: обычный набор по разделам ──
+        const EMOJI_SETS = [
+            { t: '🕘', name: 'Недавние', list: [] },
+            { t: '😀', name: 'Смайлы и люди', list: (
+                '😀 😃 😄 😁 😆 😅 🤣 😂 🙂 🙃 😉 😊 😇 🥰 😍 🤩 😘 😗 😚 😙 😋 😛 😜 🤪 😝 🤑 🤗 🤭 🤫 🤔 '
+                + '🤐 🤨 😐 😑 😶 😏 😒 🙄 😬 🤥 😌 😔 😪 🤤 😴 😷 🤒 🤕 🤢 🤮 🤧 🥵 🥶 🥴 😵 🤯 🤠 🥳 😎 🤓 '
+                + '🧐 😕 😟 🙁 ☹️ 😮 😯 😲 😳 🥺 😦 😧 😨 😰 😥 😢 😭 😱 😖 😣 😞 😓 😩 😫 🥱 😤 😡 😠 🤬 😈 '
+                + '👿 💀 💩 🤡 👹 👺 👻 👽 🤖 😺 😸 😹 😻 😼 😽 🙀 😿 😾 🙈 🙉 🙊').split(' ') },
+            { t: '👋', name: 'Жесты', list: (
+                '👋 🤚 🖐 ✋ 🖖 👌 🤌 🤏 ✌️ 🤞 🤟 🤘 🤙 👈 👉 👆 🖕 👇 ☝️ 👍 👎 ✊ 👊 🤛 🤜 👏 🙌 👐 🤲 🤝 '
+                + '🙏 ✍️ 💅 🤳 💪 🦾 🦵 🦶 👂 👃 🧠 🦷 👀 👁 👅 👄 💋 🩸').split(' ') },
+            { t: '❤️', name: 'Сердца и знаки', list: (
+                '❤️ 🧡 💛 💚 💙 💜 🖤 🤍 🤎 💔 ❣️ 💕 💞 💓 💗 💖 💘 💝 💟 ✨ ⭐ 🌟 💫 ⚡ 🔥 💥 💯 ✅ ❌ ❗ '
+                + '❓ ⚠️ 🚫 ➕ ➖ ✔️ 🔔 🔕 💤 💬 💭 🗯 🕐 ⏰ ⌛ ⏳').split(' ') },
+            { t: '🎉', name: 'Праздник и вещи', list: (
+                '🎉 🎊 🎈 🎁 🎀 🎂 🍰 🧁 🍫 🍬 🍭 ☕ 🍵 🥤 🍺 🍻 🥂 🍾 🍕 🍔 🍟 🌭 🍿 🥗 🍎 🍌 🍓 🍒 🍑 🥑 '
+                + '📱 💻 ⌨️ 🖥 🖨 📷 🎥 🎧 🎤 📚 📖 📝 ✏️ 📌 📎 🔒 🔑 💡 🔍 💰 💳 🏆 🥇 🎯 🎮 ⚽ 🏀 🎾 🚗 ✈️').split(' ') },
+            { t: '🌿', name: 'Природа', list: (
+                '🌱 🌿 🍀 🍃 🌳 🌲 🌴 🌵 🌸 🌼 🌻 🌹 🌺 🏵 💐 🍁 🍂 🌾 🌍 🌙 ☀️ ⛅ ☁️ 🌧 ⛈ 🌈 ❄️ ⛄ 🌊 🔆 '
+                + '🐶 🐱 🐭 🐹 🐰 🦊 🐻 🐼 🐨 🐯 🦁 🐮 🐷 🐸 🐵 🐔 🐧 🐦 🦆 🦉 🐝 🦋 🐌 🐢 🐠 🐬 🐳 🦄').split(' ') },
+        ];
+        let emojiTab = 1;
+
+        function recentEmoji() {
+            try { return JSON.parse(localStorage.getItem('psy-emoji-recent') || '[]'); } catch (e) { return []; }
+        }
+        function rememberEmoji(e) {
+            const list = [e, ...recentEmoji().filter(x => x !== e)].slice(0, 24);
+            try { localStorage.setItem('psy-emoji-recent', JSON.stringify(list)); } catch (err) {}
+        }
+
+        function renderEmojiPicker() {
+            const tabs = document.getElementById('emojiTabs');
+            const grid = document.getElementById('emojiGrid');
+            if (!tabs || !grid) return;
+            EMOJI_SETS[0].list = recentEmoji();
+            // Если недавних ещё нет, первым открываем не пустой раздел, а смайлы
+            if (emojiTab === 0 && !EMOJI_SETS[0].list.length) emojiTab = 1;
+            tabs.innerHTML = EMOJI_SETS.map((s, i) =>
+                `<button type="button" class="emoji-tab${i === emojiTab ? ' active' : ''}"
+                         title="${escapeHtml(s.name)}" onclick="setEmojiTab(${i})">${s.t}</button>`).join('');
+            const list = EMOJI_SETS[emojiTab].list;
+            grid.innerHTML = list.length
+                ? list.map(e => `<span onclick="insertEmoji('${e}')">${e}</span>`).join('')
+                : '<div class="emoji-empty">Здесь появятся смайлики, которыми вы пользуетесь чаще всего.</div>';
+        }
+        function setEmojiTab(i) { emojiTab = i; renderEmojiPicker(); }
+        window.setEmojiTab = setEmojiTab;
 
         function insertEmoji(emoji) {
             const input = document.getElementById('messageInput');
-            input.value += emoji;
+            // Вставляем туда, где стоит курсор, а не всегда в конец
+            const pos = input.selectionStart != null ? input.selectionStart : input.value.length;
+            input.value = input.value.slice(0, pos) + emoji + input.value.slice(input.selectionEnd != null ? input.selectionEnd : pos);
             input.focus();
+            const np = pos + emoji.length;
+            try { input.setSelectionRange(np, np); } catch (e) {}
+            autoGrowInput(input);
+            rememberEmoji(emoji);
+            updateMicButton();
             toggleEmojiPicker();
         }
 
@@ -7562,6 +7660,95 @@
             voiceWavePeaks[msgId] = peaksFromBuffer(buffer);
             const wave = document.querySelector(`.voice-message[data-id="${msgId}"] .voice-waveform`);
             if (wave) wave.innerHTML = voiceBarsHtml(msgId);
+        }
+
+        // ── Расшифровка голосовых и кружков (Yandex SpeechKit, см. api/transcribe.php) ──
+        // Записи у нас в webm/opus или mp4/aac, а сервис принимает LPCM. Перекодировать на
+        // сервере нечем, зато браузер и так декодирует запись, чтобы нарисовать волну, —
+        // поэтому здесь же приводим звук к моно 16 кГц и отправляем готовым LPCM.
+        const STT_RATE = 16000;
+        const STT_CHUNK_SEC = 25;          // сервис берёт не длиннее 30 секунд за раз
+        let sttCache = {};                 // id сообщения -> распознанный текст
+
+        /** AudioBuffer → моно 16 кГц. */
+        async function toMono16k(buffer) {
+            const len = Math.max(1, Math.ceil(buffer.duration * STT_RATE));
+            const off = new (window.OfflineAudioContext || window.webkitOfflineAudioContext)(1, len, STT_RATE);
+            const src = off.createBufferSource();
+            src.buffer = buffer;
+            src.connect(off.destination);
+            src.start(0);
+            return await off.startRendering();
+        }
+
+        /** Кусок моно-буфера → 16-битный LPCM, как ждёт SpeechKit. */
+        function pcm16From(buf, fromSec, toSec) {
+            const data = buf.getChannelData(0);
+            const a = Math.max(0, Math.floor(fromSec * buf.sampleRate));
+            const b = Math.min(data.length, Math.floor(toSec * buf.sampleRate));
+            const out = new DataView(new ArrayBuffer(Math.max(0, (b - a) * 2)));
+            for (let i = a, j = 0; i < b; i++, j += 2) {
+                const v = Math.max(-1, Math.min(1, data[i]));
+                out.setInt16(j, v < 0 ? v * 0x8000 : v * 0x7FFF, true);
+            }
+            return out.buffer;
+        }
+
+        /** Расшифровать вложение сообщения. Возвращает текст либо бросает понятную ошибку. */
+        async function transcribeUrl(url, onProgress) {
+            const resp = await fetch(url, { credentials: 'include' });
+            const arr = await resp.arrayBuffer();
+            let buffer;
+            try { buffer = await getVoiceCtx().decodeAudioData(arr); }
+            catch (e) { throw new Error('Не удалось разобрать звук этой записи'); }
+            const mono = await toMono16k(buffer);
+            const total = mono.duration;
+            const parts = [];
+            for (let start = 0; start < total; start += STT_CHUNK_SEC) {
+                if (onProgress) onProgress(Math.min(1, start / total));
+                const pcm = pcm16From(mono, start, Math.min(total, start + STT_CHUNK_SEC));
+                if (pcm.byteLength < 2000) continue;         // совсем короткий хвост
+                const r = await fetch('/api/transcribe.php?action=chunk', {
+                    method: 'POST', credentials: 'include',
+                    headers: { 'Content-Type': 'application/octet-stream', 'X-Rate': String(STT_RATE) },
+                    body: pcm
+                });
+                const d = await r.json().catch(() => ({}));
+                if (!r.ok || d.error) throw new Error(d.error || ('ошибка сервиса ' + r.status));
+                if (d.text) parts.push(d.text);
+            }
+            const text = parts.join(' ').trim();
+            if (!text) throw new Error('Речь не распознана — возможно, запись слишком тихая');
+            return text;
+        }
+
+        /** Кнопка «Расшифровать» под голосовым или кружком. */
+        async function transcribeMessage(msgId, url) {
+            const box = document.querySelector(`[data-stt="${msgId}"]`);
+            if (!box) return;
+            if (sttCache[msgId]) { box.innerHTML = sttHtml(sttCache[msgId]); return; }
+            box.innerHTML = '<span class="stt-wait">Расшифровываю…</span>';
+            try {
+                const text = await transcribeUrl(url, (p) => {
+                    box.innerHTML = '<span class="stt-wait">Расшифровываю… ' + Math.round(p * 100) + '%</span>';
+                });
+                sttCache[msgId] = text;
+                box.innerHTML = sttHtml(text);
+            } catch (e) {
+                box.innerHTML = '<span class="stt-err">' + escapeHtml(e.message || 'не получилось') + '</span>';
+            }
+        }
+        function sttHtml(text) {
+            return '<div class="stt-text">' + escapeHtml(text) + '</div>';
+        }
+        window.transcribeMessage = transcribeMessage;
+
+        /** Кнопка расшифровки — рисуется под голосовым и кружком. */
+        function sttButtonHtml(msgId, url) {
+            if (!msgId || !url) return '';
+            return `<div class="stt-box" data-stt="${escapeHtml(String(msgId))}">
+                <button type="button" class="stt-btn" onclick="transcribeMessage('${escapeHtml(String(msgId))}','${escapeHtml(url)}')">
+                    Aa Расшифровать</button></div>`;
         }
 
         /** Декодированный звук → WAV-блоб. Заголовок с честной длиной делает запись
