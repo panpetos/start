@@ -61,6 +61,7 @@ jobs:
             put agent-offer.html;
             put privacy.html;
             put refund.html;
+            put qr.html;
             mkdir -f css;
             put css/styles.css -o css/styles.css;
             put js/layout.js -o js/layout.js;
@@ -70,6 +71,7 @@ jobs:
             put js/post-format.js -o js/post-format.js;
             put js/dash-sidebar.js -o js/dash-sidebar.js;
             put js/lightbox.js -o js/lightbox.js;
+            put js/qr.js -o js/qr.js;
             put api/admin_ext.php -o api/admin_ext.php;
             put api/subscribe.php -o api/subscribe.php;
             put api/my_profile.php -o api/my_profile.php;
@@ -117,6 +119,7 @@ jobs:
             put api/presence.php -o api/presence.php;
             put api/transcribe.php -o api/transcribe.php;
             put api/reactions.php -o api/reactions.php;
+            put api/qr_login.php -o api/qr_login.php;
             put api/notify_dispatch.php -o api/notify_dispatch.php;
             put api/blog.php -o api/blog.php;
             put api/schema_util.php -o api/schema_util.php;

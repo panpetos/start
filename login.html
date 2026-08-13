@@ -9,6 +9,7 @@
     <script src="/js/api.js"></script>
     <script src="/js/auth.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="/js/qr.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
         *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
@@ -93,6 +94,26 @@
         .consent .tag { display: inline-block; font-size: 0.62rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; background: #8A6D1F; color: #fff; padding: 1px 5px; border-radius: 4px; margin-right: 4px; }
         .reg-note { font-size: 0.75rem; color: #9CA3AF; margin: 2px 2px 12px; }
 
+        /* ── вход по QR: код показывается на компьютере, подтверждается с телефона ── */
+        .qr-box { display: none; margin-top: 0.9rem; padding: 1rem; background: #FAF8FF;
+                  border: 1px solid #EDE9FF; border-radius: 0.9rem; text-align: center; }
+        .qr-box.open { display: block; }
+        .qr-img { display: flex; justify-content: center; min-height: 200px; align-items: center; }
+        .qr-img svg { width: 200px; height: 200px; border-radius: 0.5rem; }
+        .qr-steps { font-size: 0.8rem; color: #6B7280; line-height: 1.7; margin-top: 0.7rem; text-align: left;
+                    display: inline-block; }
+        .qr-status { font-size: 0.82rem; color: #7C3AED; font-weight: 600; margin-top: 0.7rem; line-height: 1.5; }
+        .qr-status.err { color: #DC2626; }
+        .qr-status.ok { color: #16A34A; }
+        .qr-alt { font-size: 0.75rem; color: #9CA3AF; margin-top: 0.5rem; line-height: 1.5; }
+        .qr-alt a { color: #7C3AED; font-weight: 600; }
+        .qr-hide { margin-top: 0.7rem; background: none; border: none; font-family: inherit;
+                   font-size: 0.8rem; color: #9CA3AF; cursor: pointer; text-decoration: underline; }
+        body.dark .qr-box { background: #2A2A2A; border-color: #444; }
+        body.dark .qr-steps { color: #A0A0A0; }
+        body.dark .qr-status { color: #B794F4; }
+        body.dark .qr-alt a { color: #B794F4; }
+
         body.dark { background: #191919 !important; }
         body.dark .auth-card { background: #252525; border-color: #37254A; box-shadow: 0 8px 40px rgba(0,0,0,0.3); }
         body.dark .logo .psy { color: #E6E6E6 !important; }
@@ -150,6 +171,21 @@
                     </div>
                     <button type="submit" class="btn-submit" id="loginBtn">Войти</button>
                 </form>
+
+                <div class="divider">или</div>
+                <button type="button" class="btn-demo" id="qrOpenBtn" onclick="qrLoginStart()">📱 Войти по QR-коду с телефона</button>
+
+                <div class="qr-box" id="qrBox">
+                    <div class="qr-img" id="qrImg"></div>
+                    <p class="qr-steps">
+                        1. Откройте камеру телефона, где вы уже вошли<br>
+                        2. Наведите её на код и откройте ссылку<br>
+                        3. Подтвердите вход — здесь откроется кабинет
+                    </p>
+                    <p class="qr-status" id="qrStatus">Ждём подтверждения с телефона…</p>
+                    <p class="qr-alt">Камера не читает код? Откройте на телефоне <a href="#" id="qrLink" target="_blank" rel="noopener">эту ссылку</a>.</p>
+                    <button type="button" class="qr-hide" onclick="qrLoginStop()">Скрыть код</button>
+                </div>
             </div>
 
             <!-- Register -->
@@ -257,6 +293,87 @@
             if (role === 'admin') window.location.href = '/dashboard-admin.html';
             else if (role === 'psychologist') window.location.href = '/psychologist-dashboard.html';
             else window.location.href = '/client-dashboard.html';
+        }
+
+        // ── Вход по QR-коду ──
+        // Компьютер просит у сервера одноразовый код, рисует его QR-ом и ждёт. Телефон,
+        // где человек уже вошёл, открывает /qr.html?code=… и подтверждает — после этого
+        // очередной опрос poll выдаёт компьютеру сессию, и мы уходим в кабинет.
+        let qrTimer = null, qrDeadline = 0, qrBusy = false;
+
+        function qrSay(text, cls) {
+            const el = document.getElementById('qrStatus');
+            if (!el) return;
+            el.textContent = text;
+            el.className = 'qr-status' + (cls ? ' ' + cls : '');
+        }
+
+        async function qrLoginStart() {
+            if (qrBusy) return;
+            qrBusy = true;
+            const box = document.getElementById('qrBox');
+            const img = document.getElementById('qrImg');
+            box.classList.add('open');
+            img.innerHTML = '';
+            qrSay('Готовим код…');
+            let d = null;
+            try {
+                const r = await fetch('/api/qr_login.php?action=create&x=' + Date.now(), { credentials: 'include' });
+                d = await r.json();
+            } catch (e) {}
+            qrBusy = false;
+            if (!d || !d.ok || !d.url) {
+                qrSay((d && d.error) || 'Не удалось получить код. Войдите по паролю или попробуйте ещё раз.', 'err');
+                return;
+            }
+            const svg = typeof window.qrSvg === 'function' ? window.qrSvg(d.url, 200) : '';
+            img.innerHTML = svg;
+            const link = document.getElementById('qrLink');
+            if (link) { link.href = d.url; }
+            qrDeadline = Date.now() + (d.expires_in || 180) * 1000;
+            // Картинка могла не построиться (очень длинная ссылка) — тогда работает
+            // запасной путь по ссылке, и человеку об этом надо сказать, а не показывать пустоту.
+            qrSay(svg ? 'Ждём подтверждения с телефона…'
+                      : 'Код не нарисовался — откройте на телефоне ссылку ниже.');
+            if (qrTimer) clearInterval(qrTimer);
+            qrTimer = setInterval(() => qrPoll(d.code), 2000);
+        }
+
+        function qrLoginStop() {
+            if (qrTimer) { clearInterval(qrTimer); qrTimer = null; }
+            const box = document.getElementById('qrBox');
+            if (box) box.classList.remove('open');
+        }
+        window.qrLoginStart = qrLoginStart;
+        window.qrLoginStop = qrLoginStop;
+
+        async function qrPoll(code) {
+            if (Date.now() > qrDeadline) {
+                clearInterval(qrTimer); qrTimer = null;
+                qrSay('Код устарел. Нажмите «Войти по QR-коду» ещё раз.', 'err');
+                const img = document.getElementById('qrImg');
+                if (img) img.innerHTML = '';
+                return;
+            }
+            let d = null;
+            try {
+                const r = await fetch('/api/qr_login.php?action=poll&code=' + encodeURIComponent(code) + '&x=' + Date.now(),
+                                      { credentials: 'include' });
+                d = await r.json();
+            } catch (e) { return; }   // сеть моргнула — просто ждём следующего опроса
+            if (!d) return;
+            if (d.status === 'approved') {
+                clearInterval(qrTimer); qrTimer = null;
+                qrSay('Подтверждено! Открываем кабинет…', 'ok');
+                let user = null;
+                try { user = window.Auth && window.Auth.getCurrentUser ? await window.Auth.getCurrentUser() : null; } catch (e) {}
+                redirectAfterLogin(user || {});
+                return;
+            }
+            if (d.status === 'expired') {
+                clearInterval(qrTimer); qrTimer = null;
+                qrSay('Код устарел. Нажмите «Войти по QR-коду» ещё раз.', 'err');
+            }
         }
 
         async function handleLogin(e) {
