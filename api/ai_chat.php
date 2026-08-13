@@ -172,7 +172,16 @@ if ($action === 'config' || $action === 'save-config' || $action === 'test') {
         $d = json_decode((string)$resp, true);
         if ($code < 200 || $code >= 300) {
             $msg = $d['error']['message'] ?? $d['message'] ?? substr((string)$resp, 0, 300);
-            echo json_encode(['ok'=>false, 'error'=>'Сервис отказал (' . $code . '): ' . $msg, 'model'=>$model], JSON_UNESCAPED_UNICODE);
+            // Яндекс в отказе сам называет каталог, которому принадлежит ключ. Незачем
+            // заставлять человека искать folder_id в консоли — подставим найденный.
+            $suggest = '';
+            if (preg_match("/service account folder ID '([a-z0-9]+)'/i", (string)$msg, $m2)) $suggest = $m2[1];
+            echo json_encode([
+                'ok' => false,
+                'error' => 'Сервис отказал (' . $code . '): ' . $msg,
+                'model' => $model,
+                'suggest_folder' => $suggest,
+            ], JSON_UNESCAPED_UNICODE);
             exit;
         }
         $text = $d['choices'][0]['message']['content'] ?? '';

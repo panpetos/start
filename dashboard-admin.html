@@ -2430,9 +2430,17 @@
                     body: JSON.stringify({ model: first ? first.value : '' })
                 });
                 const d = await r.json();
-                msg.innerHTML = d.ok
-                    ? '<span style="color:#16A34A;">Связь есть. ' + esc(d.model) + ' ответила: «' + esc(d.answer) + '»</span>'
-                    : '<span style="color:#DC2626;">' + esc(d.error || 'не получилось') + '</span>';
+                if (d.ok) {
+                    msg.innerHTML = '<span style="color:#16A34A;">Связь есть. ' + esc(d.model) + ' ответила: «' + esc(d.answer) + '»</span>';
+                    return;
+                }
+                msg.innerHTML = '<span style="color:#DC2626;">' + esc(d.error || 'не получилось') + '</span>';
+                // Яндекс в отказе называет каталог, которому принадлежит ключ — подставляем его сами
+                if (d.suggest_folder) {
+                    document.getElementById('aiFolder').value = d.suggest_folder;
+                    msg.innerHTML += '<div style="color:#16A34A;margin-top:0.4rem;">Правильный каталог — <code>'
+                        + esc(d.suggest_folder) + '</code>, он уже подставлен в поле. Нажмите «Сохранить» и проверьте ещё раз.</div>';
+                }
             } catch (e) { msg.innerHTML = '<span style="color:#DC2626;">' + esc(e.message) + '</span>'; }
         }
         document.addEventListener('change', (e) => {

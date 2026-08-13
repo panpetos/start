@@ -1151,6 +1151,46 @@
             }
         }
 
+        /* ── Упоминания @ ── */
+        .mention { color: #7C3AED; font-weight: 600; }
+        .mention-me { background: rgba(124,58,237,0.18); border-radius: 0.3rem; padding: 0 0.2rem; }
+        .mention-box {
+            position: absolute; bottom: 100%; left: 0.75rem; z-index: 40;
+            background: #fff; border: 1px solid #E5E7EB; border-radius: 0.75rem;
+            box-shadow: 0 8px 28px rgba(0,0,0,0.14); overflow: hidden; min-width: 220px; max-width: 320px;
+        }
+        .mention-row {
+            display: flex; align-items: center; gap: 0.5rem; width: 100%;
+            padding: 0.5rem 0.7rem; border: none; background: none; cursor: pointer;
+            font-family: inherit; font-size: 0.9rem; text-align: left; color: inherit;
+        }
+        .mention-row:hover { background: #F3E8FF; }
+        .mention-ava {
+            width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0;
+            background: linear-gradient(135deg,#7C3AED,#9F67FA); color: #fff;
+            display: flex; align-items: center; justify-content: center; font-size: 0.78rem; font-weight: 700;
+        }
+        body.dark .mention-box { background: #2A2A2A; border-color: #3A3A3A; }
+        body.dark .mention-row:hover { background: #3A2A55; }
+
+        /* ── «В сети», «печатает…» и галочки доставки ── */
+        .online-txt { color: #16A34A; font-weight: 600; }
+        .typing-now { color: #7C3AED; font-weight: 600; }
+        .typing-now .td { animation: typingDot 1.2s infinite; }
+        .typing-now .td:nth-child(2) { animation-delay: 0.2s; }
+        .typing-now .td:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes typingDot { 0%, 60%, 100% { opacity: 0.25; } 30% { opacity: 1; } }
+        /* Точка «в сети» на аватарке в списке диалогов */
+        .conversation-item .conversation-avatar { position: relative; }
+        .conversation-item.is-online .conversation-avatar::after {
+            content: ''; position: absolute; right: -1px; bottom: -1px;
+            width: 11px; height: 11px; border-radius: 50%;
+            background: #16A34A; border: 2px solid #fff;
+        }
+        body.dark .conversation-item.is-online .conversation-avatar::after { border-color: #252525; }
+        .msg-ticks { margin-left: 0.3rem; letter-spacing: -0.12em; opacity: 0.75; }
+        .msg-ticks.read { color: #38BDF8; opacity: 1; }
+
         .vr-hint { font-size: 0.8rem; color: #6B7280; }
         /* Плашка стоит на месте строки ввода, поэтому повторяет её отступы и фон —
            иначе при переключении «ввод ↔ запись» дёргалась высота. */
@@ -1823,7 +1863,7 @@
                         <span class="cin-format-a" aria-hidden="true">A</span>
                     </button>
                     <textarea id="messageInput" rows="1" placeholder="Введите сообщение..."
-                        oninput="autoGrowInput(this)"
+                        oninput="autoGrowInput(this); markTyping(); updateMentionBox();"
                         onkeydown="onMessageKeyDown(event)"></textarea>
                     <!-- Телефон: одна кнопка на всё, как в Telegram. Пусто — микрофон (тап
                          переключает на кружок, удержание пишет), есть текст — отправка. -->
@@ -2318,6 +2358,7 @@
 
         async function openGroupChat(groupId) {
             pinnedMessage = null; renderPinnedBar();
+            loadMentionMembers(groupId);   // чтобы подсказка по @ знала, кого предлагать
             editingMessageId = null;
             selectedUserId = GROUP_PREFIX + groupId;
             document.body.classList.remove('ai-chat');
@@ -2399,7 +2440,9 @@
             // Вложения в группе рисуем тем же кодом, что и в личной переписке:
             // фото — превью, голосовое — плеер, кружок — видеокружок.
             const attachmentHtml = attachmentHtmlFor(m, 'grp-' + m.id);
-            const textHtml = (m.content && !isAttachmentPlaceholder(m)) ? `<div>${msgText(grp.body)}</div>` : '';
+            // Упоминания подсвечиваем уже в готовом (экранированном) тексте — сырой HTML не собираем
+            const textHtml = (m.content && !isAttachmentPlaceholder(m))
+                ? `<div>${highlightMentions(msgText(grp.body))}</div>` : '';
             const bubble = `
                 <div class="message ${isMine ? 'mine' : 'theirs'}${(isVideoNote(m) && !textHtml) ? ' vn-only' : ''}" data-msg-id="${m.id}">
                     ${!isMine ? `<div style="font-size:0.75rem;font-weight:700;opacity:0.8;margin-bottom:0.15rem;color:#7C3AED;">${escapeHtml(name)}</div>` : ''}
@@ -3094,7 +3137,7 @@
                 <div class="avatar" onclick="openUserCard('${selectedUserId}')" style="cursor:pointer;" title="Открыть карточку">${other.avatar ? `<img src="${other.avatar}" alt="${name}">` : name.charAt(0)}</div>
                 <div style="flex:1;min-width:0;cursor:pointer;" onclick="openUserCard('${selectedUserId}')">
                     <div class="name">${name}</div>
-                    <div class="role">${roleText}</div>
+                    <div class="role" id="chatPeerStatus" data-role="${escapeHtml(roleText)}">${roleText}</div>
                 </div>
                 ${headerActionsHtml(actions, sessionBtn)}`;
         }
@@ -3472,6 +3515,13 @@
             // просим сервер прогнать рассылку; он сам не даст запускать её чаще, чем нужно.
             notifyTick();
             setInterval(notifyTick, 120000);
+
+            // «Я здесь» — раз в 30 секунд; состояние собеседников — раз в 10.
+            // Окно «онлайн» на сервере 70 секунд, так что пропущенный сигнал не гасит статус.
+            presencePing();
+            setInterval(presencePing, 30000);
+            presenceRefresh();
+            setInterval(presenceRefresh, 10000);
         }
 
         // ── Звук + тост при новом сообщении (во всех чатах, любая роль) ──
@@ -3535,6 +3585,133 @@
             if (Notification.permission === 'default') {
                 try { Notification.requestPermission(); } catch (e) {}
             }
+        }
+
+        // ── «Онлайн», «печатает…» и галочки доставки (см. api/presence.php) ──
+        // Личные сообщения пишет серверный messages.php, куда нельзя добавить ни колонок,
+        // ни хуков, поэтому признаки выводим по времени: собеседник был в сети позже
+        // отправки — доставлено; открывал переписку позже отправки — прочитано.
+        let presence = {};          // id собеседника -> {online, last_seen, typing_to, read_until}
+        let presenceNow = null;     // «сейчас» по часам сервера, чтобы не зависеть от часов устройства
+        let typingUntil = 0;        // до какого момента считаем, что я печатаю
+
+        /** Ключ текущей переписки: id человека либо 'group:<id>' для группы. */
+        function presenceKey() {
+            if (!selectedUserId || selectedUserId === FAVORITES_ID || selectedUserId === AI_ID) return '';
+            return selectedUserId;
+        }
+        function isGroupKey(k) { return !!k && k.indexOf(GROUP_PREFIX) === 0; }
+
+        /** Кого спрашивать: открытый собеседник плюс все люди из списка диалогов. */
+        function presencePeers() {
+            const ids = new Set();
+            const cur = presenceKey();
+            if (cur && !isGroupKey(cur)) ids.add(cur);
+            document.querySelectorAll('.conversation-item[data-user-id]').forEach(el => {
+                const id = el.getAttribute('data-user-id');
+                if (id && id !== FAVORITES_ID && id !== AI_ID && id.indexOf(GROUP_PREFIX) !== 0) ids.add(id);
+            });
+            return [...ids];
+        }
+
+        async function presencePing() {
+            const typingTo = Date.now() < typingUntil ? presenceKey() : '';
+            try {
+                await fetch('/api/presence.php?action=ping', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include', body: JSON.stringify({ typing_to: typingTo })
+                });
+            } catch (e) { /* пропал интернет — покажем прежнее состояние, не мигаем */ }
+        }
+
+        async function presenceRefresh() {
+            const peers = presencePeers();
+            if (!peers.length) return;
+            try {
+                const r = await fetch('/api/presence.php?action=state&peers=' + encodeURIComponent(peers.join(',')),
+                                      { credentials: 'include' });
+                const d = await r.json();
+                if (!d || !d.ok) return;
+                presence = d.data || {};
+                presenceNow = d.now || null;
+                paintPresence();
+            } catch (e) {}
+        }
+
+        /** Отметить переписку прочитанной — с этого момента у собеседника появится вторая галочка. */
+        async function presenceMarkRead() {
+            const peer = presenceKey();
+            if (!peer) return;
+            try {
+                await fetch('/api/presence.php?action=read', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include', body: JSON.stringify({ peer_id: peer })
+                });
+            } catch (e) {}
+        }
+
+        function humanLastSeen(ts) {
+            if (!ts) return 'давно не заходил(а)';
+            const t = new Date(String(ts).replace(' ', 'T'));
+            const mins = Math.floor((Date.now() - t.getTime()) / 60000);
+            if (mins < 1) return 'был(а) только что';
+            if (mins < 60) return `был(а) ${mins} мин назад`;
+            const hrs = Math.floor(mins / 60);
+            if (hrs < 24) return `был(а) ${hrs} ч назад`;
+            return 'был(а) ' + t.toLocaleDateString('ru-RU');
+        }
+
+        /** Подпись под именем в шапке и точки онлайн в списке диалогов. */
+        function paintPresence() {
+            const st = document.getElementById('chatPeerStatus');
+            if (st && selectedUserId && selectedUserId !== FAVORITES_ID) {
+                const p = presence[selectedUserId];
+                // typing_to — КОМУ он печатает. В личной переписке это я, а не он сам:
+                // сравнивать надо со своим id, иначе «печатает» не покажется никогда.
+                const typingHere = p && p.typing_to
+                    && p.typing_to === (currentUser ? String(currentUser.id) : '');
+                if (typingHere) st.innerHTML = '<span class="typing-now">печатает<span class="td">.</span><span class="td">.</span><span class="td">.</span></span>';
+                else if (p && p.online) st.innerHTML = '<span class="online-txt">в сети</span>';
+                else st.textContent = p ? humanLastSeen(p.last_seen) : (st.dataset.role || '');
+            }
+            document.querySelectorAll('.conversation-item[data-user-id]').forEach(el => {
+                const id = el.getAttribute('data-user-id');
+                const p = presence[id];
+                el.classList.toggle('is-online', !!(p && p.online));
+            });
+            paintTicks();
+        }
+
+        /** Галочки на моих сообщениях: одна — доставлено, две — прочитано. */
+        function msgTicks(m) {
+            const peer = presenceKey();
+            if (!peer || isGroupKey(peer)) return '';   // в группах галочки не показываем
+            // data-at ставим всегда: по нему paintTicks() перекрашивает галочки на месте,
+            // не перерисовывая переписку (иначе бы дёргался ввод и терялась прокрутка).
+            const stamp = ' data-at="' + escapeHtml(m.created_at || '') + '"';
+            const p = presence[peer];
+            const at = new Date(String(m.created_at || '').replace(' ', 'T')).getTime();
+            const read = p && p.read_until ? new Date(String(p.read_until).replace(' ', 'T')).getTime() : 0;
+            const seen = p && p.last_seen ? new Date(String(p.last_seen).replace(' ', 'T')).getTime() : 0;
+            if (read && at && read >= at) return `<span class="msg-ticks read"${stamp} title="Прочитано">✓✓</span>`;
+            if (seen && at && seen >= at) return `<span class="msg-ticks"${stamp} title="Доставлено">✓✓</span>`;
+            return `<span class="msg-ticks"${stamp} title="Отправлено">✓</span>`;
+        }
+
+        /** Перекрасить уже отрисованные галочки, не перерисовывая всю переписку. */
+        function paintTicks() {
+            const peer = presenceKey();
+            const p = peer && !isGroupKey(peer) ? presence[peer] : null;
+            if (!p) return;
+            const read = p.read_until ? new Date(String(p.read_until).replace(' ', 'T')).getTime() : 0;
+            const seen = p.last_seen ? new Date(String(p.last_seen).replace(' ', 'T')).getTime() : 0;
+            document.querySelectorAll('.message.mine .msg-ticks').forEach(el => {
+                const at = new Date(String(el.dataset.at || '').replace(' ', 'T')).getTime();
+                if (!at) return;
+                if (read && read >= at) { el.textContent = '✓✓'; el.classList.add('read'); el.title = 'Прочитано'; }
+                else if (seen && seen >= at) { el.textContent = '✓✓'; el.classList.remove('read'); el.title = 'Доставлено'; }
+                else { el.textContent = '✓'; el.classList.remove('read'); el.title = 'Отправлено'; }
+            });
         }
 
         /** Попросить сервер разослать уведомления тем, кто их ждёт (см. api/notify_dispatch.php). */
@@ -4859,6 +5036,7 @@
                 if (!chatVisible('personal', String(activeId), c.last_message_time)) return;
                 rows.push({ key: String(activeId), html: `
                     <div class="conversation-item ${activeId === selectedUserId ? 'active' : ''}"
+                         data-user-id="${escapeHtml(String(activeId))}"
                          onclick="${clickHandler}" title="${escapeHtml(name)}">
                         <div class="conversation-avatar" ${isSupport ? 'style="background:linear-gradient(135deg,#F59E0B,#EF4444);"' : ''}>
                             ${c.avatar ? `<img src="${c.avatar}" alt="${name}">` : (isSupport ? '🆘' : initial)}
@@ -5212,6 +5390,9 @@
 
         async function openChat(userId) {
             selectedUserId = userId;
+            // Открыли переписку — значит прочитали: у собеседника появится вторая галочка
+            presenceMarkRead();
+            presenceRefresh();
             document.body.classList.remove('ai-chat');
             editingMessageId = null;
             headerRenderedFor = null; // пересобрать шапку под нового собеседника
@@ -5648,7 +5829,7 @@
                             ${callBtn}
                             <div id="msg-body-${m.id || ''}">${content ? `<div id="msg-content-${m.id || ''}">${content}</div>` : ''}</div>
                             ${attachmentHtml}
-                            <div class="message-time">${time}${editedTag}</div>
+                            <div class="message-time">${time}${editedTag}${isMine ? msgTicks(m) : ''}</div>
                             ${msgHoverHtml(m.id)}
                         </div>
                     `;
@@ -5838,6 +6019,97 @@
         window.micMove = micMove;
         window.micUp = micUp;
         document.addEventListener('DOMContentLoaded', updateMicButton);
+
+        // ── Упоминания @ в группах ──
+        // Список участников берём из group_chat.php и подсказываем прямо во время набора.
+        let mentionMembers = [];      // участники открытой группы
+        let mentionOpen = false;
+
+        // groupId передаём явно: на момент вызова из openGroupChat выбранный чат ещё не
+        // переключился на группу, и вычислять его из состояния было рано — список выходил пустым.
+        async function loadMentionMembers(groupId) {
+            const gid = groupId != null ? String(groupId)
+                : (isGroupKey(presenceKey()) ? presenceKey().slice(GROUP_PREFIX.length) : '');
+            if (!gid) { mentionMembers = []; return; }
+            try { mentionMembers = await fetchGroupMembers(gid); }
+            catch (e) { mentionMembers = []; }
+        }
+
+        function mentionName(m) {
+            return (`${m.first_name || ''} ${m.last_name || ''}`).trim() || m.email || 'участник';
+        }
+
+        /** Что человек набрал после последней «@» — по этому и ищем. */
+        function mentionQuery(ta) {
+            const upto = ta.value.slice(0, ta.selectionStart);
+            const m = upto.match(/(^|\s)@([^\s@]{0,30})$/);
+            return m ? m[2] : null;
+        }
+
+        function closeMentionBox() {
+            const el = document.getElementById('mentionBox');
+            if (el) el.remove();
+            mentionOpen = false;
+        }
+
+        function updateMentionBox() {
+            const ta = document.getElementById('messageInput');
+            if (!ta || !isGroupKey(presenceKey())) { closeMentionBox(); return; }
+            const q = mentionQuery(ta);
+            if (q === null) { closeMentionBox(); return; }
+            const ql = q.toLowerCase();
+            const found = mentionMembers
+                .filter(m => String(m.user_id || m.id) !== String(currentUser && currentUser.id))
+                .filter(m => !ql || mentionName(m).toLowerCase().includes(ql))
+                .slice(0, 6);
+            if (!found.length) { closeMentionBox(); return; }
+            let box = document.getElementById('mentionBox');
+            if (!box) {
+                box = document.createElement('div');
+                box.id = 'mentionBox';
+                box.className = 'mention-box';
+                (document.getElementById('chatInputBar') || document.body).appendChild(box);
+            }
+            box.innerHTML = found.map(m => {
+                const nm = mentionName(m);
+                return `<button type="button" class="mention-row" onclick="pickMention('${escapeHtml(nm).replace(/'/g, "\\'")}')">
+                    <span class="mention-ava">${escapeHtml(nm.charAt(0))}</span>${escapeHtml(nm)}</button>`;
+            }).join('');
+            mentionOpen = true;
+        }
+
+        /** Подставить выбранного человека вместо набранного «@…». */
+        function pickMention(name) {
+            const ta = document.getElementById('messageInput');
+            if (!ta) return;
+            const before = ta.value.slice(0, ta.selectionStart).replace(/(^|\s)@([^\s@]{0,30})$/, '$1@' + name + ' ');
+            const after = ta.value.slice(ta.selectionStart);
+            ta.value = before + after;
+            ta.focus();
+            ta.setSelectionRange(before.length, before.length);
+            closeMentionBox();
+            autoGrowInput(ta);
+        }
+        window.pickMention = pickMention;
+
+        /** Подсветить упоминания в готовом тексте сообщения (на вход — уже экранированный HTML). */
+        function highlightMentions(html) {
+            if (!html || html.indexOf('@') === -1) return html;
+            const me = currentUser ? ((`${currentUser.first_name || ''} ${currentUser.last_name || ''}`).trim()) : '';
+            return html.replace(/(^|\s)@([A-Za-zА-Яа-яЁё][\wА-Яа-яЁё-]*(?:\s[A-ZА-ЯЁ][\wА-Яа-яЁё-]*)?)/g,
+                (full, pre, name) => {
+                    const mine = me && name.toLowerCase().startsWith(me.toLowerCase().split(' ')[0]);
+                    return `${pre}<span class="mention${mine ? ' mention-me' : ''}">@${name}</span>`;
+                });
+        }
+
+        /** Пока человек печатает, держим отметку живой; она сама гаснет через несколько секунд. */
+        function markTyping() {
+            typingUntil = Date.now() + 5000;
+            if (markTyping._t) return;              // сообщаем серверу не чаще раза в 3 секунды
+            markTyping._t = setTimeout(() => { markTyping._t = null; presencePing(); }, 3000);
+            presencePing();
+        }
 
         function onMessageKeyDown(e) {
             if (e.key !== 'Enter') return;
