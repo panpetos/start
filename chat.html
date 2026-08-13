@@ -924,6 +924,9 @@
         }
 
         .chat-input {
+            /* Якорь для подсказки упоминаний и панели смайликов: без него они считают
+               позицию от всей области переписки и уезжают за экран. */
+            position: relative;
             background: white;
             padding: 0.75rem 1rem;
             border-top: 1px solid #e0e0e0;
@@ -966,6 +969,12 @@
         body.ai-chat .cin-voice,
         body.ai-chat .cin-video,
         body.ai-chat .chat-input .cin-mic { display: none; }
+        /* Диктовка нужна именно ассистенту: в обычной переписке для голоса есть микрофон,
+           который отправляет запись собеседнику, а здесь речь превращается в текст. */
+        /* Специфичность выше, чем у общего .icon-btn — иначе кнопка показывалась везде */
+        .chat-input .cin-dictate { display: none; }
+        body.ai-chat .chat-input .cin-dictate { display: inline-flex; }
+        .cin-dictate.rec { background: #DC2626 !important; color: #fff !important; }
         /* Форматирование: просто буква А — нарисованная иконка читалась как клякса */
         .cin-format-a { font-size: 1.15rem; font-weight: 700; line-height: 1; font-family: inherit; }
         /* Совмещённая кнопка микрофон/кружок/отправка — только для телефона.
@@ -1048,29 +1057,37 @@
 
         .emoji-picker {
             position: absolute;
-            bottom: 70px;
+            bottom: calc(100% + 8px);      /* прямо над строкой ввода, а не «примерно там» */
             left: 10px;
             background: white;
             border-radius: 16px;
             box-shadow: 0 4px 25px rgba(0, 0, 0, 0.3);
-            padding: 16px;
+            padding: 10px 12px 12px;
             z-index: 100;
-            width: 340px;
-            overflow: hidden;
+            width: min(340px, calc(100vw - 24px));
+            display: flex;
+            flex-direction: column;
+            max-height: min(340px, 60vh);
         }
 
         .emoji-grid {
             display: grid;
-            grid-template-columns: repeat(8, 36px);
+            /* авторазмер вместо жёстких восьми столбцов: на узком экране раньше вылезало */
+            grid-template-columns: repeat(auto-fill, minmax(34px, 1fr));
             gap: 2px;
-            justify-content: center;
-            /* смайликов теперь много — список прокручивается, а не растёт на весь экран */
-            max-height: 244px;
+            /* смайликов много — список прокручивается внутри окна, а не растёт наружу */
+            flex: 1;
+            min-height: 0;
             overflow-y: auto;
+            overscroll-behavior: contain;
             padding: 4px 2px;
+            scrollbar-width: thin;
         }
+        .emoji-grid::-webkit-scrollbar { width: 6px; }
+        .emoji-grid::-webkit-scrollbar-thumb { background: rgba(124,58,237,0.35); border-radius: 3px; }
+        .emoji-grid::-webkit-scrollbar-track { background: transparent; }
         .emoji-tabs {
-            display: flex; gap: 2px; justify-content: center;
+            display: flex; gap: 2px; justify-content: center; flex-shrink: 0; flex-wrap: wrap;
             padding-bottom: 6px; margin-bottom: 4px; border-bottom: 1px solid rgba(128,128,128,0.25);
         }
         .emoji-tab {
@@ -1119,6 +1136,13 @@
             max-height: 200px;
             border-radius: 8px;
             cursor: pointer;
+            /* Ссылка вокруг картинки — flex-контейнер (правило ниже задумано для файлов),
+               а внутри флекса картинку с двумя ограничениями браузер сжимает по обеим
+               сторонам независимо, и фото выходило квадратным. Держим свои размеры. */
+            flex: 0 0 auto;
+            width: auto;
+            height: auto;
+            object-fit: contain;
         }
 
         .message-attachment a {
@@ -1252,13 +1276,17 @@
         @keyframes typingDot { 0%, 60%, 100% { opacity: 0.25; } 30% { opacity: 1; } }
         /* Кружок у аватарки: зелёный — в сети, серый — не в сети. Показываем оба состояния,
            иначе непонятно, человек офлайн или статус просто ещё не приехал. */
-        .conversation-item .conversation-avatar { position: relative; }
+        /* overflow:hidden у аватарки срезал кружок наполовину. Снимаем его у самой
+           аватарки, а картинку внутри скругляем отдельно — тогда кружок виден целиком. */
+        .conversation-item .conversation-avatar { position: relative; overflow: visible; }
+        .conversation-item .conversation-avatar img { border-radius: 50%; }
         /* Кружок рисуем у всех личных диалогов сразу — серый по умолчанию. Если ждать
            ответа сервера, у людей без записи о присутствии кружка не было вовсе. */
         .conversation-item[data-user-id] .conversation-avatar::after {
-            content: ''; position: absolute; right: -1px; bottom: -1px;
-            width: 12px; height: 12px; border-radius: 50%;
-            border: 2px solid #fff; background: #9CA3AF;
+            content: ''; position: absolute; right: -2px; bottom: -2px; z-index: 2;
+            width: 14px; height: 14px; border-radius: 50%;
+            border: 2.5px solid #fff; background: #9CA3AF;
+            box-shadow: 0 0 0 0.5px rgba(0,0,0,0.10);
         }
         .conversation-item.is-online .conversation-avatar::after { background: #16A34A; }
         body.dark .conversation-item.is-online .conversation-avatar::after,
@@ -1266,10 +1294,12 @@
 
         /* Тот же кружок у аватарки в шапке открытого чата */
         #chatHeader .avatar.has-dot { position: relative; overflow: visible; }
+        #chatHeader .avatar.has-dot img { border-radius: 50%; }
         #chatHeader .avatar.has-dot::after {
-            content: ''; position: absolute; right: -1px; bottom: -1px;
-            width: 13px; height: 13px; border-radius: 50%;
-            border: 2px solid #fff; background: #9CA3AF;
+            content: ''; position: absolute; right: -2px; bottom: -2px; z-index: 2;
+            width: 14px; height: 14px; border-radius: 50%;
+            border: 2.5px solid #fff; background: #9CA3AF;
+            box-shadow: 0 0 0 0.5px rgba(0,0,0,0.10);
         }
         #chatHeader .avatar.has-dot.is-online::after { background: #16A34A; }
         body.dark #chatHeader .avatar.has-dot::after { border-color: #252525; }
@@ -1688,7 +1718,8 @@
             }
             .chat-input { position: relative; }
 
-            .emoji-picker { width: 92vw; max-width: 340px; left: 4vw; bottom: 64px; }
+            /* bottom здесь перебивал привязку к строке ввода — панель уезжала от неё */
+            .emoji-picker { width: 92vw; max-width: 340px; left: 4vw; max-height: 52vh; }
             #chatSearchInput { font-size: 16px !important; }
             /* Инпут редактирования сообщения — font-size ниже 16px триггерит авто-зум iOS Safari при фокусе,
                из-за этого на телефоне вёрстка "разъезжалась", а на ПК (без авто-зума) выглядело нормально. */
@@ -1958,6 +1989,10 @@
                         title="Видеосообщение-кружок" aria-label="Видеосообщение-кружок">
                         <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M10.3 9.2l4.6 2.8-4.6 2.8V9.2z"/></svg>
                     </button>
+                    <button type="button" id="dictateBtn" onclick="toggleDictation()" class="icon-btn cin-dictate"
+                        title="Продиктовать голосом" aria-label="Продиктовать голосом">
+                        <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2.5" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0013 0"/><path d="M12 17.5V21"/></svg>
+                    </button>
                     <button type="button" id="formatBtn" onclick="openComposer()" class="icon-btn cin-format"
                         title="Форматирование текста" aria-label="Форматирование текста">
                         <span class="cin-format-a" aria-hidden="true">A</span>
@@ -1975,6 +2010,12 @@
                     <button onclick="sendMessage()" class="send-btn cin-send" title="Отправить" aria-label="Отправить">
                         <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2.5L10.8 13.2"/><path d="M21.5 2.5l-7 19-3.7-8.3-8.3-3.7 19-7z"/></svg>
                     </button>
+                <!-- Смайликов было три десятка — мало. Теперь стандартный набор по разделам,
+                     как в привычных мессенджерах, с запоминанием последних использованных. -->
+                <div id="emojiPicker" class="emoji-picker" style="display:none;">
+                    <div class="emoji-tabs" id="emojiTabs"></div>
+                    <div class="emoji-grid" id="emojiGrid"></div>
+                </div>
                 </div>
                 <!-- Запись голоса -->
                 <!-- Плашка записи занимает МЕСТО строки ввода, а не появляется под ней:
@@ -2002,13 +2043,6 @@
                             title="Удалить запись" aria-label="Удалить запись">✕</button>
                         <button type="button" onclick="sendVoiceMessage()" class="btn-send-voice">Отправить</button>
                     </div>
-                </div>
-                <!-- Emoji Picker -->
-                <!-- Смайликов было три десятка — мало. Теперь стандартный набор по разделам,
-                     как в привычных мессенджерах, с запоминанием последних использованных. -->
-                <div id="emojiPicker" class="emoji-picker" style="display:none;">
-                    <div class="emoji-tabs" id="emojiTabs"></div>
-                    <div class="emoji-grid" id="emojiGrid"></div>
                 </div>
             </div>
         </div>
@@ -3266,7 +3300,9 @@
         /** Подпись «в сети / был(а) …» для карточки собеседника. */
         function presenceLabelHtml(userId) {
             const p = presence[userId];
-            if (!p) return '<span style="color:#9CA3AF;">статус уточняется…</span>';
+            // Нет записи о присутствии — человек просто ещё ни разу не заходил после
+            // включения статусов. Раньше здесь навсегда оставалось «уточняется…».
+            if (!p) return '<span style="color:#6B7280;">● не в сети</span>';
             if (p.online) return '<span class="online-txt">● в сети</span>';
             if (p.hidden) return '<span style="color:#6B7280;">заходил(а) ' + escapeHtml(p.seen_bucket || 'давно') + '</span>';
             return '<span style="color:#6B7280;">' + escapeHtml(humanLastSeen(p.last_seen)) + '</span>';
@@ -3767,7 +3803,8 @@
                 else if (p && p.online) st.innerHTML = '<span class="online-txt">● в сети</span>';
                 // Скрыл точное время — показываем только грубую оценку, которую прислал сервер
                 else if (p && p.hidden) st.textContent = 'заходил(а) ' + (p.seen_bucket || 'давно');
-                else st.textContent = p ? humanLastSeen(p.last_seen) : (st.dataset.role || '');
+                else if (p) st.textContent = humanLastSeen(p.last_seen);
+                else st.innerHTML = '<span style="opacity:0.85;">не в сети</span>';
             }
             document.querySelectorAll('.conversation-item[data-user-id]').forEach(el => {
                 const id = el.getAttribute('data-user-id');
@@ -5596,7 +5633,8 @@
             // Открыли переписку — значит прочитали: у собеседника появится вторая галочка
             presenceMarkRead();
             presenceRefresh();
-            setTimeout(() => loadMentionMembers(), 800);   // после отрисовки шапки — оттуда берём имя
+            mentionMembers = [];                           // список прошлого чата больше не годится
+            setTimeout(() => loadMentionMembers(), 600);   // после отрисовки шапки — оттуда берём имя
             document.body.classList.remove('ai-chat');
             editingMessageId = null;
             headerRenderedFor = null; // пересобрать шапку под нового собеседника
@@ -6248,10 +6286,12 @@
             }
             // В личной переписке упоминать некого, кроме собеседника — но подсказка всё равно
             // должна появляться: иначе человек жмёт «@» и не понимает, почему ничего не происходит.
-            const nm = (document.querySelector('#chatHeader .name') || {}).textContent || '';
-            mentionMembers = (selectedUserId && selectedUserId !== FAVORITES_ID && selectedUserId !== AI_ID && nm)
-                ? [{ user_id: selectedUserId, first_name: nm.trim(), last_name: '' }]
-                : [];
+            if (!selectedUserId || selectedUserId === FAVORITES_ID || selectedUserId === AI_ID) { mentionMembers = []; return; }
+            // Имя берём из шапки, а если её ещё не собрали — из списка диалогов
+            const nm = ((document.querySelector('#chatHeader .name') || {}).textContent
+                || (document.querySelector(`.conversation-item[data-user-id="${selectedUserId}"] .cn-text`) || {}).textContent
+                || '').trim();
+            mentionMembers = nm ? [{ user_id: selectedUserId, first_name: nm, last_name: '' }] : [];
         }
 
         function mentionName(m) {
@@ -6273,9 +6313,21 @@
 
         function updateMentionBox() {
             const ta = document.getElementById('messageInput');
-            if (!ta || !mentionMembers.length) { closeMentionBox(); return; }
+            if (!ta) { closeMentionBox(); return; }
             const q = mentionQuery(ta);
             if (q === null) { closeMentionBox(); return; }
+            // Список подтягиваем прямо в момент набора «@», а не только при открытии чата:
+            // раньше, если он не успел загрузиться, подсказка не появлялась вообще.
+            if (!mentionMembers.length) {
+                if (!updateMentionBox._loading) {
+                    updateMentionBox._loading = true;
+                    loadMentionMembers().finally(() => {
+                        updateMentionBox._loading = false;
+                        if (mentionMembers.length) updateMentionBox();
+                    });
+                }
+                return;
+            }
             const ql = q.toLowerCase();
             const found = mentionMembers
                 .filter(m => String(m.user_id || m.id) !== String(currentUser && currentUser.id))
@@ -6558,8 +6610,57 @@
             const picker = document.getElementById('emojiPicker');
             const show = picker.style.display === 'none';
             if (show) renderEmojiPicker();      // список собираем при открытии — там «недавние»
-            picker.style.display = show ? 'block' : 'none';
+            // Именно flex: с block инлайн-стиль перебивал раскладку из таблицы стилей,
+            // список переставал помещаться в панель и вылезал за её пределы без прокрутки.
+            picker.style.display = show ? 'flex' : 'none';
         }
+
+        // ── Диктовка голосом в чате с ассистентом ──
+        // Отдельно от голосовых сообщений: здесь запись не отправляется собеседнику,
+        // а превращается в текст и подставляется в поле ввода — можно поправить и отправить.
+        let dictRecorder = null, dictChunks = [], dictStream = null, dictBusy = false;
+
+        async function toggleDictation() {
+            const btn = document.getElementById('dictateBtn');
+            if (dictBusy) return;
+            if (dictRecorder && dictRecorder.state === 'recording') {
+                dictBusy = true;
+                btn.classList.remove('rec');
+                micHint('Распознаю…');
+                await new Promise(res => { dictRecorder.onstop = res; try { dictRecorder.stop(); } catch (e) { res(); } });
+                await new Promise(r => setTimeout(r, 120));
+                if (dictStream) { try { dictStream.getTracks().forEach(t => t.stop()); } catch (e) {} dictStream = null; }
+                const blob = dictChunks.length ? new Blob(dictChunks, { type: dictRecorder.mimeType || 'audio/webm' }) : null;
+                dictChunks = []; dictRecorder = null;
+                try {
+                    if (!blob || blob.size < 800) throw new Error('Слишком короткая запись');
+                    const text = await transcribeArrayBuffer(await blob.arrayBuffer());
+                    const inp = document.getElementById('messageInput');
+                    inp.value = (inp.value ? inp.value.replace(/\s*$/, ' ') : '') + text;
+                    inp.focus();
+                    autoGrowInput(inp);
+                    updateMicButton();
+                    micHint('Готово — проверьте и отправьте');
+                } catch (e) {
+                    toast(e.message || 'Не удалось распознать');
+                } finally { dictBusy = false; }
+                return;
+            }
+            try {
+                dictStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                const cand = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg;codecs=opus'];
+                const mime = cand.find(m => window.MediaRecorder && MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(m));
+                dictRecorder = mime ? new MediaRecorder(dictStream, { mimeType: mime }) : new MediaRecorder(dictStream);
+                dictChunks = [];
+                dictRecorder.ondataavailable = e => { if (e.data && e.data.size > 0) dictChunks.push(e.data); };
+                dictRecorder.start(500);
+                btn.classList.add('rec');
+                micHint('Говорите… нажмите ещё раз, когда закончите');
+            } catch (e) {
+                toast('Не удалось получить доступ к микрофону');
+            }
+        }
+        window.toggleDictation = toggleDictation;
 
         // ── Кнопка «вниз» и счётчик новых сообщений ──
         let unseenBelow = 0;        // сколько сообщений пришло, пока смотрели выше
@@ -6627,7 +6728,7 @@
                 '🌱 🌿 🍀 🍃 🌳 🌲 🌴 🌵 🌸 🌼 🌻 🌹 🌺 🏵 💐 🍁 🍂 🌾 🌍 🌙 ☀️ ⛅ ☁️ 🌧 ⛈ 🌈 ❄️ ⛄ 🌊 🔆 '
                 + '🐶 🐱 🐭 🐹 🐰 🦊 🐻 🐼 🐨 🐯 🦁 🐮 🐷 🐸 🐵 🐔 🐧 🐦 🦆 🦉 🐝 🦋 🐌 🐢 🐠 🐬 🐳 🦄').split(' ') },
         ];
-        let emojiTab = 1;
+        let emojiTab = null;   // выберем при первом открытии: «недавние», если они есть
 
         function recentEmoji() {
             try { return JSON.parse(localStorage.getItem('psy-emoji-recent') || '[]'); } catch (e) { return []; }
@@ -6642,17 +6743,26 @@
             const grid = document.getElementById('emojiGrid');
             if (!tabs || !grid) return;
             EMOJI_SETS[0].list = recentEmoji();
-            // Если недавних ещё нет, первым открываем не пустой раздел, а смайлы
-            if (emojiTab === 0 && !EMOJI_SETS[0].list.length) emojiTab = 1;
+            // Пустые «недавние» показываем как есть — с пояснением внутри. Раньше вкладка
+            // молча переключалась на другую, и казалось, что она не нажимается.
+            if (emojiTab == null) emojiTab = EMOJI_SETS[0].list.length ? 0 : 1;
             tabs.innerHTML = EMOJI_SETS.map((s, i) =>
                 `<button type="button" class="emoji-tab${i === emojiTab ? ' active' : ''}"
-                         title="${escapeHtml(s.name)}" onclick="setEmojiTab(${i})">${s.t}</button>`).join('');
+                         title="${escapeHtml(s.name)}" onclick="setEmojiTab(event, ${i})">${s.t}</button>`).join('');
             const list = EMOJI_SETS[emojiTab].list;
             grid.innerHTML = list.length
                 ? list.map(e => `<span onclick="insertEmoji('${e}')">${e}</span>`).join('')
                 : '<div class="emoji-empty">Здесь появятся смайлики, которыми вы пользуетесь чаще всего.</div>';
         }
-        function setEmojiTab(i) { emojiTab = i; renderEmojiPicker(); }
+        function setEmojiTab(evt, i) {
+            // Клик по вкладке ОБЯЗАН не всплывать до обработчика «клик вне панели»:
+            // перерисовка заменяет кнопки, к моменту всплытия нажатая уже удалена из
+            // документа, picker.contains(target) даёт false — и панель закрывалась,
+            // из-за чего разделы выглядели ненажимающимися.
+            if (evt) { evt.stopPropagation(); evt.preventDefault(); }
+            emojiTab = i;
+            renderEmojiPicker();
+        }
         window.setEmojiTab = setEmojiTab;
 
         function insertEmoji(emoji) {
@@ -7765,7 +7875,11 @@
         /** Расшифровать вложение сообщения. Возвращает текст либо бросает понятную ошибку. */
         async function transcribeUrl(url, onProgress) {
             const resp = await fetch(url, { credentials: 'include' });
-            const arr = await resp.arrayBuffer();
+            return await transcribeArrayBuffer(await resp.arrayBuffer(), onProgress);
+        }
+
+        /** Расшифровать уже полученный звук (файл записи или только что надиктованное). */
+        async function transcribeArrayBuffer(arr, onProgress) {
             let buffer;
             try { buffer = await getVoiceCtx().decodeAudioData(arr); }
             catch (e) { throw new Error('Не удалось разобрать звук этой записи'); }
