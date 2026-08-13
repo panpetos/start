@@ -1,20 +1,25 @@
 <?php
 /**
- * ОБРАЗЕЦ конфигурации ИИ-чата (OpenRouter).
+ * ОБРАЗЕЦ конфигурации ИИ-чата.
  *
- * КАК ПОЛЬЗОВАТЬСЯ:
- *   1) Скопируйте этот файл рядом под именем  ai_chat_config.php
- *   2) Впишите ваш API-ключ OpenRouter.
- *   3) Файл ai_chat_config.php НЕ коммитится в git (см. .gitignore).
+ * Настраивается из админки («🤖 ИИ-ассистент»), которая сама записывает рядом файл
+ * ai_chat_config.php. Этот образец нужен, только если удобнее завести файл руками.
+ * ai_chat_config.php НЕ коммитится в git (см. .gitignore) — ключи в репозитории не хранятся.
+ *
+ * provider:
+ *   'yandex'     — Yandex Cloud Foundation Models (совместимый с OpenAI эндпоинт)
+ *   'openrouter' — OpenRouter
+ *
+ * Для Яндекса нужны ДВЕ вещи: API-ключ и идентификатор каталога (folder_id, вида b1g...).
+ * Одного ключа мало: имя модели передаётся как gpt://<folder_id>/<модель>, и без каталога
+ * запрос уходит в никуда.
  */
 
 return [
-    'api_key' => 'sk-or-v1-ВПИШИТЕ_ВАШ_КЛЮЧ',
+    'provider'  => 'yandex',
+    'api_key'   => 'ВПИШИТЕ_КЛЮЧ',
+    'folder_id' => 'ВПИШИТЕ_ИДЕНТИФИКАТОР_КАТАЛОГА',
 
-    'models' => [
-        'deepseek/deepseek-chat-v3-0324:free' => 'DeepSeek V3',
-        'qwen/qwen3-235b-a22b:free'           => 'Qwen 3 235B',
-        'deepseek/deepseek-r1:free'            => 'DeepSeek R1 (думающий)',
-        'google/gemini-2.5-flash-preview:free' => 'Gemini 2.5 Flash',
-    ],
+    // Пусто — берётся список по умолчанию из ai_chat.php
+    'models' => [],
 ];

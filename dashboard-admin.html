@@ -2250,6 +2250,47 @@
                 </div>
               </div></div>`;
 
+            // — ИИ-ассистент: ключи хранятся на сервере вне репозитория —
+            const aiBox = `<div class="panel" style="margin-bottom:1rem;"><div class="panel-head"><h2>🤖 ИИ-ассистент</h2></div><div style="padding:1.1rem;">
+                <div class="muted" style="font-size:0.83rem;margin-bottom:0.7rem;">
+                  Ключ сохраняется в файл на сервере вне git — в репозиторий он не попадает.
+                  Для Яндекса нужны <b>две</b> вещи: ключ API и идентификатор каталога
+                  (folder_id, вида <code>b1g…</code>). Одного ключа мало: модель передаётся
+                  как <code>gpt://каталог/модель</code>.
+                </div>
+                <div id="aiState" class="muted" style="font-size:0.84rem;margin-bottom:0.7rem;">Загрузка…</div>
+                <div style="display:grid;gap:0.6rem;max-width:640px;">
+                  <label style="font-size:0.86rem;font-weight:600;">Сервис
+                    <select id="aiProvider" style="width:100%;margin-top:0.25rem;padding:0.5rem 0.7rem;border:1.5px solid #E5E7EB;border-radius:0.6rem;">
+                      <option value="yandex">Yandex Cloud — Foundation Models</option>
+                      <option value="openrouter">OpenRouter</option>
+                    </select>
+                  </label>
+                  <label style="font-size:0.86rem;font-weight:600;">Ключ API
+                    <input id="aiKey" type="password" placeholder="оставьте пустым, чтобы не менять"
+                      style="width:100%;margin-top:0.25rem;padding:0.5rem 0.7rem;border:1.5px solid #E5E7EB;border-radius:0.6rem;font-family:monospace;">
+                  </label>
+                  <label style="font-size:0.86rem;font-weight:600;" id="aiFolderWrap">Идентификатор каталога (folder_id)
+                    <input id="aiFolder" placeholder="b1g..."
+                      style="width:100%;margin-top:0.25rem;padding:0.5rem 0.7rem;border:1.5px solid #E5E7EB;border-radius:0.6rem;font-family:monospace;">
+                  </label>
+                  <div>
+                    <div style="font-weight:600;font-size:0.86rem;margin-bottom:0.35rem;">Модели, доступные людям в чате</div>
+                    <div id="aiModels" style="display:grid;gap:0.3rem;"></div>
+                    <div style="display:flex;gap:0.5rem;margin-top:0.5rem;flex-wrap:wrap;">
+                      <input id="aiNewModel" placeholder="добавить свою: например yandexgpt-32k/latest"
+                        style="flex:1;min-width:220px;padding:0.45rem 0.7rem;border:1.5px solid #E5E7EB;border-radius:0.6rem;font-family:monospace;font-size:0.84rem;">
+                      <button class="btn-sm btn-outline" onclick="aiAddModel()">Добавить</button>
+                    </div>
+                  </div>
+                  <div style="display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center;">
+                    <button class="btn-sm btn-purple" onclick="aiSaveConfig()">Сохранить</button>
+                    <button class="btn-sm btn-outline" onclick="aiTestConfig()">🧪 Проверить связь</button>
+                  </div>
+                  <div id="aiMsg" style="font-size:0.84rem;"></div>
+                </div>
+              </div></div>`;
+
             // — Справочник переменных —
             const phBox = `<div class="panel" style="margin-bottom:1rem;"><div class="panel-head"><h2>🔤 Динамические переменные</h2></div><div style="padding:1.1rem;">
                 <div class="muted" style="font-size:0.83rem;margin-bottom:0.6rem;">Вставляйте эти коды в тексты — при отправке они заменятся на реальные данные. Не все переменные применимы к каждому событию.</div>
@@ -2285,12 +2326,118 @@
 
             document.getElementById('content').innerHTML =
                 '<div class="note">🔔 Здесь вы настраиваете каналы доставки и редактируете тексты всех уведомлений. Каждый пользователь сам выбирает, куда их получать — на своей странице «🔔 Уведомления» (почта, Telegram, MAX, браузер). Отправка о новых сообщениях идёт проходом «📨 Рассылка уведомлений» ниже. События про записи и оплаты пока не рассылаются — заведите отдельной задачей, какие нужны в первую очередь. Маркетинговые рассылки не включены.</div>'
-                + channels + dispatch + phBox
+                + channels + dispatch + aiBox + phBox
                 + '<h2 style="margin:1.2rem 0 0.3rem;">✍️ Шаблоны сообщений</h2>'
                 + '<div class="muted" style="font-size:0.83rem;margin-bottom:0.5rem;">Тексты можно менять как угодно, используя переменные выше. Обязательные (транзакционные) уведомления выключить нельзя — только отредактировать.</div>'
                 + tplHtml;
             notifDispatchState();
+            aiLoadConfig();
         }
+
+        // ── ИИ-ассистент: ключи живут на сервере, в репозиторий не попадают ──
+        const AI_API = '/api/ai_chat.php';
+        let aiCfg = { models: {}, defaults: {} };
+
+        async function aiLoadConfig() {
+            const st = document.getElementById('aiState');
+            if (!st) return;
+            try {
+                const r = await fetch(AI_API + '?action=config', { credentials: 'include' });
+                const d = await r.json();
+                if (d.error) { st.textContent = d.error; return; }
+                aiCfg = d;
+                document.getElementById('aiProvider').value = d.provider || 'yandex';
+                document.getElementById('aiFolder').value = d.folder_id || '';
+                document.getElementById('aiKey').placeholder = d.key_set
+                    ? ('ключ задан (' + d.key_hint + ') — оставьте пустым, чтобы не менять')
+                    : 'вставьте ключ';
+                st.innerHTML = d.missing
+                    ? '<span style="color:#DC2626;">Не работает: ' + esc(d.missing) + '</span>'
+                    : '<span style="color:#16A34A;">Настроено — ассистент отвечает всем пользователям, у каждого своя переписка.</span>';
+                aiRenderModels();
+                aiSyncProvider();
+            } catch (e) { st.textContent = 'Не удалось загрузить настройку: ' + e.message; }
+        }
+
+        function aiSyncProvider() {
+            const p = document.getElementById('aiProvider').value;
+            document.getElementById('aiFolderWrap').style.display = p === 'yandex' ? '' : 'none';
+        }
+
+        function aiRenderModels() {
+            const box = document.getElementById('aiModels');
+            const p = document.getElementById('aiProvider').value;
+            // Показываем и то, что уже включено, и то, что предлагаем по умолчанию
+            const defaults = (aiCfg.defaults || {})[p] || {};
+            const chosen = aiCfg.models || {};
+            const all = Object.assign({}, defaults, chosen);
+            box.innerHTML = Object.keys(all).map(id => {
+                const on = Object.prototype.hasOwnProperty.call(chosen, id) || !Object.keys(chosen).length;
+                return '<label style="display:flex;gap:0.5rem;align-items:center;font-size:0.85rem;">'
+                     + '<input type="checkbox" class="ai-model" value="' + esc(id) + '" ' + (on ? 'checked' : '') + '>'
+                     + '<code style="font-size:0.8rem;">' + esc(id) + '</code>'
+                     + '<span class="muted">' + esc(all[id] || '') + '</span></label>';
+            }).join('') || '<div class="muted" style="font-size:0.83rem;">Моделей пока нет — добавьте ниже.</div>';
+        }
+
+        function aiAddModel() {
+            const inp = document.getElementById('aiNewModel');
+            const id = inp.value.trim();
+            if (!id) return;
+            aiCfg.models = aiCfg.models || {};
+            aiCfg.models[id] = id;
+            inp.value = '';
+            aiRenderModels();
+        }
+
+        async function aiSaveConfig() {
+            const msg = document.getElementById('aiMsg');
+            const models = {};
+            document.querySelectorAll('.ai-model:checked').forEach(c => {
+                const p = document.getElementById('aiProvider').value;
+                const known = Object.assign({}, (aiCfg.defaults || {})[p] || {}, aiCfg.models || {});
+                models[c.value] = known[c.value] || c.value;
+            });
+            if (!Object.keys(models).length) { msg.innerHTML = '<span style="color:#DC2626;">Отметьте хотя бы одну модель</span>'; return; }
+            msg.textContent = 'Сохраняем…';
+            try {
+                const r = await fetch(AI_API + '?action=save-config', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+                    body: JSON.stringify({
+                        provider: document.getElementById('aiProvider').value,
+                        api_key: document.getElementById('aiKey').value.trim(),
+                        folder_id: document.getElementById('aiFolder').value.trim(),
+                        models,
+                    })
+                });
+                const d = await r.json();
+                if (d.error) { msg.innerHTML = '<span style="color:#DC2626;">' + esc(d.error) + '</span>'; return; }
+                document.getElementById('aiKey').value = '';
+                msg.innerHTML = d.missing
+                    ? '<span style="color:#DC2626;">Сохранено, но: ' + esc(d.missing) + '</span>'
+                    : '<span style="color:#16A34A;">Сохранено. Нажмите «Проверить связь».</span>';
+                aiLoadConfig();
+            } catch (e) { msg.innerHTML = '<span style="color:#DC2626;">' + esc(e.message) + '</span>'; }
+        }
+
+        async function aiTestConfig() {
+            const msg = document.getElementById('aiMsg');
+            const first = document.querySelector('.ai-model:checked');
+            msg.textContent = 'Спрашиваем модель…';
+            try {
+                const r = await fetch(AI_API + '?action=test', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+                    body: JSON.stringify({ model: first ? first.value : '' })
+                });
+                const d = await r.json();
+                msg.innerHTML = d.ok
+                    ? '<span style="color:#16A34A;">Связь есть. ' + esc(d.model) + ' ответила: «' + esc(d.answer) + '»</span>'
+                    : '<span style="color:#DC2626;">' + esc(d.error || 'не получилось') + '</span>';
+            } catch (e) { msg.innerHTML = '<span style="color:#DC2626;">' + esc(e.message) + '</span>'; }
+        }
+        document.addEventListener('change', (e) => {
+            if (e.target && e.target.id === 'aiProvider') { aiSyncProvider(); aiRenderModels(); }
+        });
 
         // ── Рассылка уведомлений ──
         const ND_API = '/api/notify_dispatch.php';
