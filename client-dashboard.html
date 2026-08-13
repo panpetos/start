@@ -233,14 +233,6 @@
                 <div id="packagesList" class="appointments-list"></div>
             </div>
 
-            <div class="card" id="channelsCard" style="grid-column: 1 / -1; display: none;">
-                <h2>
-                    <i data-lucide="megaphone" style="width: 24px; height: 24px;"></i>
-                    Мои каналы
-                </h2>
-                <div id="channelsList" class="appointments-list"></div>
-            </div>
-
             <div class="card" style="grid-column: 1 / -1;">
                 <h2>
                     <i data-lucide="calendar" style="width: 24px; height: 24px;"></i>
@@ -253,6 +245,14 @@
                     <i data-lucide="search" style="width: 18px; height: 18px;"></i>
                     Найти психолога
                 </a>
+            </div>
+
+            <div class="card" id="channelsCard" style="grid-column: 1 / -1; display: none;">
+                <h2>
+                    <i data-lucide="megaphone" style="width: 24px; height: 24px;"></i>
+                    Мои каналы
+                </h2>
+                <div id="channelsList" class="appointments-list"></div>
             </div>
         </div>
 
@@ -423,7 +423,7 @@
                                 <div style="font-weight:600;">📢 ${name}</div>
                                 <div style="color:var(--d-text-sec,#6B7280);font-size:0.85rem;">${preview}</div>
                             </div>
-                            <a href="/psychologist-profile.html?id=${encodeURIComponent(c.psychologist_id)}" class="btn btn-small">Открыть канал</a>
+                            <a href="/chat.html?open=channel:${encodeURIComponent(c.psychologist_id)}" class="btn btn-small">Открыть канал</a>
                         </div>`;
                     }).join('');
                 } catch (e) { card.style.display = 'none'; }

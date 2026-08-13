@@ -2711,6 +2711,10 @@
             repaintAllVoice();
             restoreVideoNote();
             restoreFlash();
+            // Реакции подгружались только в личной переписке — в группе никто не видел
+            // чужих. Расшифровки там тоже нужны.
+            loadKnownTranscripts();
+            loadReactions();
             if (wasScrolledToBottom) container.scrollTop = container.scrollHeight;
         }
 
@@ -2879,12 +2883,16 @@
                 const nm = `${m.first_name || ''} ${m.last_name || ''}`.trim() || 'Пользователь';
                 const roleLabel = m.site_role === 'psychologist' ? 'психолог' : (m.site_role === 'admin' ? 'админ' : 'клиент');
                 const kick = (isOwner && m.role !== 'owner')
-                    ? `<button onclick="kickGroupMember('${m.user_id}')" title="Исключить" style="border:none;background:none;color:#DC2626;cursor:pointer;font-size:0.95rem;">✕</button>`
+                    ? `<button onclick="event.stopPropagation();kickGroupMember('${m.user_id}')" title="Исключить" style="border:none;background:none;color:#DC2626;cursor:pointer;font-size:0.95rem;">✕</button>`
                     : '';
-                return `<div style="display:flex;align-items:center;gap:0.6rem;padding:0.5rem 0;border-bottom:1px solid #f0f0f0;">
+                // По участнику можно нажать — откроется его карточка, как в шапке чата
+                const me = currentUser && String(currentUser.id) === String(m.user_id);
+                const open = me ? '' : `onclick="closeGroupInfo();openUserCard('${escapeHtml(String(m.user_id))}')"`;
+                return `<div class="gi-member" ${open} style="display:flex;align-items:center;gap:0.6rem;padding:0.5rem 0;border-bottom:1px solid #f0f0f0;${me ? '' : 'cursor:pointer;'}"
+                             title="${me ? 'Это вы' : 'Открыть карточку'}">
                     <div class="conversation-avatar" style="width:34px;height:34px;font-size:0.85rem;">${m.avatar ? `<img src="${escapeHtml(m.avatar)}" alt="">` : escapeHtml(nm.charAt(0).toUpperCase())}</div>
                     <div style="flex:1;min-width:0;">
-                        <div style="font-weight:600;font-size:0.88rem;">${escapeHtml(nm)}${m.role === 'owner' ? ' <span style="color:#7C3AED;font-size:0.72rem;font-weight:700;">владелец</span>' : ''}</div>
+                        <div style="font-weight:600;font-size:0.88rem;">${escapeHtml(nm)}${m.role === 'owner' ? ' <span style="color:#7C3AED;font-size:0.72rem;font-weight:700;">владелец</span>' : ''}${me ? ' <span style="color:#9CA3AF;font-size:0.72rem;">— вы</span>' : ''}</div>
                         <div style="color:#9CA3AF;font-size:0.75rem;">${roleLabel}</div>
                     </div>
                     ${kick}
@@ -3402,10 +3410,13 @@
                         </div>
                         <!-- flex-wrap и короткая подпись: на телефоне «Открыть профиль и канал»
                              + «Записаться» не влезали в ряд и карточку приходилось скроллить -->
-                        <div style="display:flex;gap:0.6rem;margin-top:1.2rem;flex-wrap:wrap;">
-                            <a href="/psychologist-profile.html?id=${encodeURIComponent(c.psychologist_id)}" target="_blank" class="session-btn" style="background:#7C3AED;text-decoration:none;" title="Открыть профиль и канал психолога">👤 Профиль</a>
+                        <!-- Раньше здесь было две кнопки, ведущие по сути в одно место.
+                             Оставили запись, а вторая кнопка открывает канал прямо в чате. -->
+                        <div style="display:flex;gap:0.6rem;margin-top:1.2rem;flex-wrap:wrap;" id="userCardActions">
                             <a href="/book.html?id=${encodeURIComponent(c.psychologist_id)}" class="session-btn" style="background:#15803D;text-decoration:none;" title="Записаться на консультацию">📅 Записаться</a>
                         </div>`;
+                    // Каналы подгружаем отдельно: их может не быть вовсе, и тогда кнопки нет
+                    addChannelButtons(c.psychologist_id, name);
                 } else {
                     body.innerHTML = `
                         <div style="display:flex;align-items:center;gap:1rem;">
@@ -3430,6 +3441,27 @@
             return '<span style="color:#6B7280;">' + escapeHtml(humanLastSeen(p.last_seen)) + '</span>';
         }
         window.presenceLabelHtml = presenceLabelHtml;
+
+        /** Кнопки каналов психолога в его карточке — открывают канал прямо в чате. */
+        async function addChannelButtons(psyId, name) {
+            const box = document.getElementById('userCardActions');
+            if (!box || !psyId) return;
+            try {
+                const d = await (await fetch('/api/channels.php?action=info&psychologist_id=' + encodeURIComponent(psyId),
+                                             { credentials: 'include' })).json();
+                if (!d || !d.ok) return;
+                // У психолога канал один и называется его именем; если появятся ещё —
+                // сюда придёт список, и кнопок станет столько же.
+                const list = Array.isArray(d.channels) && d.channels.length
+                    ? d.channels
+                    : [{ id: psyId, name: (d.name || ('Канал · ' + name)), subscribers_count: d.subscribers_count || 0 }];
+                box.insertAdjacentHTML('beforeend', list.map(ch => `
+                    <button type="button" class="session-btn" style="background:#7C3AED;"
+                        onclick="closeUserCard();openChannel('${escapeHtml(String(ch.id))}')"
+                        title="Открыть канал в чате">📢 ${escapeHtml(ch.name || 'Канал')}${
+                        ch.subscribers_count ? ' · ' + ch.subscribers_count : ''}</button>`).join(''));
+            } catch (e) { /* каналов нет или не отдались — кнопки просто не будет */ }
+        }
 
         function closeUserCard() { document.getElementById('userCardModal').style.display = 'none'; }
 
@@ -4771,6 +4803,34 @@
         window.addEventListener('resize', syncFolderPlacement);
         window.addEventListener('orientationchange', syncFolderPlacement);
 
+        /** Свой канал. У психолога он один и заводится вместе с профилем — «создать»
+         *  означает открыть его и написать первый пост, как в Telegram. */
+        async function openMyChannel() {
+            if (!currentUser || currentUser.role !== 'psychologist') {
+                toast('Каналы ведут специалисты — у клиентов их нет');
+                return;
+            }
+            if (!myOwnPsychId) {
+                try {
+                    const d = await (await fetch('/api/my_profile.php?action=get', { credentials: 'include' })).json();
+                    myOwnPsychId = (d && d.ok && d.profile) ? d.profile.id : null;
+                } catch (e) {}
+            }
+            if (!myOwnPsychId) { toast('Сначала заполните профиль специалиста'); return; }
+            openChannel(myOwnPsychId);
+        }
+        window.openMyChannel = openMyChannel;
+
+        /** Блог. Редактор статей пока живёт отдельной страницей — ведём туда. */
+        function openMyBlog() {
+            if (!currentUser || currentUser.role !== 'psychologist') {
+                toast('Блог ведут специалисты — у клиентов его нет');
+                return;
+            }
+            location.href = '/psychologist-blog.html';
+        }
+        window.openMyBlog = openMyBlog;
+
         /** Настройки чатов: то, что раньше висело кнопками в шапке списка.
          *  Внизу списка, как папка в Telegram, — сверху остался только поиск. */
         function openChatSettings() {
@@ -4792,6 +4852,10 @@
                     <div class="cs-group-title">Создать</div>
                     <button class="cs-row" onclick="closeChatSettings();openCreateGroupModal()">
                         <span>👥</span><div><b>Группу</b><i>общая переписка на несколько человек</i></div></button>
+                    <button class="cs-row" onclick="closeChatSettings();openMyChannel()">
+                        <span>📢</span><div><b>Канал</b><i>публикации для подписчиков, попадают в Ленту</i></div></button>
+                    <button class="cs-row" onclick="closeChatSettings();openMyBlog()">
+                        <span>📝</span><div><b>Блог</b><i>статьи с просмотрами и лайками</i></div></button>
                     <div class="cs-group-title">Оформление</div>
                     <button class="cs-row" onclick="closeChatSettings();openWallpaperPicker()">
                         <span>🎨</span><div><b>Обои переписки</b><i>фон для окна сообщений</i></div></button>
@@ -5016,7 +5080,12 @@
         /** Кнопки, появляющиеся при наведении на сообщение: быстрый ответ и меню. */
         function msgHoverHtml(id) {
             if (!id) return '';
+            // Реакция вынесена прямо в строку наведения: искать её в «Ещё» долго,
+            // а отреагировать хочется одним движением.
             return `<div class="msg-hover">
+                        <button onclick="event.stopPropagation();openReactionPicker('${id}')" title="Реакция" aria-label="Реакция">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8.5 14.5s1.3 1.6 3.5 1.6 3.5-1.6 3.5-1.6"/><path d="M9 9.5h.01M15 9.5h.01"/></svg>
+                        </button>
                         <button onclick="startReply(event,'${id}')" title="Ответить" aria-label="Ответить">
                             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M10 4L4 9l6 5V4z"/><path d="M4 9h11a5 5 0 015 5v3"/></svg>
                         </button>
@@ -5272,6 +5341,27 @@
         }, { passive: true });
         ['pointerup', 'pointercancel', 'scroll'].forEach(ev =>
             document.addEventListener(ev, longPressCancel, { passive: true, capture: true }));
+
+        // Двойной тап (или двойной клик) по сообщению открывает выбор реакции.
+        // Долгое нажатие уже занято выделением, поэтому для реакции — быстрый двойной тап,
+        // как в привычных мессенджерах.
+        let lastTapId = null, lastTapAt = 0;
+        document.addEventListener('pointerup', function (e) {
+            if (selectMode) return;
+            const msg = e.target.closest && e.target.closest('.message');
+            if (!msg) return;
+            if (e.target.closest('button, a, input, textarea, .voice-message, .video-note, .msg-hover, .react-chip')) return;
+            const id = msg.getAttribute('data-msg-id');
+            if (!id) return;
+            const now = Date.now();
+            if (lastTapId === id && now - lastTapAt < 400) {
+                lastTapId = null;
+                openReactionPicker(id);
+                try { if (navigator.vibrate) navigator.vibrate(10); } catch (err) {}
+                return;
+            }
+            lastTapId = id; lastTapAt = now;
+        }, { passive: true });
 
         // Клик по сообщению в режиме выделения переключает выбор
         document.addEventListener('click', function (e) {
@@ -7009,11 +7099,21 @@
             if (cur.count <= 0) delete set[emoji]; else set[emoji] = cur;
             paintReactions();
             try {
-                await fetch('/api/reactions.php?action=toggle', {
+                const r = await fetch('/api/reactions.php?action=toggle', {
                     method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
                     body: JSON.stringify({ message_id: msgId, chat_key: key, emoji })
                 });
-            } catch (e) { }
+                const d = await r.json().catch(() => ({}));
+                if (!r.ok || d.error) throw new Error(d.error || ('сервер ответил ' + r.status));
+            } catch (e) {
+                // Молчать нельзя: реакция уже нарисована, и человек решит, что она поставлена,
+                // а собеседник её не увидит. Откатываем и говорим прямо.
+                cur.mine ? (cur.count--, cur.mine = false) : (cur.count++, cur.mine = true);
+                if (cur.count <= 0) delete set[emoji]; else set[emoji] = cur;
+                paintReactions();
+                toast('Реакция не сохранилась: ' + (e.message || 'нет связи'));
+                return;
+            }
             loadReactions();
         }
         window.toggleReaction = toggleReaction;
