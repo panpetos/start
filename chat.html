@@ -1217,6 +1217,45 @@
         }
         body.dark .scroll-down-btn { background: #2A2A2A; color: #D0D0D0; border-color: #3A3A3A; }
 
+        /* Поиск по переписке */
+        .chat-search {
+            display: flex; align-items: center; gap: 0.4rem; padding: 0.5rem 0.9rem;
+            border-bottom: 1px solid rgba(128,128,128,0.2); background: rgba(124,58,237,0.06);
+        }
+        .chat-search input {
+            flex: 1; min-width: 0; padding: 0.4rem 0.7rem; border-radius: 0.5rem;
+            border: 1.5px solid rgba(124,58,237,0.35); background: transparent; color: inherit;
+            font-family: inherit; font-size: 0.9rem; outline: none;
+        }
+        .chat-search button {
+            border: none; background: rgba(124,58,237,0.14); color: inherit; cursor: pointer;
+            border-radius: 0.45rem; padding: 0.25rem 0.5rem; font-size: 0.9rem;
+        }
+        .chat-search button:hover { background: rgba(124,58,237,0.28); }
+        .cs-count { font-size: 0.78rem; color: #6B7280; white-space: nowrap; }
+        body.dark .cs-count { color: #9CA3AF; }
+        .message.search-hit { outline: 2px solid rgba(124,58,237,0.45); }
+        .message.search-current { outline: 3px solid #7C3AED; }
+
+        /* Реакции под сообщением */
+        .msg-reacts { display: flex; gap: 0.25rem; flex-wrap: wrap; margin-top: 0.3rem; }
+        .react-chip {
+            display: inline-flex; align-items: center; gap: 0.2rem;
+            border: 1px solid rgba(124,58,237,0.35); background: rgba(124,58,237,0.10);
+            color: inherit; border-radius: 1rem; padding: 0.1rem 0.45rem;
+            font-size: 0.82rem; cursor: pointer; font-family: inherit; line-height: 1.4;
+        }
+        .react-chip span { font-size: 0.75rem; font-weight: 700; opacity: 0.85; }
+        .react-chip.mine { background: rgba(124,58,237,0.32); border-color: #7C3AED; }
+        .message.mine .react-chip { background: rgba(255,255,255,0.18); border-color: rgba(255,255,255,0.35); }
+        .message.mine .react-chip.mine { background: rgba(255,255,255,0.34); }
+        .react-picker { display: flex; gap: 2px; padding: 4px; }
+        .react-pick {
+            border: none; background: none; cursor: pointer; font-size: 1.25rem;
+            padding: 4px 6px; border-radius: 8px; line-height: 1;
+        }
+        .react-pick:hover { background: rgba(124,58,237,0.18); }
+
         /* Что прикреплено и ждёт отправки */
         .attach-bar {
             padding: 0.5rem 0.9rem; border-top: 1px solid rgba(128,128,128,0.2);
@@ -2532,6 +2571,7 @@
                 ${headerActionsHtml([
                     { icon: 'ℹ️', label: 'Участники и настройки', run: () => openGroupInfo(groupId) },
                     { icon: '👥', label: 'Добавить участников', run: () => openAddGroupMembers(groupId) },
+                    { icon: '🔎', label: 'Поиск по переписке', run: () => openChatSearch() },
                     { icon: 'A', label: 'Форматирование текста', run: () => openComposer() },
                     { icon: '🎨', label: 'Обои переписки', run: () => openWallpaperPicker() },
                 ], '')}`;
@@ -3253,6 +3293,7 @@
                     icon: '📅', label: 'Записаться на приём',
                     href: bookPsychId ? ('/book.html?id=' + encodeURIComponent(bookPsychId)) : '/search.html'
                 },
+                { icon: '🔎', label: 'Поиск по переписке', run: () => openChatSearch() },
                 { icon: 'A', label: 'Форматирование текста', run: () => openComposer() },
                 { icon: '🎨', label: 'Обои переписки', run: () => openWallpaperPicker() },
             ];
@@ -4864,7 +4905,8 @@
                 `<button class="folder-picker-row" onclick="event.stopPropagation();closeFolderPicker();${call}">
                     <span class="fp-mark">${icon}</span>${label}
                 </button>`;
-            let html = row('↩', 'Ответить', `startReply(null,'${id}')`);
+            let html = row('😊', 'Реакция', `openReactionPicker('${id}')`);
+            html += row('↩', 'Ответить', `startReply(null,'${id}')`);
             html += row('☑', 'Выделить', `enterSelectMode('${id}')`);
             if ((cap.text || '').trim()) html += row('📋', 'Скопировать текст', `copyMessageText('${id}')`);
             if (cap.canForward) html += row('↪', 'Переслать', `openForwardMenu(null,'${cap.kind || 'msg'}','${id}')`);
@@ -5430,6 +5472,7 @@
                 </div>
                 ${headerActionsHtml([
                     { icon: '🧠', label: 'Выбрать модель', run: () => pickAiModel() },
+                    { icon: '🔎', label: 'Поиск по переписке', run: () => openChatSearch() },
                     { icon: 'A', label: 'Форматирование текста', run: () => openComposer() },
                     { icon: '🗑', label: 'Очистить переписку', run: () => clearAiChat() },
                 ], '')}`;
@@ -5568,6 +5611,7 @@
                     <div class="role">Заметки для себя</div>
                 </div>
                 ${headerActionsHtml([
+                    { icon: '🔎', label: 'Поиск по переписке', run: () => openChatSearch() },
                     { icon: 'A', label: 'Форматирование текста', run: () => openComposer() },
                     { icon: '🎨', label: 'Обои переписки', run: () => openWallpaperPicker() },
                 ], '')}`;
@@ -6105,6 +6149,7 @@
                 renderIfChanged(container, dmHtml);
                 noteNewMessages(messages.length);   // считаем новые, если человек читает выше
                 loadKnownTranscripts();             // чужие расшифровки показываем сразу
+                loadReactions();
 
                 repaintAllVoice();
                 restoreVideoNote();
@@ -6694,6 +6739,163 @@
             }
         }
         window.toggleDictation = toggleDictation;
+
+        // ── Поиск по словам внутри переписки ──
+        // Ищем по уже загруженным сообщениям в браузере: серверный messages.php менять
+        // нельзя, а вся переписка и так лежит на странице.
+        let searchHits = [], searchPos = -1;
+
+        function openChatSearch() {
+            let bar = document.getElementById('chatSearchBar');
+            if (!bar) {
+                bar = document.createElement('div');
+                bar.id = 'chatSearchBar';
+                bar.className = 'chat-search';
+                bar.innerHTML = `
+                    <input id="chatSearchInput" placeholder="Найти в переписке…" oninput="runChatSearch()"
+                           onkeydown="if(event.key==='Enter'){event.preventDefault();stepSearch(event.shiftKey?-1:1);}
+                                      if(event.key==='Escape')closeChatSearch();">
+                    <span id="chatSearchCount" class="cs-count"></span>
+                    <button type="button" onclick="stepSearch(-1)" title="Предыдущее">↑</button>
+                    <button type="button" onclick="stepSearch(1)" title="Следующее">↓</button>
+                    <button type="button" onclick="closeChatSearch()" title="Закрыть">✕</button>`;
+                const area = document.getElementById('messagesContainer');
+                area.parentNode.insertBefore(bar, area);
+            }
+            bar.style.display = 'flex';
+            const inp = document.getElementById('chatSearchInput');
+            inp.focus();
+            inp.select();
+            runChatSearch();
+        }
+        window.openChatSearch = openChatSearch;
+
+        function closeChatSearch() {
+            const bar = document.getElementById('chatSearchBar');
+            if (bar) bar.style.display = 'none';
+            document.querySelectorAll('.message.search-hit, .message.search-current')
+                .forEach(el => el.classList.remove('search-hit', 'search-current'));
+            searchHits = []; searchPos = -1;
+        }
+        window.closeChatSearch = closeChatSearch;
+
+        function runChatSearch() {
+            const q = (document.getElementById('chatSearchInput') || {}).value || '';
+            document.querySelectorAll('.message').forEach(el => el.classList.remove('search-hit', 'search-current'));
+            searchHits = []; searchPos = -1;
+            const needle = q.trim().toLowerCase();
+            const cnt = document.getElementById('chatSearchCount');
+            if (needle.length < 2) { if (cnt) cnt.textContent = q ? 'нужно 2+ буквы' : ''; return; }
+            document.querySelectorAll('.message').forEach(el => {
+                if ((el.textContent || '').toLowerCase().includes(needle)) {
+                    el.classList.add('search-hit');
+                    searchHits.push(el);
+                }
+            });
+            if (cnt) cnt.textContent = searchHits.length ? ('1 из ' + searchHits.length) : 'ничего не нашлось';
+            if (searchHits.length) { searchPos = searchHits.length - 1; focusHit(); }   // от свежих к старым
+        }
+        window.runChatSearch = runChatSearch;
+
+        function focusHit() {
+            searchHits.forEach(el => el.classList.remove('search-current'));
+            const el = searchHits[searchPos];
+            if (!el) return;
+            el.classList.add('search-current');
+            el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+            const cnt = document.getElementById('chatSearchCount');
+            if (cnt) cnt.textContent = (searchPos + 1) + ' из ' + searchHits.length;
+        }
+
+        function stepSearch(dir) {
+            if (!searchHits.length) return;
+            searchPos = (searchPos + dir + searchHits.length) % searchHits.length;
+            focusHit();
+        }
+        window.stepSearch = stepSearch;
+
+        // ── Реакции на сообщения ──
+        const REACTIONS = ['👍', '❤️', '🔥', '😂', '😮', '😢', '🙏', '👏'];
+        let reactionMap = {};      // id сообщения -> {эмодзи: {count, mine}}
+
+        /** Ключ переписки для реакций. Для личной он ОБЯЗАН быть одинаковым у обеих
+         *  сторон, иначе каждый видит только свои: у меня собеседник — «он», у него — «я».
+         *  Поэтому склеиваем два id по порядку. */
+        function reactionChatKey() {
+            const k = presenceKey();
+            if (!k) return '';
+            if (isGroupKey(k)) return k;
+            const me = currentUser ? String(currentUser.id) : '';
+            return [me, String(k)].sort().join('|');
+        }
+
+        async function loadReactions() {
+            const key = reactionChatKey();
+            if (!key) { reactionMap = {}; return; }
+            try {
+                const r = await (await fetch('/api/reactions.php?action=list&chat_key=' + encodeURIComponent(key),
+                                             { credentials: 'include' })).json();
+                if (r && r.ok) { reactionMap = r.data || {}; paintReactions(); }
+            } catch (e) {}
+        }
+
+        /** Реакции рисуем поверх готовой разметки: так опрос переписки их не затирает. */
+        function paintReactions() {
+            document.querySelectorAll('.message[data-msg-id]').forEach(el => {
+                const id = el.getAttribute('data-msg-id');
+                const set = reactionMap[id];
+                let box = el.querySelector('.msg-reacts');
+                if (!set || !Object.keys(set).length) { if (box) box.remove(); return; }
+                if (!box) {
+                    box = document.createElement('div');
+                    box.className = 'msg-reacts';
+                    el.appendChild(box);
+                }
+                box.innerHTML = Object.keys(set).map(e =>
+                    `<button type="button" class="react-chip${set[e].mine ? ' mine' : ''}"
+                             onclick="toggleReaction(event,'${id}','${e}')">${e}<span>${set[e].count}</span></button>`
+                ).join('');
+            });
+        }
+
+        async function toggleReaction(evt, msgId, emoji) {
+            if (evt) evt.stopPropagation();
+            const key = reactionChatKey();
+            if (!key) return;
+            // Рисуем сразу, не дожидаясь сервера: иначе нажатие кажется «залипшим»
+            const set = reactionMap[msgId] = reactionMap[msgId] || {};
+            const cur = set[emoji] || { count: 0, mine: false };
+            cur.mine ? (cur.count--, cur.mine = false) : (cur.count++, cur.mine = true);
+            if (cur.count <= 0) delete set[emoji]; else set[emoji] = cur;
+            paintReactions();
+            try {
+                await fetch('/api/reactions.php?action=toggle', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+                    body: JSON.stringify({ message_id: msgId, chat_key: key, emoji })
+                });
+            } catch (e) { }
+            loadReactions();
+        }
+        window.toggleReaction = toggleReaction;
+
+        /** Выбор реакции из меню действий над сообщением. */
+        function openReactionPicker(msgId) {
+            closeFolderPicker();
+            const el = document.querySelector(`[data-msg-id="${msgId}"]`);
+            const menu = document.createElement('div');
+            menu.className = 'folder-picker react-picker';
+            menu.id = 'folderPicker';
+            menu.innerHTML = REACTIONS.map(e =>
+                `<button type="button" class="react-pick" onclick="event.stopPropagation();closeFolderPicker();toggleReaction(null,'${msgId}','${e}')">${e}</button>`
+            ).join('');
+            document.body.appendChild(menu);
+            const r = (el || document.body).getBoundingClientRect();
+            const mh = menu.getBoundingClientRect().height;
+            menu.style.left = Math.max(8, Math.min(r.left, window.innerWidth - menu.offsetWidth - 8)) + 'px';
+            menu.style.top = (r.top - mh - 6 > 0 ? r.top - mh - 6 : r.bottom + 4) + 'px';
+            setTimeout(() => document.addEventListener('click', closeFolderPicker, { once: true }), 0);
+        }
+        window.openReactionPicker = openReactionPicker;
 
         // ── Кнопка «вниз» и счётчик новых сообщений ──
         let unseenBelow = 0;        // сколько сообщений пришло, пока смотрели выше

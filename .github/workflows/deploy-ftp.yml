@@ -116,6 +116,7 @@ jobs:
             put api/notify_prefs.php -o api/notify_prefs.php;
             put api/presence.php -o api/presence.php;
             put api/transcribe.php -o api/transcribe.php;
+            put api/reactions.php -o api/reactions.php;
             put api/notify_dispatch.php -o api/notify_dispatch.php;
             put api/blog.php -o api/blog.php;
             put api/schema_util.php -o api/schema_util.php;
