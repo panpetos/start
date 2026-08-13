@@ -68,14 +68,21 @@ if ($action === 'toggle' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
     }
     try {
-        // Повторное нажатие снимает свою реакцию — как везде
-        $st = $pdo->prepare("SELECT id FROM message_reactions WHERE message_id = ? AND user_id = ? AND emoji = ? LIMIT 1");
-        $st->execute([$mid, $userId, $emoji]);
-        $existing = $st->fetchColumn();
-        if ($existing) {
-            $pdo->prepare("DELETE FROM message_reactions WHERE id = ?")->execute([$existing]);
+        // Одна реакция от человека на сообщение: та же — снимаем, другая — ЗАМЕНЯЕТ прежнюю.
+        // Раньше вторая добавлялась рядом, и вместо замены получалась пара смайликов.
+        $st = $pdo->prepare("SELECT id, emoji FROM message_reactions WHERE message_id = ? AND user_id = ?");
+        $st->execute([$mid, $userId]);
+        $mine = $st->fetchAll(PDO::FETCH_ASSOC);
+        $same = null;
+        foreach ($mine as $row) { if ((string)$row['emoji'] === $emoji) $same = $row['id']; }
+        if ($same !== null) {
+            $pdo->prepare("DELETE FROM message_reactions WHERE id = ?")->execute([$same]);
             $set = false;
         } else {
+            if ($mine) {
+                $pdo->prepare("DELETE FROM message_reactions WHERE message_id = ? AND user_id = ?")
+                    ->execute([$mid, $userId]);
+            }
             $pdo->prepare("INSERT INTO message_reactions (message_id, chat_key, user_id, emoji) VALUES (?,?,?,?)")
                 ->execute([$mid, $key, $userId, $emoji]);
             $set = true;

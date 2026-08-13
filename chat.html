@@ -1083,9 +1083,17 @@
             padding: 4px 2px;
             scrollbar-width: thin;
         }
-        .emoji-grid::-webkit-scrollbar { width: 6px; }
-        .emoji-grid::-webkit-scrollbar-thumb { background: rgba(124,58,237,0.35); border-radius: 3px; }
+        .emoji-grid { scrollbar-color: rgba(124,58,237,0.45) transparent; }
+        .emoji-grid::-webkit-scrollbar { width: 8px; }
+        .emoji-grid::-webkit-scrollbar-thumb {
+            background: rgba(124,58,237,0.40); border-radius: 999px;
+            border: 2px solid transparent; background-clip: content-box;
+        }
+        .emoji-grid::-webkit-scrollbar-thumb:hover { background: rgba(124,58,237,0.65); background-clip: content-box; }
         .emoji-grid::-webkit-scrollbar-track { background: transparent; }
+        .emoji-grid::-webkit-scrollbar-corner { background: transparent; }
+        body.dark .emoji-grid { scrollbar-color: rgba(196,181,253,0.45) transparent; }
+        body.dark .emoji-grid::-webkit-scrollbar-thumb { background: rgba(196,181,253,0.35); background-clip: content-box; }
         .emoji-tabs {
             display: flex; gap: 2px; justify-content: center; flex-shrink: 0; flex-wrap: wrap;
             padding-bottom: 6px; margin-bottom: 4px; border-bottom: 1px solid rgba(128,128,128,0.25);
@@ -3897,6 +3905,12 @@
             } catch (e) { /* пропал интернет — покажем прежнее состояние, не мигаем */ }
         }
 
+        // Сколько ещё считаем человека в сети после последнего подтверждения. Сигнал он шлёт
+        // раз в 30 секунд, ответ может задержаться или потеряться — без запаса кружок
+        // мигал зелёным и серым по несколько раз в минуту.
+        const ONLINE_GRACE_MS = 90000;
+        let onlineSince = {};      // id -> когда в последний раз точно был в сети
+
         async function presenceRefresh() {
             const peers = presencePeers();
             if (!peers.length) return;
@@ -3905,10 +3919,22 @@
                                       { credentials: 'include' });
                 const d = await r.json();
                 if (!d || !d.ok) return;
-                presence = d.data || {};
+                const fresh = d.data || {};
+                const now = Date.now();
+                Object.keys(fresh).forEach(id => { if (fresh[id].online) onlineSince[id] = now; });
+                // Держим «в сети», пока не истёк запас: иначе один пропущенный ответ
+                // тут же гасит кружок, хотя человек никуда не делся.
+                Object.keys(fresh).forEach(id => {
+                    if (!fresh[id].online && !fresh[id].hidden
+                        && onlineSince[id] && now - onlineSince[id] < ONLINE_GRACE_MS) {
+                        fresh[id].online = true;
+                        fresh[id].sticky = true;
+                    }
+                });
+                presence = fresh;
                 presenceNow = d.now || null;
                 paintPresence();
-            } catch (e) {}
+            } catch (e) { /* связь моргнула — оставляем прежнее состояние, не мигаем */ }
         }
 
         /** Отметить переписку прочитанной — с этого момента у собеседника появится вторая галочка. */
@@ -5014,7 +5040,11 @@
         function albumExtraHtml(m) {
             if (!m.__extra || !m.__extra.length) return '';
             return '<div class="album-grid">' + m.__extra.map(a => {
-                const isImg = a.type === 'image' || /\.(png|jpe?g|gif|webp|bmp)(\?|$)/i.test(String(a.url || ''));
+                // Тип важнее расширения: отправленное «как документом» .png должно остаться
+                // документом. Раньше здесь смотрели только на расширение, и в альбоме
+                // документом уходил лишь первый файл, а остальные показывались картинками.
+                const isImg = a.type !== 'file'
+                    && (a.type === 'image' || /\.(png|jpe?g|gif|webp|bmp)(\?|$)/i.test(String(a.url || '')));
                 return isImg
                     ? `<a href="${escapeHtml(a.url)}" target="_blank"><img src="${escapeHtml(a.url)}" loading="lazy" alt=""></a>`
                     : `<a class="album-file" href="${escapeHtml(a.url)}" target="_blank" download>📄 ${escapeHtml(a.name || 'файл')}</a>`;
@@ -5570,6 +5600,10 @@
                     (f && !showHidden ? `<p style="font-size:0.85rem;margin-top:0.4rem;">Откройте «Все» и нажмите ✚ у нужных чатов</p>` : '') + `</div>` +
                     hiddenFooterHtml();
             }
+            // Список перерисовывается каждые несколько секунд и теряет отметку «в сети»,
+            // а следующий опрос присутствия приходит только через десяток секунд — из-за
+            // этого кружок и мигал. Красим сразу по тому, что уже известно.
+            paintPresence();
         }
 
         let userSearchDebounce = null;
@@ -7092,10 +7126,22 @@
             if (evt) evt.stopPropagation();
             const key = reactionChatKey();
             if (!key) return;
-            // Рисуем сразу, не дожидаясь сервера: иначе нажатие кажется «залипшим»
+            // Рисуем сразу, не дожидаясь сервера: иначе нажатие кажется «залипшим».
+            // От человека реакция одна: другая ЗАМЕНЯЕТ прежнюю, та же — снимает.
             const set = reactionMap[msgId] = reactionMap[msgId] || {};
+            const before = JSON.parse(JSON.stringify(set));   // на случай отката
             const cur = set[emoji] || { count: 0, mine: false };
-            cur.mine ? (cur.count--, cur.mine = false) : (cur.count++, cur.mine = true);
+            if (cur.mine) {
+                cur.count--; cur.mine = false;
+            } else {
+                Object.keys(set).forEach(e => {
+                    if (e !== emoji && set[e].mine) {
+                        set[e].count--; set[e].mine = false;
+                        if (set[e].count <= 0) delete set[e];
+                    }
+                });
+                cur.count++; cur.mine = true;
+            }
             if (cur.count <= 0) delete set[emoji]; else set[emoji] = cur;
             paintReactions();
             try {
@@ -7107,9 +7153,8 @@
                 if (!r.ok || d.error) throw new Error(d.error || ('сервер ответил ' + r.status));
             } catch (e) {
                 // Молчать нельзя: реакция уже нарисована, и человек решит, что она поставлена,
-                // а собеседник её не увидит. Откатываем и говорим прямо.
-                cur.mine ? (cur.count--, cur.mine = false) : (cur.count++, cur.mine = true);
-                if (cur.count <= 0) delete set[emoji]; else set[emoji] = cur;
+                // а собеседник её не увидит. Возвращаем как было и говорим прямо.
+                reactionMap[msgId] = before;
                 paintReactions();
                 toast('Реакция не сохранилась: ' + (e.message || 'нет связи'));
                 return;
