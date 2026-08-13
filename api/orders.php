@@ -23,6 +23,7 @@ header('Access-Control-Allow-Headers: Content-Type');
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') { http_response_code(204); exit; }
 
 require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/schema_util.php';
 if (!function_exists('getDB') && !function_exists('getDbConnection') && !function_exists('getPDO')) {
     require_once __DIR__ . '/db.php';
 }
@@ -41,6 +42,8 @@ try {
     $st = $pdo->prepare("SELECT id, role FROM users WHERE id = ? LIMIT 1");
     $st->execute([$userId]);
     $me = $st->fetch(PDO::FETCH_ASSOC);
+    psy_widen_id_columns($pdo, 'session_orders', ['psychologist_user_id', 'client_user_id']);
+    psy_align_collation($pdo, ['session_orders']);
 } catch (Exception $e) {}
 $myRole = $me['role'] ?? '';
 
@@ -48,8 +51,8 @@ $myRole = $me['role'] ?? '';
 try {
     $pdo->exec("CREATE TABLE IF NOT EXISTS session_orders (
         id INT AUTO_INCREMENT PRIMARY KEY,
-        psychologist_user_id INT NOT NULL,
-        client_user_id INT NOT NULL,
+        psychologist_user_id VARCHAR(64) NOT NULL,
+        client_user_id VARCHAR(64) NOT NULL,
         title VARCHAR(255) NOT NULL,
         note TEXT NULL,
         duration VARCHAR(64) NULL,

@@ -23,6 +23,7 @@ header('Access-Control-Allow-Headers: Content-Type');
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') { http_response_code(204); exit; }
 
 require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/schema_util.php';
 if (!function_exists('getDB') && !function_exists('getDbConnection') && !function_exists('getPDO')) {
     require_once __DIR__ . '/db.php';
 }
@@ -37,8 +38,8 @@ $userId = $_SESSION['user_id'] ?? null;
 try {
     $pdo->exec("CREATE TABLE IF NOT EXISTS psychologist_credentials (
         id INT AUTO_INCREMENT PRIMARY KEY,
-        user_id INT NOT NULL,
-        psychologist_id INT NULL,
+        user_id VARCHAR(64) NOT NULL,
+        psychologist_id VARCHAR(64) NULL,
         type VARCHAR(20) NOT NULL DEFAULT 'diploma',
         url TEXT NULL,
         name VARCHAR(255) NULL,
@@ -47,6 +48,8 @@ try {
         INDEX idx_user (user_id),
         INDEX idx_psy (psychologist_id)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+    psy_widen_id_columns($pdo, 'psychologist_credentials', ['user_id', 'psychologist_id']);
+    psy_align_collation($pdo, ['psychologist_credentials']);
 } catch (Exception $e) {}
 
 function psychIdForUser(PDO $pdo, $userId) {

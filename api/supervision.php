@@ -33,6 +33,7 @@ header('Access-Control-Allow-Headers: Content-Type');
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') { http_response_code(204); exit; }
 
 require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/schema_util.php';
 if (!function_exists('getDB') && !function_exists('getDbConnection') && !function_exists('getPDO')) {
     require_once __DIR__ . '/db.php';
 }
@@ -54,7 +55,7 @@ $isAdmin = ($role === 'admin');
 try {
     $pdo->exec("CREATE TABLE IF NOT EXISTS supervision_sessions (
         id INT AUTO_INCREMENT PRIMARY KEY,
-        supervisor_user_id INT NOT NULL,
+        supervisor_user_id VARCHAR(64) NOT NULL,
         title VARCHAR(255) NOT NULL,
         description TEXT NULL,
         datetime DATETIME NULL,
@@ -69,15 +70,15 @@ try {
     $pdo->exec("CREATE TABLE IF NOT EXISTS supervision_signups (
         id INT AUTO_INCREMENT PRIMARY KEY,
         session_id INT NOT NULL,
-        psychologist_user_id INT NOT NULL,
+        psychologist_user_id VARCHAR(64) NOT NULL,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         INDEX idx_sess (session_id),
         INDEX idx_psy (psychologist_user_id)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
     $pdo->exec("CREATE TABLE IF NOT EXISTS supervision_requests (
         id INT AUTO_INCREMENT PRIMARY KEY,
-        requester_user_id INT NOT NULL,
-        supervisor_user_id INT NULL,
+        requester_user_id VARCHAR(64) NOT NULL,
+        supervisor_user_id VARCHAR(64) NULL,
         topic TEXT NULL,
         price DECIMAL(10,2) NULL,
         status VARCHAR(20) NOT NULL DEFAULT 'new',
@@ -85,6 +86,10 @@ try {
         INDEX idx_req (requester_user_id),
         INDEX idx_supreq (supervisor_user_id)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+    psy_widen_id_columns($pdo, 'supervision_sessions', ['supervisor_user_id']);
+    psy_widen_id_columns($pdo, 'supervision_signups', ['psychologist_user_id']);
+    psy_widen_id_columns($pdo, 'supervision_requests', ['requester_user_id', 'supervisor_user_id']);
+    psy_align_collation($pdo, ['supervision_sessions', 'supervision_signups', 'supervision_requests']);
 } catch (Exception $e) {}
 
 function platformCommissionPct(PDO $pdo): float {

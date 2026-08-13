@@ -20,6 +20,7 @@ header('Access-Control-Allow-Headers: Content-Type');
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') { http_response_code(204); exit; }
 
 require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/schema_util.php';
 if (!function_exists('getDB') && !function_exists('getDbConnection') && !function_exists('getPDO')) {
     require_once __DIR__ . '/db.php';
 }
@@ -35,13 +36,15 @@ if (!$userId) { http_response_code(401); echo json_encode(['error' => 'Треб�
 try {
     $pdo->exec("CREATE TABLE IF NOT EXISTS replacement_requests (
         id INT AUTO_INCREMENT PRIMARY KEY,
-        client_user_id INT NOT NULL,
-        current_psychologist_id INT NULL,
+        client_user_id VARCHAR(64) NOT NULL,
+        current_psychologist_id VARCHAR(64) NULL,
         reason TEXT NULL,
         status VARCHAR(20) NOT NULL DEFAULT 'new',
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         INDEX idx_client (client_user_id)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+    psy_widen_id_columns($pdo, 'replacement_requests', ['client_user_id', 'current_psychologist_id']);
+    psy_align_collation($pdo, ['replacement_requests']);
 } catch (Exception $e) {}
 
 $action = $_GET['action'] ?? '';

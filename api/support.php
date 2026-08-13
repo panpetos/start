@@ -29,6 +29,7 @@ header('Access-Control-Allow-Headers: Content-Type');
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') { http_response_code(204); exit; }
 
 require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/schema_util.php';
 require_once __DIR__ . '/notify_lib.php';
 if (!function_exists('getDB') && !function_exists('getDbConnection') && !function_exists('getPDO')) {
     require_once __DIR__ . '/db.php';
@@ -45,7 +46,7 @@ try {
     $pdo->exec("CREATE TABLE IF NOT EXISTS support_threads (
         id INT AUTO_INCREMENT PRIMARY KEY,
         token VARCHAR(64) NOT NULL,
-        user_id INT NULL,
+        user_id VARCHAR(64) NULL,
         name VARCHAR(255) NULL,
         email VARCHAR(255) NULL,
         role VARCHAR(40) NULL,
@@ -71,6 +72,8 @@ try {
     try { $pdo->exec("ALTER TABLE support_messages ADD COLUMN attachment_type VARCHAR(40) NULL AFTER attachment_url"); } catch (Exception $e) {}
     try { $pdo->exec("ALTER TABLE support_messages ADD COLUMN attachment_name VARCHAR(255) NULL AFTER attachment_type"); } catch (Exception $e) {}
     try { $pdo->exec("ALTER TABLE support_threads ADD COLUMN user_read_at DATETIME NULL AFTER admin_read_at"); } catch (Exception $e) {}
+    psy_widen_id_columns($pdo, 'support_threads', ['user_id']);
+    psy_align_collation($pdo, ['support_threads', 'support_messages']);
 } catch (Exception $e) {}
 
 /** Профиль текущего пользователя (для авто-подстановки контактов). */

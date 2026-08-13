@@ -22,6 +22,7 @@ header('Access-Control-Allow-Headers: Content-Type');
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') { http_response_code(204); exit; }
 
 require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/schema_util.php';
 if (!function_exists('getDB') && !function_exists('getDbConnection') && !function_exists('getPDO')) {
     require_once __DIR__ . '/db.php';
 }
@@ -37,9 +38,9 @@ if (!$userId) { http_response_code(401); echo json_encode(['error' => 'Треб�
 try {
     $pdo->exec("CREATE TABLE IF NOT EXISTS session_packages (
         id INT AUTO_INCREMENT PRIMARY KEY,
-        client_user_id INT NOT NULL,
-        psychologist_id INT NOT NULL,
-        psychologist_user_id INT NULL,
+        client_user_id VARCHAR(64) NOT NULL,
+        psychologist_id VARCHAR(64) NOT NULL,
+        psychologist_user_id VARCHAR(64) NULL,
         total_sessions INT NOT NULL,
         used_sessions INT NOT NULL DEFAULT 0,
         base_price DECIMAL(10,2) NOT NULL DEFAULT 0,
@@ -52,6 +53,8 @@ try {
         INDEX idx_client (client_user_id),
         INDEX idx_pair (client_user_id, psychologist_id)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+    psy_widen_id_columns($pdo, 'session_packages', ['client_user_id', 'psychologist_id', 'psychologist_user_id']);
+    psy_align_collation($pdo, ['session_packages']);
 } catch (Exception $e) {}
 
 /** Скидка пакета по количеству сессий (в процентах). */

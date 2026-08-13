@@ -2337,3 +2337,18 @@ body.dark [style*="border: 1px solid #EEF2F7"] {
   .auth-buttons .btn, .auth-buttons label { width: 100% !important; }
   .auth-buttons .flex-1 { flex: none !important; }
 }
+
+/* Блок «Не знаете, кого выбрать»: сиреневый фон задан градиентом прямо в разметке,
+   а правила выше ловят только одиночные цвета. В тёмной теме плашка оставалась
+   светлой, текст на ней перекрашивался в белый — и заголовок пропадал. */
+body.dark [style*="linear-gradient(135deg,#F3E8FF"],
+body.dark [style*="linear-gradient(135deg, #F3E8FF"] {
+  background: linear-gradient(135deg, #2D1F4E 0%, #241E38 100%) !important;
+  border-color: #3B3350 !important;
+}
+/* Секция «Психологическая поддержка для удалённых команд»: светлый фон секции
+   оставался вокруг тёмной карточки и читался как белая рамка. */
+body.dark section[style*="background: #F4F0FF"],
+body.dark section[style*="background:#F4F0FF"] {
+  background: #191919 !important;
+}
