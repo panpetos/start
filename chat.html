@@ -6084,6 +6084,7 @@
                 }).join('');
                 renderIfChanged(container, dmHtml);
                 noteNewMessages(messages.length);   // считаем новые, если человек читает выше
+                loadKnownTranscripts();             // чужие расшифровки показываем сразу
 
                 repaintAllVoice();
                 restoreVideoNote();
@@ -7910,15 +7911,60 @@
             if (!box) return;
             if (sttCache[msgId]) { box.innerHTML = sttHtml(sttCache[msgId]); return; }
             box.innerHTML = '<span class="stt-wait">Расшифровываю…</span>';
+            // Сначала спрашиваем сервер: если кто-то уже расшифровывал эту запись,
+            // берём готовый текст — распознавание платное, второй раз тратить незачем.
+            try {
+                const ready = await (await fetch('/api/transcribe.php?action=get&url=' + encodeURIComponent(url),
+                                                 { credentials: 'include' })).json();
+                if (ready && ready.text) {
+                    sttCache[msgId] = ready.text;
+                    box.innerHTML = sttHtml(ready.text);
+                    return;
+                }
+            } catch (e) { /* нет общей расшифровки — распознаем сами */ }
             try {
                 const text = await transcribeUrl(url, (p) => {
                     box.innerHTML = '<span class="stt-wait">Расшифровываю… ' + Math.round(p * 100) + '%</span>';
                 });
                 sttCache[msgId] = text;
                 box.innerHTML = sttHtml(text);
+                // Кладём в общий доступ: остальным участникам она достанется мгновенно
+                fetch('/api/transcribe.php?action=save', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+                    body: JSON.stringify({ url, text })
+                }).catch(() => {});
             } catch (e) {
                 box.innerHTML = '<span class="stt-err">' + escapeHtml(e.message || 'не получилось') + '</span>';
             }
+        }
+
+        /** Показать уже готовые расшифровки сразу, не заставляя нажимать кнопку. */
+        async function loadKnownTranscripts() {
+            const items = [];
+            document.querySelectorAll('.stt-box').forEach(box => {
+                if (box.dataset.checked) return;
+                box.dataset.checked = '1';
+                const btn = box.querySelector('.stt-btn');
+                const m = btn && /transcribeMessage\('([^']*)','([^']*)'\)/.exec(btn.getAttribute('onclick') || '');
+                if (!m) return;
+                const [, id, url] = m;
+                if (sttCache[id]) { box.innerHTML = sttHtml(sttCache[id]); return; }
+                items.push({ box, id, url });
+            });
+            if (!items.length) return;
+            // Спрашиваем обо всех записях одним запросом: в переписке их бывают десятки
+            try {
+                const r = await (await fetch('/api/transcribe.php?action=get-many', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+                    body: JSON.stringify({ urls: items.map(i => i.url) })
+                })).json();
+                const map = (r && r.data) || {};
+                const keyOf = (u) => { try { return new URL(u, location.origin).pathname; } catch (e) { return u; } };
+                items.forEach(({ box, id, url }) => {
+                    const t = map[keyOf(url)];
+                    if (t) { sttCache[id] = t; box.innerHTML = sttHtml(t); }
+                });
+            } catch (e) { /* молча: кнопки на месте, нажмут — расшифруем */ }
         }
         function sttHtml(text) {
             return '<div class="stt-text">' + escapeHtml(text) + '</div>';
