@@ -158,14 +158,16 @@
                     <div class="hint">${links.telegram
                         ? 'Уведомления приходят в чат «' + esc(links.telegram.label || links.telegram.chat_id) + '».'
                         : (a.telegram
-                            ? 'Получите код, отправьте его боту' + (state.telegram_bot ? ' @' + esc(state.telegram_bot) : '') + ' и нажмите «Проверить». Так мы поймём, в какой чат писать именно вам.'
+                            ? 'Подключается в 2 шага: 1) нажмите «Подключить Telegram» — откроется чат с ботом'
+                                + (state.telegram_bot ? ' @' + esc(state.telegram_bot) : '') + ', нажмите там «Start» (код уйдёт сам);'
+                                + ' 2) вернитесь сюда и нажмите «Проверить».'
                             : 'Администратор ещё не подключил Telegram-бота.')}</div>
                     <label class="sw"><input type="checkbox" id="tgOn" ${p.telegram_enabled ? 'checked' : ''} ${links.telegram ? '' : 'disabled'}><span>Присылать в Telegram</span></label>
                     <div class="row" id="tgRow">
                         ${links.telegram
                             ? `<button class="btn btn-ghost" id="testTg">Проверить</button>
                                <button class="btn btn-ghost" id="unlinkTg">Отключить</button>`
-                            : `<button class="btn" id="codeTg" ${a.telegram ? '' : 'disabled'}>Получить код</button>`}
+                            : `<button class="btn" id="codeTg" ${a.telegram ? '' : 'disabled'}>1️⃣ Подключить Telegram</button>`}
                     </div>
                     <div class="msg" id="tgMsg"></div>
                 </div>
@@ -174,13 +176,17 @@
                     <h2>🟣 MAX ${links.max ? '<span class="badge b-on">подключён</span>' : (a.max ? '<span class="badge b-off">не подключён</span>' : '<span class="badge b-warn">бот не настроен</span>')}</h2>
                     <div class="hint">${links.max
                         ? 'Уведомления приходят в чат «' + esc(links.max.label || links.max.chat_id) + '».'
-                        : (a.max ? 'Получите код, отправьте его боту платформы в MAX и нажмите «Проверить».' : 'Администратор ещё не подключил бота MAX.')}</div>
+                        : (a.max
+                            ? 'Подключается в 2 шага: 1) нажмите «Подключить MAX» — откроется чат с ботом'
+                                + (state.max_bot ? ' @' + esc(state.max_bot) : '') + ', нажмите там «Start» (код уйдёт сам);'
+                                + ' 2) вернитесь сюда и нажмите «Проверить».'
+                            : 'Администратор ещё не подключил бота MAX.')}</div>
                     <label class="sw"><input type="checkbox" id="maxOn" ${p.max_enabled ? 'checked' : ''} ${links.max ? '' : 'disabled'}><span>Присылать в MAX</span></label>
                     <div class="row" id="maxRow">
                         ${links.max
                             ? `<button class="btn btn-ghost" id="testMax">Проверить</button>
                                <button class="btn btn-ghost" id="unlinkMax">Отключить</button>`
-                            : `<button class="btn" id="codeMax" ${a.max ? '' : 'disabled'}>Получить код</button>`}
+                            : `<button class="btn" id="codeMax" ${a.max ? '' : 'disabled'}>1️⃣ Подключить MAX</button>`}
                     </div>
                     <div class="msg" id="maxMsg"></div>
                 </div>
@@ -267,19 +273,38 @@
                 } catch (e) { say('emailMsg', 'Не отправилось: ' + e.message, 'err'); }
             };
 
+            // Ссылка сразу в чат с ботом, с кодом в параметре ?start= — открывшись, мессенджер сам
+            // отправляет боту "/start <код>", и код приходит без ручного копирования (задача #46).
+            // Официальный формат: t.me/<bot>?start=<payload> (Telegram), max.ru/<bot>?start=<payload> (MAX).
+            // Если по какой-то причине бот код так не получит — ниже всё равно есть код текстом,
+            // который можно отправить вручную, как и раньше.
+            const botDeepLink = (channel, bot, code) => {
+                if (!bot) return '';
+                return channel === 'telegram'
+                    ? `https://t.me/${bot}?start=${encodeURIComponent(code)}`
+                    : `https://max.ru/${bot}?start=${encodeURIComponent(code)}`;
+            };
+
             const codeFlow = (channel, btnId, msgId, rowId) => {
                 const btn = document.getElementById(btnId);
                 if (!btn) return;
                 btn.onclick = async () => {
                     try {
                         const d = await api('link-code&channel=' + channel);
-                        const where = channel === 'telegram'
-                            ? (d.bot ? 'боту @' + d.bot : 'боту платформы в Telegram')
-                            : 'боту платформы в MAX';
-                        document.getElementById(rowId).innerHTML =
-                            `<span class="code">${esc(d.code)}</span>
-                             <button class="btn" id="check-${channel}">Проверить</button>`;
-                        say(msgId, 'Отправьте этот код ' + where + ' — и нажмите «Проверить». Код действует ' + d.ttl_min + ' минут.', '');
+                        const botName = channel === 'telegram' ? state.telegram_bot : state.max_bot;
+                        const link = botDeepLink(channel, d.bot || botName, d.code);
+                        const openBtn = link
+                            ? `<a class="btn" href="${link}" target="_blank" rel="noopener">2️⃣ Открыть бота${d.bot ? ' @' + esc(d.bot) : ''} и отправить код</a>`
+                            : '';
+                        document.getElementById(rowId).innerHTML = `
+                            <div style="display:flex;flex-direction:column;gap:0.5rem;width:100%;">
+                                ${openBtn}
+                                <div style="font-size:0.82rem;color:var(--d-text-sec);">
+                                    Бот не открылся сам? Отправьте боту этот код вручную: <span class="code">${esc(d.code)}</span>
+                                </div>
+                                <button class="btn btn-ghost" id="check-${channel}" style="align-self:flex-start;">3️⃣ Проверить</button>
+                            </div>`;
+                        say(msgId, 'Код действует ' + d.ttl_min + ' минут. Нажали «Открыть бота» — там сразу нажмите «Start», код уйдёт сам. Затем возвращайтесь и жмите «Проверить».', '');
                         document.getElementById('check-' + channel).onclick = async () => {
                             say(msgId, 'Ищем ваше сообщение…', '');
                             try {

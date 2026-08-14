@@ -6,6 +6,7 @@
  *
  * GET  ?action=list                    — все записи текущего пользователя (старые -> новые)
  * POST ?action=add    {content?, attachment_url?, attachment_type?, attachment_name?, source_label?}
+ * POST ?action=edit   {id, content}    — изменить текст своей записи (задача #45)
  * POST ?action=delete {id}             — удалить свою запись
  */
 
@@ -73,6 +74,25 @@ if ($action === 'add' && $_SERVER['REQUEST_METHOD'] === 'POST') {
                               VALUES (?, ?, ?, ?, ?, ?, NOW())");
         $st->execute([$userId, $content !== '' ? $content : null, $attachmentUrl, $attachmentType, $attachmentName, $sourceLabel]);
         echo json_encode(['ok' => true, 'id' => $pdo->lastInsertId()]);
+    } catch (Exception $e) { http_response_code(500); echo json_encode(['error' => 'Не удалось сохранить']); }
+    exit;
+}
+
+if ($action === 'edit' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    $id = (int)($body['id'] ?? 0);
+    $content = trim((string)($body['content'] ?? ''));
+    if (!$id) { http_response_code(400); echo json_encode(['error' => 'id обязателен']); exit; }
+    if ($content === '') { http_response_code(400); echo json_encode(['error' => 'Текст не может быть пустым']); exit; }
+    $content = mb_substr($content, 0, 5000);
+    try {
+        // Проверяем владение отдельным SELECT: UPDATE с WHERE id=?+user_id=? при неизменном
+        // content вернул бы rowCount()=0 (0 affected rows), и это выглядело бы как «не найдена».
+        $chk = $pdo->prepare("SELECT id FROM favorite_messages WHERE id = ? AND user_id = ? LIMIT 1");
+        $chk->execute([$id, $userId]);
+        if (!$chk->fetchColumn()) { http_response_code(404); echo json_encode(['error' => 'Запись не найдена']); exit; }
+        $pdo->prepare("UPDATE favorite_messages SET content = ? WHERE id = ? AND user_id = ?")
+            ->execute([$content, $id, $userId]);
+        echo json_encode(['ok' => true]);
     } catch (Exception $e) { http_response_code(500); echo json_encode(['error' => 'Не удалось сохранить']); }
     exit;
 }

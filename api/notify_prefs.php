@@ -128,6 +128,24 @@ function myLinks($pdo, $userId) {
     return $out;
 }
 
+/**
+ * Имя бота на платформе — нужно и чтобы подсказать человеку, куда писать код,
+ * и чтобы собрать кликабельную ссылку на чат с ботом (задача #46: раньше имя
+ * бота показывалось только для Telegram, и то не как ссылка, а как голый текст).
+ * Telegram: t.me/<username>. MAX: max.ru/<username> — тот же принцип, официально
+ * задокументирован в MAX Bot API (https://max.ru/<bot>?start=<payload>).
+ */
+function botUsername($channel, $cfg) {
+    if ($channel === 'telegram') {
+        if (empty($cfg['telegram_token'])) return '';
+        $me = notify_tg_request($cfg['telegram_token'], 'getMe', [], $cfg['telegram_proxy'] ?? null, $cfg['telegram_api_base'] ?? null);
+        return !empty($me['ok']) ? ($me['result']['username'] ?? '') : '';
+    }
+    if (empty($cfg['max_token'])) return '';
+    $me = notify_max_request($cfg['max_token'], '/me', 'GET', [], null, $cfg['max_proxy'] ?? null);
+    return !empty($me['username']) ? $me['username'] : '';
+}
+
 /** Короткий код для привязки: его человек отправляет боту, чтобы мы узнали его чат. */
 function issueCode($pdo, $userId, $channel) {
     $code = 'PSY-' . strtoupper(substr(bin2hex(random_bytes(4)), 0, 6));
@@ -148,16 +166,13 @@ function issueCode($pdo, $userId, $channel) {
 try {
     if ($action === 'get') {
         $email = myEmail($pdo, $userId);
-        $tgBot = '';
-        // имя бота нужно, чтобы человек понимал, куда писать код
-        if (!empty($cfg['telegram_token'])) {
-            $me = notify_tg_request($cfg['telegram_token'], 'getMe', [], $cfg['telegram_proxy'] ?? null, $cfg['telegram_api_base'] ?? null);
-            if (!empty($me['ok'])) $tgBot = $me['result']['username'] ?? '';
-        }
+        $links = myLinks($pdo, $userId);
+        // Имя бота нужно только пока канал ещё не привязан (ссылка «Открыть бота») —
+        // уже привязанным не дёргаем лишний раз внешний API при каждой загрузке страницы.
         out([
             'ok' => true,
             'prefs' => loadPrefs($pdo, $userId, $email),
-            'links' => myLinks($pdo, $userId),
+            'links' => $links,
             'account_email' => $email,
             'available' => [
                 'email'    => emailConfigured($cfg),
@@ -165,7 +180,8 @@ try {
                 'telegram' => !empty($cfg['telegram_token']),
                 'max'      => !empty($cfg['max_token']),
             ],
-            'telegram_bot' => $tgBot,
+            'telegram_bot' => empty($links['telegram']) ? botUsername('telegram', $cfg) : '',
+            'max_bot'      => empty($links['max']) ? botUsername('max', $cfg) : '',
             'events' => NOTIFY_EVENTS,
             'init_error' => $initError ?: null,
         ]);
@@ -231,11 +247,9 @@ try {
         if ($channel === 'max' && empty($cfg['max_token'])) out(['ok' => false, 'error' => 'MAX-бот пока не подключён на платформе'], 400);
         $code = issueCode($pdo, $userId, $channel);
         if (!$code) out(['ok' => false, 'error' => 'Не удалось создать код'], 500);
-        $bot = '';
-        if ($channel === 'telegram') {
-            $me = notify_tg_request($cfg['telegram_token'], 'getMe', [], $cfg['telegram_proxy'] ?? null, $cfg['telegram_api_base'] ?? null);
-            if (!empty($me['ok'])) $bot = $me['result']['username'] ?? '';
-        }
+        // Имя бота — чтобы собрать кликабельную ссылку прямо в чат с ботом (задача #46),
+        // с кодом в параметре ?start= — бот получит его как обычное сообщение и сам себя привяжет.
+        $bot = botUsername($channel, $cfg);
         out(['ok' => true, 'code' => $code, 'bot' => $bot, 'ttl_min' => 15]);
     }
 

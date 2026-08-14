@@ -5304,6 +5304,9 @@
         /** Сетка альбома: первое вложение уже нарисовано обычным способом, добавляем остальные. */
         function albumExtraHtml(m) {
             if (!m.__extra || !m.__extra.length) return '';
+            // Та же метка группы, что и у первого фото альбома — вместе они образуют
+            // один лайтбокс-набор, по которому можно листать (задача #47).
+            const groupAttr = m.__album ? ` data-group="${escapeHtml(m.__album)}"` : '';
             return '<div class="album-grid">' + m.__extra.map(a => {
                 // Тип важнее расширения: отправленное «как документом» .png должно остаться
                 // документом. Раньше здесь смотрели только на расширение, и в альбоме
@@ -5311,7 +5314,7 @@
                 const isImg = a.type !== 'file'
                     && (a.type === 'image' || /\.(png|jpe?g|gif|webp|bmp)(\?|$)/i.test(String(a.url || '')));
                 return isImg
-                    ? `<a href="${escapeHtml(a.url)}" target="_blank"><img src="${escapeHtml(a.url)}" loading="lazy" alt=""></a>`
+                    ? `<a href="${escapeHtml(a.url)}" target="_blank"${groupAttr}><img src="${escapeHtml(a.url)}" loading="lazy" alt=""></a>`
                     : `<a class="album-file" href="${escapeHtml(a.url)}" target="_blank" download>📄 ${escapeHtml(a.name || 'файл')}</a>`;
             }).join('') + '</div>';
         }
@@ -5416,7 +5419,8 @@
             if (currentUser && currentUser.role === 'admin')
                 html += row('🧩', 'В задачи Клоду', `sendToDevTasks('${id}')`);
             if (cap.canPin) html += row('📌', 'Закрепить', `pinMessageById('${id}')`);
-            if (cap.canEdit) html += row('✏️', 'Изменить', cap.kind === 'group' ? `startEditGroupMessage(null,'${id}')` : `startEditMessage(null,'${id}')`);
+            if (cap.canEdit) html += row('✏️', 'Изменить', cap.kind === 'group' ? `startEditGroupMessage(null,'${id}')`
+                : (cap.kind === 'fav' ? `startEditFavMessage(null,'${id}')` : `startEditMessage(null,'${id}')`));
             if (cap.canDelete) {
                 const call = cap.kind === 'group' ? `deleteGroupMessage(null,'${id}')`
                           : (cap.kind === 'fav' ? `deleteFavorite('${id}')` : `deletePersonalMessage(null,'${id}')`);
@@ -6324,26 +6328,74 @@
             return `<div class="message-attachment"><a href="${m.attachment_url}" target="_blank" download="${escapeHtml(m.attachment_name || 'file')}">📄 ${escapeHtml(m.attachment_name || 'Скачать файл')}</a></div>`;
         }
 
+        let favMsgCache = {};        // id записи «Избранного» -> {content}, для редактирования (задача #45)
         function favMessageBubbleHtml(m) {
             const time = formatTime(m.created_at);
             const attachmentHtml = attachmentHtmlFor(m, 'fav-' + m.id);
             const sourceLine = m.source_label ? `<div style="font-size:0.72rem;font-weight:700;opacity:0.85;margin-bottom:0.25rem;">${escapeHtml(m.source_label)}</div>` : '';
             const fav = splitReply(m.content);
             const content = (m.content && !isAttachmentPlaceholder(m)) ? `<div>${msgText(fav.body)}</div>` : '';
+            favMsgCache[String(m.id)] = { content: m.content };
             msgCaps[String(m.id)] = {
                 kind: 'fav', author: 'Заметка', text: fav.body,
-                canForward: true, canPin: false, canEdit: false, canDelete: true,
+                // Как и в личных чатах и группах: править можно только текст, у вложения править нечего
+                canForward: true, canPin: false, canEdit: !m.attachment_url, canDelete: true,
             };
             return `
                 <div class="message mine${(isVideoNote(m) && !content) ? ' vn-only' : ''}" data-fav-id="${m.id}">
                     ${sourceLine}
                     ${quoteHtml(fav.replyId)}
-                    ${content}
+                    <div id="fav-body-${m.id}">${content}</div>
                     ${attachmentHtml}
                     <div class="message-time">${time}</div>
                     ${msgHoverHtml(String(m.id))}
                 </div>`;
         }
+
+        /** Правка своей записи в «Избранном» (задача #45) — тот же приём, что и в личных чатах/группах. */
+        function startEditFavMessage(evt, id) {
+            if (evt) evt.stopPropagation();
+            const cached = favMsgCache[id];
+            const body = document.getElementById('fav-body-' + id);
+            if (!cached || !body) return;
+            editingMessageId = id;
+            const bubble = body.closest('.message');
+            if (bubble) bubble.classList.add('editing');
+            const favEdSplit = splitReply(cached.content || '');
+            body.innerHTML = `
+                <textarea id="fav-edit-input-${id}" class="msg-edit-textarea" rows="2" style="padding:0.4rem 0.6rem;border:1.5px solid #7C3AED;border-radius:0.5rem;font-family:inherit;resize:vertical;color:inherit;background:rgba(255,255,255,0.15);box-sizing:border-box;">${escapeHtml(favEdSplit.body)}</textarea>
+                <div style="display:flex;gap:0.5rem;margin-top:0.3rem;">
+                    <button onclick="saveEditFavMessage(event,'${id}')" style="cursor:pointer;border:none;background:#7C3AED;color:#fff;border-radius:0.4rem;padding:0.25rem 0.6rem;font-size:0.8rem;">Сохранить</button>
+                    <button onclick="cancelEditFavMessage()" style="cursor:pointer;border:1px solid currentColor;background:transparent;color:inherit;border-radius:0.4rem;padding:0.25rem 0.6rem;font-size:0.8rem;opacity:0.85;">Отмена</button>
+                </div>`;
+            const ta = document.getElementById('fav-edit-input-' + id);
+            if (ta) { ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); }
+        }
+        async function saveEditFavMessage(evt, id) {
+            if (evt) evt.stopPropagation();
+            const ta = document.getElementById('fav-edit-input-' + id);
+            if (!ta) return;
+            const typed = ta.value.trim();
+            if (!typed) { alert('Текст не может быть пустым'); return; }
+            const wasReply = splitReply((favMsgCache[id] || {}).content || '').replyId;
+            const content = wasReply ? '[RE#' + wasReply + '] ' + typed : typed;
+            try {
+                const r = await (await fetch('/api/favorites.php?action=edit', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+                    body: JSON.stringify({ id, content })
+                })).json();
+                if (!r.ok) { alert(r.error || 'Не удалось сохранить'); return; }
+            } catch (e) { alert('Ошибка сети'); return; }
+            editingMessageId = null;
+            await loadFavoritesMessages();
+        }
+        function cancelEditFavMessage() {
+            editingMessageId = null;
+            loadFavoritesMessages();
+        }
+        window.startEditFavMessage = startEditFavMessage;
+        window.saveEditFavMessage = saveEditFavMessage;
+        window.cancelEditFavMessage = cancelEditFavMessage;
 
         async function deleteFavorite(id) {
             if (!confirm('Удалить из избранного?')) return;
@@ -6646,9 +6698,12 @@
                             attachmentHtml = voicePlayerHtml(msgId, m.attachment_url, m.attachment_name)
                                 + sttButtonHtml(msgId, m.attachment_url);
                         } else if (isImageAttachment(m)) {
+                            // Свёрнутый альбом — метка группы для лайтбокса: открыв любое фото,
+                            // можно пролистать остальные снимки этой же отправки (задача #47).
+                            const groupAttr = m.__album ? ` data-group="${escapeHtml(m.__album)}"` : '';
                             attachmentHtml = `
                                 <div class="message-attachment">
-                                    <a href="${m.attachment_url}" target="_blank">
+                                    <a href="${m.attachment_url}" target="_blank"${groupAttr}>
                                         <img src="${m.attachment_url}" alt="${escapeHtml(m.attachment_name || 'Изображение')}" loading="lazy">
                                     </a>
                                 </div>
@@ -6812,6 +6867,12 @@
         let micHold = null;           // {timer, startY, recording, locked}
         const MIC_HOLD_MS = 280;      // дольше — это уже «зажал», а не «тапнул»
         const MIC_LOCK_DY = 44;       // потянул вверх — запись продолжается без пальца
+        // Счётчик отмен: startVoiceRecording()/startVideoNote() ждут разрешение камеры/микро-
+        // фона асинхронно. Если за это время короткий тап уже отменил запись (переключение
+        // режима микро↔видео), micGen меняется — и когда разрешение наконец придёт, функция
+        // видит чужой номер и гасит поток вместо того, чтобы влезть с опозданием и «залипнуть»
+        // в состоянии recording, из-за чего следующие тапы переставали на что-либо реагировать.
+        let micGen = 0;
 
         const MIC_SVG = '<svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2.5" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0013 0"/><path d="M12 17.5V21"/></svg>';
         const VIDEO_SVG = '<svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M10.3 9.2l4.6 2.8-4.6 2.8V9.2z"/></svg>';
@@ -6819,7 +6880,9 @@
 
         function micHasText() {
             const ta = document.getElementById('messageInput');
-            return !!(ta && (ta.value || '').trim());
+            // Прикреплённое фото/файл без подписи тоже готово к отправке — кнопка должна
+            // стать «Отправить», а не остаться микрофоном (на телефоне другой кнопки нет).
+            return !!(ta && (ta.value || '').trim()) || pendingAttachments.length > 0;
         }
 
         function updateMicButton() {
@@ -7656,9 +7719,11 @@
             videoNoteBlob = null;
             videoNoteChunks = [];
             videoNoteSeconds = 0;
+            const myGen = micGen;      // если за время ожидания разрешения тапом отменят — не залипнем
+            let stream;
             try {
                 // квадратный запрос по кадру: круг из квадрата не обрезает лицо по бокам
-                videoNoteStream = await navigator.mediaDevices.getUserMedia({
+                stream = await navigator.mediaDevices.getUserMedia({
                     video: { width: { ideal: 640 }, height: { ideal: 640 }, facingMode: 'user' },
                     audio: true
                 });
@@ -7666,6 +7731,11 @@
                 alert('Не удалось получить доступ к камере и микрофону.');
                 return;
             }
+            if (myGen !== micGen) {    // уже отменили короткий тап, пока ждали разрешение
+                try { stream.getTracks().forEach(t => t.stop()); } catch (e) {}
+                return;
+            }
+            videoNoteStream = stream;
             const prev = vnEl('vnPreview');
             prev.srcObject = videoNoteStream;
             prev.muted = true;              // без этого своё же аудио идёт в колонки эхом
@@ -7745,6 +7815,7 @@
             videoNoteRecorder = null;
             if (videoNoteStream) {
                 videoNoteStream.getTracks().forEach(t => t.stop());
+                videoNoteStream = null;
             }
             const prev = vnEl('vnPreview');
             if (prev) { prev.pause(); prev.srcObject = null; prev.removeAttribute('src'); }
@@ -7753,6 +7824,7 @@
         }
 
         function cancelVideoNote() {
+            micGen++;                 // гасит опоздавшее разрешение, если оно ещё не пришло
             videoNoteBlob = null;
             videoNoteChunks = [];
             closeVideoNote();
@@ -8128,12 +8200,18 @@
             if (voiceState !== 'idle') return false;
             if (consentNeeded() && !requireHealthConsent()) return false;
             voiceState = 'starting';                 // занимаем состояние ДО await, иначе успеет войти второй
+            const myGen = micGen;                    // если за время ожидания разрешения тапом отменят — не залипнем
             // Плашку показываем сразу, чтобы человек видел реакцию на нажатие, а не пустоту
             vrEl('recordingTime').textContent = '00:00';
             vrEl('vrHint').textContent = 'включаем микрофон…';
             showVoicePanel('rec');
             try {
                 voiceStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                if (myGen !== micGen) {               // уже отменили короткий тап, пока ждали разрешение
+                    try { voiceStream.getTracks().forEach(t => t.stop()); } catch (e) {}
+                    voiceStream = null;
+                    return false;
+                }
                 const mimeCandidates = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg;codecs=opus'];
                 const supportedMime = mimeCandidates.find(m => window.MediaRecorder && MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(m));
                 mediaRecorder = supportedMime ? new MediaRecorder(voiceStream, { mimeType: supportedMime })
@@ -8249,6 +8327,7 @@
 
         /** Крестик: стереть запись и вернуться к обычному вводу — можно записать заново. */
         function cancelVoiceRecording() {
+            micGen++;                 // гасит опоздавшее разрешение, если оно ещё не пришло
             if (voiceState === 'recording' || voiceState === 'starting') {
                 try { if (mediaRecorder && mediaRecorder.state === 'recording') mediaRecorder.stop(); } catch (e) {}
             }
@@ -9100,6 +9179,7 @@
 
         /** Плашка «что прикреплено» над строкой ввода: миниатюры, счётчик, снять по крестику. */
         function renderAttachBar() {
+            updateMicButton();     // без вложений — микро/кружок, с вложениями — отправка
             let bar = document.getElementById('attachBar');
             if (!pendingAttachments.length) { if (bar) bar.remove(); return; }
             if (!bar) {
