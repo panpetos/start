@@ -38,6 +38,20 @@
       '</a>' +
     '</li>';
 
+  // Иконка чата со счётчиком непрочитанных. Показываем только тем, кто вошёл, —
+  // проверяем это тем же запросом, что считает сообщения (лишнего обращения нет).
+  var chatIconItem =
+    '<li id="psyChatWrap" style="' + liReset + 'margin-left:0.6rem;flex-shrink:0;display:none;">' +
+      '<a id="psyChatLink" href="/chat.html" aria-label="Сообщения" title="Сообщения" ' +
+      'style="position:relative;width:38px;height:38px;min-width:38px;border-radius:50%;border:1.5px solid #E5E7EB;background:#fff;' +
+      'display:inline-flex;align-items:center;justify-content:center;font-size:1.05rem;text-decoration:none;transition:transform .2s;" ' +
+      'onmouseover="this.style.transform=\'scale(1.05)\'" onmouseout="this.style.transform=\'scale(1)\'">💬' +
+        '<span id="psyChatBadge" style="display:none;position:absolute;top:-4px;right:-4px;min-width:18px;height:18px;padding:0 5px;' +
+        'border-radius:9px;background:#EF4444;color:#fff;font-size:0.68rem;font-weight:700;line-height:18px;text-align:center;' +
+        'box-shadow:0 0 0 2px #fff;"></span>' +
+      '</a>' +
+    '</li>';
+
   var themeToggleItem =
     '<li id="psyThemeToggleWrap" style="' + liReset + 'margin-left:0.6rem;flex-shrink:0;">' +
       '<button id="psyThemeToggle" aria-label="Светлая/тёмная тема" title="Светлая/тёмная тема" ' +
@@ -48,7 +62,7 @@
   var menu = links.map(function (l) {
     var st = active(l.href) ? 'color:#34C759;font-weight:600;' : '';
     return '<li style="' + liReset + '"><a href="' + l.href + '" class="nav-link" style="' + st + '">' + l.text + '</a></li>';
-  }).join('') + themeToggleItem + loginCircle;
+  }).join('') + chatIconItem + themeToggleItem + loginCircle;
 
   // ВАЖНО: не используем класс .container внутри шапки — многие страницы
   // переопределяют .container (свой max-width/padding), из-за чего меню «плясало».
@@ -118,7 +132,9 @@
     'body.dark #psyDevNotice>div{background:#1E1E1E!important}' +
     'body.dark #psyDevNotice h3{color:#E6E6E6!important}' +
     'body.dark #psyDevNotice p{color:#9CA3AF!important}' +
-    'body.dark #psyThemeToggle{background:#2A2A2A!important;border-color:#444!important;color:#E6E6E6!important}';
+    'body.dark #psyThemeToggle{background:#2A2A2A!important;border-color:#444!important;color:#E6E6E6!important}' +
+    'body.dark #psyChatLink{background:#2A2A2A!important;border-color:#444!important}' +
+    'body.dark #psyChatBadge{box-shadow:0 0 0 2px #1E1E1E!important}';
   document.head.appendChild(darkCss);
 
   // ── Единая светлая/тёмная тема (ключ localStorage: psy-theme) ────────────────
@@ -387,6 +403,53 @@
         if (user) applyLoggedInCircle(user);
       }).catch(function() {});
     } catch (e) {}
+  }
+
+  // ── Счётчик непрочитанных в шапке ─────────────────────────────────────────────
+  // Раньше о новом сообщении можно было узнать, только зайдя в чат. Теперь на любой
+  // странице сайта видно иконку с числом. Считаем личные переписки и группы; в самом
+  // чате иконку не показываем — там счётчики и так на виду.
+  function paintChatBadge(total) {
+    var wrap = document.getElementById('psyChatWrap');
+    var badge = document.getElementById('psyChatBadge');
+    if (!wrap || !badge) return;
+    wrap.style.display = 'flex';
+    if (total > 0) {
+      badge.textContent = total > 99 ? '99+' : String(total);
+      badge.style.display = 'block';
+      var a = document.getElementById('psyChatLink');
+      if (a) a.title = total + (total === 1 ? ' новое сообщение' : ' новых сообщений');
+    } else {
+      badge.style.display = 'none';
+    }
+  }
+
+  async function refreshChatBadge() {
+    if (location.pathname.indexOf('/chat.html') === 0) return;   // в самом чате незачем
+    var total = 0, seen = false;
+    try {
+      var r = await fetch('/api/messages.php?action=conversations', { credentials: 'include' });
+      var d = await r.json();
+      if (Array.isArray(d)) {
+        seen = true;
+        d.forEach(function (c) { total += parseInt(c.unread_count, 10) || 0; });
+      }
+    } catch (e) {}
+    if (!seen) return;                    // не вошёл или сервер не ответил — иконку не показываем
+    try {
+      var g = await (await fetch('/api/group_chat.php?action=list', { credentials: 'include' })).json();
+      ((g && g.data) || []).forEach(function (x) { total += parseInt(x.unread_count, 10) || 0; });
+    } catch (e) {}
+    paintChatBadge(total);
+  }
+
+  function wireChatBadge() {
+    refreshChatBadge();
+    setInterval(refreshChatBadge, 30000);
+    // Вернулись на вкладку — обновляем сразу, а не через полминуты.
+    document.addEventListener('visibilitychange', function () {
+      if (!document.hidden) refreshChatBadge();
+    });
   }
 
   // Согласие с политикой конфиденциальности (один раз на устройство)
@@ -748,6 +811,7 @@
     trackPageview();
     if (window.lucide && lucide.createIcons) lucide.createIcons();
     updateLoginCircle();
+    wireChatBadge();
   }
 
   if (document.readyState === 'loading') {

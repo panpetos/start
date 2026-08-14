@@ -38,6 +38,11 @@
         .back { display: inline-flex; align-items: center; gap: 0.4rem; color: #7C3AED; text-decoration: none; font-weight: 600; font-size: 0.9rem; margin: 1.5rem auto 0; max-width: 720px; padding: 0 0.5rem; }
 
         body.dark { background: #191919 !important; color: #E6E6E6 !important; }
+        .art-share { max-width: 720px; margin: 1rem auto 0; display: flex; gap: 0.6rem; flex-wrap: wrap; justify-content: center; }
+        .art-share button { padding: 0.55rem 1rem; border: 1.5px solid #EDE9FF; background: #fff; color: #6D28D9; border-radius: 0.7rem; font-family: inherit; font-size: 0.87rem; font-weight: 600; cursor: pointer; }
+        .art-share button:hover { border-color: #7C3AED; background: #FAF5FF; }
+        body.dark .art-share button { background: #252525; border-color: #444; color: #B794F4; }
+        body.dark .art-share button:hover { border-color: #7C3AED; background: #2D2D2D; }
         body.dark .art-body { background: #252525; border-color: #333; box-shadow: 0 4px 24px rgba(0,0,0,0.2); }
         body.dark .art-body p { color: #CCCCCC; }
         body.dark .art-body h2, body.dark .art-body h3, body.dark .art-body b { color: #E6E6E6; }
@@ -69,6 +74,27 @@
                 </div>`;
         const NOT_FOUND = '<div style="text-align:center;padding:5rem 1rem;"><h1 style="margin-bottom:1rem;">Статья не найдена</h1><a href="/blog.html" class="btn-primary">← В блог</a></div>';
 
+
+        /** Поделиться статьёй: системное меню телефона, буфер или отправка своим контактам. */
+        function articleShareBar(title) {
+            return `<div class="art-share">
+                        <button onclick="artShare()">↗ Поделиться</button>
+                        <button onclick="artShareToChat()">💬 В сообщения</button>
+                    </div>`;
+        }
+        function artShare() {
+            const url = location.href;
+            if (navigator.share) { navigator.share({ title: document.title, url }).catch(()=>{}); }
+            else if (navigator.clipboard) { navigator.clipboard.writeText(url).then(()=>alert('Ссылка скопирована: ' + url)).catch(()=>prompt('Скопируйте ссылку:', url)); }
+            else prompt('Скопируйте ссылку:', url);
+        }
+        function artShareToChat() {
+            const t = (document.title || '').replace(/ — psytalk\.pro$/, '');
+            window.location.href = '/chat.html?share=link:' + encodeURIComponent(encodeURIComponent(t)) +
+                                   ':' + encodeURIComponent(encodeURIComponent(location.href));
+        }
+        window.artShare = artShare; window.artShareToChat = artShareToChat;
+
         /** Статья психолога из БД: текст — markdown-лайт, рендерим через общий formatPostText (без сырого HTML). */
         function renderApiArticle(a){
             document.title = a.title + ' — psytalk.pro';
@@ -94,7 +120,7 @@
                        Это ${a.status === 'draft' ? 'черновик' : 'снятая с публикации статья'} — её видите только вы (и администратор).
                    </div>`
                 : '';
-            el.innerHTML = hero + draftBadge + `<article class="art-body">${formatPostText(a.body)}</article>` + CTA;
+            el.innerHTML = hero + draftBadge + `<article class="art-body">${formatPostText(a.body)}</article>` + articleShareBar() + CTA;
         }
 
         function renderStaticArticle(a){
@@ -106,7 +132,7 @@
                     <h1>${esc(a.title)}</h1>
                     <div class="meta">${esc(a.read)} чтения</div>
                 </div>
-                <article class="art-body">${a.body.map(p => p.startsWith('<h2') ? p : '<p>'+p+'</p>').join('')}</article>` + CTA;
+                <article class="art-body">${a.body.map(p => p.startsWith('<h2') ? p : '<p>'+p+'</p>').join('')}</article>` + articleShareBar() + CTA;
         }
 
         (async function load(){

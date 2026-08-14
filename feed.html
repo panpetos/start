@@ -184,6 +184,7 @@
                         <span class="pbtn" style="cursor:default;">👁 ${p.views_count || 0}</span>
                         <button class="pbtn" onclick="toggleComments(${p.id}, this, '${sfx}')">💬 <span data-cc="${p.id}">${p.comments_count || 0}</span></button>
                         <button class="pbtn" onclick="sharePost(${p.id}, '${encodeURIComponent(p.psychologist_id)}')">↗ Поделиться</button>
+                        <button class="pbtn" onclick="sharePostToChat(${p.id}, '${encodeURIComponent(p.psychologist_id)}')" title="Отправить пост своим контактам в чате">💬 В сообщения</button>
                         <button class="sub-btn ${p.is_subscribed ? 'subscribed' : ''}" onclick="toggleSub('${p.psychologist_id}', this)">${p.is_subscribed ? '✓ Подписан' : 'Подписаться'}</button>
                     </div>
                     <div class="comments-box" id="comments-${sfx}${p.id}" style="display:none;"></div>
@@ -337,6 +338,12 @@
             }
         }
         window.sharePost = sharePost;
+
+        /** Отправить пост своим контактам: уходим в чат, там сразу откроется выбор получателя. */
+        function sharePostToChat(postId, psychId) {
+            window.location.href = '/chat.html?share=post:' + encodeURIComponent(postId) + ':' + psychId;
+        }
+        window.sharePostToChat = sharePostToChat;
 
         // Просмотры засчитываем один раз, когда карточка появляется в области видимости
         const seenViews = new Set();

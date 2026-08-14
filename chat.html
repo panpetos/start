@@ -3201,9 +3201,68 @@
                 dropRenderCache();
                 return;
             }
+            chPostCache = {};
+            rows.forEach(p => { chPostCache[String(p.id)] = p; });
+            chPostChannel = psychId;
             container.innerHTML = rows.map(chPostHtml).join('');
             dropRenderCache();      // канал писал в контейнер напрямую
         }
+
+        // Пост из канала можно отправить своим контактам, не выходя из чата.
+        // Пересылаем через тот же механизм, что и обычные сообщения, — получатель
+        // видит текст, картинку и ссылку на пост, чтобы дойти до канала целиком.
+        let chPostCache = {}, chPostChannel = null;
+
+        /** Ссылка вида ?share=post:<id>:<психолог> или ?share=link:<заголовок>:<адрес>.
+         *  Открывает выбор получателя с уже готовым сообщением. */
+        async function openShareFromUrl(raw) {
+            const s = String(raw || '');
+            const kind = s.slice(0, s.indexOf(':'));
+            const rest = s.slice(s.indexOf(':') + 1);
+            if (kind === 'post') {
+                const cut = rest.indexOf(':');
+                const postId = rest.slice(0, cut), psychId = rest.slice(cut + 1);
+                let p = null;
+                try {
+                    const r = await fetch('/api/channels.php?action=posts&psychologist_id=' + encodeURIComponent(psychId),
+                                          { credentials: 'include' });
+                    const d = await r.json();
+                    p = ((d && d.data) || []).find(x => String(x.id) === String(postId)) || null;
+                } catch (e) {}
+                if (!p) { toast('Пост не найден — возможно, его удалили'); return; }
+                chPostCache[String(p.id)] = p;
+                chPostChannel = psychId;
+                chSharePost(p.id);
+                return;
+            }
+            if (kind === 'link') {
+                const cut = rest.indexOf(':');
+                const title = decodeURIComponent(rest.slice(0, cut));
+                const url = decodeURIComponent(rest.slice(cut + 1));
+                if (!url) return;
+                openForwardModalWith([{ content: (title ? title + '\n' : '') + url,
+                                        attachment_url: null, attachment_type: null, attachment_name: null }]);
+            }
+        }
+
+        function chSharePost(postId) {
+            const p = chPostCache[String(postId)];
+            if (!p) return;
+            const info = channelInfoCache[chPostChannel] || {};
+            const c = myChannels.find(x => String(x.psychologist_id) === String(chPostChannel)) || {};
+            const who = (info.title || c.channel_title || `${c.first_name || ''} ${c.last_name || ''}`.trim() || 'канала').trim();
+            const link = location.origin + '/psychologist-profile.html?id=' +
+                         encodeURIComponent(chPostChannel) + '#post-' + p.id;
+            const body = (p.text || '').trim();
+            const content = (body ? body + '\n\n' : '') + '📡 Пост из канала «' + who + '»: ' + link;
+            openForwardModalWith([{
+                content,
+                attachment_url: p.image_url || null,
+                attachment_type: p.image_url ? 'image' : null,
+                attachment_name: null
+            }]);
+        }
+        window.chSharePost = chSharePost;
 
         function chPostHtml(p) {
             const date = new Date(p.created_at).toLocaleString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
@@ -3219,6 +3278,7 @@
                         <button class="ch-pbtn ${p.liked_by_me ? 'liked' : ''}" onclick="chToggleLike(${p.id}, this)">${p.liked_by_me ? '❤️' : '🤍'} <span>${p.likes_count || 0}</span></button>
                         <span class="ch-pbtn" style="cursor:default;">👁 ${p.views_count || 0}</span>
                         <button class="ch-pbtn" onclick="chToggleComments(${p.id}, this)">💬 <span>${p.comments_count || 0}</span></button>
+                        <button class="ch-pbtn" onclick="chSharePost(${p.id})" title="Отправить пост своим контактам">↗ <span>Поделиться</span></button>
                     </div>
                     <div class="ch-comments-box" id="chComments-${p.id}" style="display:none;"></div>
                 </div>`;
@@ -3777,6 +3837,11 @@
             } else if (supportIdFromUrl && currentUser.role === 'admin') {
                 await openSupportThread(supportIdFromUrl);
             }
+
+            // ?share=… — сюда приходят из ленты и из блога кнопкой «Поделиться».
+            // Сразу открываем выбор получателя, чтобы человек не искал, куда жать.
+            const shareFromUrl = urlParams.get('share');
+            if (shareFromUrl) openShareFromUrl(shareFromUrl);
 
             if (typeof lucide !== 'undefined') {
                 try { lucide.createIcons(); } catch(e) {}

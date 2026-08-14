@@ -150,6 +150,7 @@
                         <button onclick="togglePostLike(${p.id}, this)" style="background:none;border:none;cursor:pointer;font-size:0.82rem;color:${p.liked_by_me?'#DC2626':'var(--pp-text-sec)'};font-weight:${p.liked_by_me?'700':'400'};display:inline-flex;align-items:center;gap:0.25rem;">${p.liked_by_me?'❤️':'🤍'} <span>${p.likes_count||0}</span></button>
                         <span style="color:var(--pp-text-sec);font-size:0.82rem;">👁 ${p.views_count||0}</span>
                         <button onclick="sharePost(${p.id})" style="background:none;border:none;cursor:pointer;font-size:0.82rem;color:var(--pp-text-sec);">↗ Поделиться</button>
+                        <button onclick="sharePostToChat(${p.id})" title="Отправить пост своим контактам в чате" style="background:none;border:none;cursor:pointer;font-size:0.82rem;color:var(--pp-text-sec);">💬 В сообщения</button>
                     </div>
                 </div>`;
             }).join('');
@@ -201,6 +202,12 @@
             else prompt('Скопируйте ссылку:', url);
         }
         window.sharePost = sharePost;
+
+        /** Отправить пост своим контактам: уходим в чат, там сразу откроется выбор получателя. */
+        function sharePostToChat(postId) {
+            window.location.href = '/chat.html?share=post:' + encodeURIComponent(postId) + ':' + encodeURIComponent(id);
+        }
+        window.sharePostToChat = sharePostToChat;
 
         async function loadCredentials() {
             const card = document.getElementById('credsCard');
