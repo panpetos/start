@@ -481,18 +481,7 @@
               <i data-lucide="video" style="width:0.75rem;height:0.75rem;"></i>
               Формат сессии
             </div>
-            <label class="filter-checkbox-modern">
-              <input type="checkbox" id="fmtVideo" value="video" onchange="applyFilters()">
-              Видеосессия
-            </label>
-            <label class="filter-checkbox-modern">
-              <input type="checkbox" id="fmtChat" value="chat" onchange="applyFilters()">
-              Текстовый чат
-            </label>
-            <label class="filter-checkbox-modern">
-              <input type="checkbox" id="fmtPhone" value="phone" onchange="applyFilters()">
-              Звонок
-            </label>
+            <div id="formatFilters"></div>
           </div>
 
           <!-- Experience -->
@@ -511,7 +500,7 @@
           </div>
 
           <!-- Rating -->
-          <div class="filter-group-modern">
+          <div class="filter-group-modern" id="ratingFilterGroup">
             <div class="filter-group-label">
               <i data-lucide="star" style="width:0.75rem;height:0.75rem;"></i>
               Минимальный рейтинг
@@ -525,7 +514,7 @@
           </div>
 
           <!-- Gender -->
-          <div class="filter-group-modern">
+          <div class="filter-group-modern" id="genderFilterGroup">
             <div class="filter-group-label">
               <i data-lucide="users" style="width:0.75rem;height:0.75rem;"></i>
               Пол специалиста
@@ -637,6 +626,16 @@
       };
     }
 
+    let pendingFormat = '';
+
+    /** Отметить формат, пришедший из квиза, — уже после того, как список форматов построен. */
+    function applyPendingFormat() {
+      if (!pendingFormat) return;
+      const box = document.querySelector(`#formatFilters .fmt-box[value="${pendingFormat}"]`);
+      if (box) box.checked = true;   // формата нет ни у кого — молча пропускаем, чтобы не показать пустоту
+      pendingFormat = '';
+    }
+
     /* ─── Load psychologists (реальный бэкенд) ─── */
     async function loadPsychologists() {
       try {
@@ -648,6 +647,8 @@
           const data = await resp.json();
           if (Array.isArray(data)) {
             allPsychologists = data.map(normalizePsych);
+            rebuildFilters();
+            applyPendingFormat();
             applyFilters();
             enrichReviewCounts();
             return;
@@ -684,8 +685,128 @@
             changed = true;
           }
         });
-        if (changed) applyFilters();
+        if (changed) { rebuildFilters(); applyFilters(); }   // появились оценки — вернём фильтр по рейтингу
       } catch (_) {}
+    }
+
+    // ── Фильтры строим по тому, что психологи правда написали о себе ──
+    // Раньше и выпадающий список, и «быстрые фильтры» были прописаны руками:
+    // «тревога», «EMDR», «гештальт», формат «Звонок». В базе же значится
+    // «тревожность», а формата phone нет вовсе — такие пункты всегда давали
+    // пустой список. Теперь варианты берём из каталога, а сравниваем по основам
+    // слов, чтобы «тревога» находила «тревожность».
+
+    /** Основа слова: режем русские окончания, чтобы разные формы совпадали. */
+    function stem(w) {
+      w = String(w || '').toLowerCase().replace(/ё/g, 'е').trim();
+      if (w.length <= 4) return w;
+      return w.replace(/(ость|ями|иями|ами|ями|ого|ему|ыми|ими|ей|ой|ая|ое|ые|ий|ый|ин|ов|а|я|ы|и|у|ю|е|ь)$/,'');
+    }
+    /** Слова строки в виде основ — по ним и ищем. */
+    function stems(text) {
+      return String(text || '').toLowerCase().split(/[^a-zа-яё0-9]+/i).filter(w => w.length > 2).map(stem);
+    }
+    /** Похожи ли две основы. Отрезать окончания мало: в «тревога» и «тревожность»
+     *  расходится ещё и согласная (г/ж), и одним стеммером их не свести. Поэтому
+     *  считаем совпадением общее начало — но требуем и длину (5 букв), и долю
+     *  (70% короткой основы), иначе «самооценка» породнилась бы с «самообманом». */
+    function alike(a, b) {
+      if (!a || !b) return false;
+      if (a === b || a.startsWith(b) || b.startsWith(a)) return true;
+      let i = 0;
+      while (i < a.length && i < b.length && a[i] === b[i]) i++;
+      return i >= 5 && i >= 0.7 * Math.min(a.length, b.length);
+    }
+
+    // Пары, которые по буквам не сводятся (семья/семейная, депрессия/подавленность).
+    // Список короткий и намеренно: это темы, которые сайт сам предлагает человеку,
+    // и обидно, когда по ним ничего не находится.
+    const SYNONYMS = {
+      'семь': ['семейн', 'отношени', 'пар', 'развод'],
+      'депресс': ['подавленн', 'апати', 'уныни'],
+      'трево': ['паническ', 'страх', 'стресс'],
+      'выгоран': ['усталост', 'истощени'],
+      'самооценк': ['уверенност', 'принят'],
+      'карьер': ['работ', 'професси', 'рост']
+    };
+    /** Основа и всё, чем её можно заменить. */
+    function withSynonyms(w) {
+      const out = [w];
+      Object.keys(SYNONYMS).forEach(k => { if (alike(w, k)) out.push(...SYNONYMS[k]); });
+      return out;
+    }
+
+    /** Тема встречается у специалиста? Сравниваем по основам, а не по подстроке. */
+    function matchesTopic(p, topic) {
+      if (!topic) return true;
+      const want = stems(topic);
+      if (!want.length) return false;
+      const have = stems(p.specialties.join(' ') + ' ' + p.description);
+      return want.every(w => withSynonyms(w).some(v => have.some(h => alike(h, v))));
+    }
+
+    const FORMAT_LABEL = { video: 'Видеосессия', chat: 'Текстовый чат', audio: 'Аудиозвонок', phone: 'Звонок' };
+
+    /** Темы каталога с числом специалистов — по ним строим список и «быстрый фильтр». */
+    function catalogTopics() {
+      const map = new Map();
+      allPsychologists.forEach(p => p.specialties.forEach(sp => {
+        const key = sp.trim().toLowerCase();
+        if (key.length < 3) return;
+        const cur = map.get(key) || { label: sp.trim(), count: 0 };
+        cur.count++;
+        map.set(key, cur);
+      }));
+      return [...map.values()].sort((a, b) => b.count - a.count || a.label.localeCompare(b.label, 'ru'));
+    }
+
+    /** Перестроить фильтры под реальные данные: темы, форматы, рейтинг. */
+    function rebuildFilters() {
+      const topics = catalogTopics();
+
+      const sel = document.getElementById('filterSpecialty');
+      if (sel && topics.length) {
+        const keep = sel.value;
+        sel.innerHTML = '<option value="">Все специализации</option>' +
+          topics.map(t => `<option value="${t.label.replace(/"/g, '&quot;')}">${t.label.charAt(0).toUpperCase() + t.label.slice(1)} (${t.count})</option>`).join('');
+        if (keep && [...sel.options].some(o => o.value === keep)) sel.value = keep;
+      }
+
+      const chips = document.getElementById('quickChips');
+      if (chips && topics.length) {
+        const top = topics.slice(0, 7);
+        chips.innerHTML = `<button class="filter-chip-item${activeChipSpecialty ? '' : ' active'}" data-specialty="" onclick="selectChip(this, '')">Все специалисты</button>` +
+          top.map(t => {
+            const v = t.label.replace(/"/g, '&quot;');
+            const on = activeChipSpecialty && activeChipSpecialty.toLowerCase() === t.label.toLowerCase();
+            return `<button class="filter-chip-item${on ? ' active' : ''}" data-specialty="${v}" onclick="selectChip(this, '${v.replace(/'/g, "\\'")}')">${t.label.charAt(0).toUpperCase() + t.label.slice(1)}</button>`;
+          }).join('');
+      }
+
+      // Форматы: показываем только те, которые кто-то правда проводит.
+      const box = document.getElementById('formatFilters');
+      if (box) {
+        const have = new Set();
+        allPsychologists.forEach(p => (p.formats || []).forEach(f => have.add(f)));
+        const list = ['video', 'audio', 'chat', 'phone'].filter(f => have.has(f));
+        box.innerHTML = list.length
+          ? list.map(f => `<label class="filter-checkbox-modern">
+                 <input type="checkbox" class="fmt-box" value="${f}" onchange="applyFilters()"> ${FORMAT_LABEL[f] || f}
+               </label>`).join('')
+          : '<div style="font-size:0.82rem;color:#9CA3AF;">Специалисты пока не указали форматы.</div>';
+      }
+
+      // Рейтинг: пока никого не оценили, фильтр по звёздам обнулял выдачу — прячем его.
+      const rateWrap = document.getElementById('ratingFilterGroup');
+      const rated = allPsychologists.some(p => (p.rating || 0) > 0);
+      if (rateWrap) rateWrap.style.display = rated ? '' : 'none';
+      if (!rated) { const r = document.getElementById('filterRating'); if (r) r.value = ''; }
+
+      // Пол: в каталоге такого поля нет — не показываем фильтр, который ничего не делает.
+      const genderWrap = document.getElementById('genderFilterGroup');
+      const hasGender = allPsychologists.some(p => p.gender);
+      if (genderWrap) genderWrap.style.display = hasGender ? '' : 'none';
+      if (!hasGender) { const g = document.getElementById('filterGender'); if (g) g.value = ''; }
     }
 
     /* ─── Filter chip toggle ─── */
@@ -713,28 +834,21 @@
       const gender  = document.getElementById('filterGender')?.value || '';
       const priceMin = parseInt(document.getElementById('priceMin')?.value || '0') || 0;
       const priceMax = parseInt(document.getElementById('priceMax')?.value || '0') || 0;
-      const fmtVideo = document.getElementById('fmtVideo')?.checked;
-      const fmtChat  = document.getElementById('fmtChat')?.checked;
-      const fmtPhone = document.getElementById('fmtPhone')?.checked;
-      const anyFmt   = fmtVideo || fmtChat || fmtPhone;
+      const wantFmts = [...document.querySelectorAll('#formatFilters .fmt-box:checked')].map(b => b.value);
       const sortBy   = document.getElementById('sortSelect')?.value || 'rating';
 
       let result = allPsychologists.filter(p => {
-        if (search && !p.name.toLowerCase().includes(search) &&
-            !p.description.toLowerCase().includes(search) &&
-            !p.specialties.some(s => s.toLowerCase().includes(search))) return false;
-        if (spec && !p.specialties.some(s => s.toLowerCase().includes(spec.toLowerCase()))) return false;
+        // Поиск словами: «тревога» должна находить «тревожность», иначе человек
+        // печатает понятное слово и получает пустой список.
+        if (search && !p.name.toLowerCase().includes(search) && !matchesTopic(p, search)) return false;
+        if (spec && !matchesTopic(p, spec)) return false;
         if (expMin && (p.experience || 0) < expMin) return false;
         if (ratingMin && (p.rating || 0) < ratingMin) return false;
         if (gender && p.gender && p.gender !== gender) return false;
         if (priceMin && (p.price || 0) < priceMin) return false;
         if (priceMax && (p.price || 0) > priceMax) return false;
-        if (anyFmt) {
-          const fmts = p.formats || [];
-          if (fmtVideo && !fmts.includes('video')) return false;
-          if (fmtChat  && !fmts.includes('chat'))  return false;
-          if (fmtPhone && !fmts.includes('phone')) return false;
-        }
+        // Отмечено несколько форматов — подходит тот, кто проводит любой из них.
+        if (wantFmts.length && !wantFmts.some(f => (p.formats || []).includes(f))) return false;
         return true;
       });
 
@@ -758,9 +872,7 @@
       document.getElementById('filterGender').value = '';
       document.getElementById('priceMin').value = '';
       document.getElementById('priceMax').value = '';
-      document.getElementById('fmtVideo').checked = false;
-      document.getElementById('fmtChat').checked  = false;
-      document.getElementById('fmtPhone').checked = false;
+      document.querySelectorAll('#formatFilters .fmt-box').forEach(b => { b.checked = false; });
       document.getElementById('sortSelect').value = 'rating';
       activeChipSpecialty = '';
       document.querySelectorAll('#quickChips .filter-chip-item').forEach((c, i) => {
@@ -794,8 +906,9 @@
           ? '<img src="' + p.avatar + '" alt="' + p.name + '" style="width:100%;height:100%;object-fit:cover;">'
           : '<span>' + initials + '</span>';
         const stars = renderStars(p.rating || 0);
-        const fmtIcons = {video: 'video', chat: 'message-square', phone: 'phone'};
-        const fmtLabels = {video: 'Видео', chat: 'Чат', phone: 'Звонок'};
+        // audio раньше не был подписан — в карточке так и висело английское «audio».
+        const fmtIcons = {video: 'video', chat: 'message-square', audio: 'phone', phone: 'phone'};
+        const fmtLabels = {video: 'Видео', chat: 'Чат', audio: 'Аудио', phone: 'Звонок'};
         const formats = (p.formats || ['video']).map(f =>
           '<span style="display:inline-flex;align-items:center;gap:0.25rem;background:#F3E8FF;color:#7C3AED;border-radius:2rem;padding:0.2rem 0.75rem;font-size:0.8125rem;font-weight:500;"><i data-lucide="' + (fmtIcons[f]||'video') + '" style="width:0.75rem;height:0.75rem;"></i>' + (fmtLabels[f]||f) + '</span>'
         ).join('');
@@ -881,9 +994,10 @@
       const q = up.get('q'), fmt = up.get('fmt'), gender = up.get('gender');
       if (q && input) input.value = q;
       if (gender) { const g = document.getElementById('filterGender'); if (g) g.value = gender; }
-      if (fmt === 'video') { const e = document.getElementById('fmtVideo'); if (e) e.checked = true; }
-      if (fmt === 'chat')  { const e = document.getElementById('fmtChat');  if (e) e.checked = true; }
-      if (fmt === 'phone') { const e = document.getElementById('fmtPhone'); if (e) e.checked = true; }
+      // Галочку формата ставим не здесь: список форматов собирается из каталога,
+      // а он ещё не загружен. Запоминаем и отмечаем после загрузки.
+      // 'phone' — из старых ссылок квиза, в каталоге этот формат называется 'audio'.
+      pendingFormat = fmt === 'phone' ? 'audio' : (fmt || '');
 
       /* ── Package reassign mode ── */
       const pkgReassign = up.get('pkg');

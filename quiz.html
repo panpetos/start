@@ -66,13 +66,8 @@
             { key: 'fmt', title: 'Какой формат удобнее?', multi: false, options: [
                 { em:'📹', label:'Видео', val:'video' },
                 { em:'💬', label:'Текстовый чат', val:'chat' },
-                { em:'📞', label:'Аудиозвонок', val:'phone' },
+                { em:'📞', label:'Аудиозвонок', val:'audio' },
                 { em:'🤷', label:'Не важно', val:'' },
-            ]},
-            { key: 'gender', title: 'Пол психолога важен?', multi: false, options: [
-                { em:'👩', label:'Женщина', val:'female' },
-                { em:'👨', label:'Мужчина', val:'male' },
-                { em:'🤝', label:'Не важно', val:'' },
             ]},
             { key: 'who', title: 'Для кого консультация?', multi: false, options: [
                 { em:'🙂', label:'Для себя', val:'self' },
@@ -107,7 +102,6 @@
             const p = new URLSearchParams();
             if (answers.q) p.set('q', answers.q);
             if (answers.fmt) p.set('fmt', answers.fmt);
-            if (answers.gender) p.set('gender', answers.gender);
             if (answers.who) p.set('who', answers.who);
             window.location.href = '/search.html?' + p.toString();
         }
