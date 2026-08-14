@@ -2283,6 +2283,16 @@
                       <button class="btn-sm btn-outline" onclick="aiAddModel()">Добавить</button>
                     </div>
                   </div>
+                  <label id="aiSearchWrap" style="display:flex;gap:0.55rem;align-items:flex-start;font-size:0.86rem;
+                         background:#F5F3FF;border:1px solid #E6E3F0;border-radius:0.7rem;padding:0.7rem 0.8rem;cursor:pointer;">
+                    <input type="checkbox" id="aiSearch" style="width:18px;height:18px;margin-top:1px;accent-color:#7C3AED;flex:0 0 auto;">
+                    <span><b>Разрешить поиск в интернете</b><br>
+                      <span style="color:#6B7280;">Ассистент сможет искать свежие сведения через Yandex Search API и
+                      показывать ссылки на источники. Услугу нужно отдельно включить в Yandex Cloud и она тарифицируется
+                      отдельно от моделей — пока она не включена там, сервис ответит отказом, и ассистент честно скажет
+                      об этом и ответит без поиска. Переключатель у людей в чате появляется только когда галочка стоит.</span>
+                    </span>
+                  </label>
                   <div style="display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center;">
                     <button class="btn-sm btn-purple" onclick="aiSaveConfig()">Сохранить</button>
                     <button class="btn-sm btn-outline" onclick="aiTestConfig()">🧪 Проверить связь</button>
@@ -2348,6 +2358,7 @@
                 aiCfg = d;
                 document.getElementById('aiProvider').value = d.provider || 'yandex';
                 document.getElementById('aiFolder').value = d.folder_id || '';
+                document.getElementById('aiSearch').checked = !!d.search_enabled;
                 document.getElementById('aiKey').placeholder = d.key_set
                     ? ('ключ задан (' + d.key_hint + ') — оставьте пустым, чтобы не менять')
                     : 'вставьте ключ';
@@ -2362,6 +2373,8 @@
         function aiSyncProvider() {
             const p = document.getElementById('aiProvider').value;
             document.getElementById('aiFolderWrap').style.display = p === 'yandex' ? '' : 'none';
+            // Поиск в интернете есть только у Яндекса — у OpenRouter такой услуги нет.
+            document.getElementById('aiSearchWrap').style.display = p === 'yandex' ? '' : 'none';
         }
 
         function aiRenderModels() {
@@ -2407,6 +2420,7 @@
                         provider: document.getElementById('aiProvider').value,
                         api_key: document.getElementById('aiKey').value.trim(),
                         folder_id: document.getElementById('aiFolder').value.trim(),
+                        search_enabled: document.getElementById('aiSearch').checked,
                         models,
                     })
                 });

@@ -2,10 +2,11 @@
 /**
  * ai_chat.php — ИИ-чат (прокси к Yandex Foundation Models или OpenRouter).
  *
- * POST ?action=chat        {messages:[{role,content}], model?}  → SSE-поток
+ * POST ?action=chat        {messages:[{role,content}], model?, search?}  → SSE-поток
  * GET  ?action=models                                           → список моделей
  * GET  ?action=config      (админ)                              → текущая настройка, ключ скрыт
- * POST ?action=save-config (админ) {provider, api_key, folder_id, models}
+ * POST ?action=save-config (админ) {provider, api_key, folder_id, models, search_enabled}
+ * GET  ?action=search-status                                   → доступен ли поиск в интернете
  * POST ?action=test        (админ) {model?}                     → живая проверка ключа
  *
  * Ключи в репозитории не хранятся: админка записывает их в ai_chat_config.php,
@@ -44,6 +45,9 @@ if (!is_array($cfg)) $cfg = [];
 $provider = ($cfg['provider'] ?? 'yandex') === 'openrouter' ? 'openrouter' : 'yandex';
 $apiKey   = trim((string)($cfg['api_key'] ?? ''));
 $folderId = trim((string)($cfg['folder_id'] ?? ''));
+// Поиск в интернете — отдельная услуга Yandex Search API, её включают в облаке
+// и оплачивают отдельно от моделей. Пока админ её не разрешил, переключателя у людей нет.
+$searchEnabled = !empty($cfg['search_enabled']);
 
 /**
  * Модели Яндекса по умолчанию. Каталог у Яндекса пополняется, поэтому список можно
@@ -101,6 +105,82 @@ function aiModelName($provider, $model, $folderId) {
     return 'gpt://' . $folderId . '/' . $model;
 }
 
+/**
+ * Поискать в интернете через Yandex Search API (генеративный ответ со ссылками).
+ * Возвращает ['text' => краткая выжимка, 'sources' => [['title','url'], ...]]
+ * либо ['error' => 'человеческая причина'].
+ *
+ * Ключ и каталог те же, что у моделей, но услугу нужно отдельно включить в облаке:
+ * без этого сервис отвечает 403, и мы честно говорим об этом, а не молчим.
+ */
+function aiWebSearch($query, $apiKey, $folderId) {
+    $query = trim((string)$query);
+    if ($query === '') return ['error' => 'Пустой запрос'];
+    if ($apiKey === '' || $folderId === '') return ['error' => 'Не настроены ключ или каталог Yandex Cloud'];
+
+    $body = json_encode([
+        'messages' => [['content' => mb_substr($query, 0, 1000), 'role' => 'ROLE_USER']],
+        'folderId' => $folderId,
+        'site' => new stdClass(),
+    ], JSON_UNESCAPED_UNICODE);
+
+    $ch = curl_init('https://searchapi.api.cloud.yandex.net/v2/gen/search');
+    curl_setopt_array($ch, [
+        CURLOPT_POST => true,
+        CURLOPT_POSTFIELDS => $body,
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_HTTPHEADER => ['Content-Type: application/json', 'Authorization: Api-Key ' . $apiKey],
+        CURLOPT_TIMEOUT => 25,
+        CURLOPT_CONNECTTIMEOUT => 8,
+    ]);
+    $resp = curl_exec($ch);
+    $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $err  = curl_error($ch);
+    curl_close($ch);
+
+    if ($err) return ['error' => 'не достучались до поиска: ' . $err];
+    $d = json_decode((string)$resp, true);
+    if ($code < 200 || $code >= 300) {
+        $msg = $d['message'] ?? ($d['error_message'] ?? substr((string)$resp, 0, 200));
+        if ($code === 403) $msg = 'нет доступа к Search API — его нужно включить в Yandex Cloud (' . $msg . ')';
+        return ['error' => 'сервис поиска отказал (' . $code . '): ' . $msg];
+    }
+
+    return aiParseSearchResponse($resp);
+}
+
+/**
+ * Разобрать ответ Search API. Вынесено отдельно, потому что сервис отдаёт результат
+ * то одним объектом, то потоком построчных JSON-кусков, и склейку нужно проверять
+ * без обращения к платной услуге.
+ */
+function aiParseSearchResponse($resp) {
+    $text = ''; $sources = [];
+    $chunks = [];
+    foreach (preg_split('/\r?\n/', (string)$resp) as $line) {
+        $line = trim($line);
+        if ($line === '') continue;
+        $j = json_decode($line, true);
+        if (is_array($j)) $chunks[] = $j;
+    }
+    if (!$chunks) {
+        $whole = json_decode((string)$resp, true);
+        if (is_array($whole)) $chunks[] = $whole;
+    }
+    foreach ($chunks as $j) {
+        $node = $j['result'] ?? $j;
+        if (isset($node['message']['content'])) $text .= (string)$node['message']['content'];
+        foreach ((array)($node['sources'] ?? []) as $src) {
+            $u = (string)($src['url'] ?? '');
+            if ($u === '') continue;
+            $sources[$u] = ['title' => (string)($src['title'] ?? $u), 'url' => $u];
+        }
+    }
+    $text = trim($text);
+    if ($text === '' && !$sources) return ['error' => 'поиск ничего не вернул'];
+    return ['text' => $text, 'sources' => array_values($sources)];
+}
+
 $action = $_GET['action'] ?? '';
 
 // ── Настройка из админки: ключи в репозиторий не попадают ──────────────────────
@@ -117,6 +197,7 @@ if ($action === 'config' || $action === 'save-config' || $action === 'test') {
             'key_hint' => $apiKey === '' ? '' : (substr($apiKey, 0, 4) . '…' . substr($apiKey, -4)),
             'models' => $models,
             'defaults' => ['yandex' => YANDEX_DEFAULT_MODELS, 'openrouter' => OPENROUTER_DEFAULT_MODELS],
+            'search_enabled' => $searchEnabled,
             'missing' => aiMissing($provider, $apiKey, $folderId),
         ], JSON_UNESCAPED_UNICODE);
         exit;
@@ -135,8 +216,10 @@ if ($action === 'config' || $action === 'save-config' || $action === 'test') {
             $id = trim((string)$id); $name = trim((string)$name);
             if ($id !== '') $nm[$id] = ($name !== '' ? $name : $id);
         }
+        $ns = !empty($body['search_enabled']);
         $out = "<?php\n// Создан админкой psytalk.pro. НЕ коммитить: файл в .gitignore.\nreturn "
-             . var_export(['provider'=>$np, 'api_key'=>$nk, 'folder_id'=>$nf, 'models'=>$nm], true) . ";\n";
+             . var_export(['provider'=>$np, 'api_key'=>$nk, 'folder_id'=>$nf, 'models'=>$nm,
+                           'search_enabled'=>$ns], true) . ";\n";
         if (@file_put_contents($cfgFile, $out) === false) {
             http_response_code(500);
             echo json_encode(['error'=>'Не удалось записать api/ai_chat_config.php — проверьте права на папку api/']);
@@ -203,10 +286,18 @@ if ($action === 'models') {
     exit;
 }
 
+if ($action === 'search-status') {
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode(['ok' => true, 'available' => $searchEnabled && $provider === 'yandex'
+                                                   && $apiKey !== '' && $folderId !== '']);
+    exit;
+}
+
 if ($action === 'chat') {
     $input = json_decode(file_get_contents('php://input'), true);
     $messages = $input['messages'] ?? [];
     $model = $input['model'] ?? array_key_first($models);
+    $wantSearch = !empty($input['search']);
 
     if (!$messages || !is_array($messages)) {
         header('Content-Type: application/json');
@@ -231,6 +322,45 @@ if ($action === 'chat') {
     header('Content-Type: text/event-stream; charset=utf-8');
     header('Cache-Control: no-cache');
     header('X-Accel-Buffering: no');
+
+    /** Отправить строку в поток как обычный кусочек ответа модели. */
+    $emit = function ($text) {
+        echo "data: " . json_encode(['choices' => [['delta' => ['content' => $text]]]], JSON_UNESCAPED_UNICODE) . "\n\n";
+        if (ob_get_level()) ob_flush();
+        flush();
+    };
+
+    // Поиск в интернете: сначала ищем, потом отдаём находки модели как справку.
+    // Модель сама по себе знает мир только до своей даты обучения, а спрашивают
+    // у неё и про сегодняшнее. Если поиск не сработал — говорим об этом прямо
+    // и всё равно отвечаем, а не оставляем человека без ответа.
+    $sourcesTail = '';
+    if ($wantSearch && $searchEnabled && $provider === 'yandex') {
+        $lastUser = '';
+        for ($i = count($messages) - 1; $i >= 0; $i--) {
+            if (($messages[$i]['role'] ?? '') === 'user') { $lastUser = (string)($messages[$i]['content'] ?? ''); break; }
+        }
+        $found = aiWebSearch($lastUser, $apiKey, $folderId);
+        if (isset($found['error'])) {
+            $emit("_Поиск в интернете не сработал: " . $found['error'] . ". Отвечаю без него._\n\n");
+        } else {
+            $ref = "Ниже — свежие сведения из интернета по запросу человека. Опирайся на них, "
+                 . "если они относятся к делу, и не выдумывай того, чего в них нет.\n\n" . $found['text'];
+            if ($found['sources']) {
+                $ref .= "\n\nИсточники:\n";
+                foreach (array_slice($found['sources'], 0, 6) as $n => $src) {
+                    $ref .= ($n + 1) . '. ' . $src['title'] . ' — ' . $src['url'] . "\n";
+                }
+                $sourcesTail = "\n\n**Источники**\n";
+                foreach (array_slice($found['sources'], 0, 6) as $n => $src) {
+                    $sourcesTail .= ($n + 1) . '. ' . $src['title'] . ' — ' . $src['url'] . "\n";
+                }
+            }
+            array_unshift($messages, ['role' => 'system', 'content' => $ref]);
+        }
+    } elseif ($wantSearch && !$searchEnabled) {
+        $emit("_Поиск в интернете выключен в настройках платформы. Отвечаю по своим знаниям._\n\n");
+    }
 
     $payload = json_encode([
         'model'    => aiModelName($provider, $model, $folderId),
@@ -261,6 +391,8 @@ if ($action === 'chat') {
     if ($err) {
         echo "data: " . json_encode(['error' => $err]) . "\n\n";
         flush();
+    } elseif ($sourcesTail !== '') {
+        $emit($sourcesTail);      // куда смотреть, если ответ важно перепроверить
     }
     exit;
 }
