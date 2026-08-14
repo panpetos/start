@@ -1246,6 +1246,27 @@
         }
         body.dark .scroll-down-btn { background: #2A2A2A; color: #D0D0D0; border-color: #3A3A3A; }
 
+        /* Подсветка, когда в окно тащат файл */
+        .chat-area.drop-hint { position: relative; }
+        .chat-area.drop-hint::after {
+            content: '📎 Отпустите — прикрепим к сообщению';
+            position: absolute; inset: 12px; z-index: 60; pointer-events: none;
+            border: 2px dashed #7C3AED; border-radius: 1rem;
+            background: rgba(124,58,237,0.10); color: #7C3AED;
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 700; font-size: 1rem;
+        }
+        body.dark .chat-area.drop-hint::after { background: rgba(124,58,237,0.18); color: #C4B5FD; }
+
+        /* Плашка с датой между сообщениями */
+        .day-sep { display: flex; align-items: center; justify-content: center; margin: 0.8rem 0 0.5rem; }
+        .day-sep span {
+            font-size: 0.72rem; font-weight: 600; color: #6B7280;
+            background: rgba(255,255,255,0.85); border: 1px solid rgba(0,0,0,0.06);
+            border-radius: 1rem; padding: 0.2rem 0.7rem; backdrop-filter: blur(4px);
+        }
+        body.dark .day-sep span { background: rgba(40,40,40,0.9); border-color: #3A3A3A; color: #A0A0A0; }
+
         /* Круглый «плюс» над строкой настроек: создать группу/канал/блог */
         .chat-sb-new {
             position: absolute; right: 16px; bottom: 62px; z-index: 40;
@@ -2779,7 +2800,9 @@
             }
             const rows = d.data || [];
             const wasScrolledToBottom = container.scrollHeight - container.scrollTop <= container.clientHeight + 50;
-            renderIfChanged(container, rows.length ? rows.map(groupBubbleHtml).join('')
+            const grpDay = { prev: '' };
+            renderIfChanged(container, rows.length
+                ? rows.map(m => daySepHtml(m.created_at, grpDay) + groupBubbleHtml(m)).join('')
                 : `<div class="empty-state"><div><p style="color:#9CA3AF;">👥 Группа создана — напишите первое сообщение.</p></div></div>`);
             repaintAllVoice();
             restoreVideoNote();
@@ -5092,6 +5115,97 @@
 
         /** Настройки чатов: то, что раньше висело кнопками в шапке списка.
          *  Внизу списка, как папка в Telegram, — сверху остался только поиск. */
+        // ── Горячие клавиши, вставка из буфера и перетаскивание ──────────────────
+        // Три вещи, которые в мессенджерах делают не думая: Esc отменяет начатое,
+        // ↑ правит последнее своё сообщение, скриншот вставляется прямо из буфера.
+
+        /** id последнего своего сообщения в открытой переписке — для правки по «↑». */
+        function lastOwnMessageId() {
+            const mine = [...document.querySelectorAll('.message.mine[data-msg-id]')]
+                .filter(el => (el.getAttribute('data-msg-id') || '') !== '');
+            for (let i = mine.length - 1; i >= 0; i--) {
+                const id = mine[i].getAttribute('data-msg-id');
+                if ((msgCaps[id] || {}).canEdit) return id;
+            }
+            return null;
+        }
+
+        document.addEventListener('keydown', (e) => {
+            const inp = document.getElementById('messageInput');
+            const inField = e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' ||
+                                         e.target.isContentEditable);
+
+            // Esc — снять начатое: сначала правку, потом ответ, потом поиск.
+            if (e.key === 'Escape') {
+                if (editingMessageId) { e.preventDefault(); cancelEditMessage(null, editingMessageId); return; }
+                if (replyTo) { e.preventDefault(); cancelReply(); return; }
+                const sb = document.getElementById('chatSearchBar');
+                if (sb && sb.style.display !== 'none' && typeof closeChatSearch === 'function') {
+                    e.preventDefault(); closeChatSearch(); return;
+                }
+                if (pendingAttachments.length) {
+                    e.preventDefault();
+                    pendingAttachments = []; attachAsFile = false; renderAttachBar();
+                    return;
+                }
+                return;
+            }
+
+            // Ctrl/⌘+F — поиск по переписке вместо поиска браузера, если чат открыт.
+            if ((e.ctrlKey || e.metaKey) && (e.key === 'f' || e.key === 'а') && selectedUserId) {
+                if (typeof openChatSearch === 'function') { e.preventDefault(); openChatSearch(); }
+                return;
+            }
+
+            // ↑ в пустом поле ввода — править последнее своё сообщение.
+            if (e.key === 'ArrowUp' && inp && e.target === inp && !inp.value.trim() && !editingMessageId) {
+                const id = lastOwnMessageId();
+                if (id) { e.preventDefault(); startEditMessage(null, id); }
+                return;
+            }
+
+            // Начал печатать где-то мимо поля — переводим фокус в поле ввода.
+            if (!inField && !e.ctrlKey && !e.metaKey && !e.altKey && e.key.length === 1 && inp &&
+                document.getElementById('chatContent').style.display !== 'none') {
+                inp.focus();
+            }
+        });
+
+        // Скриншот из буфера: Ctrl+V прямо в переписке прикрепляет картинку.
+        document.addEventListener('paste', (e) => {
+            if (!selectedUserId) return;
+            const items = [...((e.clipboardData || {}).items || [])];
+            const files = items.filter(i => i.kind === 'file').map(i => i.getAsFile()).filter(Boolean);
+            if (!files.length) return;
+            e.preventDefault();
+            acceptFiles(files);
+        });
+
+        // Перетаскивание файлов в окно переписки.
+        (function wireDropZone() {
+            let depth = 0;
+            const zone = () => document.getElementById('chatArea');
+            const show = (on) => {
+                const z = zone();
+                if (z) z.classList.toggle('drop-hint', on);
+            };
+            document.addEventListener('dragenter', (e) => {
+                if (!selectedUserId || !e.dataTransfer || ![...e.dataTransfer.types].includes('Files')) return;
+                depth++; show(true);
+            });
+            document.addEventListener('dragover', (e) => {
+                if (!selectedUserId || !e.dataTransfer || ![...e.dataTransfer.types].includes('Files')) return;
+                e.preventDefault();
+            });
+            document.addEventListener('dragleave', () => { if (--depth <= 0) { depth = 0; show(false); } });
+            document.addEventListener('drop', (e) => {
+                if (!selectedUserId || !e.dataTransfer || !e.dataTransfer.files.length) { depth = 0; show(false); return; }
+                e.preventDefault();
+                depth = 0; show(false);
+                acceptFiles(e.dataTransfer.files);
+            });
+        })();
+
         // Меню создания по «плюсу». Закрывается кликом мимо и Esc — как остальные меню чата.
         function toggleCreateMenu(evt) {
             if (evt) evt.stopPropagation();
@@ -6672,7 +6786,9 @@
 
                 // Альбомы сворачиваем до отрисовки: подряд идущие фото одной отправки
                 // становятся одним сообщением с сеткой вместо череды одинаковых пузырей.
+                const dmDay = { prev: '' };
                 const dmHtml = foldAlbums(messages).map(m => {
+                    const sep = daySepHtml(m.created_at, dmDay);
                     // Для админа: сообщения от support тоже считаются "своими"
                     const isMine = String(m.sender_id) === String(currentUser.id) ||
                         (isAdminMode && (m.sender_id === 'support' || m.sender_first_name === 'Техподдержка'));
@@ -6759,7 +6875,7 @@
                             Присоединиться →</a>`;
                     }
 
-                    return `
+                    return sep + `
                         <div class="message ${isMine ? 'mine' : 'theirs'}${(isVideoNote(m) && !content) ? ' vn-only' : ''}" data-msg-id="${m.id || ''}">
                             ${quote}
                             ${callBtn}
@@ -7310,6 +7426,33 @@
             } catch (error) {
                 console.error('Send message error:', error);
             }
+        }
+
+        // ── Разделители дат между сообщениями ──
+        // Без них длинная переписка идёт сплошной лентой, и непонятно, где кончился
+        // вчерашний разговор. Ставим тонкую плашку «Сегодня» / «Вчера» / «12 августа».
+        function dayKey(dateStr) {
+            const d = new Date(dateStr || 0);
+            if (isNaN(d)) return '';
+            return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate();
+        }
+        function dayLabel(dateStr) {
+            const d = new Date(dateStr || 0);
+            if (isNaN(d)) return '';
+            const today = new Date(), yest = new Date(Date.now() - 86400000);
+            if (dayKey(d) === dayKey(today)) return 'Сегодня';
+            if (dayKey(d) === dayKey(yest)) return 'Вчера';
+            const sameYear = d.getFullYear() === today.getFullYear();
+            return d.toLocaleDateString('ru', sameYear
+                ? { day: 'numeric', month: 'long' }
+                : { day: 'numeric', month: 'long', year: 'numeric' });
+        }
+        /** Плашка перед сообщением, если день сменился. prevKey передаётся по ссылке через объект. */
+        function daySepHtml(dateStr, state) {
+            const k = dayKey(dateStr);
+            if (!k || k === state.prev) return '';
+            state.prev = k;
+            return `<div class="day-sep"><span>${escapeHtml(dayLabel(dateStr))}</span></div>`;
         }
 
         function formatTime(dateStr) {
@@ -9145,6 +9288,29 @@
                 type: file.type.startsWith('image/') ? 'image' : 'file',
                 isImage: file.type.startsWith('image/'),
             };
+        }
+
+        /** Общий путь для файлов: из проводника, из буфера обмена и перетаскиванием. */
+        async function acceptFiles(files) {
+            files = [...(files || [])];
+            if (!files.length) return false;
+            if (consentNeeded() && !requireHealthConsent()) return false;
+            const tooBig = files.filter(f => f.size > MAX_UPLOAD_MB * 1024 * 1024).map(f => f.name || 'файл');
+            const ok = files.filter(f => f.size <= MAX_UPLOAD_MB * 1024 * 1024);
+            if (tooBig.length) alert(`Больше ${MAX_UPLOAD_MB} МБ и потому не отправятся: ${tooBig.join(', ')}`);
+            if (!ok.length) return false;
+            toast(ok.length > 1 ? `Загружаю ${ok.length} файла(ов)…` : 'Загружаю…');
+            try {
+                for (const f of ok) pendingAttachments.push(await uploadOne(f));
+                renderAttachBar();
+                const inp = document.getElementById('messageInput');
+                if (inp) inp.focus();
+                return true;
+            } catch (error) {
+                console.error('File upload error:', error);
+                alert(error.message || 'Ошибка загрузки файла');
+                return false;
+            }
         }
 
         async function handleFileSelect(event) {
