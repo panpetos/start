@@ -674,6 +674,27 @@
         .ch-post-img { width: 100%; max-height: 300px; object-fit: cover; border-radius: 0.7rem; margin-top: 0.5rem; display: block; cursor: zoom-in; }
         @media (max-width: 768px) { .ch-post-img { max-height: 220px; } }
         .ch-post-date { color: #999; font-size: 0.75rem; margin-bottom: 0.4rem; }
+        /* Длинный пост в ленте сворачиваем: иначе один разбор занимает весь экран */
+        .ch-post.clamped .ch-post-text {
+            max-height: 11.5em; overflow: hidden; position: relative;
+            -webkit-mask-image: linear-gradient(180deg, #000 72%, transparent 100%);
+                    mask-image: linear-gradient(180deg, #000 72%, transparent 100%);
+        }
+        .ch-post-more {
+            background: none; border: none; padding: 0.2rem 0; cursor: pointer; font-family: inherit;
+            font-size: 0.82rem; font-weight: 600; color: #7C3AED;
+        }
+        .ch-post-more:hover { text-decoration: underline; }
+        body.dark .ch-post-more { color: #B794F4; }
+
+        /* В ленте над постом стоит имя канала — по нему уходят в сам канал */
+        .ch-post-author { margin-bottom: 0.15rem; }
+        .ch-post-author button {
+            background: none; border: none; padding: 0; cursor: pointer; font-family: inherit;
+            font-size: 0.9rem; font-weight: 700; color: #7C3AED; text-align: left;
+        }
+        .ch-post-author button:hover { text-decoration: underline; }
+        body.dark .ch-post-author button { color: #B794F4; }
         .ch-post-actions { display: flex; align-items: center; gap: 0.3rem; margin-top: 0.7rem; padding-top: 0.6rem; border-top: 1px solid #eee; }
         .ch-pbtn { display: inline-flex; align-items: center; gap: 0.3rem; background: none; border: none; cursor: pointer; color: #666; font-size: 0.85rem; font-family: inherit; padding: 0.3rem 0.55rem; border-radius: 0.5rem; }
         .ch-pbtn:hover { background: #f0f0f0; }
@@ -2467,6 +2488,7 @@
     <script src="/js/header.js"></script>
     <script>
         const FAVORITES_ID = '__fav__'; // псевдо-собеседник «Избранное» (свой личный диалог)
+        const FEED_ID = '__feed__';     // раздел «Лента» — посты каналов, на которые подписан человек
         const MAX_UPLOAD_MB = 10;       // потолок вложения: было 5, подняли до 10 (видеосообщения не влезали)
         let msgCache = {};   // id сообщения -> {content, attachment_*} — для пересылки
         let favMessagesCache = [];
@@ -3251,6 +3273,103 @@
             dropRenderCache();      // канал писал в контейнер напрямую
         }
 
+        // ── «Лента» разделом чата ──────────────────────────────────────────────────
+        // Раньше за постами приходилось уходить на отдельную страницу. Теперь лента —
+        // такой же раздел списка, как канал: читаем, лайкаем, комментируем и делимся,
+        // не покидая чат. Посты берём тем же запросом, что и страница ленты.
+        let feedRowsCache = [];
+
+        async function openFeedSection() {
+            pinnedMessage = null; renderPinnedBar();
+            selectedUserId = FEED_ID;
+            document.body.classList.remove('ai-chat');
+            editingMessageId = null;
+            headerRenderedFor = FEED_ID;
+
+            document.getElementById('emptyState').style.display = 'none';
+            document.getElementById('chatContent').style.display = 'flex';
+            document.querySelector('.chat-container').classList.add('mobile-chat-open');
+            const inputBar = document.getElementById('chatInputBar');
+            if (inputBar) inputBar.style.display = 'none';    // в ленту не пишут, её читают
+            if (pollInterval) { clearInterval(pollInterval); pollInterval = null; }
+
+            document.getElementById('chatHeader').innerHTML = `
+                <button class="chat-back-btn" onclick="goBackToList()" title="Назад к диалогам">←</button>
+                <div class="avatar" style="background:linear-gradient(135deg,#059669,#34D399);"><span class="ava-ico">📰</span></div>
+                <div style="flex:1;min-width:0;">
+                    <div class="name">Лента</div>
+                    <div class="role">Публикации каналов, на которые вы подписаны</div>
+                </div>
+                ${headerActionsHtml([
+                    { icon: '🔄', label: 'Обновить ленту', run: () => loadFeedSection() },
+                    { icon: '🔎', label: 'Найти психолога с каналом', href: '/search.html' },
+                ], '')}`;
+
+            renderConversationList(allConversations);
+            await loadFeedSection();
+        }
+        window.openFeedSection = openFeedSection;
+
+        async function loadFeedSection() {
+            const box = document.getElementById('messagesContainer');
+            if (!box) return;
+            box.innerHTML = '<div class="empty-state"><p style="color:#9CA3AF;">Загрузка ленты…</p></div>';
+            dropRenderCache();
+            let rows = [];
+            try {
+                const r = await fetch('/api/channels.php?action=feed&limit=30', { credentials: 'include' });
+                const d = await r.json();
+                rows = (d && d.data) || [];
+            } catch (e) {}
+            if (!rows.length) {
+                box.innerHTML = `<div class="empty-state"><div>
+                    <p style="color:#9CA3AF;">📰 Пока пусто. Подпишитесь на каналы психологов —
+                    их публикации будут появляться здесь.</p>
+                    <p style="margin-top:0.6rem;"><a href="/search.html" style="color:#7C3AED;font-weight:600;">Найти психолога →</a></p>
+                </div></div>`;
+                dropRenderCache();
+                return;
+            }
+            feedRowsCache = rows;
+            // Посты ленты показываем той же карточкой, что и в канале, — чтобы работали
+            // лайки, комментарии и «Поделиться» без второго набора кода.
+            rows.forEach(p => { chPostCache[String(p.id)] = p; });
+            box.innerHTML = rows.map(feedPostHtml).join('');
+            markFeedClamps();
+            dropRenderCache();
+        }
+        window.loadFeedSection = loadFeedSection;
+
+        /** «Читать далее» показываем только там, где текст правда не поместился. */
+        function markFeedClamps() {
+            document.querySelectorAll('#messagesContainer .ch-post').forEach(post => {
+                const txt = post.querySelector('.ch-post-text');
+                if (!txt) return;
+                post.classList.add('clamped');
+                if (txt.scrollHeight <= txt.clientHeight + 4) { post.classList.remove('clamped'); return; }
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'ch-post-more';
+                btn.textContent = 'Читать далее';
+                btn.onclick = () => {
+                    const open = post.classList.toggle('clamped');
+                    btn.textContent = open ? 'Читать далее' : 'Свернуть';
+                };
+                txt.insertAdjacentElement('afterend', btn);
+            });
+        }
+
+        /** Карточка поста в ленте: то же, что в канале, плюс имя автора со ссылкой на канал. */
+        function feedPostHtml(p) {
+            const who = `${p.first_name || ''} ${p.last_name || ''}`.trim() || 'Психолог';
+            const title = (p.channel_title || '').trim() || who;
+            const head = `<div class="ch-post-author">
+                    <button type="button" onclick="openChannel('${String(p.psychologist_id).replace(/'/g, "")}')"
+                            title="Открыть канал">${escapeHtml(title)}</button>
+                  </div>`;
+            return chPostHtml(p, head);
+        }
+
         // Пост из канала можно отправить своим контактам, не выходя из чата.
         // Пересылаем через тот же механизм, что и обычные сообщения, — получатель
         // видит текст, картинку и ссылку на пост, чтобы дойти до канала целиком.
@@ -3291,11 +3410,15 @@
         function chSharePost(postId) {
             const p = chPostCache[String(postId)];
             if (!p) return;
-            const info = channelInfoCache[chPostChannel] || {};
-            const c = myChannels.find(x => String(x.psychologist_id) === String(chPostChannel)) || {};
-            const who = (info.title || c.channel_title || `${c.first_name || ''} ${c.last_name || ''}`.trim() || 'канала').trim();
+            // В ленте посты разных каналов, поэтому канал берём у самого поста,
+            // и только для канальной страницы — из того, что сейчас открыто.
+            const psychId = p.psychologist_id || chPostChannel;
+            const info = channelInfoCache[psychId] || {};
+            const c = myChannels.find(x => String(x.psychologist_id) === String(psychId)) || {};
+            const who = (info.title || p.channel_title || c.channel_title ||
+                         `${p.first_name || c.first_name || ''} ${p.last_name || c.last_name || ''}`.trim() || 'канала').trim();
             const link = location.origin + '/psychologist-profile.html?id=' +
-                         encodeURIComponent(chPostChannel) + '#post-' + p.id;
+                         encodeURIComponent(psychId) + '#post-' + p.id;
             const body = (p.text || '').trim();
             const content = (body ? body + '\n\n' : '') + '📡 Пост из канала «' + who + '»: ' + link;
             openForwardModalWith([{
@@ -3307,7 +3430,7 @@
         }
         window.chSharePost = chSharePost;
 
-        function chPostHtml(p) {
+        function chPostHtml(p, headHtml) {
             const date = new Date(p.created_at).toLocaleString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
             // Открывает только просмотр во весь экран: раньше здесь ещё и window.open
             // уводил на прямую ссылку, и по клику вылезали сразу оба (фидбэк админа).
@@ -3315,6 +3438,7 @@
             const text = p.text ? `<div class="ch-post-text">${formatPostText(p.text)}</div>` : '';
             return `
                 <div class="ch-post" data-post-id="${p.id}">
+                    ${headHtml || ''}
                     <div class="ch-post-date">${date}</div>
                     ${text}${img}
                     <div class="ch-post-actions">
@@ -3959,6 +4083,7 @@
             if (k === AI_ID) { openAiBot(); return; }
             if (k === FAVORITES_ID) { openFavorites(); return; }
             if (k.indexOf(GROUP_PREFIX) === 0) { openGroupChat(k.slice(GROUP_PREFIX.length)); return; }
+            if (k === FEED_ID) { openFeedSection(); return; }
             if (k.indexOf(CHANNEL_PREFIX) === 0) { openChannel(k.slice(CHANNEL_PREFIX.length)); return; }
             if (k.indexOf(SUPPORT_PREFIX) === 0) { openSupportThread(k.slice(SUPPORT_PREFIX.length)); return; }
             openChat(k);
@@ -4291,7 +4416,7 @@
                 const container = document.getElementById('conversationsList');
 
                 if (!conversations || conversations.length === 0) {
-                    const rows = sortPinnedFirst(favoritesRows().concat(aiRows(), channelsRows(), groupsRows()));
+                    const rows = sortPinnedFirst(favoritesRows().concat(aiRows(), feedRows(), channelsRows(), groupsRows()));
                     container.innerHTML = channelsErrHtml() + groupsErrHtml() + rows.map(r => r.html).join('') + `
                         <div class="no-conversations">
                             <p>У вас пока нет диалогов</p>
@@ -4857,7 +4982,7 @@
         const BUILTIN_FOLDERS = [
             { id: 'all',      label: 'Все',     icon: ICO_ALL,     kinds: null },
             { id: 'personal', label: 'Личное',  icon: ICO_PERSON,  kinds: ['personal', 'fav', 'ai'] },
-            { id: 'channels', label: 'Каналы',  icon: ICO_CHANNEL, kinds: ['channel'] },
+            { id: 'channels', label: 'Каналы',  icon: ICO_CHANNEL, kinds: ['channel', 'feed'] },
             { id: 'groups',   label: 'Группы',  icon: ICO_GROUP,   kinds: ['group'] },
         ];
         let myFolders = [];              // [{id, name, keys:[]}]
@@ -5019,6 +5144,14 @@
                         <span>🎨</span><div><b>Обои переписки</b><i>фон для окна сообщений</i></div></button>
                     <button class="cs-row" onclick="toggleChatTheme();openChatSettings()">
                         <span>${dark ? '☀️' : '🌙'}</span><div><b>${dark ? 'Светлая тема' : 'Тёмная тема'}</b><i>сейчас ${dark ? 'тёмная' : 'светлая'}</i></div></button>
+                    <div class="cs-group-title">Мои разделы</div>
+                    <button class="cs-row" onclick="closeChatSettings();openFeedSection()">
+                        <span>📰</span><div><b>Лента</b><i>посты каналов, на которые вы подписаны</i></div></button>
+                    ${(currentUser && currentUser.role === 'psychologist') ? `
+                    <a class="cs-row" href="/psychologist-blog.html">
+                        <span>📝</span><div><b>Мой блог</b><i>статьи: черновики, публикация, просмотры</i></div></a>
+                    <a class="cs-row" href="/psychologist-notes.html">
+                        <span>🗒</span><div><b>Записки</b><i>заметки по клиентам и напоминания</i></div></a>` : ''}
                     <div class="cs-group-title">Ещё</div>
                     <a class="cs-row" href="/notify-settings.html">
                         <span>🔔</span><div><b>Уведомления</b><i>куда присылать сообщения</i></div></a>
@@ -5662,6 +5795,20 @@
                 </div>` }];
         }
 
+        /** Строка «Лента» — публикации каналов, на которые человек подписан. */
+        function feedRows() {
+            if (!chatVisible('feed', FEED_ID, null)) return [];
+            return [{ key: FEED_ID, html: `
+                <div class="conversation-item ${selectedUserId === FEED_ID ? 'active' : ''}" onclick="openFeedSection()" title="Лента">
+                    <div class="conversation-avatar" style="background:linear-gradient(135deg,#059669,#34D399);"><span class="ava-ico">📰</span></div>
+                    <div class="conversation-info">
+                        <div class="conversation-name"><span class="cn-text">Лента</span>${pinMarkHtml(FEED_ID)}</div>
+                        <div class="conversation-preview">Посты каналов, на которые вы подписаны</div>
+                    </div>
+                    ${folderPickHtml(FEED_ID, 'feed', null, 'Лента')}
+                </div>` }];
+        }
+
         /** Закреплённые чаты — первыми, остальные в исходном порядке (устойчивая сортировка). */
         function sortPinnedFirst(rows) {
             const pinned = [], rest = [];
@@ -5678,6 +5825,7 @@
             const err = channelsErrHtml() + groupsErrHtml();   // сообщения об ошибках всегда сверху
             favoritesRows().forEach(r => rows.push(r));
             aiRows().forEach(r => rows.push(r));
+            feedRows().forEach(r => rows.push(r));
             channelsRows().forEach(r => rows.push(r));
             groupsRows().forEach(r => rows.push(r));
             const headHtml = err;
