@@ -6898,7 +6898,24 @@
             { t: '• —', title: 'Маркированный список', act: () => cmpPrefix('- ') },
             { t: '1.',  title: 'Нумерованный список',  act: () => cmpPrefix('1. ') },
             { t: '🔗',  title: 'Ссылка',               act: () => cmpLink() },
+            { t: '⤵',   title: 'Блок-схема',           act: () => cmpDiagram() },
         ];
+
+        /** Заготовка блок-схемы: человеку остаётся заменить слова на свои. */
+        function cmpDiagram() {
+            const ta = cmpArea();
+            if (!ta) return;
+            const tpl = '```схема\nЗаявка -> Проверка\nПроверка -> |да| Оплата\nПроверка -> |нет| Отказ\n```\n';
+            const at = ta.selectionStart;
+            const before = ta.value.slice(0, at);
+            const pad = (before && !before.endsWith('\n')) ? '\n' : '';
+            ta.value = before + pad + tpl + ta.value.slice(at);
+            ta.focus();
+            // курсор — на первое слово, чтобы сразу печатать своё
+            const pos = before.length + pad.length + '```схема\n'.length;
+            ta.setSelectionRange(pos, pos + 'Заявка'.length);
+            renderCmpPreview();
+        }
 
         function renderCmpToolbar() {
             const box = document.getElementById('cmpToolbar');

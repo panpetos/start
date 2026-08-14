@@ -77,6 +77,126 @@
         return parts.join('');
     }
 
+    // ── Блок-схемы ───────────────────────────────────────────────────────────────
+    // Пишутся простым текстом в блоке ```схема … ``` :
+    //     Заявка -> Проверка
+    //     Проверка -> Оплата
+    //     Проверка -> Отказ
+    // Рисуем сами: сторонние библиотеки на страницы не подключить (чужие скрипты
+    // и картинки с других доменов не загружаются), а схема в переписке нужна.
+
+    const DIA_RE = /^\s*```\s*(?:схема|блок-схема|diagram|flow)\s*$/i;
+
+    /** Разобрать строки в узлы и связи. Стрелка: -> или → ; подпись связи: -> |текст| */
+    function parseDiagram(src) {
+        const nodes = [];              // сохраняем порядок появления
+        const index = new Map();
+        const edges = [];
+        const add = (name) => {
+            name = name.trim();
+            if (!name) return -1;
+            if (!index.has(name)) { index.set(name, nodes.length); nodes.push(name); }
+            return index.get(name);
+        };
+        String(src || '').split('\n').forEach(line => {
+            const t = line.trim();
+            if (!t) return;
+            const parts = t.split(/\s*(?:->|→|-->)\s*/);
+            if (parts.length === 1) { add(t.replace(/^[\[(]|[\])]$/g, '')); return; }
+            for (let i = 0; i < parts.length - 1; i++) {
+                let from = parts[i], to = parts[i + 1];
+                // подпись связи в вертикальных чёрточках: Проверка -> |нет| Отказ
+                let label = '';
+                const lm = /^\|([^|]*)\|\s*(.*)$/.exec(to);
+                if (lm) { label = lm[1].trim(); to = lm[2]; }
+                const a = add(from.replace(/^[\[(]|[\])]$/g, ''));
+                const b = add(to.replace(/^[\[(]|[\])]$/g, ''));
+                if (a >= 0 && b >= 0 && a !== b) edges.push({ from: a, to: b, label });
+            }
+        });
+        return { nodes, edges };
+    }
+
+    /** Разложить узлы по ярусам: у кого нет входящих — первый ярус, дальше вглубь. */
+    function diagramLevels(nodes, edges) {
+        const level = nodes.map(() => 0);
+        const incoming = nodes.map(() => 0);
+        edges.forEach(e => { incoming[e.to]++; });
+        // несколько проходов: длиннее цепочки, чем узлов, не бывает
+        // Проходов не больше числа узлов: при циклической схеме («A → B → C → A»)
+        // уровни росли бы бесконечно, а так просто останавливаемся.
+        const maxLevel = Math.max(0, nodes.length - 1);
+        for (let pass = 0; pass < nodes.length; pass++) {
+            let moved = false;
+            edges.forEach(e => {
+                if (level[e.to] < level[e.from] + 1 && level[e.from] + 1 <= maxLevel) {
+                    level[e.to] = level[e.from] + 1;
+                    moved = true;
+                }
+            });
+            if (!moved) break;
+        }
+        return level;
+    }
+
+    /** Схема в SVG. Возвращает '' если рисовать нечего. */
+    function diagramSvg(src) {
+        const { nodes, edges } = parseDiagram(src);
+        if (!nodes.length) return '';
+        const level = diagramLevels(nodes, edges);
+        // Ярусы могут идти с пропусками (а при циклической схеме — разъехаться далеко),
+        // поэтому сжимаем их в подряд идущие номера: иначе в раскладке появлялись
+        // пустые строки, ширина считалась по несуществующему ярусу и схема схлопывалась.
+        const used = [...new Set(level)].sort((a, b) => a - b);
+        const compact = new Map(used.map((lv, i) => [lv, i]));
+        const rows = used.map(() => []);
+        level.forEach((lv, i) => { rows[compact.get(lv)].push(i); });
+
+        const CH = 7.2, PADX = 14, BH = 40, GAPX = 26, GAPY = 62, M = 12;
+        const w = nodes.map(n => Math.max(70, Math.round(n.length * CH) + PADX * 2));
+        const rowW = rows.map(r => r.reduce((s, i) => s + w[i], 0) + GAPX * (r.length - 1));
+        const width = Math.max(...rowW) + M * 2;
+        const height = rows.length * BH + (rows.length - 1) * (GAPY - BH) + M * 2;
+
+        const box = [];                 // координаты каждого узла
+        rows.forEach((r, lv) => {
+            let x = M + (width - M * 2 - rowW[lv]) / 2;
+            const y = M + lv * GAPY;
+            r.forEach(i => { box[i] = { x, y, w: w[i], h: BH }; x += w[i] + GAPX; });
+        });
+
+        const esc = (t) => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+        let out = '';
+        edges.forEach(e => {
+            const a = box[e.from], b = box[e.to];
+            if (!a || !b) return;
+            const x1 = a.x + a.w / 2, y1 = a.y + a.h, x2 = b.x + b.w / 2, y2 = b.y;
+            // связь вверх или вбок рисуем той же кривой — стрелка всё равно показывает направление
+            const my = (y1 + y2) / 2;
+            const d = `M ${x1} ${y1} C ${x1} ${my}, ${x2} ${my}, ${x2} ${y2}`;
+            out += `<path d="${d}" fill="none" stroke="currentColor" stroke-width="1.6" opacity="0.55" marker-end="url(#psyArrow)"/>`;
+            if (e.label) {
+                out += `<text x="${(x1 + x2) / 2}" y="${my - 3}" text-anchor="middle" font-size="11" fill="currentColor" opacity="0.75">${esc(e.label)}</text>`;
+            }
+        });
+        nodes.forEach((n, i) => {
+            const b = box[i];
+            // Цвета берём от текста пузыря (currentColor): фиолетовая рамка терялась
+            // на фиолетовом фоне своих сообщений, а тут схема читается везде.
+            out += `<rect x="${b.x}" y="${b.y}" width="${b.w}" height="${b.h}" rx="9" ry="9"
+                     fill="currentColor" fill-opacity="0.10" stroke="currentColor" stroke-opacity="0.55" stroke-width="1.5"/>`
+                 + `<text x="${b.x + b.w / 2}" y="${b.y + b.h / 2 + 4}" text-anchor="middle"
+                     font-size="13" font-family="inherit" fill="currentColor">${esc(n)}</text>`;
+        });
+        return `<div class="psy-diagram" style="overflow-x:auto;margin:0.5rem 0;">
+                  <svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" style="max-width:100%;height:auto;display:block;">
+                    <defs><marker id="psyArrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                      <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor" opacity="0.55"/></marker></defs>
+                    ${out}
+                  </svg>
+                </div>`;
+    }
+
     function formatPostText(raw) {
         if (!raw) return '';
         const lines = String(raw).split('\n');
@@ -87,7 +207,18 @@
             if (list !== kind) { closeList(); html += '<' + kind + ' style="margin:0.4rem 0 0.4rem 1.2rem;padding:0;">'; list = kind; }
         };
         let prevWasBlock = true;
+        let diaBuf = null;           // строки схемы, пока не встретим закрывающие ```
         lines.forEach(line => {
+            if (diaBuf !== null) {
+                if (/^\s*```\s*$/.test(line)) {
+                    closeList();
+                    html += diagramSvg(diaBuf.join('\n'));
+                    diaBuf = null;
+                    prevWasBlock = true;
+                } else { diaBuf.push(line); }
+                return;
+            }
+            if (DIA_RE.test(line)) { diaBuf = []; return; }
             const h = /^\s*(#{2,3})\s+(.+)$/.exec(line);
             const q = /^\s*>\s?(.*)$/.exec(line);
             const ul = /^\s*[-•]\s+(.+)$/.exec(line);
@@ -117,6 +248,8 @@
             }
         });
         closeList();
+        // Блок не закрыли — всё равно покажем схему, а не проглотим хвост сообщения.
+        if (diaBuf !== null && diaBuf.length) html += diagramSvg(diaBuf.join('\n'));
         return html;
     }
 
@@ -144,6 +277,7 @@
     }
 
     global.formatPostText = formatPostText;
+    global.psyDiagramSvg = diagramSvg;
     global.wrapPostSelection = wrapSelection;
     global.prefixPostLine = prefixLine;
 })(window);
