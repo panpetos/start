@@ -250,7 +250,12 @@
         #psychModal .pm-cred-empty { font-size:0.8rem; color:var(--a-text-muted); font-style:italic; }
         #psychModal .pm-cred-placeholder { display:inline-flex; width:80px; height:80px; border-radius:0.5rem; background:var(--a-th-bg); align-items:center; justify-content:center; font-size:0.7rem; text-align:center; padding:0.25rem; border:1px solid var(--a-input-border); color:var(--a-text-sec); }
         #psychModal .pm-save-ok { color:#22C55E; font-size:0.8rem; margin-left:0.5rem; display:none; }
-    </style>
+    .pay-model-row { display:flex; gap:0.6rem; align-items:flex-start; padding:0.6rem 0.7rem; margin-bottom:0.3rem;
+  border:1.5px solid var(--a-panel-border); border-radius:0.7rem; cursor:pointer; line-height:1.45; }
+.pay-model-row:hover { border-color:#7C3AED; }
+.pay-model-row input[type=radio] { width:18px; height:18px; margin-top:2px; accent-color:#7C3AED; flex:0 0 auto; cursor:pointer; }
+.pay-model-row:has(input:checked) { border-color:#7C3AED; background:rgba(124,58,237,0.06); }
+</style>
     <script>
         (function(){
             var t = localStorage.getItem('admin-theme') || localStorage.getItem('psy-theme') || 'light';
@@ -1353,6 +1358,9 @@
             const commission = sGet('platform_commission', '40');
             const acquiring  = sGet('acquiring_fee', '3');
             const tax        = sGet('tax_rate', '6');
+            const payModel   = sGet('payment_model', 'agent');      // 'agent' | 'split'
+            const splitFee   = sGet('split_fee', '6');              // сервис сплита, 5–7%
+            const splitPayer = sGet('split_fee_payer', 'platform'); // из чьей доли берётся
 
             const promoBlocks = TARIFFS.map(t => {
                 const k = t.key;
@@ -1383,14 +1391,51 @@
                   <div style="padding:1.25rem;">${baseInputs}</div>
                 </div>
                 <div class="panel">
-                  <div class="panel-head"><h2>Комиссия и доход (агентская модель)</h2></div>
+                  <div class="panel-head"><h2>Комиссия и доход</h2></div>
                   <div style="padding:1.25rem;">
                     ${fld('commission_platform','Комиссия платформы', commission, '%')}
-                    ${fld('fee_acquiring','Эквайринг / Robokassa', acquiring, '%')}
                     ${fld('tax_rate','Налог УСН (с комиссии)', tax, '%')}
+
+                    <div style="margin:1rem 0 0.6rem;font-weight:700;font-size:0.9rem;">Как принимаем деньги</div>
+                    <label class="pay-model-row">
+                      <input type="radio" name="payModel" value="agent" ${payModel !== 'split' ? 'checked' : ''} onchange="recalcIncome()">
+                      <span><b>Агентская: эквайринг + выплаты отдельно</b><br>
+                        <span class="muted" style="font-size:0.78rem;">Деньги клиента приходят на счёт платформы (Робокасса / ЮKassa),
+                        психологу платформа переводит сама — вручную или реестром через сервис выплат.
+                        Дешевле по проценту, но выплаты и чеки самозанятых — отдельная задача.</span>
+                      </span>
+                    </label>
+                    <div id="agentFields" style="padding-left:1.6rem;">
+                      ${fld('fee_acquiring','Эквайринг (Робокасса / ЮKassa)', acquiring, '%')}
+                    </div>
+
+                    <label class="pay-model-row">
+                      <input type="radio" name="payModel" value="split" ${payModel === 'split' ? 'checked' : ''} onchange="recalcIncome()">
+                      <span><b>Сплит get-sign.ru — весь цикл</b><br>
+                        <span class="muted" style="font-size:0.78rem;">Сервис сам принимает оплату и тут же расщепляет её:
+                        доля психолога уходит ему с чеком самозанятого, комиссия остаётся платформе.
+                        Процент выше, но отдельные выплаты и чеки делать не нужно.</span>
+                      </span>
+                    </label>
+                    <div id="splitFields" style="padding-left:1.6rem;">
+                      ${fld('fee_split','Комиссия сервиса (сплит)', splitFee, '%')}
+                      <label style="display:block;font-size:0.82rem;margin:0.3rem 0 0.6rem;">
+                        Из чьей доли берётся комиссия сервиса
+                        <select id="split_payer" onchange="recalcIncome()"
+                          style="width:100%;margin-top:0.25rem;padding:0.45rem 0.6rem;border:1.5px solid var(--a-input-border);border-radius:0.5rem;font-family:inherit;background:var(--a-input-bg);color:var(--a-text);">
+                          <option value="platform" ${splitPayer !== 'shared' ? 'selected' : ''}>Полностью из комиссии платформы</option>
+                          <option value="shared" ${splitPayer === 'shared' ? 'selected' : ''}>Пропорционально: с обеих долей</option>
+                        </select>
+                      </label>
+                    </div>
+
                     <div id="incomeTable" style="margin-top:1rem;"></div>
                   </div>
                 </div>
+              </div>
+              <div class="panel" style="margin-top:1.25rem;">
+                <div class="panel-head"><h2>Что выгоднее: сравнение моделей на ваших ценах</h2></div>
+                <div style="padding:1.25rem;" id="modelCompare"></div>
               </div>
               <div class="panel" style="margin-top:1.25rem;">
                 <div class="panel-head"><h2>Акции на первую сессию</h2></div>
@@ -1403,32 +1448,133 @@
             recalcIncome();
         }
 
+        function payModelNow() {
+            const r = document.querySelector('input[name="payModel"]:checked');
+            return r ? r.value : 'agent';
+        }
+
+        /**
+         * Разложить одну оплату по модели. Возвращает, кто сколько получит.
+         *
+         * Агентская: клиент платит эквайрингу, психологу уходит цена минус комиссия,
+         * платформе остаётся комиссия минус эквайринг и налог.
+         *
+         * Сплит: сервис сам делит платёж. Его процент берётся либо целиком из доли
+         * платформы (обычная договорённость), либо пропорционально с обеих долей —
+         * тогда психолог тоже получает меньше, и это надо видеть заранее.
+         */
+        function splitOne(price, opts) {
+            const P = price, c = opts.commission, t = opts.tax;
+            const comm = P * c / 100;              // доля платформы до расходов
+            let psy = P - comm;                    // доля психолога
+            const service = opts.model === 'split'
+                ? P * opts.splitFee / 100          // сколько забирает сервис — всегда полная сумма
+                : P * opts.acquiring / 100;
+            // Сколько из этой суммы ложится на платформу. В пропорциональном режиме
+            // часть удерживается с психолога, и её нельзя вычитать ещё и из дохода
+            // платформы: иначе доли не сходятся с ценой (проверка это и поймала).
+            let onPlatform = service;
+            if (opts.model === 'split' && opts.payer === 'shared') {
+                const psyPart = service * (psy / P);
+                psy -= psyPart;
+                onPlatform = service - psyPart;
+            }
+            const tax = comm * t / 100;
+            const net = comm - onPlatform - tax;
+            return { price: P, psy, comm, service, onPlatform, tax, net };
+        }
+
+        function currentPayOpts() {
+            return {
+                model: payModelNow(),
+                commission: num('commission_platform'),
+                acquiring: num('fee_acquiring'),
+                splitFee: num('fee_split'),
+                tax: num('tax_rate'),
+                payer: (document.getElementById('split_payer') || {}).value || 'platform',
+            };
+        }
+
         function recalcIncome(){
-            const c = num('commission_platform'), a = num('fee_acquiring'), t = num('tax_rate');
+            const opts = currentPayOpts();
+            const isSplit = opts.model === 'split';
+            // Поля неиспользуемой модели притушаем, чтобы не гадать, что сейчас считается
+            const ag = document.getElementById('agentFields'), sp = document.getElementById('splitFields');
+            if (ag) ag.style.opacity = isSplit ? '0.45' : '1';
+            if (sp) sp.style.opacity = isSplit ? '1' : '0.45';
+
+            const f = n => Math.round(n).toLocaleString('ru-RU');
             const rows = TARIFFS.map(tr => {
-                const P = num('price_'+tr.key);
-                const comm = P*c/100;
-                const psy = P - comm;
-                const acq = P*a/100;
-                const tax = comm*t/100;
-                const net = comm - acq - tax;
-                const f = n => Math.round(n).toLocaleString('ru-RU');
+                const r = splitOne(num('price_'+tr.key), opts);
                 return `<tr>
                   <td><b>${esc(tr.label)}</b></td>
-                  <td>${f(P)} ₽</td>
-                  <td>${f(psy)} ₽</td>
-                  <td>${f(comm)} ₽</td>
-                  <td class="muted">−${f(acq)} ₽</td>
-                  <td class="muted">−${f(tax)} ₽</td>
-                  <td style="color:#16A34A;font-weight:700;">${f(net)} ₽</td>
+                  <td>${f(r.price)} ₽</td>
+                  <td>${f(r.psy)} ₽</td>
+                  <td>${f(r.comm)} ₽</td>
+                  <td class="muted">−${f(r.service)} ₽</td>
+                  <td class="muted">−${f(r.tax)} ₽</td>
+                  <td style="color:${r.net < 0 ? '#DC2626' : '#16A34A'};font-weight:700;">${f(r.net)} ₽</td>
                 </tr>`;
             }).join('');
             const el = document.getElementById('incomeTable');
             if (el) el.innerHTML = `
-              <table style="font-size:0.78rem;"><thead><tr>
-                <th>Тариф</th><th>Клиент платит</th><th>Психолог</th><th>Комиссия</th><th>Эквайринг</th><th>Налог</th><th>Чистыми</th>
-              </tr></thead><tbody>${rows}</tbody></table>
-              <p style="font-size:0.74rem;color:var(--a-text-muted);margin-top:0.6rem;line-height:1.5;">«Психолог» — выплата специалисту (цена минус комиссия). «Чистыми» — доход платформы после эквайринга и налога. Клиент видит только итоговую цену.</p>`;
+              <div style="overflow-x:auto;">
+              <table style="font-size:0.78rem;min-width:520px;"><thead><tr>
+                <th>Тариф</th><th>Клиент платит</th><th>Психолог</th><th>Комиссия</th>
+                <th>${isSplit ? 'Сервис сплита' : 'Эквайринг'}</th><th>Налог</th><th>Чистыми</th>
+              </tr></thead><tbody>${rows}</tbody></table></div>
+              <p style="font-size:0.74rem;color:var(--a-text-muted);margin-top:0.6rem;line-height:1.5;">
+                «Психолог» — сколько получит специалист. «Чистыми» — что остаётся платформе после
+                ${isSplit ? 'комиссии сервиса' : 'эквайринга'} и налога. Клиент видит только итоговую цену.</p>`;
+            renderModelCompare();
+        }
+
+        /** Сравнение двух моделей на текущих ценах — чтобы решать числами, а не на глаз. */
+        function renderModelCompare() {
+            const box = document.getElementById('modelCompare');
+            if (!box) return;
+            const base = currentPayOpts();
+            const f = n => Math.round(n).toLocaleString('ru-RU');
+            const shared = base.payer === 'shared';
+            let psyLoss = 0;
+            const rows = TARIFFS.map(tr => {
+                const P = num('price_'+tr.key);
+                const a = splitOne(P, Object.assign({}, base, { model: 'agent' }));
+                const sp = splitOne(P, Object.assign({}, base, { model: 'split' }));
+                const diff = sp.net - a.net;
+                psyLoss += a.psy - sp.psy;
+                return `<tr>
+                    <td><b>${esc(tr.label)}</b></td>
+                    <td>${f(P)} ₽</td>
+                    <td>${f(a.net)} ₽</td>
+                    <td>${f(sp.net)} ₽</td>
+                    <td style="font-weight:700;color:${diff >= 0 ? '#16A34A' : '#DC2626'};">
+                      ${diff >= 0 ? '+' : '−'}${f(Math.abs(diff))} ₽</td>
+                    <td>${f(a.psy)} ₽</td>
+                    <td style="${shared ? 'color:#DC2626;font-weight:700;' : ''}">${f(sp.psy)} ₽</td>
+                  </tr>`;
+            }).join('');
+            const per100 = (base.splitFee - base.acquiring);
+            box.innerHTML = `
+              <div style="overflow-x:auto;">
+              <table style="font-size:0.78rem;min-width:640px;"><thead><tr>
+                <th rowspan="2">Тариф</th><th rowspan="2">Цена</th>
+                <th colspan="3">Платформе чистыми</th><th colspan="2">Психолог получит</th>
+              </tr><tr>
+                <th>агентская</th><th>сплит</th><th>разница</th><th>агентская</th><th>сплит</th>
+              </tr></thead><tbody>${rows}</tbody></table></div>
+              <p style="font-size:0.78rem;line-height:1.6;margin-top:0.8rem;">
+                Разница целиком в проценте посредника: сплит дороже эквайринга на
+                <b>${(per100).toFixed(1)}%</b> от каждой оплаты. За эту разницу сервис берёт на себя
+                выплаты психологам и чеки самозанятых — то, что в агентской модели платформа делает сама.
+                Считайте так: если ручные выплаты и чеки стоят вам дороже этой разницы (временем, ошибками,
+                риском по 54-ФЗ) — сплит выгоднее, даже что процент выше.</p>
+              ${shared ? `<p style="font-size:0.78rem;line-height:1.6;color:#B45309;background:#FFF8EC;
+                   border:1px solid #F0D9A8;border-radius:0.6rem;padding:0.6rem 0.8rem;">
+                   ⚠️ Сейчас выбрано «пропорционально»: часть комиссии сервиса удерживается с психолога —
+                   по всем тарифам он получит на <b>${f(psyLoss)} ₽</b> меньше, чем в агентской модели.
+                   Доход платформы от этого выглядит выше, но это не экономия, а переложенный расход.
+                   Так можно делать, только если это прописано в договоре со специалистом.</p>` : ''}`;
         }
 
         async function saveTariffs(btn){
@@ -1437,6 +1583,9 @@
             payload.platform_commission = num('commission_platform');
             payload.acquiring_fee = num('fee_acquiring');
             payload.tax_rate = num('tax_rate');
+            payload.payment_model = payModelNow();
+            payload.split_fee = num('fee_split');
+            payload.split_fee_payer = (document.getElementById('split_payer') || {}).value || 'platform';
             TARIFFS.forEach(t => {
                 const k = t.key;
                 payload['promo_'+k+'_enabled']  = document.getElementById('promo_'+k+'_enabled').checked ? '1' : '0';

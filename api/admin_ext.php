@@ -132,7 +132,10 @@ function settingsCols(PDO $pdo): array {
 
 /** Ключи настроек, которые разрешено читать/писать из админки. */
 function allowedSettingKeys(): array {
-    $keys = ['price_self', 'price_couple', 'price_teen', 'platform_commission', 'acquiring_fee', 'tax_rate'];
+    // Модель приёма оплаты и процент сервиса-сплита: без них новые поля тарификации
+    // молча не сохранялись бы — список ключей белый, лишнее сюда не пройдёт.
+    $keys = ['price_self', 'price_couple', 'price_teen', 'platform_commission', 'acquiring_fee', 'tax_rate',
+             'payment_model', 'split_fee', 'split_fee_payer'];
     foreach (['self', 'couple', 'teen'] as $t) {
         foreach (['enabled', 'price', 'title', 'duration', 'deadline'] as $f) {
             $keys[] = "promo_{$t}_{$f}";
@@ -474,7 +477,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $del("DELETE FROM psychologist_contacts WHERE LOWER(email) = LOWER(?)", [$uemail]);
         foreach ($pids as $pid) { $del("DELETE FROM psychologists WHERE id = ?", [$pid]); }
         // прочие возможные связи (best-effort: если таблицы/колонки нет — просто пропустится)
-        foreach (['consents' => 'user_id', 'notes' => 'user_id', 'reviews' => 'user_id', 'subscribers' => 'email', 'support_threads' => 'email', 'audit_log' => 'user_id', 'credentials' => 'user_id'] as $tbl => $col) {
+        // Сюда же — таблицы, заведённые позже: статус «в сети», отметки о прочтении,
+        // реакции, коды входа по QR и расшифровки. Без них от удалённого аккаунта
+        // оставались строки, привязанные к несуществующему пользователю.
+        foreach (['consents' => 'user_id', 'notes' => 'user_id', 'reviews' => 'user_id', 'subscribers' => 'email',
+                  'support_threads' => 'email', 'audit_log' => 'user_id', 'credentials' => 'user_id',
+                  'user_presence' => 'user_id', 'chat_reads' => 'user_id', 'message_reactions' => 'user_id',
+                  'qr_logins' => 'user_id', 'transcripts' => 'created_by'] as $tbl => $col) {
             $del("DELETE FROM `$tbl` WHERE `$col` = ?", [$col === 'email' ? $uemail : $uid]);
         }
         // сам пользователь
