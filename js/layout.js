@@ -29,19 +29,20 @@
   // Инлайн-сброс, чтобы любые правила страниц для li/a не ломали шапку
   var liReset = 'list-style:none;margin:0;padding:0;border:0;display:flex;align-items:center;';
 
-  var loginCircle =
-    '<li style="' + liReset + 'margin-left:2rem;flex-shrink:0;">' +
-      '<a id="psyLoginCircle" href="/login.html" aria-label="Личный кабинет" title="Личный кабинет" ' +
+  var loginInner =
+    '<a id="psyLoginCircle" href="/login.html" aria-label="Личный кабинет" title="Личный кабинет" ' +
       'style="width:40px;height:40px;min-width:40px;border-radius:50%;background:#34C759;display:inline-flex;align-items:center;justify-content:center;text-decoration:none;border:0;transition:transform .2s;" ' +
       'onmouseover="this.style.transform=\'scale(1.05)\'" onmouseout="this.style.transform=\'scale(1)\'">' +
       personSvg +
-      '</a>' +
-    '</li>';
+    '</a>';
 
   // Иконка чата со счётчиком непрочитанных. Показываем только тем, кто вошёл, —
   // проверяем это тем же запросом, что считает сообщения (лишнего обращения нет).
-  var chatIconItem =
-    '<li id="psyChatWrap" style="' + liReset + 'margin-left:0.6rem;flex-shrink:0;display:none;">' +
+  // Три кружка-действия (чат, тема, вход) раньше были тремя отдельными <li> с разными
+  // left-отступами — в вертикальном мобильном меню они выстраивались вкривь. Теперь это
+  // один общий блок-строка: на ПК тот же ряд справа, на телефоне — аккуратный ряд внизу меню.
+  var chatIconInner =
+    '<span id="psyChatWrap" style="display:none;align-items:center;">' +
       '<a id="psyChatLink" href="/chat.html" aria-label="Сообщения" title="Сообщения" ' +
       'style="position:relative;width:38px;height:38px;min-width:38px;border-radius:50%;border:1.5px solid #E5E7EB;background:#fff;' +
       'display:inline-flex;align-items:center;justify-content:center;font-size:1.05rem;text-decoration:none;transition:transform .2s;" ' +
@@ -50,19 +51,24 @@
         'border-radius:9px;background:#EF4444;color:#fff;font-size:0.68rem;font-weight:700;line-height:18px;text-align:center;' +
         'box-shadow:0 0 0 2px #fff;"></span>' +
       '</a>' +
-    '</li>';
+    '</span>';
 
-  var themeToggleItem =
-    '<li id="psyThemeToggleWrap" style="' + liReset + 'margin-left:0.6rem;flex-shrink:0;">' +
+  var themeToggleInner =
+    '<span id="psyThemeToggleWrap" style="display:inline-flex;align-items:center;">' +
       '<button id="psyThemeToggle" aria-label="Светлая/тёмная тема" title="Светлая/тёмная тема" ' +
       'style="width:38px;height:38px;min-width:38px;border-radius:50%;border:1.5px solid #E5E7EB;background:#fff;cursor:pointer;font-size:1.05rem;display:inline-flex;align-items:center;justify-content:center;transition:transform .2s;" ' +
       'onmouseover="this.style.transform=\'scale(1.05)\'" onmouseout="this.style.transform=\'scale(1)\'">🌙</button>' +
+    '</span>';
+
+  var actionsItem =
+    '<li id="psyNavActions" class="psy-nav-actions" style="' + liReset + 'margin-left:0.9rem;gap:0.55rem;flex-shrink:0;">' +
+      chatIconInner + themeToggleInner + loginInner +
     '</li>';
 
   var menu = links.map(function (l) {
     var st = active(l.href) ? 'color:#34C759;font-weight:600;' : '';
     return '<li style="' + liReset + '"><a href="' + l.href + '" class="nav-link" style="' + st + '">' + l.text + '</a></li>';
-  }).join('') + chatIconItem + themeToggleItem + loginCircle;
+  }).join('') + actionsItem;
 
   // ВАЖНО: не используем класс .container внутри шапки — многие страницы
   // переопределяют .container (свой max-width/padding), из-за чего меню «плясало».
@@ -114,6 +120,11 @@
       'input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=color]),' +
       'textarea,select{font-size:16px!important}' +
       '.site-footer a{display:inline-block;margin:3px 6px}' +
+      // Кружки-действия (чат/тема/вход) в мобильном меню — ровным рядом внизу, с разделителем,
+      // а не вкривь по одному. Раньше у каждого был свой left-отступ и они «плясали».
+      '#navMenu #psyNavActions{width:100%;margin:1rem 0 0 0!important;padding-top:1rem!important;' +
+        'border-top:1px solid #F0F0F0!important;border-bottom:none!important;justify-content:flex-start;gap:0.75rem}' +
+      'body.dark #navMenu #psyNavActions{border-top-color:#333!important}' +
     '}' +
     'body.dark .nav-link:hover{color:#A78BFA!important}' +
     'body.dark .nav-menu{background:#1E1E1E!important}' +

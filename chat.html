@@ -220,15 +220,25 @@
         }
         .vn-progress.rec { border-color: #e94560; animation: vnPulse 1.1s infinite; }
         @keyframes vnPulse { 0%,100% { opacity: 1; } 50% { opacity: 0.45; } }
+        /* Ряд кнопок под кружком: на телефоне их бывает четыре (Отмена/Посмотреть/Заново/
+           Отправить) — без переноса они вылезали за края экрана. Теперь переносятся и по центру. */
+        .vn-actions {
+            display: flex; gap: 0.5rem; align-items: center; justify-content: center;
+            flex-wrap: wrap; width: 100%; max-width: 100%;
+        }
         .vn-btn {
             border: none; border-radius: 2rem; padding: 0.6rem 1.15rem; cursor: pointer;
-            font-family: inherit; font-size: 0.9rem; font-weight: 700;
+            font-family: inherit; font-size: 0.9rem; font-weight: 700; white-space: nowrap;
         }
         .vn-btn-ghost { background: rgba(255,255,255,0.14); color: #fff; }
         .vn-btn-ghost:hover { background: rgba(255,255,255,0.26); }
         .vn-btn-rec { background: #e94560; color: #fff; }
         .vn-btn-rec.stop { background: #fff; color: #e94560; }
         .vn-btn-send { background: #15803D; color: #fff; }
+        @media (max-width: 480px) {
+            .vn-btn { padding: 0.55rem 0.9rem; font-size: 0.85rem; }
+            .vn-actions { gap: 0.4rem; }
+        }
 
         /* ── Закреплённый плеер под шапкой чата ──────────────────────────────────────
            Видно, что именно играет, можно поставить на паузу, перейти к сообщению и
@@ -547,7 +557,12 @@
             width: 100%;
             height: 100%;
             object-fit: cover;
+            border-radius: 50%;   /* фото всегда круглое, даже когда контейнер не режет (has-badge) */
+            display: block;
         }
+        /* Контейнер аватарки держим строго квадратным: иначе на узком экране flex мог сплющить
+           его в овал, и круглое фото «расходилось» с круглой заглушкой (видно угол картинки). */
+        .conversation-avatar, .chat-header .avatar { aspect-ratio: 1 / 1; }
 
         .conversation-info {
             flex: 1;
@@ -643,6 +658,8 @@
             width: 100%;
             height: 100%;
             object-fit: cover;
+            border-radius: 50%;
+            display: block;
         }
 
         .chat-header .name {
@@ -2455,7 +2472,7 @@
             </div>
             <div id="vnTime" style="color:#fff;font-weight:700;font-variant-numeric:tabular-nums;font-size:1rem;">00:00</div>
             <div id="vnHint" style="color:rgba(255,255,255,0.72);font-size:0.82rem;text-align:center;max-width:280px;line-height:1.45;">Нажмите «Записать» — кружок пишется до 60 секунд</div>
-            <div style="display:flex;gap:0.6rem;align-items:center;">
+            <div class="vn-actions">
                 <button onclick="cancelVideoNote()" class="vn-btn vn-btn-ghost" title="Отменить">✕ Отмена</button>
                 <button id="vnRecBtn" onclick="toggleVideoNoteRecording()" class="vn-btn vn-btn-rec" title="Начать запись">● Записать</button>
                 <!-- После записи можно посмотреть, что получилось, и перезаписать, а не отправлять наугад -->
