@@ -486,7 +486,16 @@
             }
             supStartPolling();
             noteReminderStartPolling();
-            switchTab((myAdminSections && !myAdminSections.includes('overview')) ? myAdminSections[0] : 'overview');
+            // Вкладка из адреса (?tab=…) — чтобы обновление страницы (F5) возвращало
+            // в тот же раздел, а не выкидывало в «Обзор», как было раньше.
+            const fallbackTab = (myAdminSections && !myAdminSections.includes('overview')) ? myAdminSections[0] : 'overview';
+            let startTab = fallbackTab;
+            try {
+                const fromUrl = new URLSearchParams(location.search).get('tab');
+                if (fromUrl && document.querySelector(`.sidebar-item[data-tab="${CSS.escape(fromUrl)}"]`)
+                    && (!myAdminSections || myAdminSections.includes(fromUrl))) startTab = fromUrl;
+            } catch(e) {}
+            switchTab(startTab);
         }
 
         let currentTab = 'overview';
@@ -496,6 +505,12 @@
                 return;
             }
             currentTab = tab;
+            // Держим раздел в адресе — без новой записи в истории, чтобы «Назад» вёл из кабинета.
+            try {
+                const p = new URLSearchParams(location.search);
+                p.set('tab', tab);
+                history.replaceState(null, '', location.pathname + '?' + p.toString());
+            } catch(e) {}
             if (supMsgPollTimer) { clearInterval(supMsgPollTimer); supMsgPollTimer = null; }
             supportThreadId = null;
             document.querySelectorAll('.sidebar-item').forEach(t => t.classList.toggle('active', t.dataset.tab===tab));

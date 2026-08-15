@@ -2223,6 +2223,7 @@
             <!-- Круглый «плюс», как в Telegram: создать группу, канал или блог, не уходя из чата -->
             <button type="button" class="chat-sb-new" id="chatNewBtn" onclick="toggleCreateMenu(event)" title="Создать группу, канал или блог">＋</button>
             <div class="chat-new-menu" id="chatNewMenu">
+                <button type="button" onclick="closeCreateMenu();addStoryClick()"><span>📸</span><div><b>История</b><i>фото на 24 часа — увидят ваши контакты</i></div></button>
                 <button type="button" onclick="closeCreateMenu();openCreateGroupModal()"><span>👥</span><div><b>Группа</b><i>общая переписка на несколько человек</i></div></button>
                 <button type="button" onclick="closeCreateMenu();openMyChannel()"><span>📢</span><div><b>Канал</b><i>публикации для подписчиков, попадают в Ленту</i></div></button>
                 <button type="button" onclick="closeCreateMenu();openMyBlog()"><span>📝</span><div><b>Блог</b><i>статьи с просмотрами и лайками</i></div></button>
@@ -5262,19 +5263,74 @@
         (function wireFolderSwipe() {
             const list = document.getElementById('conversationsList');
             if (!list) return;
-            const DURATION = 220;
-            let sx = 0, sy = 0, dx = 0, tracking = false, dragging = false;
 
-            function setTransform(px, withTransition) {
-                list.style.transition = withTransition ? `transform ${DURATION}ms ease` : 'none';
-                list.style.transform = px ? `translateX(${px}px)` : '';
+            // Едем недалеко (треть ширины) и с затуханием — так переход читается быстрее, чем
+            // прогон всего списка за край экрана: тот вариант ощущался вязким и «дёрганым».
+            const OUT_MS = 150, IN_MS = 190, SHIFT = 0.3;
+            const EASE = 'cubic-bezier(.32,.72,0,1)';
+            let sx = 0, sy = 0, dx = 0;
+            let tracking = false, dragging = false, animating = false, raf = 0;
+
+            const width = () => list.clientWidth || 300;
+
+            /** Сопротивление за пределом хода — палец тянет, но список уже почти не идёт. */
+            function damp(v, limit) {
+                const a = Math.abs(v);
+                return a <= limit ? v : Math.sign(v) * (limit + (a - limit) * 0.2);
+            }
+
+            function paint(px, alpha) {
+                list.style.transform = px ? `translate3d(${px}px,0,0)` : '';
+                list.style.opacity = alpha == null ? '' : String(alpha);
+            }
+
+            /** Во время перетаскивания пишем стиль строго раз в кадр — иначе браузер
+             *  захлёбывается пересчётом на каждом touchmove, отсюда и была рваность. */
+            function schedule(px, alpha) {
+                if (raf) return;
+                raf = requestAnimationFrame(() => { raf = 0; paint(px, alpha); });
+            }
+
+            function runTransition(px, alpha, ms, done) {
+                animating = true;
+                let fired = false;
+                const end = () => {
+                    if (fired) return;
+                    fired = true;
+                    list.removeEventListener('transitionend', onEnd);
+                    clearTimeout(fallback);
+                    if (done) done();
+                };
+                const onEnd = (e) => { if (e.target === list && e.propertyName === 'transform') end(); };
+                list.addEventListener('transitionend', onEnd);
+                const fallback = setTimeout(end, ms + 90);   // transitionend не придёт, если ехать некуда
+                list.style.transition = `transform ${ms}ms ${EASE}, opacity ${ms}ms linear`;
+                paint(px, alpha);
+            }
+
+            function settle() {
+                animating = false;
+                list.style.transition = '';
+                list.style.willChange = '';
+                list.style.transform = '';
+                list.style.opacity = '';
+            }
+
+            /** dir: -1 — свайп влево (следующая вкладка), +1 — вправо (предыдущая). */
+            function targetFolder(dir) {
+                const ids = folderTabIds();
+                const i = ids.indexOf(activeFolder);
+                if (i < 0) return null;
+                const n = dir < 0 ? i + 1 : i - 1;
+                return (n >= 0 && n < ids.length) ? ids[n] : null;
             }
 
             list.addEventListener('touchstart', function (e) {
-                if (e.touches.length !== 1) { tracking = false; return; }
+                if (animating || e.touches.length !== 1) { tracking = false; return; }
                 sx = e.touches[0].clientX; sy = e.touches[0].clientY;
                 dx = 0; tracking = true; dragging = false;
-                list.style.transition = 'none';
+                list.style.transition = 'none';          // ставим один раз, а не на каждом кадре
+                list.style.willChange = 'transform';
             }, { passive: true });
 
             list.addEventListener('touchmove', function (e) {
@@ -5285,42 +5341,44 @@
                     if (Math.abs(dx) < 10 && Math.abs(dy) < 10) return;
                     // Явно горизонтальный жест — иначе обычная вертикальная прокрутка списка
                     // будет то и дело случайно переключать папку.
-                    if (Math.abs(dx) <= Math.abs(dy) * 1.2) { tracking = false; return; }
+                    if (Math.abs(dx) <= Math.abs(dy) * 1.2) { tracking = false; list.style.willChange = ''; return; }
                     dragging = true;
                 }
-                const max = list.clientWidth || 300;
-                setTransform(Math.max(-max, Math.min(max, dx)), false);
+                const limit = width() * SHIFT;
+                const has = !!targetFolder(dx < 0 ? -1 : 1);
+                // Край списка папок — ход почти нулевой: сразу понятно, что дальше некуда.
+                const shown = has ? damp(dx, limit) : damp(dx, width() * 0.04);
+                schedule(shown, has ? Math.max(0.35, 1 - Math.abs(shown) / (limit * 1.6)) : null);
             }, { passive: true });
 
-            list.addEventListener('touchend', function () {
+            function release() {
                 if (!tracking) return;
                 tracking = false;
-                if (!dragging) return;
+                if (!dragging) { list.style.willChange = ''; return; }
                 dragging = false;
+                if (raf) { cancelAnimationFrame(raf); raf = 0; }
 
-                const ids = folderTabIds();
-                const i = ids.indexOf(activeFolder);
-                const width = list.clientWidth || 300;
-                const next = dx < 0 ? i + 1 : i - 1;
-                const passed = Math.abs(dx) > Math.min(90, width * 0.22);
-
-                if (passed && i >= 0 && next >= 0 && next < ids.length) {
-                    // Докручиваем уход текущего списка за край, потом — папка меняется,
-                    // и новый список плавно въезжает с противоположной стороны.
-                    const dir = dx < 0 ? -1 : 1;
-                    setTransform(dir * width, true);
-                    setTimeout(() => {
-                        setActiveFolder(ids[next]);
-                        setTransform(-dir * width, false);
-                        void list.offsetWidth; // форсируем reflow — иначе браузер схлопнёт переход в один кадр
-                        setTransform(0, true);
-                    }, DURATION);
+                const dir = dx < 0 ? -1 : 1;
+                const target = targetFolder(dir);
+                if (target && Math.abs(dx) > Math.min(80, width() * 0.18)) {
+                    const off = dir * width() * SHIFT;
+                    runTransition(off, 0, OUT_MS, () => {
+                        setActiveFolder(target);
+                        list.scrollTop = 0;                  // новая папка открывается сверху, как в Telegram
+                        list.style.transition = 'none';
+                        paint(-off, 0);                      // мгновенно переносим на «вход» с другой стороны
+                        // Два кадра: за один браузер успевает схлопнуть переход в мгновенный скачок.
+                        requestAnimationFrame(() => requestAnimationFrame(() => {
+                            runTransition(0, 1, IN_MS, settle);
+                        }));
+                    });
                 } else {
-                    // Не дотянули (или папка крайняя) — плавно возвращаем список на место,
-                    // а не обрезаем свайп молча посреди экрана.
-                    setTransform(0, true);
+                    // Не дотянули или папка крайняя — мягко возвращаем на место.
+                    runTransition(0, 1, IN_MS, settle);
                 }
-            }, { passive: true });
+            }
+            list.addEventListener('touchend', release, { passive: true });
+            list.addEventListener('touchcancel', release, { passive: true });
         })();
 
         // ══════════════════════════════════════════════════════════════════════════════
@@ -5378,27 +5436,33 @@
             const inp = document.getElementById('storyFileInput');
             if (inp) inp.click();
         }
-        document.addEventListener('DOMContentLoaded', () => {
+        window.addStoryClick = addStoryClick;
+
+        // Привязываем сразу: элемент лежит выше по разметке, а вешать на DOMContentLoaded
+        // ненадёжно — если событие уже прошло, обработчик не встанет и «плюс» молча ничего не делает.
+        (function wireStoryUpload() {
             const inp = document.getElementById('storyFileInput');
-            if (inp) inp.addEventListener('change', async function () {
+            if (!inp) return;
+            inp.addEventListener('change', async function () {
                 const file = this.files && this.files[0];
                 this.value = '';
                 if (!file) return;
                 if (!/^image\//.test(file.type)) { alert('Пока можно только фото.'); return; }
                 if (file.size > MAX_UPLOAD_MB * 1024 * 1024) { alert(`Файл больше ${MAX_UPLOAD_MB} МБ — выберите поменьше.`); return; }
+                toast('Публикуем историю…');
                 try {
                     const url = await uploadImage(file);
                     const r = await fetch('/api/stories.php?action=create', {
                         method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
                         body: JSON.stringify({ media_url: url, media_type: 'image' })
                     });
-                    const d = await r.json();
-                    if (!d || !d.ok) throw new Error((d && d.error) || 'Ошибка');
+                    const d = await r.json().catch(() => ({}));
+                    if (!d || !d.ok) throw new Error((d && d.error) || 'сервер отказал');
                     toast('История опубликована — видна 24 часа');
                     await loadStoriesRow();
                 } catch (e) { alert('Не удалось опубликовать историю: ' + e.message); }
             });
-        });
+        })();
 
         /** Открыть просмотр: isMine — свой блок, idx — индекс в storiesData.data, storyIdx — с какой истории начать. */
         function openStoryViewer(isMine, idx, storyIdx) {
@@ -6466,6 +6530,9 @@
 
         function goBackToList() {
             document.querySelector('.chat-container').classList.remove('mobile-chat-open');
+            // Кнопка «←» есть только на телефоне (на ПК скрыта CSS), и там возврат к списку —
+            // это и есть текущее место: убираем ?open=, иначе F5 снова открывал бы диалог.
+            syncChatUrl(null);
         }
 
         function toggleChatTheme() {

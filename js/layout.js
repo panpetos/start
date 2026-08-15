@@ -525,7 +525,7 @@
           '<input id="psySupEmail" type="email" placeholder="Email для ответа" style="width:100%;padding:0.6rem 0.75rem;border:1.5px solid #E5E7EB;border-radius:0.6rem;font-family:inherit;font-size:0.9rem;outline:none;margin-bottom:0.5rem;">' +
           '<select id="psySupRole" style="width:100%;padding:0.6rem 0.75rem;border:1.5px solid #E5E7EB;border-radius:0.6rem;font-family:inherit;font-size:0.9rem;outline:none;margin-bottom:0.5rem;background:#fff;">' + roleOpts + '</select>' +
           '<textarea id="psySupFirstMsg" placeholder="Ваш вопрос..." style="width:100%;height:72px;padding:0.6rem 0.75rem;border:1.5px solid #E5E7EB;border-radius:0.6rem;font-family:inherit;font-size:0.9rem;outline:none;resize:vertical;margin-bottom:0.5rem;"></textarea>' +
-          '<div id="psySupFormAttachPreview" style="display:none;padding:0 0 0.5rem;font-size:0.78rem;color:#7C3AED;"></div>' +
+          '<div id="psySupFormAttachPreview" style="display:none;padding:0 0 0.5rem;font-size:0.78rem;color:#7C3AED;word-break:break-word;"></div>' +
           '<div id="psySupFormErr" style="display:none;color:#DC2626;font-size:0.8rem;margin-bottom:0.5rem;"></div>' +
           '<div style="display:flex;gap:0.5rem;align-items:center;">' +
             '<button type="button" id="psySupFormAttachBtn" title="Прикрепить файл" style="width:38px;height:38px;flex-shrink:0;border-radius:50%;border:1.5px solid #E5E7EB;background:none;cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center;color:#6B7280;">📎</button>' +
@@ -535,7 +535,7 @@
         '</div>' +
         '<div id="psySupChat" style="display:none;flex:1;flex-direction:column;min-height:0;">' +
           '<div id="psySupMsgs" style="flex:1;overflow-y:auto;padding:0.85rem;display:flex;flex-direction:column;gap:0.5rem;background:#F7F8FA;"></div>' +
-          '<div id="psySupAttachPreview" style="display:none;padding:0.3rem 0.6rem;border-top:1px solid #eee;font-size:0.78rem;color:#7C3AED;"></div>' +
+          '<div id="psySupAttachPreview" style="display:none;padding:0.3rem 0.6rem;border-top:1px solid #eee;font-size:0.78rem;color:#7C3AED;word-break:break-word;"></div>' +
           '<div style="display:flex;gap:0.5rem;padding:0.6rem;border-top:1px solid #eee;align-items:center;">' +
             '<button id="psySupAttachBtn" title="Прикрепить файл" style="width:36px;height:36px;border-radius:50%;border:1px solid #E5E7EB;background:none;cursor:pointer;font-size:1rem;flex-shrink:0;display:flex;align-items:center;justify-content:center;color:#6B7280;">📎</button>' +
             '<input type="file" id="psySupFileInput" accept="image/*,.pdf,.txt,.doc,.docx" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0;padding:0;margin:-1px;">' +
@@ -735,8 +735,16 @@
     function showAttachPreview(name, targetId) {
       var el = document.getElementById(targetId || 'psySupAttachPreview');
       if (!el) return;
-      el.innerHTML = '📎 ' + escSup(name) + ' <span style="cursor:pointer;margin-left:0.3rem;" onclick="this.parentNode.style.display=\'none\'">✕</span>';
+      el.innerHTML = '📎 ' + escSup(name) + ' <span class="psySupAttX" style="cursor:pointer;margin-left:0.3rem;">✕</span>';
       el.style.display = 'block';
+      // Крестик раньше только прятал строку, а сам файл оставался в pendingFile и всё равно
+      // уходил со следующим сообщением — отменить прикрепление было невозможно.
+      var x = el.querySelector('.psySupAttX');
+      if (x) x.onclick = function () {
+        pendingFile = null;
+        el.style.display = 'none';
+        el.innerHTML = '';
+      };
     }
 
     document.getElementById('psySupAttachBtn').addEventListener('click', function() {
