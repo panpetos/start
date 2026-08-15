@@ -105,7 +105,13 @@ $body = ($_SERVER['REQUEST_METHOD'] === 'POST') ? (json_decode(file_get_contents
 if ($action === 'start') {
     $token = trim((string)($body['token'] ?? ''));
     $message = trim((string)($body['message'] ?? ''));
-    if ($message === '') { http_response_code(400); echo json_encode(['error' => 'Введите сообщение']); exit; }
+    $attUrl = trim((string)($body['attachment_url'] ?? ''));
+    $attType = trim((string)($body['attachment_type'] ?? ''));
+    $attName = trim((string)($body['attachment_name'] ?? ''));
+    // Раньше первое сообщение чата требовало непустой текст, а вложение из запроса вообще
+    // не читалось и не сохранялось — фото/файл/голосовое, отправленные самым первым
+    // сообщением, молча терялись. Теперь как во всех остальных действиях: нужен текст ИЛИ вложение.
+    if ($message === '' && $attUrl === '') { http_response_code(400); echo json_encode(['error' => 'Введите сообщение']); exit; }
 
     $me = currentUserRow($pdo, $userId);
     if ($me) {
@@ -132,8 +138,8 @@ if ($action === 'start') {
     }
 
     try {
-        $st = $pdo->prepare("INSERT INTO support_messages (thread_id, sender, body) VALUES (?, 'user', ?)");
-        $st->execute([$threadId, $message]);
+        $st = $pdo->prepare("INSERT INTO support_messages (thread_id, sender, body, attachment_url, attachment_type, attachment_name) VALUES (?, 'user', ?, ?, ?, ?)");
+        $st->execute([$threadId, $message, $attUrl ?: null, $attType ?: null, $attName ?: null]);
         $pdo->prepare("UPDATE support_threads SET last_at = NOW(), status = 'open' WHERE id = ?")->execute([$threadId]);
     } catch (Exception $e) {}
 

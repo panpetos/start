@@ -105,7 +105,8 @@
         .chat-sb-head .chat-sb-search { display: none; }
         .chat-sb-head #sbSearchClose { display: none; }
         .chat-sb-head.searching #sbCabinetBtn,
-        .chat-sb-head.searching #sbSearchBtn { display: none; }
+        .chat-sb-head.searching #sbSearchBtn,
+        .chat-sb-head.searching #sbSettingsBtn { display: none; }
         .chat-sb-head.searching .chat-sb-search { display: block; }
         .chat-sb-head.searching #sbSearchClose { display: flex; }
 
@@ -1346,17 +1347,6 @@
         .conversations-pane.collapsed .chat-sb-new:hover { transform: translateX(50%) scale(1.06); }
         .conversations-pane.collapsed .chat-new-menu { right: 8px; }
 
-        /* Нижняя строка списка чатов — вход в настройки */
-        .chat-sb-settings {
-            display: flex; align-items: center; gap: 0.55rem; width: 100%;
-            padding: 0.7rem 0.9rem; border: none; border-top: 1px solid rgba(128,128,128,0.22);
-            background: transparent; color: inherit; cursor: pointer; font-family: inherit;
-            font-size: 0.9rem; font-weight: 600; flex-shrink: 0; text-align: left;
-        }
-        .chat-sb-settings:hover { background: rgba(124,58,237,0.10); }
-        .sbs-ico { font-size: 1.1rem; }
-        .conversations-pane.collapsed .sbs-name { display: none; }
-        .conversations-pane.collapsed .chat-sb-settings { justify-content: center; }
 
         /* Окно настроек чатов */
         .cs-modal {
@@ -1935,16 +1925,19 @@
             .message { max-width: 85%; padding: 0.6rem 0.85rem; font-size: 0.95rem; }
 
             .chat-input {
-                padding: 0.5rem;
-                gap: 0.35rem;
-                padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+                padding: 0.4rem;
+                gap: 0.2rem;
+                padding-bottom: max(0.4rem, env(safe-area-inset-bottom));
                 position: sticky;
                 bottom: 0;
             }
-            .chat-input textarea { font-size: 16px; padding: 0.6rem 0.75rem; }
-            .chat-input .send-btn { width: 40px; height: 40px; }
-            .icon-btn { width: 36px; height: 36px; }
-            .icon-btn svg { width: 20px; height: 20px; }
+            .chat-input textarea { font-size: 16px; padding: 0.55rem 0.7rem; margin-left: 0.15rem; }
+            .chat-input .send-btn { width: 38px; height: 38px; margin-left: 0.15rem; }
+            /* Панель ввода на телефоне: две отдельные кнопки записи (голос/кружок) вместо одной
+               совмещённой раздвинули ряд иконок — сжимаем кнопки и отступы, чтобы полю ввода
+               снова оставалось достаточно места и ряд не выглядел непропорционально широким. */
+            .icon-btn { width: 33px; height: 33px; }
+            .icon-btn svg { width: 18px; height: 18px; }
 
             /* Телефон: смайлик, поле, скрепка и ДВЕ отдельные кнопки — голосовое и кружок.
                Раньше это была одна совмещённая кнопка «тап переключает / удержание пишет»,
@@ -2160,6 +2153,10 @@
                 <button type="button" class="chat-hdr-btn" id="sbSearchBtn" onclick="openSbSearch()" title="Поиск по чатам" aria-label="Поиск по чатам">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
                 </button>
+                <!-- Настройки переехали из отдельной строки внизу списка сюда, третьим кружком -->
+                <button type="button" class="chat-hdr-btn" id="sbSettingsBtn" onclick="openChatSettings()" title="Настройки" aria-label="Настройки">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06A1.65 1.65 0 005 15.4a1.65 1.65 0 00-1.51-1H3.4a2 2 0 110-4h.09A1.65 1.65 0 005 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06A1.65 1.65 0 009 5.4a1.65 1.65 0 001-1.51V3.4a2 2 0 114 0v.09A1.65 1.65 0 0015 5.4a1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06A1.65 1.65 0 0019 9c.36.24.83.4 1.31.4H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+                </button>
                 <input id="chatSearchInput" class="chat-sb-search" type="text" placeholder="Поиск по чатам..." oninput="filterConversations()">
                 <button type="button" class="chat-hdr-btn" id="sbSearchClose" onclick="closeSbSearch()" title="Закрыть поиск" aria-label="Закрыть поиск">✕</button>
             </div>
@@ -2173,10 +2170,6 @@
                 <button type="button" onclick="closeCreateMenu();openMyChannel()"><span>📢</span><div><b>Канал</b><i>публикации для подписчиков, попадают в Ленту</i></div></button>
                 <button type="button" onclick="closeCreateMenu();openMyBlog()"><span>📝</span><div><b>Блог</b><i>статьи с просмотрами и лайками</i></div></button>
             </div>
-            <!-- Нижняя строка списка, как в Telegram: с виду такая же строка, но это настройки -->
-            <button type="button" class="chat-sb-settings" onclick="openChatSettings()" title="Настройки">
-                <span class="sbs-ico">⚙️</span><span class="sbs-name">Настройки</span>
-            </button>
             </div>
             <!-- Край для перетаскивания ширины списка -->
             <div class="pane-resizer" id="paneResizer" title="Потяните, чтобы изменить ширину"></div>
@@ -3638,14 +3631,14 @@
          * pinnedHtml — то, что должно остаться на виду (кнопка сессии с таймером).
          */
         function headerActionsHtml(actions, pinnedHtml) {
-            headerActions = (actions || []).filter(Boolean);
-            const dots = headerActions.length
-                ? `<button class="hdr-icon-btn" onclick="openHeaderActions(event)" title="Действия" aria-label="Действия">${HDR_DOTS_SVG}</button>`
-                : '';
+            // «В кабинет» раньше висела отдельной иконкой прямо в шапке открытой переписки —
+            // лишняя кнопка, когда человек уже читает конкретный диалог. Переносим её в «⋮».
+            headerActions = (actions || []).filter(Boolean)
+                .concat([{ icon: HDR_EXIT_SVG, label: 'В личный кабинет', href: getDashboardUrl() }]);
+            const dots = `<button class="hdr-icon-btn" onclick="openHeaderActions(event)" title="Действия" aria-label="Действия">${HDR_DOTS_SVG}</button>`;
             return `<div class="chat-header-actions">
                         ${pinnedHtml || ''}
                         ${dots}
-                        <a href="${getDashboardUrl()}" class="hdr-icon-btn" title="Вернуться в личный кабинет" aria-label="В кабинет">${HDR_EXIT_SVG}</a>
                     </div>`;
         }
 
@@ -5159,6 +5152,38 @@
         window.addEventListener('resize', syncFolderPlacement);
         window.addEventListener('orientationchange', syncFolderPlacement);
 
+        /** Порядок вкладок папок — как они выведены в renderFolderTabs (без «Папка»/«Правка»). */
+        function folderTabIds() {
+            return BUILTIN_FOLDERS.map(f => f.id).concat(myFolders.map(f => 'u' + f.id));
+        }
+
+        /** Свайп влево/вправо по списку чатов на телефоне переключает вкладку папки сверху,
+         *  как переход между разделами в Telegram/MAX. Работает только по списку диалогов —
+         *  открытую переписку свайпом не трогаем, там жест уже занят (в т.ч. системным «назад»). */
+        (function wireFolderSwipe() {
+            const list = document.getElementById('conversationsList');
+            if (!list) return;
+            let sx = 0, sy = 0, tracking = false;
+            list.addEventListener('touchstart', function (e) {
+                if (e.touches.length !== 1) { tracking = false; return; }
+                sx = e.touches[0].clientX; sy = e.touches[0].clientY; tracking = true;
+            }, { passive: true });
+            list.addEventListener('touchend', function (e) {
+                if (!tracking) return;
+                tracking = false;
+                const t = e.changedTouches[0];
+                const dx = t.clientX - sx, dy = t.clientY - sy;
+                // Явно горизонтальный жест — иначе обычная вертикальная прокрутка списка
+                // будет то и дело случайно переключать папку.
+                if (Math.abs(dx) < 55 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
+                const ids = folderTabIds();
+                const i = ids.indexOf(activeFolder);
+                if (i < 0) return;
+                const next = dx < 0 ? i + 1 : i - 1;
+                if (next >= 0 && next < ids.length) setActiveFolder(ids[next]);
+            }, { passive: true });
+        })();
+
         /** Свой канал. У психолога он один и заводится вместе с профилем — «создать»
          *  означает открыть его и написать первый пост, как в Telegram. */
         async function openMyChannel() {
@@ -5850,14 +5875,20 @@
             lastTapId = id; lastTapAt = now;
         }, { passive: true });
 
-        // Клик по сообщению в режиме выделения переключает выбор
+        // Клик по сообщению в режиме выделения переключает выбор. Ставим на фазе перехвата
+        // (capture) и глушим дальнейшее всплытие — иначе клик по фото в выделенном сообщении
+        // не только переключал выбор, но и долетал до lightbox.js (тот слушает document на
+        // фазе всплытия) и поверх открывал просмотр картинки, мешая выделять.
         document.addEventListener('click', function (e) {
             if (!selectMode) return;
             const msg = e.target.closest && e.target.closest('.message');
             if (!msg) return;
             const id = msg.getAttribute('data-msg-id') || msg.getAttribute('data-fav-id');
-            if (id) { e.preventDefault(); toggleSelect(id); }
-        });
+            if (!id) return;
+            e.preventDefault();
+            e.stopPropagation();
+            toggleSelect(id);
+        }, true);
 
         /** Значок «диалог закреплён» в строке списка. */
         function pinMarkHtml(chatKey) {
@@ -7653,8 +7684,12 @@
                 bar = document.createElement('div');
                 bar.id = 'chatSearchBar';
                 bar.className = 'chat-search';
+                // ВАЖНО: id инпута — msgSearchInput, а не chatSearchInput. Тот id уже занят полем
+                // поиска по списку чатов в сайдбаре (оно есть на странице всегда), и совпадение
+                // id ломало document.getElementById здесь — значение читалось из чужого поля,
+                // поэтому поиск по переписке выглядел так, будто вообще не реагирует на ввод.
                 bar.innerHTML = `
-                    <input id="chatSearchInput" placeholder="Найти в переписке…" oninput="runChatSearch()"
+                    <input id="msgSearchInput" placeholder="Найти в переписке…" oninput="runChatSearch()"
                            onkeydown="if(event.key==='Enter'){event.preventDefault();stepSearch(event.shiftKey?-1:1);}
                                       if(event.key==='Escape')closeChatSearch();">
                     <span id="chatSearchCount" class="cs-count"></span>
@@ -7665,7 +7700,7 @@
                 area.parentNode.insertBefore(bar, area);
             }
             bar.style.display = 'flex';
-            const inp = document.getElementById('chatSearchInput');
+            const inp = document.getElementById('msgSearchInput');
             inp.focus();
             inp.select();
             runChatSearch();
@@ -7682,7 +7717,7 @@
         window.closeChatSearch = closeChatSearch;
 
         function runChatSearch() {
-            const q = (document.getElementById('chatSearchInput') || {}).value || '';
+            const q = (document.getElementById('msgSearchInput') || {}).value || '';
             document.querySelectorAll('.message').forEach(el => el.classList.remove('search-hit', 'search-current'));
             searchHits = []; searchPos = -1;
             const needle = q.trim().toLowerCase();

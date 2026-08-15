@@ -525,8 +525,13 @@
           '<input id="psySupEmail" type="email" placeholder="Email для ответа" style="width:100%;padding:0.6rem 0.75rem;border:1.5px solid #E5E7EB;border-radius:0.6rem;font-family:inherit;font-size:0.9rem;outline:none;margin-bottom:0.5rem;">' +
           '<select id="psySupRole" style="width:100%;padding:0.6rem 0.75rem;border:1.5px solid #E5E7EB;border-radius:0.6rem;font-family:inherit;font-size:0.9rem;outline:none;margin-bottom:0.5rem;background:#fff;">' + roleOpts + '</select>' +
           '<textarea id="psySupFirstMsg" placeholder="Ваш вопрос..." style="width:100%;height:72px;padding:0.6rem 0.75rem;border:1.5px solid #E5E7EB;border-radius:0.6rem;font-family:inherit;font-size:0.9rem;outline:none;resize:vertical;margin-bottom:0.5rem;"></textarea>' +
+          '<div id="psySupFormAttachPreview" style="display:none;padding:0 0 0.5rem;font-size:0.78rem;color:#7C3AED;"></div>' +
           '<div id="psySupFormErr" style="display:none;color:#DC2626;font-size:0.8rem;margin-bottom:0.5rem;"></div>' +
-          '<button id="psySupStart" style="width:100%;padding:0.7rem;background:linear-gradient(135deg,#7C3AED,#9F67FA);color:#fff;border:none;border-radius:0.6rem;font-weight:700;cursor:pointer;font-family:inherit;">Начать чат</button>' +
+          '<div style="display:flex;gap:0.5rem;align-items:center;">' +
+            '<button type="button" id="psySupFormAttachBtn" title="Прикрепить файл" style="width:38px;height:38px;flex-shrink:0;border-radius:50%;border:1.5px solid #E5E7EB;background:none;cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center;color:#6B7280;">📎</button>' +
+            '<input type="file" id="psySupFormFileInput" accept="image/*,.pdf,.txt,.doc,.docx" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0;padding:0;margin:-1px;">' +
+            '<button id="psySupStart" style="flex:1;padding:0.7rem;background:linear-gradient(135deg,#7C3AED,#9F67FA);color:#fff;border:none;border-radius:0.6rem;font-weight:700;cursor:pointer;font-family:inherit;">Начать чат</button>' +
+          '</div>' +
         '</div>' +
         '<div id="psySupChat" style="display:none;flex:1;flex-direction:column;min-height:0;">' +
           '<div id="psySupMsgs" style="flex:1;overflow-y:auto;padding:0.85rem;display:flex;flex-direction:column;gap:0.5rem;background:#F7F8FA;"></div>' +
@@ -534,6 +539,7 @@
           '<div style="display:flex;gap:0.5rem;padding:0.6rem;border-top:1px solid #eee;align-items:center;">' +
             '<button id="psySupAttachBtn" title="Прикрепить файл" style="width:36px;height:36px;border-radius:50%;border:1px solid #E5E7EB;background:none;cursor:pointer;font-size:1rem;flex-shrink:0;display:flex;align-items:center;justify-content:center;color:#6B7280;">📎</button>' +
             '<input type="file" id="psySupFileInput" accept="image/*,.pdf,.txt,.doc,.docx" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0;padding:0;margin:-1px;">' +
+            '<button id="psySupVoiceBtn" title="Голосовое сообщение" style="width:36px;height:36px;border-radius:50%;border:1px solid #E5E7EB;background:none;cursor:pointer;font-size:1rem;flex-shrink:0;display:flex;align-items:center;justify-content:center;color:#6B7280;">🎤</button>' +
             '<input id="psySupInput" placeholder="Сообщение..." style="flex:1;padding:0.6rem 0.8rem;border:1.5px solid #E5E7EB;border-radius:1.2rem;font-family:inherit;font-size:0.9rem;outline:none;">' +
             '<button id="psySupSend" style="width:42px;height:42px;border-radius:50%;border:none;background:linear-gradient(135deg,#7C3AED,#9F67FA);color:#fff;cursor:pointer;font-size:1.05rem;flex-shrink:0;">➤</button>' +
           '</div>' +
@@ -601,9 +607,13 @@
     function renderAttachment(m) {
       if (!m.attachment_url) return '';
       var isImg = (m.attachment_type || '').indexOf('image') === 0;
+      var isAudio = (m.attachment_type || '').indexOf('audio') === 0;
       if (isImg) {
         // просмотр во весь экран делает lightbox.js; window.open открывал вторую вкладку поверх него
         return '<div style="margin-top:0.3rem;"><img src="' + escSup(m.attachment_url) + '" style="max-width:200px;max-height:150px;border-radius:0.5rem;cursor:pointer;" data-zoom></div>';
+      }
+      if (isAudio) {
+        return '<div style="margin-top:0.3rem;"><audio controls src="' + escSup(m.attachment_url) + '" style="max-width:220px;height:34px;"></audio></div>';
       }
       return '<div style="margin-top:0.3rem;"><a href="' + escSup(m.attachment_url) + '" target="_blank" style="color:inherit;text-decoration:underline;font-size:0.8rem;">📎 ' + escSup(m.attachment_name || 'файл') + '</a></div>';
     }
@@ -692,6 +702,8 @@
       });
     }
 
+    // Вложение к самому первому сообщению (форма) хранится в той же переменной, что и в чате:
+    // формы и чат никогда не видны одновременно — сначала форма, потом (после старта) чат.
     document.getElementById('psySupStart').addEventListener('click', function () {
       var err = document.getElementById('psySupFormErr');
       var msg = document.getElementById('psySupFirstMsg').value.trim();
@@ -699,9 +711,14 @@
       var email = user ? '' : document.getElementById('psySupEmail').value.trim();
       var role = user ? '' : document.getElementById('psySupRole').value;
       if (!user && !name) { err.textContent = 'Укажите имя'; err.style.display = 'block'; return; }
-      if (!msg) { err.textContent = 'Введите вопрос'; err.style.display = 'block'; return; }
+      if (!msg && !pendingFile) { err.textContent = 'Введите вопрос или прикрепите файл'; err.style.display = 'block'; return; }
       err.style.display = 'none';
-      doStart(msg, name, email, role).catch(function () { err.textContent = 'Не удалось отправить. Попробуйте ещё раз.'; err.style.display = 'block'; });
+      var att = pendingFile; pendingFile = null;
+      var preview = document.getElementById('psySupFormAttachPreview'); if (preview) preview.style.display = 'none';
+      doStart(msg, name, email, role, att).catch(function () {
+        pendingFile = att;
+        err.textContent = 'Не удалось отправить. Попробуйте ещё раз.'; err.style.display = 'block';
+      });
     });
 
     function uploadFile(file, callback) {
@@ -715,8 +732,9 @@
         .catch(function() { alert('Ошибка загрузки файла'); });
     }
 
-    function showAttachPreview(name) {
-      var el = document.getElementById('psySupAttachPreview');
+    function showAttachPreview(name, targetId) {
+      var el = document.getElementById(targetId || 'psySupAttachPreview');
+      if (!el) return;
       el.innerHTML = '📎 ' + escSup(name) + ' <span style="cursor:pointer;margin-left:0.3rem;" onclick="this.parentNode.style.display=\'none\'">✕</span>';
       el.style.display = 'block';
     }
@@ -728,9 +746,57 @@
       var file = this.files[0];
       if (!file) return;
       if (file.size > 5 * 1024 * 1024) { alert('Файл слишком большой (макс. 5 МБ)'); return; }
-      uploadFile(file, function(att) { pendingFile = att; showAttachPreview(att.name); });
+      uploadFile(file, function(att) { pendingFile = att; showAttachPreview(att.name, 'psySupAttachPreview'); });
       this.value = '';
     });
+
+    var formAttachBtn = document.getElementById('psySupFormAttachBtn');
+    var formFileInput = document.getElementById('psySupFormFileInput');
+    if (formAttachBtn && formFileInput) {
+      formAttachBtn.addEventListener('click', function() { formFileInput.click(); });
+      formFileInput.addEventListener('change', function() {
+        var file = this.files[0];
+        if (!file) return;
+        if (file.size > 5 * 1024 * 1024) { alert('Файл слишком большой (макс. 5 МБ)'); return; }
+        uploadFile(file, function(att) { pendingFile = att; showAttachPreview(att.name, 'psySupFormAttachPreview'); });
+        this.value = '';
+      });
+    }
+
+    // Голосовое сообщение: тап — начать запись, повторный тап — остановить и отправить сразу,
+    // как в основном чате. Доступно только когда переписка уже открыта (после первого сообщения).
+    var voiceBtn = document.getElementById('psySupVoiceBtn');
+    if (voiceBtn) {
+      var voiceRecorder = null, voiceChunks = [], voiceStream = null;
+      voiceBtn.addEventListener('click', function () {
+        if (voiceRecorder && voiceRecorder.state === 'recording') { voiceRecorder.stop(); return; }
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || !window.MediaRecorder) {
+          alert('Голосовые сообщения не поддерживаются этим браузером'); return;
+        }
+        navigator.mediaDevices.getUserMedia({ audio: true }).then(function (stream) {
+          voiceStream = stream;
+          voiceChunks = [];
+          try { voiceRecorder = new MediaRecorder(stream); } catch (e) { alert('Не удалось начать запись'); return; }
+          voiceRecorder.ondataavailable = function (e) { if (e.data && e.data.size) voiceChunks.push(e.data); };
+          voiceRecorder.onstop = function () {
+            voiceStream.getTracks().forEach(function (t) { t.stop(); });
+            voiceBtn.style.background = 'none'; voiceBtn.style.color = '#6B7280';
+            var blob = new Blob(voiceChunks, { type: 'audio/webm' });
+            if (!blob.size) return;
+            var file = new File([blob], 'voice-message.webm', { type: 'audio/webm' });
+            uploadFile(file, function (att) {
+              if (!token) { doStart('', '', '', '', att).catch(function () { alert('Не удалось отправить голосовое'); }); return; }
+              fetch('/api/support.php?action=send', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+                body: JSON.stringify({ token: token, message: '', attachment_url: att.url, attachment_type: att.type, attachment_name: att.name })
+              }).then(function () { poll(); }).catch(function () { alert('Не удалось отправить голосовое'); });
+            });
+          };
+          voiceRecorder.start();
+          voiceBtn.style.background = '#DC2626'; voiceBtn.style.color = '#fff';
+        }).catch(function () { alert('Нет доступа к микрофону'); });
+      });
+    }
 
     var supInput = document.getElementById('psySupInput');
     supInput.addEventListener('paste', function(e) {
