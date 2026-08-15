@@ -72,6 +72,8 @@
             background: white;
             display: flex;
             flex-direction: column;
+            /* Список едет по X при свайпе папок — прячем то, что уезжает за границу панели. */
+            overflow-x: hidden;
         }
         .pane-resizer {
             position: absolute; top: 0; bottom: 0; right: -3px; width: 7px;
@@ -110,6 +112,58 @@
         .chat-sb-head.searching .chat-sb-search { display: block; }
         .chat-sb-head.searching #sbSearchClose { display: flex; }
 
+        /* ── Истории: кружки над списком чатов, как в Telegram/MAX ── */
+        .stories-row {
+            display: flex; gap: 0.7rem; padding: 0.7rem 0.75rem; overflow-x: auto;
+            flex-shrink: 0; border-bottom: 1px solid #e0e0e0; scrollbar-width: none;
+        }
+        .stories-row::-webkit-scrollbar { display: none; }
+        .story-item { flex-shrink: 0; width: 58px; text-align: center; cursor: pointer; border: none; background: none; font-family: inherit; padding: 0; }
+        .story-ring {
+            width: 54px; height: 54px; border-radius: 50%; padding: 2.5px;
+            background: #D1D5DB; /* просмотрено или нет своих историй */
+            display: flex; align-items: center; justify-content: center; margin: 0 auto;
+        }
+        .story-ring.unseen { background: linear-gradient(135deg,#7C3AED,#F59E0B,#EC4899); }
+        .story-ring.mine-empty { background: none; border: 1.5px dashed #9CA3AF; }
+        .story-avatar {
+            width: 100%; height: 100%; border-radius: 50%; background: linear-gradient(135deg,#7C3AED,#9F67FA);
+            color: #fff; display: flex; align-items: center; justify-content: center;
+            font-weight: 700; font-size: 1.1rem; overflow: hidden; border: 2px solid #fff;
+            position: relative;
+        }
+        .story-avatar img { width: 100%; height: 100%; object-fit: cover; }
+        .story-avatar .story-plus {
+            position: absolute; right: -2px; bottom: -2px; width: 18px; height: 18px; border-radius: 50%;
+            background: #7C3AED; color: #fff; display: flex; align-items: center; justify-content: center;
+            font-size: 0.85rem; border: 2px solid #fff; line-height: 1;
+        }
+        .story-name { font-size: 0.7rem; color: #6B7280; margin-top: 0.25rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        body.dark .stories-row { border-bottom-color: #333; }
+        body.dark .story-name { color: #9CA3AF; }
+        body.dark .story-ring { background: #444; }
+
+        /* ── Полноэкранный просмотр историй ── */
+        #storyViewer {
+            position: fixed; inset: 0; z-index: 4500; display: none; background: #000;
+            align-items: center; justify-content: center; flex-direction: column;
+        }
+        #storyViewer.open { display: flex; }
+        .story-viewer-card { position: relative; width: 100%; max-width: 420px; height: 100%; max-height: 100vh; background: #111; overflow: hidden; }
+        .story-progress-row { position: absolute; top: 0.6rem; left: 0.6rem; right: 0.6rem; display: flex; gap: 4px; z-index: 2; }
+        .story-progress-track { flex: 1; height: 3px; background: rgba(255,255,255,0.3); border-radius: 3px; overflow: hidden; }
+        .story-progress-fill { height: 100%; width: 0; background: #fff; transition: width linear; }
+        .story-viewer-head { position: absolute; top: 1.1rem; left: 0.6rem; right: 0.6rem; display: flex; align-items: center; gap: 0.5rem; z-index: 2; color: #fff; }
+        .story-viewer-head .sv-ava { width: 30px; height: 30px; border-radius: 50%; background: linear-gradient(135deg,#7C3AED,#9F67FA); display: flex; align-items: center; justify-content: center; font-size: 0.85rem; font-weight: 700; overflow: hidden; }
+        .story-viewer-head .sv-ava img { width: 100%; height: 100%; object-fit: cover; }
+        .story-viewer-head .sv-name { font-size: 0.85rem; font-weight: 600; flex: 1; text-shadow: 0 1px 3px rgba(0,0,0,0.5); }
+        .story-viewer-head .sv-close { background: none; border: none; color: #fff; font-size: 1.3rem; cursor: pointer; line-height: 1; padding: 0.2rem 0.4rem; }
+        .story-viewer-head .sv-del { background: none; border: none; color: #fff; font-size: 1rem; cursor: pointer; opacity: 0.85; }
+        .story-viewer-media { width: 100%; height: 100%; object-fit: contain; user-select: none; }
+        .story-viewer-caption { position: absolute; bottom: 1rem; left: 0.8rem; right: 0.8rem; color: #fff; font-size: 0.85rem; text-align: center; text-shadow: 0 1px 3px rgba(0,0,0,0.6); z-index: 2; }
+        .story-viewer-nav { position: absolute; top: 0; bottom: 0; width: 40%; z-index: 1; background: none; border: none; cursor: pointer; }
+        .story-viewer-nav.prev { left: 0; } .story-viewer-nav.next { right: 0; }
+
         /* ── Свёрнутая шторка: остаются только аватарки, как в Telegram ── */
         .conversations-pane.collapsed { width: 76px !important; }
         .conversations-pane.collapsed .chat-folders { display: none; }
@@ -117,6 +171,7 @@
         .conversations-pane.collapsed .chat-sb-search,
         .conversations-pane.collapsed .conversation-info,
         .conversations-pane.collapsed .conversation-time { display: none; }
+        .conversations-pane.collapsed .stories-row { display: none; }
         .conversations-pane.collapsed .conversation-item {
             justify-content: center; padding: 0.55rem 0; gap: 0;
         }
@@ -2160,7 +2215,9 @@
                 <input id="chatSearchInput" class="chat-sb-search" type="text" placeholder="Поиск по чатам..." oninput="filterConversations()">
                 <button type="button" class="chat-hdr-btn" id="sbSearchClose" onclick="closeSbSearch()" title="Закрыть поиск" aria-label="Закрыть поиск">✕</button>
             </div>
-            <div id="conversationsList" style="overflow-y:auto;flex:1;min-height:0;">
+            <div id="storiesRow" class="stories-row" style="display:none;"></div>
+            <input type="file" id="storyFileInput" accept="image/*" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;">
+            <div id="conversationsList" style="overflow-y:auto;flex:1;min-height:0;touch-action:pan-y;">
                 <div class="no-conversations">Загрузка...</div>
             </div>
             <!-- Круглый «плюс», как в Telegram: создать группу, канал или блог, не уходя из чата -->
@@ -2553,6 +2610,23 @@
         </div>
     </div>
 
+    <!-- Полноэкранный просмотр историй -->
+    <div id="storyViewer" onclick="storyViewerBgClick(event)">
+        <div class="story-viewer-card">
+            <div class="story-progress-row" id="storyProgressRow"></div>
+            <div class="story-viewer-head">
+                <div class="sv-ava" id="storyViewerAva"></div>
+                <div class="sv-name" id="storyViewerName"></div>
+                <button type="button" class="sv-del" id="storyViewerDel" onclick="deleteCurrentStory()" title="Удалить" style="display:none;">🗑</button>
+                <button type="button" class="sv-close" onclick="closeStoryViewer()" title="Закрыть" aria-label="Закрыть">✕</button>
+            </div>
+            <img class="story-viewer-media" id="storyViewerMedia" alt="История">
+            <div class="story-viewer-caption" id="storyViewerCaption" style="display:none;"></div>
+            <button type="button" class="story-viewer-nav prev" onclick="storyStep(-1)" aria-label="Предыдущая"></button>
+            <button type="button" class="story-viewer-nav next" onclick="storyStep(1)" aria-label="Следующая"></button>
+        </div>
+    </div>
+
     <script src="/js/api.js"></script>
     <script src="/js/auth.js"></script>
     <script src="/js/lightbox.js?v=2"></script>
@@ -2588,6 +2662,17 @@
             if (currentUser.role === 'psychologist') return '/psychologist-dashboard.html';
             if (currentUser.role === 'admin') return '/dashboard-admin.html';
             return '/client-dashboard.html';
+        }
+        // Держим открытый диалог/раздел в URL (?open=<ключ>), чтобы обновление страницы (F5)
+        // возвращало туда же, а не сбрасывало на пустой список — раньше выбор жил только в JS-памяти.
+        function syncChatUrl(key) {
+            try {
+                const params = new URLSearchParams(window.location.search);
+                params.delete('user'); params.delete('support');
+                if (key) params.set('open', key); else params.delete('open');
+                const qs = params.toString();
+                history.replaceState(null, '', window.location.pathname + (qs ? '?' + qs : ''));
+            } catch (e) {}
         }
         function goToCabinet() { location.href = getDashboardUrl(); }
         // Поиск в шапке списка: свёрнут в иконку, по клику разворачивается на всю ширину.
@@ -2668,7 +2753,7 @@
                 const preview = c.last_post_text ? (label + ' · ' + previewText(c.last_post_text).slice(0, 30))
                     : (c.channel_description ? (label + ' · ' + c.channel_description.slice(0, 34)) : (label + ' · публикации психолога'));
                 if (!chatVisible('channel', activeId, c.last_post_at)) return;
-                out.push({ key: activeId, html: `
+                out.push({ key: activeId, name, html: `
                     <div class="conversation-item ${activeId === selectedUserId ? 'active' : ''}" onclick="openChannel('${c.psychologist_id}')" title="${escapeHtml(name)}">
                         <div class="conversation-avatar has-badge">
                             ${ava ? `<img src="${escapeHtml(ava)}" alt="${escapeHtml(name)}">` : initial}
@@ -2721,7 +2806,7 @@
                     : (g.description ? g.description.slice(0, 40) : 'Группа создана — напишите первым');
                 const time = g.last_message_at ? formatTime(g.last_message_at) : '';
                 if (!chatVisible('group', activeId, g.last_message_at)) return;
-                out.push({ key: activeId, html: `
+                out.push({ key: activeId, name: g.name, html: `
                     <div class="conversation-item ${activeId === selectedUserId ? 'active' : ''}" onclick="openGroupChat(${g.id})" title="${escapeHtml(g.name)}">
                         <div class="conversation-avatar" style="background:linear-gradient(135deg,#059669,#10B981);">${g.avatar_url ? `<img src="${escapeHtml(g.avatar_url)}" alt="">` : `<span class="ava-ico">${ICO_GROUP}</span>`}</div>
                         <div class="conversation-info">
@@ -2747,6 +2832,7 @@
             loadMentionMembers(groupId);   // чтобы подсказка по @ знала, кого предлагать
             editingMessageId = null;
             selectedUserId = GROUP_PREFIX + groupId;
+            syncChatUrl(selectedUserId);
             document.body.classList.remove('ai-chat');
             editingMessageId = null;
             headerRenderedFor = selectedUserId;
@@ -3197,6 +3283,7 @@
         async function openChannel(psychId) {
             pinnedMessage = null; renderPinnedBar();
             selectedUserId = CHANNEL_PREFIX + psychId;
+            syncChatUrl(selectedUserId);
             document.body.classList.remove('ai-chat');
             editingMessageId = null;
             headerRenderedFor = selectedUserId;
@@ -3372,6 +3459,7 @@
         async function openFeedSection() {
             pinnedMessage = null; renderPinnedBar();
             selectedUserId = FEED_ID;
+            syncChatUrl(selectedUserId);
             document.body.classList.remove('ai-chat');
             editingMessageId = null;
             headerRenderedFor = FEED_ID;
@@ -4085,6 +4173,9 @@
             await loadChatPrefs();
             initPaneResizer();
             await loadConversations();
+            loadStoriesRow();   // не await — истории не должны задерживать открытие чатов
+            if (storiesPollTimer) clearInterval(storiesPollTimer);
+            storiesPollTimer = setInterval(loadStoriesRow, 60000);
 
             // Автоматически открыть чат если есть user в URL
             if (openFromUrl) {
@@ -4517,7 +4608,11 @@
                 }
 
                 allConversations = conversations;
-                renderConversationList(conversations);
+                // Список опрашивается каждые 6с (unreadPollTimer) — если человек как раз ищет,
+                // нельзя молча стирать фильтр строкой без query: результат «слова не ищутся».
+                const searchBox = document.getElementById('chatSearchInput');
+                if (searchBox && searchBox.value.trim()) filterConversations();
+                else renderConversationList(conversations);
 
             } catch (error) {
                 console.error('Load conversations error:', error);
@@ -5159,30 +5254,254 @@
 
         /** Свайп влево/вправо по списку чатов на телефоне переключает вкладку папки сверху,
          *  как переход между разделами в Telegram/MAX. Работает только по списку диалогов —
-         *  открытую переписку свайпом не трогаем, там жест уже занят (в т.ч. системным «назад»). */
+         *  открытую переписку свайпом не трогаем, там жест уже занят (в т.ч. системным «назад»).
+         *
+         *  Список тащится за пальцем (видно, куда едешь), а не переключается молча по touchend:
+         *  раньше не было ни визуального отклика, ни анимации — казалось, что экран просто
+         *  пустеет и непонятно, куда переключилось (фидбэк админа после рефока). */
         (function wireFolderSwipe() {
             const list = document.getElementById('conversationsList');
             if (!list) return;
-            let sx = 0, sy = 0, tracking = false;
+            const DURATION = 220;
+            let sx = 0, sy = 0, dx = 0, tracking = false, dragging = false;
+
+            function setTransform(px, withTransition) {
+                list.style.transition = withTransition ? `transform ${DURATION}ms ease` : 'none';
+                list.style.transform = px ? `translateX(${px}px)` : '';
+            }
+
             list.addEventListener('touchstart', function (e) {
                 if (e.touches.length !== 1) { tracking = false; return; }
-                sx = e.touches[0].clientX; sy = e.touches[0].clientY; tracking = true;
+                sx = e.touches[0].clientX; sy = e.touches[0].clientY;
+                dx = 0; tracking = true; dragging = false;
+                list.style.transition = 'none';
             }, { passive: true });
-            list.addEventListener('touchend', function (e) {
+
+            list.addEventListener('touchmove', function (e) {
+                if (!tracking || e.touches.length !== 1) return;
+                dx = e.touches[0].clientX - sx;
+                const dy = e.touches[0].clientY - sy;
+                if (!dragging) {
+                    if (Math.abs(dx) < 10 && Math.abs(dy) < 10) return;
+                    // Явно горизонтальный жест — иначе обычная вертикальная прокрутка списка
+                    // будет то и дело случайно переключать папку.
+                    if (Math.abs(dx) <= Math.abs(dy) * 1.2) { tracking = false; return; }
+                    dragging = true;
+                }
+                const max = list.clientWidth || 300;
+                setTransform(Math.max(-max, Math.min(max, dx)), false);
+            }, { passive: true });
+
+            list.addEventListener('touchend', function () {
                 if (!tracking) return;
                 tracking = false;
-                const t = e.changedTouches[0];
-                const dx = t.clientX - sx, dy = t.clientY - sy;
-                // Явно горизонтальный жест — иначе обычная вертикальная прокрутка списка
-                // будет то и дело случайно переключать папку.
-                if (Math.abs(dx) < 55 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
+                if (!dragging) return;
+                dragging = false;
+
                 const ids = folderTabIds();
                 const i = ids.indexOf(activeFolder);
-                if (i < 0) return;
+                const width = list.clientWidth || 300;
                 const next = dx < 0 ? i + 1 : i - 1;
-                if (next >= 0 && next < ids.length) setActiveFolder(ids[next]);
+                const passed = Math.abs(dx) > Math.min(90, width * 0.22);
+
+                if (passed && i >= 0 && next >= 0 && next < ids.length) {
+                    // Докручиваем уход текущего списка за край, потом — папка меняется,
+                    // и новый список плавно въезжает с противоположной стороны.
+                    const dir = dx < 0 ? -1 : 1;
+                    setTransform(dir * width, true);
+                    setTimeout(() => {
+                        setActiveFolder(ids[next]);
+                        setTransform(-dir * width, false);
+                        void list.offsetWidth; // форсируем reflow — иначе браузер схлопнёт переход в один кадр
+                        setTransform(0, true);
+                    }, DURATION);
+                } else {
+                    // Не дотянули (или папка крайняя) — плавно возвращаем список на место,
+                    // а не обрезаем свайп молча посреди экрана.
+                    setTransform(0, true);
+                }
             }, { passive: true });
         })();
+
+        // ══════════════════════════════════════════════════════════════════════════════
+        //  ИСТОРИИ — кружки над списком чатов, живут 24 часа (задача «добавь истории»).
+        //  MVP: только фото, видны контактам (с кем есть переписка), без выбора круга —
+        //  решено самостоятельно, т.к. на уточняющие вопросы прошлого прогона ответа не было.
+        // ══════════════════════════════════════════════════════════════════════════════
+        let storiesPollTimer = null;
+        let storiesData = { mine: [], data: [] };      // как пришло с сервера (feed)
+        let storyViewerQueue = [];                      // плоский список {user_id,name,avatar,stories:[...]} для навигации
+        let storyViewerUserIdx = 0, storyViewerStoryIdx = 0;
+        let storyAdvanceTimer = null;
+        const STORY_DURATION_MS = 5000;
+
+        function storyInitial(name) { return ((name || '').trim().charAt(0) || '?').toUpperCase(); }
+
+        async function loadStoriesRow() {
+            const row = document.getElementById('storiesRow');
+            if (!row || !currentUser) return;
+            try {
+                const r = await fetch('/api/stories.php?action=feed', { credentials: 'include' });
+                const d = await r.json();
+                if (!d || !d.ok) { row.style.display = 'none'; return; }
+                storiesData = { mine: d.mine || [], data: d.data || [] };
+            } catch (e) { row.style.display = 'none'; return; }
+
+            const mine = storiesData.mine[0] || null;
+            const hasMine = mine && mine.stories && mine.stories.length;
+            const items = [];
+            items.push(`
+                <button type="button" class="story-item" onclick="${hasMine ? 'openStoryViewer(true,0,0)' : 'addStoryClick()'}" title="${hasMine ? 'Ваша история' : 'Добавить историю'}">
+                    <div class="story-ring ${hasMine ? '' : 'mine-empty'}">
+                        <div class="story-avatar">
+                            ${currentUser.avatar ? `<img src="${escapeHtml(currentUser.avatar)}" alt="">` : storyInitial((currentUser.first_name || '') + ' ' + (currentUser.last_name || ''))}
+                            <span class="story-plus" onclick="event.stopPropagation();addStoryClick();">＋</span>
+                        </div>
+                    </div>
+                    <div class="story-name">Вы</div>
+                </button>`);
+            storiesData.data.forEach((u, idx) => {
+                items.push(`
+                    <button type="button" class="story-item" onclick="openStoryViewer(false,${idx},0)" title="${escapeHtml(u.name)}">
+                        <div class="story-ring ${u.has_unseen ? 'unseen' : ''}">
+                            <div class="story-avatar">${u.avatar ? `<img src="${escapeHtml(u.avatar)}" alt="">` : storyInitial(u.name)}</div>
+                        </div>
+                        <div class="story-name">${escapeHtml((u.name || '').split(' ')[0] || 'Контакт')}</div>
+                    </button>`);
+            });
+            if (!hasMine && !storiesData.data.length) { row.style.display = 'none'; row.innerHTML = ''; return; }
+            row.style.display = 'flex';
+            row.innerHTML = items.join('');
+        }
+
+        function addStoryClick() {
+            const inp = document.getElementById('storyFileInput');
+            if (inp) inp.click();
+        }
+        document.addEventListener('DOMContentLoaded', () => {
+            const inp = document.getElementById('storyFileInput');
+            if (inp) inp.addEventListener('change', async function () {
+                const file = this.files && this.files[0];
+                this.value = '';
+                if (!file) return;
+                if (!/^image\//.test(file.type)) { alert('Пока можно только фото.'); return; }
+                if (file.size > MAX_UPLOAD_MB * 1024 * 1024) { alert(`Файл больше ${MAX_UPLOAD_MB} МБ — выберите поменьше.`); return; }
+                try {
+                    const url = await uploadImage(file);
+                    const r = await fetch('/api/stories.php?action=create', {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+                        body: JSON.stringify({ media_url: url, media_type: 'image' })
+                    });
+                    const d = await r.json();
+                    if (!d || !d.ok) throw new Error((d && d.error) || 'Ошибка');
+                    toast('История опубликована — видна 24 часа');
+                    await loadStoriesRow();
+                } catch (e) { alert('Не удалось опубликовать историю: ' + e.message); }
+            });
+        });
+
+        /** Открыть просмотр: isMine — свой блок, idx — индекс в storiesData.data, storyIdx — с какой истории начать. */
+        function openStoryViewer(isMine, idx, storyIdx) {
+            storyViewerQueue = isMine ? storiesData.mine : storiesData.data;
+            storyViewerUserIdx = idx || 0;
+            storyViewerStoryIdx = storyIdx || 0;
+            if (!storyViewerQueue.length || !storyViewerQueue[storyViewerUserIdx]) return;
+            document.getElementById('storyViewer').classList.add('open');
+            document.body.style.overflow = 'hidden';
+            paintStory();
+        }
+        window.openStoryViewer = openStoryViewer;
+
+        function closeStoryViewer() {
+            clearTimeout(storyAdvanceTimer);
+            document.getElementById('storyViewer').classList.remove('open');
+            document.body.style.overflow = '';
+            document.getElementById('storyViewerMedia').src = '';
+            loadStoriesRow();  // обновить кольца «просмотрено» в списке
+        }
+        window.closeStoryViewer = closeStoryViewer;
+
+        function storyViewerBgClick(evt) {
+            if (evt.target.id === 'storyViewer') closeStoryViewer();
+        }
+        window.storyViewerBgClick = storyViewerBgClick;
+
+        function currentStoryUser() { return storyViewerQueue[storyViewerUserIdx] || null; }
+        function currentStory() { const u = currentStoryUser(); return u ? (u.stories[storyViewerStoryIdx] || null) : null; }
+
+        function paintStory() {
+            clearTimeout(storyAdvanceTimer);
+            const u = currentStoryUser();
+            const s = currentStory();
+            if (!u || !s) { closeStoryViewer(); return; }
+
+            document.getElementById('storyViewerAva').innerHTML = u.avatar ? `<img src="${escapeHtml(u.avatar)}" alt="">` : storyInitial(u.name);
+            document.getElementById('storyViewerName').textContent = u.is_mine ? 'Вы' : (u.name || 'Контакт');
+            document.getElementById('storyViewerMedia').src = s.media_url;
+            const cap = document.getElementById('storyViewerCaption');
+            if (s.caption) { cap.textContent = s.caption; cap.style.display = 'block'; } else { cap.style.display = 'none'; }
+            document.getElementById('storyViewerDel').style.display = u.is_mine ? 'flex' : 'none';
+
+            const track = document.getElementById('storyProgressRow');
+            track.innerHTML = u.stories.map(() => '<div class="story-progress-track"><div class="story-progress-fill"></div></div>').join('');
+            const fills = track.querySelectorAll('.story-progress-fill');
+            fills.forEach((f, i) => { f.style.transition = 'none'; f.style.width = i < storyViewerStoryIdx ? '100%' : '0%'; });
+
+            if (!u.is_mine && !s.seen) {
+                fetch('/api/stories.php?action=view', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+                    body: JSON.stringify({ story_id: s.id })
+                }).catch(() => {});
+                s.seen = true;
+            }
+
+            const activeFill = fills[storyViewerStoryIdx];
+            if (activeFill) {
+                requestAnimationFrame(() => {
+                    activeFill.style.transition = `width ${STORY_DURATION_MS}ms linear`;
+                    activeFill.style.width = '100%';
+                });
+            }
+            storyAdvanceTimer = setTimeout(() => storyStep(1), STORY_DURATION_MS);
+        }
+
+        /** dir: 1 — вперёд (следующая история/автор), -1 — назад. */
+        function storyStep(dir) {
+            const u = currentStoryUser();
+            if (!u) return;
+            const nextStoryIdx = storyViewerStoryIdx + dir;
+            if (nextStoryIdx >= 0 && nextStoryIdx < u.stories.length) {
+                storyViewerStoryIdx = nextStoryIdx;
+                paintStory();
+                return;
+            }
+            const nextUserIdx = storyViewerUserIdx + dir;
+            if (nextUserIdx >= 0 && nextUserIdx < storyViewerQueue.length) {
+                storyViewerUserIdx = nextUserIdx;
+                storyViewerStoryIdx = dir > 0 ? 0 : (storyViewerQueue[nextUserIdx].stories.length - 1);
+                paintStory();
+                return;
+            }
+            closeStoryViewer();
+        }
+        window.storyStep = storyStep;
+
+        async function deleteCurrentStory() {
+            const s = currentStory();
+            if (!s || !confirm('Удалить эту историю?')) return;
+            try {
+                await fetch('/api/stories.php?action=delete', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+                    body: JSON.stringify({ story_id: s.id })
+                });
+                const u = currentStoryUser();
+                u.stories.splice(storyViewerStoryIdx, 1);
+                if (!u.stories.length) { closeStoryViewer(); return; }
+                if (storyViewerStoryIdx >= u.stories.length) storyViewerStoryIdx = u.stories.length - 1;
+                paintStory();
+            } catch (e) { alert('Не удалось удалить'); }
+        }
+        window.deleteCurrentStory = deleteCurrentStory;
 
         /** Свой канал. У психолога он один и заводится вместе с профилем — «создать»
          *  означает открыть его и написать первый пост, как в Telegram. */
@@ -5993,7 +6312,7 @@
         // списка диалогов, доступен в любой роли (задача #28).
         function favoritesRows() {
             if (!chatVisible('fav', FAVORITES_ID, null)) return [];
-            return [{ key: FAVORITES_ID, html: `
+            return [{ key: FAVORITES_ID, name: 'Избранное', html: `
                 <div class="conversation-item conv-sep ${selectedUserId === FAVORITES_ID ? 'active' : ''}" onclick="openFavorites()" title="Избранное">
                     <div class="conversation-avatar" style="background:linear-gradient(135deg,#F59E0B,#FBBF24);"><span class="ava-ico">${ICO_STAR}</span></div>
                     <div class="conversation-info">
@@ -6007,7 +6326,7 @@
         /** Строка «ИИ-ассистент» — бот, всегда рядом с Избранным. */
         function aiRows() {
             if (!chatVisible('ai', AI_ID, null)) return [];
-            return [{ key: AI_ID, html: `
+            return [{ key: AI_ID, name: 'ИИ-ассистент', html: `
                 <div class="conversation-item ${selectedUserId === AI_ID ? 'active' : ''}" onclick="openAiBot()" title="ИИ-ассистент">
                     <div class="conversation-avatar" style="background:linear-gradient(135deg,#0EA5E9,#7C3AED);"><span class="ava-ico">${ICO_BOT}</span></div>
                     <div class="conversation-info">
@@ -6021,7 +6340,7 @@
         /** Строка «Лента» — публикации каналов, на которые человек подписан. */
         function feedRows() {
             if (!chatVisible('feed', FEED_ID, null)) return [];
-            return [{ key: FEED_ID, html: `
+            return [{ key: FEED_ID, name: 'Лента', html: `
                 <div class="conversation-item ${selectedUserId === FEED_ID ? 'active' : ''}" onclick="openFeedSection()" title="Лента">
                     <div class="conversation-avatar" style="background:linear-gradient(135deg,#059669,#34D399);"><span class="ava-ico">📰</span></div>
                     <div class="conversation-info">
@@ -6039,19 +6358,23 @@
             return pinned.concat(rest);
         }
 
-        function renderConversationList(conversations) {
+        function renderConversationList(conversations, query) {
             const container = document.getElementById('conversationsList');
             // Разметку собираем строками {key, html} и только потом сортируем: закреплённые
             // должны подниматься над ВСЕМ списком, а не внутри своего блока — иначе закреплённая
             // личная переписка всё равно оставалась под группами и каналами.
+            // При активном поиске «Избранное»/бот/лента/каналы/группы тоже проверяем на совпадение —
+            // раньше они лезли в список независимо от запроса, включая закреплённые (мешали результатам).
+            const q = (query || '').trim().toLowerCase();
+            const bySpecialQuery = r => !q || (r.name || '').toLowerCase().includes(q);
             const rows = [];
             const err = channelsErrHtml() + groupsErrHtml();   // сообщения об ошибках всегда сверху
-            favoritesRows().forEach(r => rows.push(r));
-            aiRows().forEach(r => rows.push(r));
-            feedRows().forEach(r => rows.push(r));
-            channelsRows().forEach(r => rows.push(r));
-            groupsRows().forEach(r => rows.push(r));
-            const headHtml = err;
+            favoritesRows().filter(bySpecialQuery).forEach(r => rows.push(r));
+            aiRows().filter(bySpecialQuery).forEach(r => rows.push(r));
+            feedRows().filter(bySpecialQuery).forEach(r => rows.push(r));
+            channelsRows().filter(bySpecialQuery).forEach(r => rows.push(r));
+            groupsRows().filter(bySpecialQuery).forEach(r => rows.push(r));
+            const headHtml = q ? '' : err;
             if (!conversations || conversations.length === 0) {
                 const only = sortPinnedFirst(rows).map(r => r.html).join('');
                 container.innerHTML = headHtml + only + (only.indexOf('conversation-item') >= 0 ? '' : `
@@ -6120,7 +6443,7 @@
                 const email = (c.email || '').toLowerCase();
                 return name.includes(q) || phone.includes(q) || email.includes(q);
             });
-            renderConversationList(localFiltered);
+            renderConversationList(localFiltered, q);
 
             if (q.length < 2) return;
 
@@ -6136,7 +6459,7 @@
                     const extra = found
                         .filter(u => !existingIds.has(String(u.id)))
                         .map(u => Object.assign({}, u, { _isNew: true }));
-                    renderConversationList(localFiltered.concat(extra));
+                    renderConversationList(localFiltered.concat(extra), currentQ);
                 } catch (e) { /* поиск по базе недоступен — остаёмся с локальным результатом */ }
             }, 300);
         }
@@ -6230,6 +6553,7 @@
         async function openAiBot() {
             pinnedMessage = null; renderPinnedBar();
             selectedUserId = AI_ID;
+            syncChatUrl(selectedUserId);
             editingMessageId = null;
             headerRenderedFor = AI_ID;
             if (pollInterval) { clearInterval(pollInterval); pollInterval = null; }  // боту опрос не нужен
@@ -6381,6 +6705,7 @@
         async function openFavorites() {
             pinnedMessage = null; renderPinnedBar();
             selectedUserId = FAVORITES_ID;
+            syncChatUrl(selectedUserId);
             document.body.classList.remove('ai-chat');
             editingMessageId = null;
             headerRenderedFor = FAVORITES_ID;
@@ -6416,6 +6741,7 @@
 
         async function openSupportThread(threadId) {
             selectedUserId = SUPPORT_PREFIX + threadId;
+            syncChatUrl(selectedUserId);
             document.body.classList.remove('ai-chat');
             editingMessageId = null;
             headerRenderedFor = null;
@@ -6469,7 +6795,7 @@
                         attachmentHtml = isVideoNote(m)
                             ? videoNoteHtml(m.attachment_url, m.attachment_name)
                             : (isImg
-                                ? `<div class="message-attachment"><a href="${m.attachment_url}" target="_blank"><img src="${m.attachment_url}" alt="${escapeHtml(m.attachment_name || 'Изображение')}" loading="lazy"></a></div>`
+                                ? `<div class="message-attachment"><img src="${m.attachment_url}" alt="${escapeHtml(m.attachment_name || 'Изображение')}" loading="lazy"></div>`
                                 : `<div class="message-attachment"><a href="${m.attachment_url}" target="_blank" download="${m.attachment_name || 'file'}">📄 ${m.attachment_name || 'Скачать файл'}</a></div>`);
                     }
                     const content = m.body ? escapeHtml(m.body) : '';
@@ -6484,6 +6810,7 @@
 
         async function openChat(userId) {
             selectedUserId = userId;
+            syncChatUrl(selectedUserId);
             // Открыли переписку — значит прочитали: у собеседника появится вторая галочка
             presenceMarkRead();
             presenceRefresh();
@@ -6542,7 +6869,9 @@
             if (m.attachment_type === 'voice') return voicePlayerHtml(voiceKey, m.attachment_url, m.attachment_name)
                 + sttButtonHtml(voiceKey || m.id, m.attachment_url);
             if (isImageAttachment(m)) {
-                return `<div class="message-attachment"><a href="${m.attachment_url}" target="_blank"><img src="${m.attachment_url}" alt="${escapeHtml(m.attachment_name || 'Изображение')}" loading="lazy"></a></div>`;
+                // Без <a target="_blank">: раньше клик по фото открывал и лайтбокс, и оригинал
+                // отдельной вкладкой одновременно (та же причина, что и в постах канала/ленты).
+                return `<div class="message-attachment"><img src="${m.attachment_url}" alt="${escapeHtml(m.attachment_name || 'Изображение')}" loading="lazy"></div>`;
             }
             return `<div class="message-attachment"><a href="${m.attachment_url}" target="_blank" download="${escapeHtml(m.attachment_name || 'file')}">📄 ${escapeHtml(m.attachment_name || 'Скачать файл')}</a></div>`;
         }
@@ -6953,12 +7282,12 @@
                         } else if (isImageAttachment(m)) {
                             // Свёрнутый альбом — метка группы для лайтбокса: открыв любое фото,
                             // можно пролистать остальные снимки этой же отправки (задача #47).
+                            // Без <a target="_blank">: клик открывал сразу и лайтбокс, и оригинал
+                            // отдельной вкладкой (тот же баг, что чинили в постах канала/ленты).
                             const groupAttr = m.__album ? ` data-group="${escapeHtml(m.__album)}"` : '';
                             attachmentHtml = `
                                 <div class="message-attachment">
-                                    <a href="${m.attachment_url}" target="_blank"${groupAttr}>
-                                        <img src="${m.attachment_url}" alt="${escapeHtml(m.attachment_name || 'Изображение')}" loading="lazy">
-                                    </a>
+                                    <img src="${m.attachment_url}" alt="${escapeHtml(m.attachment_name || 'Изображение')}" loading="lazy"${groupAttr}>
                                 </div>
                             `;
                         } else {
