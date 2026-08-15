@@ -158,9 +158,10 @@
                     <div class="hint">${links.telegram
                         ? 'Уведомления приходят в чат «' + esc(links.telegram.label || links.telegram.chat_id) + '».'
                         : (a.telegram
-                            ? 'Подключается в 2 шага: 1) нажмите «Подключить Telegram» — откроется чат с ботом'
-                                + (state.telegram_bot ? ' @' + esc(state.telegram_bot) : '') + ', нажмите там «Start» (код уйдёт сам);'
-                                + ' 2) вернитесь сюда и нажмите «Проверить».'
+                            ? 'Подключается в 3 шага: 1) нажмите «Подключить Telegram» — появится код;'
+                                + ' 2) нажмите «Скопировать код», откройте бота'
+                                + (state.telegram_bot ? ' @' + esc(state.telegram_bot) : '') + ' и отправьте ему код (вставить и Enter);'
+                                + ' 3) вернитесь сюда и нажмите «Проверить».'
                             : 'Администратор ещё не подключил Telegram-бота.')}</div>
                     <label class="sw"><input type="checkbox" id="tgOn" ${p.telegram_enabled ? 'checked' : ''} ${links.telegram ? '' : 'disabled'}><span>Присылать в Telegram</span></label>
                     <div class="row" id="tgRow">
@@ -177,9 +178,10 @@
                     <div class="hint">${links.max
                         ? 'Уведомления приходят в чат «' + esc(links.max.label || links.max.chat_id) + '».'
                         : (a.max
-                            ? 'Подключается в 2 шага: 1) нажмите «Подключить MAX» — откроется чат с ботом'
-                                + (state.max_bot ? ' @' + esc(state.max_bot) : '') + ', нажмите там «Start» (код уйдёт сам);'
-                                + ' 2) вернитесь сюда и нажмите «Проверить».'
+                            ? 'Подключается в 3 шага: 1) нажмите «Подключить MAX» — появится код;'
+                                + ' 2) нажмите «Скопировать код», откройте бота'
+                                + (state.max_bot ? ' @' + esc(state.max_bot) : '') + ' и отправьте ему код (вставить и Enter);'
+                                + ' 3) вернитесь сюда и нажмите «Проверить».'
                             : 'Администратор ещё не подключил бота MAX.')}</div>
                     <label class="sw"><input type="checkbox" id="maxOn" ${p.max_enabled ? 'checked' : ''} ${links.max ? '' : 'disabled'}><span>Присылать в MAX</span></label>
                     <div class="row" id="maxRow">
@@ -273,17 +275,28 @@
                 } catch (e) { say('emailMsg', 'Не отправилось: ' + e.message, 'err'); }
             };
 
-            // Ссылка сразу в чат с ботом, с кодом в параметре ?start= — открывшись, мессенджер сам
-            // отправляет боту "/start <код>", и код приходит без ручного копирования (задача #46).
-            // Официальный формат: t.me/<bot>?start=<payload> (Telegram), max.ru/<bot>?start=<payload> (MAX).
-            // Если по какой-то причине бот код так не получит — ниже всё равно есть код текстом,
-            // который можно отправить вручную, как и раньше.
-            const botDeepLink = (channel, bot, code) => {
+            // Простая ссылка в чат с ботом — только открывает переписку. Мессенджеры по-разному
+            // ведут себя с параметром ?start=<код>: где-то код подставляется в поле ввода сам,
+            // а где-то нет и его всё равно приходится вставлять руками — поэтому полагаться на
+            // автоподстановку нельзя, и рядом всегда есть отдельная кнопка «Скопировать код».
+            const botOpenLink = (channel, bot) => {
                 if (!bot) return '';
-                return channel === 'telegram'
-                    ? `https://t.me/${bot}?start=${encodeURIComponent(code)}`
-                    : `https://max.ru/${bot}?start=${encodeURIComponent(code)}`;
+                return channel === 'telegram' ? `https://t.me/${bot}` : `https://max.ru/${bot}`;
             };
+
+            // Клика по кнопке достаточно — код сразу в буфере обмена, вставить можно Ctrl+V/⌘V.
+            // Старый document.execCommand('copy') — подстраховка для браузеров без Clipboard API.
+            async function copyToClipboard(text) {
+                try { await navigator.clipboard.writeText(text); return true; } catch (e) {}
+                try {
+                    const ta = document.createElement('textarea');
+                    ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+                    document.body.appendChild(ta); ta.focus(); ta.select();
+                    const ok = document.execCommand('copy');
+                    document.body.removeChild(ta);
+                    return ok;
+                } catch (e) { return false; }
+            }
 
             const codeFlow = (channel, btnId, msgId, rowId) => {
                 const btn = document.getElementById(btnId);
@@ -292,19 +305,26 @@
                     try {
                         const d = await api('link-code&channel=' + channel);
                         const botName = channel === 'telegram' ? state.telegram_bot : state.max_bot;
-                        const link = botDeepLink(channel, d.bot || botName, d.code);
+                        const link = botOpenLink(channel, d.bot || botName);
                         const openBtn = link
-                            ? `<a class="btn" href="${link}" target="_blank" rel="noopener">2️⃣ Открыть бота${d.bot ? ' @' + esc(d.bot) : ''} и отправить код</a>`
+                            ? `<a class="btn btn-ghost" href="${link}" target="_blank" rel="noopener">Открыть бота${d.bot ? ' @' + esc(d.bot) : ''}</a>`
                             : '';
                         document.getElementById(rowId).innerHTML = `
                             <div style="display:flex;flex-direction:column;gap:0.5rem;width:100%;">
-                                ${openBtn}
-                                <div style="font-size:0.82rem;color:var(--d-text-sec);">
-                                    Бот не открылся сам? Отправьте боту этот код вручную: <span class="code">${esc(d.code)}</span>
+                                <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;">
+                                    <span class="code">${esc(d.code)}</span>
+                                    <button class="btn" id="copy-${channel}" type="button">2️⃣ Скопировать код</button>
+                                    ${openBtn}
                                 </div>
                                 <button class="btn btn-ghost" id="check-${channel}" style="align-self:flex-start;">3️⃣ Проверить</button>
                             </div>`;
-                        say(msgId, 'Код действует ' + d.ttl_min + ' минут. Нажали «Открыть бота» — там сразу нажмите «Start», код уйдёт сам. Затем возвращайтесь и жмите «Проверить».', '');
+                        say(msgId, 'Код действует ' + d.ttl_min + ' минут. Скопируйте его, откройте бота, вставьте код в сообщение и отправьте — затем нажмите «Проверить».', '');
+                        document.getElementById('copy-' + channel).onclick = async (ev) => {
+                            const copyBtn = ev.currentTarget;
+                            const ok = await copyToClipboard(d.code);
+                            copyBtn.textContent = ok ? '✓ Скопировано' : 'Не удалось скопировать — выделите код вручную';
+                            setTimeout(() => { copyBtn.textContent = '2️⃣ Скопировать код'; }, 2500);
+                        };
                         document.getElementById('check-' + channel).onclick = async () => {
                             say(msgId, 'Ищем ваше сообщение…', '');
                             try {

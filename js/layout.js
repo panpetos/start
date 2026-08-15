@@ -293,7 +293,7 @@
   try {
     if (!document.querySelector('script[src*="/js/lightbox.js"]')) {
       var lb = document.createElement('script');
-      lb.src = '/js/lightbox.js';
+      lb.src = '/js/lightbox.js?v=2';
       lb.async = true;
       document.head.appendChild(lb);
     }
