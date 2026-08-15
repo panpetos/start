@@ -100,6 +100,14 @@
             border: 1.5px solid #e0e0e0; border-radius: 0.5rem;
             font-family: inherit; font-size: 0.875rem; outline: none; background: #f9fafb;
         }
+        /* Поиск свёрнут в иконку: поле и крестик прячем, показываем только при .searching.
+           Так в шапке остаётся место для кнопки «в кабинет», а поле разворачивается по клику. */
+        .chat-sb-head .chat-sb-search { display: none; }
+        .chat-sb-head #sbSearchClose { display: none; }
+        .chat-sb-head.searching #sbCabinetBtn,
+        .chat-sb-head.searching #sbSearchBtn { display: none; }
+        .chat-sb-head.searching .chat-sb-search { display: block; }
+        .chat-sb-head.searching #sbSearchClose { display: flex; }
 
         /* ── Свёрнутая шторка: остаются только аватарки, как в Telegram ── */
         .conversations-pane.collapsed { width: 76px !important; }
@@ -318,10 +326,20 @@
         .msg-hover button:hover { color: #7C3AED; }
         body.dark .msg-hover button { background: #333; color: #C4C4C4; box-shadow: 0 1px 5px rgba(0,0,0,0.4); }
         body.dark .msg-hover button:hover { color: #C9AEFB; }
-        /* На тач-устройствах наведения нет — держим кнопки видимыми и внутри пузыря */
+        /* Подвал сообщения: время + галочки прочтения, а рядом — кнопки действий.
+           На ПК кнопки абсолютные (появляются при наведении снаружи пузыря), поэтому в flex-
+           строке подвала фактически только время. На телефоне кнопки встают в эту же строку. */
+        .msg-foot { display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; }
+        /* На тач-устройствах наведения нет. Раньше кнопки были отдельной строкой под каждым
+           сообщением и растягивали пузырь по высоте — теперь они компактно в одну строку
+           справа от времени и статуса прочтения. */
         @media (hover: none) {
-            .msg-hover { opacity: 0.75; pointer-events: auto; position: static; margin-top: 0.3rem; }
-            .message.theirs .msg-hover, .message.mine .msg-hover { right: auto; left: auto; }
+            .msg-hover { opacity: 0.7; pointer-events: auto; position: static; margin: 0; padding: 0; gap: 3px; }
+            .message.theirs .msg-hover, .message.mine .msg-hover { right: auto; left: auto; flex-direction: row; }
+            .msg-hover button { width: 23px; height: 23px; box-shadow: none; }
+            .msg-foot .message-time { margin-top: 0; }
+            /* у своих (фиолетовый пузырь) кнопки — полупрозрачная белая подложка, чтобы иконки читались */
+            .message.mine .msg-hover button { background: rgba(255,255,255,0.9); }
         }
 
         /* Разметка внутри пузыря: заголовки по умолчанию 1.5em — в переписке это слишком
@@ -1903,22 +1921,27 @@
             .icon-btn { width: 36px; height: 36px; }
             .icon-btn svg { width: 20px; height: 20px; }
 
-            /* Телефон, как в Telegram: слева смайлик, по центру поле, справа скрепка и
-               одна кнопка «микрофон / кружок / отправить». Пять иконок в ряд не влезали
-               и поле ввода сжималось до нечитаемой полоски. */
+            /* Телефон: смайлик, поле, скрепка и ДВЕ отдельные кнопки — голосовое и кружок.
+               Раньше это была одна совмещённая кнопка «тап переключает / удержание пишет»,
+               но в Safari на iPhone тап не отличался от удержания и запись начиналась сразу.
+               Отдельные кнопки с обычным кликом работают одинаково в Safari и Android. */
             .chat-input { flex-wrap: nowrap; }
             .cin-emoji  { order: 1; }
             #messageInput { order: 2; flex: 1 1 auto; min-width: 0; margin-left: 0.2rem; }
             .cin-attach { order: 3; }
-            .chat-input .cin-mic { order: 4; display: inline-flex; }
-            /* Остальное на телефоне спрятано: кружок и голосовое живут в совмещённой кнопке,
-               форматирование — в меню «⋮» шапки чата. */
-            .chat-input .cin-voice, .chat-input .cin-video,
-            .chat-input .cin-format, .chat-input .cin-send { display: none; }
+            .chat-input .cin-voice { order: 4; display: inline-flex; }
+            .chat-input .cin-video { order: 5; display: inline-flex; }
+            /* Совмещённую кнопку и форматирование на телефоне не показываем */
+            .chat-input .cin-mic, .chat-input .cin-format { display: none; }
+            /* Кнопка отправки появляется, когда есть текст или вложение — тогда голосовое/кружок
+               прячем, чтобы не тесниться, как в Telegram (пусто — запись, есть текст — отправка). */
+            .chat-input .cin-send { display: none; }
+            #chatInputBar.has-text .cin-voice,
+            #chatInputBar.has-text .cin-video { display: none; }
+            #chatInputBar.has-text .cin-send { order: 6; display: inline-flex; }
             /* Пока идёт запись — кнопка заметная, как в мессенджерах */
             /* специфичность выше, чем у body.dark .icon-btn — иначе цвет перебивался темой */
-            .chat-input .cin-mic.rec { background: #DC2626; color: #fff; transform: scale(1.12); }
-            .chat-input .cin-mic.as-send { color: #7C3AED; }
+            .chat-input .cin-voice.recording { background: #DC2626; color: #fff; transform: scale(1.12); }
             .mic-hint {
                 position: absolute; left: 50%; transform: translateX(-50%);
                 bottom: 100%; margin-bottom: 0.4rem; white-space: nowrap;
@@ -2102,8 +2125,18 @@
             <div class="conversations-list">
             <!-- Сверху только поиск: кнопки создания, обоев и темы переехали вниз,
                  в «Настройки» — так шапка списка занимает меньше места. -->
-            <div class="chat-sb-head">
-                <input id="chatSearchInput" class="chat-sb-search" type="text" placeholder="🔍 Поиск..." oninput="filterConversations()">
+            <div class="chat-sb-head" id="chatSbHead">
+                <!-- Кнопка в личный кабинет: раньше «В кабинет» была только внутри открытого
+                     диалога, а на самом списке чатов (главный экран на телефоне) её не было. -->
+                <button type="button" class="chat-hdr-btn" id="sbCabinetBtn" onclick="goToCabinet()" title="В личный кабинет" aria-label="В личный кабинет">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8"/><path d="M5 10v9a1 1 0 001 1h3v-6h6v6h3a1 1 0 001-1v-9"/></svg>
+                </button>
+                <!-- Поиск свёрнут в иконку; по клику разворачивается в полноширинное поле -->
+                <button type="button" class="chat-hdr-btn" id="sbSearchBtn" onclick="openSbSearch()" title="Поиск по чатам" aria-label="Поиск по чатам">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+                </button>
+                <input id="chatSearchInput" class="chat-sb-search" type="text" placeholder="Поиск по чатам..." oninput="filterConversations()">
+                <button type="button" class="chat-hdr-btn" id="sbSearchClose" onclick="closeSbSearch()" title="Закрыть поиск" aria-label="Закрыть поиск">✕</button>
             </div>
             <div id="conversationsList" style="overflow-y:auto;flex:1;min-height:0;">
                 <div class="no-conversations">Загрузка...</div>
@@ -2538,6 +2571,23 @@
             if (currentUser.role === 'admin') return '/dashboard-admin.html';
             return '/client-dashboard.html';
         }
+        function goToCabinet() { location.href = getDashboardUrl(); }
+        // Поиск в шапке списка: свёрнут в иконку, по клику разворачивается на всю ширину.
+        function openSbSearch() {
+            const head = document.getElementById('chatSbHead');
+            if (head) head.classList.add('searching');
+            const inp = document.getElementById('chatSearchInput');
+            if (inp) { setTimeout(() => inp.focus(), 0); }
+        }
+        function closeSbSearch() {
+            const head = document.getElementById('chatSbHead');
+            if (head) head.classList.remove('searching');
+            const inp = document.getElementById('chatSearchInput');
+            if (inp && inp.value) { inp.value = ''; filterConversations(); }
+        }
+        window.goToCabinet = goToCabinet;
+        window.openSbSearch = openSbSearch;
+        window.closeSbSearch = closeSbSearch;
 
         // ── Каналы в списке диалогов (задача #29, рефок): психологу — «Мой канал», клиенту — подписки ──
         let channelsLoadError = '';
@@ -2768,8 +2818,7 @@
                     ${quoteHtml(grp.replyId)}
                     <div id="gmsg-body-${m.id}">${textHtml}</div>
                     ${attachmentHtml}
-                    <div class="message-time">${time}${editedTag}</div>
-                    ${msgHoverHtml(m.id)}
+                    <div class="msg-foot"><div class="message-time">${time}${editedTag}</div>${msgHoverHtml(m.id)}</div>
                 </div>`;
             return isMine ? bubble : `<div class="g-msg-row">${ava}${bubble}</div>`;
         }
@@ -6461,8 +6510,7 @@
                     ${quoteHtml(fav.replyId)}
                     <div id="fav-body-${m.id}">${content}</div>
                     ${attachmentHtml}
-                    <div class="message-time">${time}</div>
-                    ${msgHoverHtml(String(m.id))}
+                    <div class="msg-foot"><div class="message-time">${time}</div>${msgHoverHtml(String(m.id))}</div>
                 </div>`;
         }
 
@@ -6670,6 +6718,12 @@
                 <div class="conversation-avatar" style="background:linear-gradient(135deg,#F59E0B,#FBBF24);"><span class="ava-ico">${ICO_STAR}</span></div>
                 <div class="conversation-info"><div class="conversation-name">Избранное</div></div>
             </div>`;
+            // Переслать боту: открывает ИИ-ассистента и кладёт текст в поле цитатой,
+            // чтобы можно было дописать вопрос и спросить у бота по пересланному.
+            const aiRow = `<div class="conversation-item" onclick="forwardToAi()">
+                <div class="conversation-avatar" style="background:linear-gradient(135deg,#0EA5E9,#7C3AED);"><span class="ava-ico">${ICO_BOT}</span></div>
+                <div class="conversation-info"><div class="conversation-name">ИИ-ассистент</div><div class="conversation-preview">Переслать и дописать вопрос боту</div></div>
+            </div>`;
             const groupRows = (groups || myGroups || []).map(g => `
                 <div class="conversation-item" onclick="forwardToGroup(${g.id})" title="${escapeHtml(g.name)}">
                     <div class="conversation-avatar" style="background:linear-gradient(135deg,#059669,#10B981);">${g.avatar_url ? `<img src="${escapeHtml(g.avatar_url)}" alt="">` : `<span class="ava-ico">${ICO_GROUP}</span>`}</div>
@@ -6685,7 +6739,7 @@
                     <div class="conversation-info"><div class="conversation-name">${escapeHtml(name)}</div></div>
                 </div>`;
             }).join('');
-            el.innerHTML = favRow + groupRows + rows
+            el.innerHTML = aiRow + favRow + groupRows + rows
                 || `<div class="no-conversations"><p>Некому переслать — начните переписку или создайте группу</p></div>`;
         }
 
@@ -6715,6 +6769,33 @@
             closeForwardModal();
             if (n && selectedUserId === FAVORITES_ID) await loadFavoritesMessages();
         }
+
+        /**
+         * Переслать выбранные сообщения ИИ-ассистенту: бот не «получает» их как чат,
+         * а мы открываем его и кладём текст в поле ввода цитатой, чтобы человек мог
+         * дописать свой вопрос и отправить всё вместе одним сообщением боту.
+         * Вложения бот-модель не видит — от них берём подпись/имя файла как пометку.
+         */
+        async function forwardToAi() {
+            if (!pendingForward || !pendingForward.items.length) { closeForwardModal(); return; }
+            const parts = pendingForward.items.map(it => {
+                const t = (it.content || '').trim();
+                if (t) return t;
+                if (it.attachment_url) return '[вложение: ' + (it.attachment_name || it.attachment_url) + ']';
+                return '';
+            }).filter(Boolean);
+            closeForwardModal();
+            await openAiBot();
+            const input = document.getElementById('messageInput');
+            if (!input) return;
+            // Каждую пересланную строку помечаем «> », как цитату — бот понимает, что это контекст
+            const quoted = parts.map(p => p.split('\n').map(l => '> ' + l).join('\n')).join('\n\n');
+            input.value = quoted + '\n\n';
+            autoGrowInput(input);
+            input.focus();
+            try { input.setSelectionRange(input.value.length, input.value.length); } catch (e) {}
+        }
+        window.forwardToAi = forwardToAi;
 
         async function forwardToUser(uid) {
             const n = await forwardAll((it) =>
@@ -6882,8 +6963,7 @@
                             <div id="msg-body-${m.id || ''}">${content ? `<div id="msg-content-${m.id || ''}">${highlightMentions(content)}</div>` : ''}</div>
                             ${attachmentHtml}
                             ${albumExtraHtml(m)}
-                            <div class="message-time">${time}${editedTag}${isMine ? msgTicks(m) : ''}</div>
-                            ${msgHoverHtml(m.id)}
+                            <div class="msg-foot"><div class="message-time">${time}${editedTag}${isMine ? msgTicks(m) : ''}</div>${msgHoverHtml(m.id)}</div>
                         </div>
                     `;
                 }).join('');
@@ -7002,9 +7082,13 @@
         }
 
         function updateMicButton() {
+            const send = micHasText();
+            // На телефоне по этому классу CSS показывает кнопку отправки (есть текст/вложение)
+            // либо голосовое+кружок (пусто). См. #chatInputBar.has-text в мобильном блоке.
+            const bar = document.getElementById('chatInputBar');
+            if (bar) bar.classList.toggle('has-text', send);
             const btn = document.getElementById('micSendBtn');
             if (!btn) return;
-            const send = micHasText();
             btn.classList.toggle('as-send', send);
             btn.dataset.mode = send ? 'send' : micMode;
             btn.innerHTML = send ? SEND_SVG : (micMode === 'video' ? VIDEO_SVG : MIC_SVG);
