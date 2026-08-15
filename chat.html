@@ -334,12 +334,20 @@
            сообщением и растягивали пузырь по высоте — теперь они компактно в одну строку
            справа от времени и статуса прочтения. */
         @media (hover: none) {
-            .msg-hover { opacity: 0.7; pointer-events: auto; position: static; margin: 0; padding: 0; gap: 3px; }
+            /* Кнопки прижаты к правому краю подвала, без фоновых кружочков — только иконки,
+               чтобы кружочки не перетягивали на себя акцент с самого сообщения. */
+            .msg-hover { opacity: 1; pointer-events: auto; position: static; margin: 0 0 0 auto; padding: 0; gap: 2px; }
             .message.theirs .msg-hover, .message.mine .msg-hover { right: auto; left: auto; flex-direction: row; }
-            .msg-hover button { width: 23px; height: 23px; box-shadow: none; }
+            .msg-hover button, body.dark .msg-hover button {
+                width: 26px; height: 26px; background: transparent; box-shadow: none;
+            }
             .msg-foot .message-time { margin-top: 0; }
-            /* у своих (фиолетовый пузырь) кнопки — полупрозрачная белая подложка, чтобы иконки читались */
-            .message.mine .msg-hover button { background: rgba(255,255,255,0.9); }
+            /* Контраст по типу пузыря: на своих (фиолетовый) — светлые иконки в обеих темах,
+               иначе серые сливались; на чужих в тёмной теме — светло-серые, чтобы читались. */
+            .msg-hover button { color: #7A7F87; }
+            .message.mine .msg-hover button,
+            body.dark .message.mine .msg-hover button { color: rgba(255,255,255,0.92); }
+            body.dark .message.theirs .msg-hover button { color: #C9CDD3; }
         }
 
         /* Разметка внутри пузыря: заголовки по умолчанию 1.5em — в переписке это слишком
