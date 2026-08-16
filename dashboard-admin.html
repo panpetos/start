@@ -490,29 +490,43 @@
             // в тот же раздел, а не выкидывало в «Обзор», как было раньше.
             const fallbackTab = (myAdminSections && !myAdminSections.includes('overview')) ? myAdminSections[0] : 'overview';
             let startTab = fallbackTab;
+            let restoreState = false;
             try {
-                const fromUrl = new URLSearchParams(location.search).get('tab');
+                const sp = new URLSearchParams(location.search);
+                const fromUrl = sp.get('tab');
                 if (fromUrl && document.querySelector(`.sidebar-item[data-tab="${CSS.escape(fromUrl)}"]`)
                     && (!myAdminSections || myAdminSections.includes(fromUrl))) startTab = fromUrl;
+                // Восстанавливаем и вложенное состояние раздела (открытый тикет, фильтр, поиск) — тоже теряется при F5.
+                const threadFromUrl = sp.get('thread');
+                if (threadFromUrl) supportThreadId = threadFromUrl;
+                const filterFromUrl = sp.get('filter');
+                if (filterFromUrl) complaintsFilter = filterFromUrl;
+                const subFromUrl = sp.get('sub');
+                if (subFromUrl) devActiveTab = subFromUrl;
+                const qFromUrl = sp.get('q');
+                if (qFromUrl) devSearchQuery = qFromUrl;
+                restoreState = true;
             } catch(e) {}
-            switchTab(startTab);
+            switchTab(startTab, restoreState);
         }
 
         let currentTab = 'overview';
-        function switchTab(tab){
+        function switchTab(tab, preserveState){
             if (myAdminSections && !myAdminSections.includes(tab)) {
                 document.getElementById('content').innerHTML = '<div class="panel"><div class="empty">⛔ Этот раздел вам не доступен. Обратитесь к главному администратору.</div></div>';
                 return;
             }
             currentTab = tab;
-            // Держим раздел в адресе — без новой записи в истории, чтобы «Назад» вёл из кабинета.
+            // Держим раздел (и его вложенное состояние) в адресе — без новой записи в истории,
+            // чтобы «Назад» вёл из кабинета, а F5 возвращал туда же, где были.
             try {
                 const p = new URLSearchParams(location.search);
                 p.set('tab', tab);
+                if (!preserveState) { p.delete('thread'); p.delete('filter'); p.delete('sub'); p.delete('q'); }
                 history.replaceState(null, '', location.pathname + '?' + p.toString());
             } catch(e) {}
             if (supMsgPollTimer) { clearInterval(supMsgPollTimer); supMsgPollTimer = null; }
-            supportThreadId = null;
+            if (!preserveState) { supportThreadId = null; complaintsFilter = 'open'; devActiveTab = 'open'; devSearchQuery = ''; }
             document.querySelectorAll('.sidebar-item').forEach(t => t.classList.toggle('active', t.dataset.tab===tab));
             const el = document.getElementById('content');
             el.innerHTML = '<div class="loading">Загрузка...</div>';
@@ -522,10 +536,30 @@
             ({ overview:renderOverview, support:renderSupport, users:renderUsers, psychologists:renderPsych, tariffs:renderTariffs, robokassa:renderRobokassa, yookassa:renderYookassa, devtasks:renderDevTasks, appointments:renderAppointments, replacements:renderReplacements, supervision:renderSupervision, calls:renderCalls, payments:renderPayments, subscribers:renderSubscribers, referrals:renderReferrals, activity:renderActivity, notes:renderNotes, notifications:renderNotifications, adminperms:renderAdminPerms, metrics:renderMetrics, sitemap:renderSitemap, content:renderContentMod, complaints:renderComplaints }[tab])();
         }
 
+        // Точечно обновляет вложенное состояние текущего раздела в адресе (открытый тикет,
+        // фильтр, поиск), не трогая остальные параметры — чтобы F5 возвращал не только
+        // в тот же раздел, но и в то же место внутри него.
+        function syncUrlState(patch){
+            try {
+                const p = new URLSearchParams(location.search);
+                Object.keys(patch).forEach(k => {
+                    const v = patch[k];
+                    if (v === null || v === undefined || v === '') p.delete(k); else p.set(k, v);
+                });
+                history.replaceState(null, '', location.pathname + '?' + p.toString());
+            } catch(e) {}
+        }
+
         // ── Жалобы на пользователей ─────────────────────────────────────────
         // Переписку показываем ТОЛЬКО если её автор сам разрешил и срок доступа не истёк.
         // Каждое открытие пишется в журнал, автор жалобы видит, сколько раз смотрели.
         let complaintsFilter = 'open';
+
+        function setComplaintsFilter(f){
+            complaintsFilter = f;
+            syncUrlState({ filter: f });
+            renderComplaints();
+        }
 
         async function renderComplaints(){
             const el = document.getElementById('content');
@@ -534,7 +568,7 @@
                 const d = await (await fetch('/api/complaints.php?action=list&status=' + complaintsFilter, { credentials:'include' })).json();
                 if (d && d.ok) rows = d.data || []; else err = (d && d.error) || 'ошибка';
             } catch(e){ err = 'нет связи с сервером'; }
-            const tabs = ['open','all'].map(f => `<button class="btn ${complaintsFilter===f?'':'btn-ghost'}" onclick="complaintsFilter='${f}';renderComplaints()">${f==='open'?'Открытые':'Все'}</button>`).join(' ');
+            const tabs = ['open','all'].map(f => `<button class="btn ${complaintsFilter===f?'':'btn-ghost'}" onclick="setComplaintsFilter('${f}')">${f==='open'?'Открытые':'Все'}</button>`).join(' ');
             if (err) { el.innerHTML = `<div class="panel"><div class="empty">⚠️ Не удалось загрузить жалобы: ${esc(err)}</div></div>`; return; }
             const name = (f,l,e) => ((f||'')+' '+(l||'')).trim() || e || '—';
             const body = rows.length ? rows.map(c => `
@@ -2044,7 +2078,14 @@
 
         function devSetTab(key){
             devActiveTab = key;
+            if (currentTab === 'devtasks') syncUrlState({ sub: key === 'open' ? null : key });
             devRenderTabs(devTasksCache);
+            devRenderList(devTasksCache);
+        }
+
+        function setDevSearch(val){
+            devSearchQuery = val;
+            if (currentTab === 'devtasks') syncUrlState({ q: val || null });
             devRenderList(devTasksCache);
         }
 
@@ -2136,7 +2177,7 @@
                     </div></div>`) +
                 `<h3 style="margin:0.5rem 0;font-size:1rem;">Задачи</h3>
                  <div id="devTabs" style="display:flex;gap:0.4rem;flex-wrap:wrap;margin-bottom:0.6rem;"></div>
-                 <input id="devSearch" placeholder="🔍 Поиск по заголовку и тексту задачи..." value="${esc(devSearchQuery)}" oninput="devSearchQuery=this.value;devRenderList(devTasksCache);" style="width:100%;max-width:420px;padding:0.5rem 0.75rem;border:1.5px solid var(--a-input-border);border-radius:0.5rem;font-family:inherit;font-size:0.85rem;margin-bottom:0.75rem;background:var(--a-input-bg);color:var(--a-text);">` +
+                 <input id="devSearch" placeholder="🔍 Поиск по заголовку и тексту задачи..." value="${esc(devSearchQuery)}" oninput="setDevSearch(this.value)" style="width:100%;max-width:420px;padding:0.5rem 0.75rem;border:1.5px solid var(--a-input-border);border-radius:0.5rem;font-family:inherit;font-size:0.85rem;margin-bottom:0.75rem;background:var(--a-input-bg);color:var(--a-text);">` +
                 '<div id="devTaskList"><div class="loading">Загрузка...</div></div>';
             devSetupDropzone(document.getElementById('devDrop'), document.getElementById('devFiles'), 'new');
             await devRefresh();

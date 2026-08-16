@@ -197,6 +197,27 @@ if ($action === 'client-unread') {
     exit;
 }
 
+if ($action === 'upload') {
+    // Вложения виджета поддержки (фото/файл/голосовое) — доступно анонимным посетителям.
+    // /api/upload.php требует обычную сессию Auth, которой у гостя нет — оттуда и «не аутентифицирован»
+    // при отправке чего угодно, кроме текста. Свой загрузчик, без проверки логина.
+    if (empty($_FILES['file']) || !is_array($_FILES['file'])) { http_response_code(400); echo json_encode(['error' => 'Файл не передан']); exit; }
+    $f = $_FILES['file'];
+    if (($f['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) { http_response_code(400); echo json_encode(['error' => 'Ошибка загрузки файла']); exit; }
+    if (($f['size'] ?? 0) > 5 * 1024 * 1024) { http_response_code(400); echo json_encode(['error' => 'Файл больше 5 МБ']); exit; }
+    $allowExt = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'pdf', 'doc', 'docx', 'txt', 'webm', 'ogg', 'mp3', 'm4a', 'wav'];
+    $ext = strtolower(pathinfo((string)($f['name'] ?? ''), PATHINFO_EXTENSION));
+    if ($ext === 'jpeg') $ext = 'jpg';
+    if (!in_array($ext, $allowExt, true)) { http_response_code(400); echo json_encode(['error' => 'Недопустимый тип файла']); exit; }
+    $dir = __DIR__ . '/../uploads/support';
+    if (!is_dir($dir)) @mkdir($dir, 0755, true);
+    $name = bin2hex(random_bytes(16)) . '.' . $ext;
+    if (!@move_uploaded_file($f['tmp_name'], $dir . '/' . $name)) { http_response_code(500); echo json_encode(['error' => 'Не удалось сохранить файл']); exit; }
+    @chmod($dir . '/' . $name, 0644);
+    echo json_encode(['ok' => true, 'url' => '/uploads/support/' . $name]);
+    exit;
+}
+
 // ── Админские действия ──────────────────────────────────────────────────────────
 if (!isAdmin($pdo, $userId)) { http_response_code(403); echo json_encode(['error' => 'Доступ только для администратора']); exit; }
 

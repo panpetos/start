@@ -723,7 +723,9 @@
 
     function uploadFile(file, callback) {
       var fd = new FormData(); fd.append('file', file);
-      fetch('/api/upload.php', { method: 'POST', credentials: 'include', body: fd })
+      // /api/upload.php требует обычную сессию Auth — у анонимных гостей виджета её нет,
+      // поэтому файлы/голосовые от них отправляем через свой загрузчик в support.php.
+      fetch('/api/support.php?action=upload', { method: 'POST', credentials: 'include', body: fd })
         .then(function(r) { return r.json(); })
         .then(function(d) {
           if (d.error) { alert(d.error); return; }

@@ -2857,7 +2857,7 @@
             pollInterval = setInterval(async () => {
                 await loadMessages();
                 await loadMyGroups();
-                renderConversationList(allConversations);
+                refreshConversationList();
             }, 5000);
         }
 
@@ -3077,7 +3077,7 @@
                     if (!r.ok) { alert(r.error || 'Не удалось добавить участников'); return; }
                     closeCreateGroupModal();
                     await loadMyGroups();
-                    renderConversationList(allConversations);
+                    refreshConversationList();
                     if (selectedUserId === GROUP_PREFIX + addMembersToGroupId) await openGroupChat(addMembersToGroupId);
                 } catch (e) { alert('Ошибка сети'); }
                 return;
@@ -3092,7 +3092,7 @@
                 if (!r.ok) { alert(r.error || 'Не удалось создать группу'); return; }
                 closeCreateGroupModal();
                 await loadMyGroups();
-                renderConversationList(allConversations);
+                refreshConversationList();
                 await openGroupChat(r.group_id);
             } catch (e) { alert('Ошибка сети'); }
         }
@@ -3236,7 +3236,7 @@
             const d = await groupApi('remove-member', { group_id: groupInfoId, user_id: userId });
             if (!d.ok) { alert('Не удалось исключить: ' + d.error); return; }
             await loadMyGroups();
-            renderConversationList(allConversations);
+            refreshConversationList();
             await renderGroupInfo();
         }
 
@@ -3250,7 +3250,7 @@
             document.getElementById('chatContent').style.display = 'none';
             document.getElementById('emptyState').style.display = 'flex';
             await loadMyGroups();
-            renderConversationList(allConversations);
+            refreshConversationList();
         }
         window.saveGroupInfo = saveGroupInfo;
         window.uploadGroupAvatar = uploadGroupAvatar;
@@ -3397,7 +3397,7 @@
                 });
                 channelInfoCache[psychId] = Object.assign({}, channelInfoCache[psychId], d);
                 await loadMyChannels();
-                renderConversationList(allConversations);
+                refreshConversationList();
                 closeChannelSettings();
                 await openChannel(psychId);
             } catch (e) {
@@ -3422,7 +3422,7 @@
                 channelInfoCache[channelSettingsFor] = Object.assign({}, channelInfoCache[channelSettingsFor], d);
                 if (box) box.innerHTML = `<img src="${escapeHtml(url)}" alt="">`;
                 await loadMyChannels();
-                renderConversationList(allConversations);
+                refreshConversationList();
             } catch (e) {
                 if (box) box.innerHTML = prev;
                 alert('Не удалось загрузить аватарку: ' + e.message);
@@ -3484,7 +3484,7 @@
                     { icon: '🔎', label: 'Найти психолога с каналом', href: '/search.html' },
                 ], '')}`;
 
-            renderConversationList(allConversations);
+            refreshConversationList();
             await loadFeedSection();
         }
         window.openFeedSection = openFeedSection;
@@ -4609,11 +4609,7 @@
                 }
 
                 allConversations = conversations;
-                // Список опрашивается каждые 6с (unreadPollTimer) — если человек как раз ищет,
-                // нельзя молча стирать фильтр строкой без query: результат «слова не ищутся».
-                const searchBox = document.getElementById('chatSearchInput');
-                if (searchBox && searchBox.value.trim()) filterConversations();
-                else renderConversationList(conversations);
+                refreshConversationList();
 
             } catch (error) {
                 console.error('Load conversations error:', error);
@@ -4850,7 +4846,7 @@
                 const d = await pinsApi('pin-chat', { chat_key: chatKey });
                 if (d.pinned) { if (pinnedChats.indexOf(chatKey) < 0) pinnedChats.unshift(chatKey); }
                 else pinnedChats = pinnedChats.filter(k => k !== chatKey);
-                renderConversationList(allConversations);
+                refreshConversationList();
             } catch (e) {
                 alert('Не удалось закрепить диалог: ' + e.message);
             }
@@ -4915,7 +4911,7 @@
                 const d = await hiddenApi('hide', { chat_key: chatKey });
                 hiddenChats[chatKey] = d.hidden_at || new Date().toISOString().slice(0, 19).replace('T', ' ');
                 if (String(selectedUserId) === chatKey) closeCurrentChat();
-                renderConversationList(allConversations);
+                refreshConversationList();
             } catch (e) {
                 alert('Не удалось удалить диалог: ' + e.message);
             }
@@ -4927,7 +4923,7 @@
                 await hiddenApi('unhide', { chat_key: chatKey });
                 delete hiddenChats[chatKey];
                 if (showHidden && !Object.keys(hiddenChats).length) showHidden = false;
-                renderConversationList(allConversations);
+                refreshConversationList();
             } catch (e) {
                 alert('Не удалось вернуть диалог: ' + e.message);
             }
@@ -5009,7 +5005,7 @@
                 if (!d.ok) throw new Error(d.error || 'ошибка');
                 if (String(selectedUserId) === GROUP_PREFIX + groupId) closeCurrentChat();
                 await loadMyGroups();
-                renderConversationList(allConversations);
+                refreshConversationList();
             } catch (e) {
                 alert('Не удалось удалить группу: ' + e.message);
             }
@@ -5030,7 +5026,7 @@
                 if (!r.ok || d.ok === false) throw new Error(d.error || ('HTTP ' + r.status));
                 if (String(selectedUserId) === CHANNEL_PREFIX + psychId) closeCurrentChat();
                 await loadMyChannels();
-                renderConversationList(allConversations);
+                refreshConversationList();
             } catch (e) {
                 alert('Не удалось удалить канал: ' + e.message);
             }
@@ -5039,7 +5035,7 @@
 
         function toggleShowHidden() {
             showHidden = !showHidden;
-            renderConversationList(allConversations);
+            refreshConversationList();
         }
 
         /** Плашка «Удалённые диалоги (N)» / «Вернуться к списку» под списком чатов. */
@@ -5222,7 +5218,7 @@
             activeFolder = id;
             try { localStorage.setItem('psy-chat-folder', id); } catch (e) {}
             renderFolderTabs();
-            renderConversationList(allConversations);
+            refreshConversationList();
         }
 
         /**
@@ -5264,9 +5260,12 @@
             const list = document.getElementById('conversationsList');
             if (!list) return;
 
-            // Едем недалеко (треть ширины) и с затуханием — так переход читается быстрее, чем
-            // прогон всего списка за край экрана: тот вариант ощущался вязким и «дёрганым».
-            const OUT_MS = 150, IN_MS = 190, SHIFT = 0.3;
+            // Во время самого перетаскивания палец тянет список лишь на превью (треть ширины) —
+            // это просто отклик «куда едешь». А вот СОСТОЯВШИЙСЯ переход (после отпускания)
+            // должен проехать весь экран — иначе список чуть сдвигается и гаснет на месте,
+            // новая папка тоже наплывает почти без сдвига, и получается непонятный «телепорт»
+            // без ощущения, куда переключилось (фидбэк админа: «не вижу куда переключился»).
+            const OUT_MS = 200, IN_MS = 220, DRAG_SHIFT = 0.3, PAGE_SHIFT = 1;
             const EASE = 'cubic-bezier(.32,.72,0,1)';
             let sx = 0, sy = 0, dx = 0;
             let tracking = false, dragging = false, animating = false, raf = 0;
@@ -5344,7 +5343,7 @@
                     if (Math.abs(dx) <= Math.abs(dy) * 1.2) { tracking = false; list.style.willChange = ''; return; }
                     dragging = true;
                 }
-                const limit = width() * SHIFT;
+                const limit = width() * DRAG_SHIFT;
                 const has = !!targetFolder(dx < 0 ? -1 : 1);
                 // Край списка папок — ход почти нулевой: сразу понятно, что дальше некуда.
                 const shown = has ? damp(dx, limit) : damp(dx, width() * 0.04);
@@ -5361,12 +5360,14 @@
                 const dir = dx < 0 ? -1 : 1;
                 const target = targetFolder(dir);
                 if (target && Math.abs(dx) > Math.min(80, width() * 0.18)) {
-                    const off = dir * width() * SHIFT;
-                    runTransition(off, 0, OUT_MS, () => {
+                    // Состоявшийся переход едет через весь экран (не на треть, как при живом
+                    // перетаскивании) и без затухания — так видно, куда именно уехал список.
+                    const off = dir * width() * PAGE_SHIFT;
+                    runTransition(off, 1, OUT_MS, () => {
                         setActiveFolder(target);
                         list.scrollTop = 0;                  // новая папка открывается сверху, как в Telegram
                         list.style.transition = 'none';
-                        paint(-off, 0);                      // мгновенно переносим на «вход» с другой стороны
+                        paint(-off, 1);                       // мгновенно переносим на «вход» с другой стороны
                         // Два кадра: за один браузер успевает схлопнуть переход в мгновенный скачок.
                         requestAnimationFrame(() => requestAnimationFrame(() => {
                             runTransition(0, 1, IN_MS, settle);
@@ -5838,7 +5839,7 @@
                     await folderApi('rename', { id: f.id, name: what.trim() });
                 }
                 await loadFolders();
-                renderConversationList(allConversations);
+                refreshConversationList();
             } catch (e) {
                 alert('Не получилось: ' + e.message);
             }
@@ -6366,7 +6367,7 @@
                 else f.keys = f.keys.filter(k => k !== chatKey);
                 closeFolderPicker();
                 renderFolderTabs();
-                renderConversationList(allConversations);
+                refreshConversationList();
             } catch (e) {
                 alert('Не удалось изменить папку: ' + e.message);
             }
@@ -6413,6 +6414,16 @@
                     </div>
                     ${folderPickHtml(FEED_ID, 'feed', null, 'Лента')}
                 </div>` }];
+        }
+
+        /** Перерисовать список диалогов с учётом активного поиска — если просто звать
+         *  renderConversationList(allConversations) в ответ на любое обновление (смена папки,
+         *  новое сообщение, опрос присутствия и т.д.), поиск молча сбрасывается на полный список:
+         *  результат «слова не ищутся», хотя на самом деле список просто перерисовался без query. */
+        function refreshConversationList() {
+            const searchBox = document.getElementById('chatSearchInput');
+            if (searchBox && searchBox.value.trim()) filterConversations();
+            else renderConversationList(allConversations);
         }
 
         /** Закреплённые чаты — первыми, остальные в исходном порядке (устойчивая сортировка). */
@@ -7887,7 +7898,7 @@
                 const container = document.getElementById('messagesContainer');
                 container.scrollTop = container.scrollHeight;
                 await loadMyGroups();
-                renderConversationList(allConversations);
+                refreshConversationList();
                 return;
             }
 
