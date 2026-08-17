@@ -65,6 +65,7 @@ jobs:
             put privacy.html;
             put refund.html;
             put qr.html;
+            put install.html;
             put sw.js;
             mkdir -f css;
             put css/styles.css -o css/styles.css;

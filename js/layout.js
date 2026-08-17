@@ -95,6 +95,7 @@
         '<a href="/privacy.html">Конфиденциальность</a>' +
         '<a href="/refund.html">Возврат средств</a>' +
         '<a href="/payment-info.html">Оплата и безопасность</a>' +
+        '<a href="/install.html">Приложение</a>' +
         '<a href="/consent.html">Согласие на обработку ПД</a>' +
         '<a href="/consent-health.html">Согласие на данные о здоровье</a>' +
         '<a href="/">Главная</a>' +

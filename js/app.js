@@ -189,7 +189,51 @@
     e.preventDefault();          // покажем свою кнопку, а не браузерную «шторку»
     deferredPrompt = e;
     showBar('android');
+    // Раздел «Установить приложение» открывается когда угодно, а это событие
+    // приходит один раз при загрузке. Сообщаем ему, что кнопка теперь живая.
+    try { global.dispatchEvent(new CustomEvent('psy-installable')); } catch (err) {}
   });
+
+  /** Готов ли браузер поставить приложение своей кнопкой (Android/Chrome). */
+  global.psyCanInstall = function () { return !!deferredPrompt; };
+
+  /** Показать браузерное окно установки. 'accepted' | 'dismissed' | 'unavailable'. */
+  global.psyInstallNow = async function () {
+    if (!deferredPrompt) return 'unavailable';
+    var p = deferredPrompt;
+    deferredPrompt = null;
+    try {
+      p.prompt();
+      var res = await p.userChoice;
+      return (res && res.outcome) || 'dismissed';
+    } catch (e) { return 'dismissed'; }
+  };
+
+  /**
+   * Полный сброс приложения на этом устройстве: снять подписку, убрать воркер и
+   * стереть его кэш. Нужен для переустановки: без этого «удалил иконку и добавил
+   * заново» ничего не меняет — воркер и кэш живут отдельно от иконки, и человек
+   * снова получает тот же старый интерфейс.
+   * Вход и переписку не трогаем: это ни cookie, ни localStorage.
+   */
+  global.psyResetApp = async function () {
+    var done = { push: false, worker: 0, caches: 0 };
+    try { done.push = await psyUnsubscribePush(); } catch (e) {}
+    try {
+      if ('serviceWorker' in global.navigator) {
+        var regs = await global.navigator.serviceWorker.getRegistrations();
+        for (var i = 0; i < regs.length; i++) { try { if (await regs[i].unregister()) done.worker++; } catch (e) {} }
+        swReady = null;
+      }
+    } catch (e) {}
+    try {
+      if (global.caches && caches.keys) {
+        var keys = await caches.keys();
+        for (var k = 0; k < keys.length; k++) { try { if (await caches.delete(keys[k])) done.caches++; } catch (e) {} }
+      }
+    } catch (e) {}
+    return done;
+  };
 
   function iosSteps() {
     return '<b>Установите приложение</b><span>Нажмите «Поделиться» ' +

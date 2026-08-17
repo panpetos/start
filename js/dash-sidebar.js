@@ -51,6 +51,7 @@
         { href: '/offers.html', icon: '💳', label: 'Пакеты и цены' },
         { href: '/feed.html', icon: '📰', label: 'Лента' },
         { href: '/blog.html', icon: '📖', label: 'Блог' },
+        { href: '/install.html', icon: '📲', label: 'Установить приложение' },
     ];
     const TITLES = { psychologist: 'Кабинет психолога', client: 'Личный кабинет' };
 

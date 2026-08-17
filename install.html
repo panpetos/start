@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Установить приложение — psytalk.pro</title>
+    <link rel="stylesheet" href="/css/styles.css">
+    <script src="/js/layout.js"></script>
+    <script src="/js/auth.js"></script>
+    <style>
+        :root {
+            --i-bg: #F4F0FF; --i-card: #FFFFFF; --i-border: #EDE9FF; --i-text: #1A1A1A;
+            --i-sec: #6B7280; --i-accent: #7C3AED; --i-ok: #15803D; --i-warn: #B45309; --i-err: #DC2626;
+            --i-step: #F8F6FF;
+        }
+        body.dark {
+            --i-bg: #141414; --i-card: #1E1E1E; --i-border: #333; --i-text: #E6E6E6;
+            --i-sec: #A0A0A0; --i-accent: #A78BFA; --i-ok: #4ADE80; --i-warn: #FBBF24; --i-err: #F87171;
+            --i-step: #262032;
+        }
+        body { background: var(--i-bg); color: var(--i-text); font-family: 'Inter', -apple-system, sans-serif; padding-top: 84px; }
+        .wrap { max-width: 720px; margin: 0 auto; padding: 1.25rem 1rem 3rem; }
+        h1 { font-size: 1.5rem; font-weight: 800; margin-bottom: 0.35rem; }
+        .lead { color: var(--i-sec); line-height: 1.6; margin-bottom: 1.25rem; }
+        .card { background: var(--i-card); border: 1px solid var(--i-border); border-radius: 1rem; padding: 1.1rem 1.15rem; margin-bottom: 1rem; }
+        .card h2 { font-size: 1.06rem; font-weight: 700; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+        .hint { color: var(--i-sec); font-size: 0.9rem; line-height: 1.6; margin-bottom: 0.8rem; }
+        .badge { font-size: 0.72rem; font-weight: 700; padding: 0.12rem 0.5rem; border-radius: 0.6rem; white-space: nowrap; }
+        .b-on { background: #DCFCE7; color: #15803D; }
+        .b-off { background: #F3F4F6; color: #6B7280; }
+        .b-warn { background: #FEF3C7; color: #B45309; }
+        body.dark .b-on { background: #14321F; color: #4ADE80; }
+        body.dark .b-off { background: #2A2A2A; color: #A0A0A0; }
+        body.dark .b-warn { background: #3A2C10; color: #FBBF24; }
+        .btn { background: var(--i-accent); color: #fff; border: none; border-radius: 0.65rem; padding: 0.7rem 1.15rem;
+               font: inherit; font-weight: 700; cursor: pointer; }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-ghost { background: none; color: var(--i-accent); border: 1.5px solid var(--i-border); }
+        .btn-danger { background: none; color: var(--i-err); border: 1.5px solid var(--i-border); }
+        .row { display: flex; gap: 0.55rem; flex-wrap: wrap; align-items: center; }
+        .msg { font-size: 0.86rem; line-height: 1.5; margin-top: 0.6rem; display: none; }
+        .msg.show { display: block; }
+        .msg.ok { color: var(--i-ok); }
+        .msg.err { color: var(--i-err); }
+        .msg.wait { color: var(--i-sec); }
+        ol.steps { margin: 0; padding-left: 0; list-style: none; counter-reset: s; }
+        ol.steps li { counter-increment: s; position: relative; padding: 0.6rem 0.75rem 0.6rem 2.4rem; background: var(--i-step);
+                      border-radius: 0.6rem; margin-bottom: 0.4rem; font-size: 0.92rem; line-height: 1.55; }
+        ol.steps li::before { content: counter(s); position: absolute; left: 0.7rem; top: 0.6rem; width: 1.2rem; height: 1.2rem;
+                              border-radius: 50%; background: var(--i-accent); color: #fff; font-size: 0.72rem; font-weight: 700;
+                              display: flex; align-items: center; justify-content: center; }
+        .state { display: grid; grid-template-columns: auto 1fr; gap: 0.35rem 0.7rem; font-size: 0.9rem; }
+        .state dt { color: var(--i-sec); }
+        .state dd { margin: 0; font-weight: 600; word-break: break-word; }
+        .mine { border-color: var(--i-accent); box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.12); }
+        .mine h2::after { content: 'ваше устройство'; font-size: 0.68rem; font-weight: 700; color: var(--i-accent);
+                          border: 1px solid var(--i-accent); border-radius: 0.6rem; padding: 0.1rem 0.45rem; }
+        .ico { display: inline-block; vertical-align: -3px; }
+        details { margin-top: 0.5rem; }
+        summary { cursor: pointer; font-weight: 600; font-size: 0.9rem; color: var(--i-accent); }
+        details p, details li { font-size: 0.88rem; line-height: 1.6; color: var(--i-sec); }
+        details ul { margin: 0.4rem 0 0 1.1rem; }
+    </style>
+</head>
+
+<body>
+    <script>psyWriteHeader();</script>
+
+    <div class="wrap">
+        <h1>📲 Установить приложение</h1>
+        <p class="lead">psytalk работает как обычное приложение: открывается с домашнего экрана без адресной
+            строки, а уведомления о сообщениях приходят, даже когда оно закрыто. Внутри — весь сервис: чаты,
+            записи, каналы, лента и настройки, а не только переписка.</p>
+
+        <div class="card">
+            <h2>Состояние на этом устройстве</h2>
+            <dl class="state" id="stateBox">
+                <dt>Проверяем…</dt><dd></dd>
+            </dl>
+            <div class="msg wait show" id="stateHint"></div>
+        </div>
+
+        <div class="card" id="cardAndroid">
+            <h2>🤖 Android</h2>
+            <div class="hint">В Chrome установка делается одной кнопкой. Если кнопка неактивна —
+                значит браузер уже считает приложение установленным либо вы открыли страницу не в Chrome
+                (в Firefox и Opera установка есть, но называется по-своему).</div>
+            <div class="row">
+                <button class="btn" id="btnInstall" disabled>Установить приложение</button>
+            </div>
+            <div class="msg" id="installMsg"></div>
+            <details>
+                <summary>Если кнопки нет — вручную</summary>
+                <ul>
+                    <li>Chrome → ⋮ (три точки справа сверху) → <b>«Установить приложение»</b> или
+                        <b>«Добавить на главный экран»</b>.</li>
+                    <li>Появится иконка psytalk. Открывать нужно именно её, а не закладку в браузере —
+                        уведомления привязаны к приложению.</li>
+                </ul>
+            </details>
+        </div>
+
+        <div class="card" id="cardIos">
+            <h2>🍏 iPhone и iPad</h2>
+            <div class="hint">Apple не даёт браузеру кнопку установки — добавлять нужно вручную, и только
+                из Safari. В Chrome на iPhone этого пункта нет. Это же условие касается уведомлений:
+                Apple разрешает их <b>только</b> приложению с домашнего экрана, в обычной вкладке их не
+                будет вовсе.</div>
+            <ol class="steps">
+                <li>Откройте psytalk.pro в <b>Safari</b>.</li>
+                <li>Нажмите «Поделиться»
+                    <svg class="ico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 3v12M12 3l-4 4M12 3l4 4"/><path d="M4 14v5a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-5"/>
+                    </svg>
+                    — внизу по центру (на iPad — сверху справа).</li>
+                <li>Пролистайте список и выберите <b>«На экран „Домой“»</b>.</li>
+                <li>Нажмите «Добавить». На экране появится иконка psytalk.</li>
+                <li>Откройте приложение <b>с иконки</b> и включите уведомления — раздел ниже.</li>
+            </ol>
+            <details>
+                <summary>Как убедиться, что это приложение, а не закладка</summary>
+                <p>Откройте иконку: адресной строки и кнопок Safari быть не должно. Если они видны —
+                    iOS сохранил обычную закладку, уведомлений в таком виде не будет. Удерживайте иконку →
+                    «Удалить закладку» и добавьте заново по шагам выше.</p>
+            </details>
+        </div>
+
+        <div class="card">
+            <h2>🔔 Уведомления на этом устройстве <span class="badge b-off" id="notifBadge">проверяем…</span></h2>
+            <div class="hint">Подписка привязана к конкретной установке, поэтому включить нужно в каждом
+                приложении отдельно — и на телефоне, и на планшете, и в браузере на компьютере.
+                «Проверить» отправляет настоящее уведомление через сервер, а не рисует его на месте.</div>
+            <div class="row">
+                <button class="btn" id="btnNotify">Подключить это устройство</button>
+                <button class="btn btn-ghost" id="btnTest">Проверить</button>
+                <a class="btn btn-ghost" href="/notify-settings.html" style="text-decoration:none;">Все уведомления</a>
+            </div>
+            <div class="msg" id="notifMsg"></div>
+            <details>
+                <summary>Кнопка ничего не делает — что это значит</summary>
+                <ul>
+                    <li>Разрешение уже было запрещено — второй раз браузер не спрашивает.
+                        iPhone: Настройки → Уведомления → psytalk → включить.
+                        Android: Chrome → ⋮ → Настройки → Уведомления → Настройки сайтов → psytalk.pro → разрешить.</li>
+                    <li>На iPhone приложение открыто не с домашнего экрана — сначала добавьте его туда.</li>
+                </ul>
+            </details>
+        </div>
+
+        <div class="card">
+            <h2>♻️ Переустановить</h2>
+            <div class="hint">Если приложение открывается «старым» — не появились новые разделы, висит
+                прежнее меню, — дело не в иконке: оболочка и её кэш живут отдельно и удаление иконки их не
+                трогает. Поэтому сначала сбросьте оболочку кнопкой ниже, и только потом, если нужно,
+                удаляйте и добавляйте иконку заново. Вход в аккаунт и переписка не пострадают.</div>
+            <div class="row">
+                <button class="btn btn-danger" id="btnReset">Сбросить и обновить оболочку</button>
+            </div>
+            <div class="msg" id="resetMsg"></div>
+            <details>
+                <summary>Как удалить иконку</summary>
+                <ul>
+                    <li><b>iPhone:</b> удерживайте иконку → «Удалить закладку» → «Удалить».
+                        Затем добавьте заново по шагам из раздела про iPhone.</li>
+                    <li><b>Android:</b> удерживайте иконку → «Удалить» (или перетащите в «Удалить»).
+                        Затем Chrome → ⋮ → «Установить приложение».</li>
+                    <li><b>Полная чистка на Android</b> (если и после сброса старый вид):
+                        Chrome → ⋮ → Настройки → Настройки сайтов → Все сайты → psytalk.pro → «Удалить данные».</li>
+                </ul>
+            </details>
+        </div>
+    </div>
+
+    <script>psyWriteFooter();</script>
+
+    <script>
+        (function () {
+            'use strict';
+
+            function el(id) { return document.getElementById(id); }
+            function say(id, text, kind) {
+                var m = el(id);
+                if (!m) return;
+                m.textContent = text;
+                m.className = 'msg show' + (kind ? ' ' + kind : '');
+            }
+
+            function isIos() { return typeof psyIsIos === 'function' ? psyIsIos() : /iPhone|iPad|iPod/.test(navigator.userAgent); }
+            function isAndroid() { return /Android/.test(navigator.userAgent); }
+            function installed() { return typeof psyIsStandalone === 'function' ? psyIsStandalone() : false; }
+
+            /** Подсветить раздел, который относится к тому, с чего человек зашёл. */
+            function markMine() {
+                var id = isIos() ? 'cardIos' : (isAndroid() ? 'cardAndroid' : null);
+                if (!id) return;
+                var card = el(id);
+                if (card) { card.classList.add('mine'); }
+                // и поднять его наверх, чтобы не листать мимо чужой инструкции
+                if (card && card.parentNode) card.parentNode.insertBefore(card, el('cardAndroid'));
+            }
+
+            var srv = {};
+            async function loadSrv() {
+                try {
+                    var r = await fetch('/api/push.php?action=status', { credentials: 'include' });
+                    srv = await r.json();
+                } catch (e) { srv = {}; }
+            }
+
+            function notifState() {
+                if (!('Notification' in window)) {
+                    return isIos() && !installed()
+                        ? { txt: 'нужно установить приложение', cls: 'b-warn' }
+                        : { txt: 'браузер не умеет', cls: 'b-warn' };
+                }
+                if (Notification.permission === 'denied') return { txt: 'запрещены в браузере', cls: 'b-warn' };
+                if (Notification.permission === 'granted') {
+                    return srv.devices > 0 ? { txt: 'работают', cls: 'b-on' }
+                                           : { txt: 'разрешены, устройство не подключено', cls: 'b-off' };
+                }
+                return { txt: 'не спрошены', cls: 'b-off' };
+            }
+
+            async function swInfo() {
+                try {
+                    if (!('serviceWorker' in navigator)) return 'не поддерживается браузером';
+                    var regs = await navigator.serviceWorker.getRegistrations();
+                    if (!regs.length) return 'не установлена';
+                    var w = regs[0].active || regs[0].waiting || regs[0].installing;
+                    return (w ? 'работает' : 'ставится') + (navigator.serviceWorker.controller ? '' : ' (применится после перезагрузки)');
+                } catch (e) { return 'не удалось проверить'; }
+            }
+
+            function badge(txt, cls) { return '<span class="badge ' + cls + '">' + txt + '</span>'; }
+
+            async function paintState() {
+                var ns = notifState();
+                var sw = await swInfo();
+                var device = isIos() ? 'iPhone или iPad' : (isAndroid() ? 'Android' : 'компьютер');
+                var rows = [
+                    ['Устройство', device],
+                    ['Приложение', installed() ? badge('установлено и открыто с иконки', 'b-on')
+                                               : badge('открыто в браузере', 'b-off')],
+                    ['Уведомления', badge(ns.txt, ns.cls)],
+                    ['Подключено устройств к вашему аккаунту', srv.devices === undefined ? '—' : String(srv.devices)],
+                    ['Оболочка приложения', sw],
+                ];
+                el('stateBox').innerHTML = rows.map(function (r) {
+                    return '<dt>' + r[0] + '</dt><dd>' + r[1] + '</dd>';
+                }).join('');
+                var nb = el('notifBadge');
+                if (nb) { nb.textContent = ns.txt; nb.className = 'badge ' + ns.cls; }
+
+                // Подсказка ровно про то, что мешает именно здесь и сейчас
+                var hint = '';
+                if (isIos() && !installed()) {
+                    hint = 'Вы в браузере. На iPhone уведомления Apple даёт только приложению с домашнего экрана — добавьте его по шагам ниже.';
+                } else if (!('Notification' in window)) {
+                    hint = 'Этот браузер уведомления не показывает. Выберите Telegram, MAX или почту в настройках уведомлений.';
+                } else if (Notification.permission === 'denied') {
+                    hint = 'Уведомления запрещены в настройках браузера — разрешите их для psytalk.pro, иначе кнопка ниже ничего не сделает.';
+                } else if (Notification.permission !== 'granted') {
+                    hint = 'Осталось подключить уведомления — кнопка в разделе ниже.';
+                } else if (!srv.devices) {
+                    hint = 'Разрешение есть, но устройство не подписано на доставку. Нажмите «Подключить это устройство».';
+                } else {
+                    hint = 'Всё на месте: приложение и уведомления настроены.';
+                }
+                say('stateHint', hint, srv.devices > 0 && installed() ? 'ok' : 'wait');
+            }
+
+            // ── Android: кнопка установки ──
+            function refreshInstallBtn() {
+                var b = el('btnInstall');
+                if (!b) return;
+                if (installed()) {
+                    b.disabled = true;
+                    say('installMsg', 'Приложение уже установлено — вы открыли его с иконки.', 'ok');
+                    return;
+                }
+                var can = typeof psyCanInstall === 'function' && psyCanInstall();
+                b.disabled = !can;
+                if (!can && isAndroid()) {
+                    say('installMsg', 'Браузер пока не предложил установку. Обновите страницу или поставьте вручную — как, написано ниже.', 'wait');
+                }
+            }
+            window.addEventListener('psy-installable', refreshInstallBtn);
+            el('btnInstall').addEventListener('click', async function () {
+                say('installMsg', 'Открываем окно установки…', 'wait');
+                var res = typeof psyInstallNow === 'function' ? await psyInstallNow() : 'unavailable';
+                if (res === 'accepted') { say('installMsg', 'Готово. Откройте psytalk с иконки и включите уведомления.', 'ok'); }
+                else if (res === 'dismissed') { say('installMsg', 'Установка отменена.', 'err'); }
+                else { say('installMsg', 'Браузер не дал окно установки — поставьте вручную, как написано ниже.', 'err'); }
+                refreshInstallBtn();
+            });
+
+            // ── Уведомления ──
+            el('btnNotify').addEventListener('click', async function () {
+                if (typeof psyAskNotify !== 'function') { say('notifMsg', 'Не удалось загрузить модуль уведомлений — обновите страницу.', 'err'); return; }
+                say('notifMsg', 'Подключаем…', 'wait');
+                var res = await psyAskNotify();
+                if (res === 'need-install') {
+                    say('notifMsg', 'Сначала добавьте psytalk на экран «Домой» и откройте с иконки — на iPhone иначе нельзя.', 'err');
+                } else if (res !== 'granted') {
+                    say('notifMsg', res === 'denied'
+                        ? 'Уведомления запрещены в настройках браузера — разрешите их для psytalk.pro и обновите страницу.'
+                        : 'Разрешение не выдано.', 'err');
+                } else {
+                    await loadSrv();
+                    say('notifMsg', srv.devices > 0
+                        ? 'Устройство подключено. Нажмите «Проверить» — должно прийти уведомление.'
+                        : 'Разрешение есть, но подписка не сохранилась. Попробуйте ещё раз.', srv.devices > 0 ? 'ok' : 'err');
+                }
+                await paint();
+            });
+
+            el('btnTest').addEventListener('click', async function () {
+                say('notifMsg', 'Отправляем…', 'wait');
+                var d = {};
+                try {
+                    var r = await fetch('/api/push.php?action=test', { method: 'POST', credentials: 'include' });
+                    d = await r.json();
+                } catch (e) { d = {}; }
+                if (d && d.sent > 0) {
+                    say('notifMsg', 'Отправили на устройств: ' + d.sent + '. Уведомление придёт через пару секунд.', 'ok');
+                    await paint();
+                    return;
+                }
+                var why = (d && d.errors && d.errors.length) ? ' (' + d.errors[0] + ')' : '';
+                say('notifMsg', (d && d.error === 'Требуется авторизация')
+                    ? 'Нужно войти в аккаунт — уведомления привязаны к нему.'
+                    : 'Доставка не сработала' + why + '. Нажмите «Подключить это устройство» и повторите.', 'err');
+            });
+
+            // ── Переустановка ──
+            el('btnReset').addEventListener('click', async function () {
+                if (typeof psyResetApp !== 'function') { say('resetMsg', 'Не удалось загрузить модуль приложения — обновите страницу.', 'err'); return; }
+                say('resetMsg', 'Сбрасываем оболочку…', 'wait');
+                var r = await psyResetApp();
+                say('resetMsg', 'Готово: снята подписка на уведомления, убрана оболочка (' + r.worker +
+                    ') и очищен кэш (' + r.caches + '). Сейчас перезагрузим страницу — после этого подключите уведомления заново.', 'ok');
+                setTimeout(function () { location.reload(); }, 2200);
+            });
+
+            async function paint() { await loadSrv(); await paintState(); refreshInstallBtn(); }
+
+            markMine();
+            paint();
+            // Оболочка ставится не мгновенно — через пару секунд состояние уже честное
+            setTimeout(paintState, 2500);
+        })();
+    </script>
+</body>
+
+</html>
