@@ -247,27 +247,32 @@ function push_send_to_user(PDO $pdo, $userId) {
         $subs = $st->fetchAll(PDO::FETCH_ASSOC);
     } catch (Exception $e) { return ['sent' => 0, 'removed' => 0, 'errors' => [$e->getMessage()]]; }
 
-    $sent = 0; $removed = 0; $errors = [];
+    $sent = 0; $removed = 0; $errors = []; $details = [];
     foreach ($subs as $s) {
         $r = pushSendOne($pdo, (string)$s['endpoint'], $keys);
         if ($r['ok']) {
             $sent++;
+            // Подробности нужны для разбора «отправили, а не пришло»: по коду и
+            // службе доставки видно, приняли ли сообщение и кто именно.
+            $details[] = ['host' => parse_url((string)$s['endpoint'], PHP_URL_HOST), 'code' => $r['code'], 'ok' => true];
             try { $pdo->prepare("UPDATE push_subs SET last_ok = NOW(), fails = 0 WHERE id = ?")->execute([$s['id']]); } catch (Exception $e) {}
             continue;
         }
         if ($r['gone']) {
             $removed++;
+            $details[] = ['host' => parse_url((string)$s['endpoint'], PHP_URL_HOST), 'code' => $r['code'], 'ok' => false, 'gone' => true];
             try { $pdo->prepare("DELETE FROM push_subs WHERE id = ?")->execute([$s['id']]); } catch (Exception $e) {}
             continue;
         }
         $errors[] = 'HTTP ' . $r['code'] . ($r['error'] ? ': ' . $r['error'] : '');
+        $details[] = ['host' => parse_url((string)$s['endpoint'], PHP_URL_HOST), 'code' => $r['code'], 'ok' => false];
         // Пять неудач подряд — подписка, скорее всего, безнадёжна, чтобы не долбить вечно
         try {
             $pdo->prepare("UPDATE push_subs SET fails = fails + 1 WHERE id = ?")->execute([$s['id']]);
             $pdo->prepare("DELETE FROM push_subs WHERE id = ? AND fails >= 5")->execute([$s['id']]);
         } catch (Exception $e) {}
     }
-    return ['sent' => $sent, 'removed' => $removed, 'errors' => $errors];
+    return ['sent' => $sent, 'removed' => $removed, 'errors' => $errors, 'details' => $details];
 }
 
 /**
@@ -468,6 +473,9 @@ if ($action === 'test' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $r = push_send_to_user($pdo, $userId);
     pushOut(['ok' => $r['sent'] > 0, 'sent' => $r['sent'], 'removed' => $r['removed'],
              'errors' => $r['errors'],
+             // Куда и с каким кодом ушло — чтобы «отправили, а не пришло» можно
+             // было разобрать, а не гадать про чужой телефон.
+             'details' => $r['details'] ?? [],
              'hint' => $r['sent'] > 0 ? null : 'Подписки нет или служба доставки отказала — включите уведомления в чате']);
 }
 

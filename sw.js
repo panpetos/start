@@ -13,7 +13,7 @@
  * переписка — это ещё и чужие данные на общем устройстве.
  */
 
-const VERSION = 'psy-v2';
+const VERSION = 'psy-v3';
 const SHELL = VERSION + '-shell';
 
 // Оболочка: то, без чего окно не нарисуется. Страницы сюда не входят намеренно —
@@ -63,8 +63,13 @@ self.addEventListener('fetch', (e) => {
     const url = new URL(req.url);
     if (url.origin !== self.location.origin) return;   // чужие домены не наше дело
 
+    // API и загруженные файлы вообще не пропускаем через воркер: кэшировать их
+    // нельзя, а лишний посредник только добавляет задержку к каждому обращению.
+    // Раньше они шли через respondWith(fetch(...)) — то же самое, но через нас.
+    if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/uploads/')) return;
+
     if (neverCache(url)) {
-        // Страницы и API — всегда из сети. Если сети нет, отдаём внятную заглушку,
+        // Страницы — всегда из сети. Если сети нет, отдаём внятную заглушку,
         // а не браузерную ошибку «страница недоступна».
         e.respondWith(fetch(req).catch(async () => {
             if (req.mode === 'navigate') {
@@ -112,6 +117,21 @@ self.addEventListener('fetch', (e) => {
 // спрашивает сервер, что показать. Если спросить не удалось, показываем нейтральное
 // уведомление: правило браузера — на каждый пуш обязано быть видимое уведомление,
 // иначе подписку у нас отберут.
+/**
+ * Отметка о полученном пуше — чтобы можно было отличить две разные беды:
+ * «браузер пуш не получил» (тогда дело в устройстве или сети) и «получил, но не
+ * показал» (тогда дело в нас). Без такой отметки оставалось только гадать.
+ * Пишем в Cache Storage: он доступен и воркеру, и странице.
+ */
+async function logPush(info) {
+    try {
+        const c = await caches.open('psy-push-log');
+        await c.put('/__push-log', new Response(JSON.stringify(info), {
+            headers: { 'Content-Type': 'application/json' },
+        }));
+    } catch (err) {}
+}
+
 self.addEventListener('push', (e) => {
     e.waitUntil((async () => {
         let d = null;
@@ -139,6 +159,7 @@ self.addEventListener('push', (e) => {
         try {
             if (count > 0 && self.navigator && self.navigator.setAppBadge) await self.navigator.setAppBadge(count);
         } catch (err) {}
+        await logPush({ at: Date.now(), title, body, asked: !!d, version: VERSION });
     })());
 });
 

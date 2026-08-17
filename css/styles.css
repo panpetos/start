@@ -1604,22 +1604,29 @@ body.dark .accent-link { color: #B794F4 !important; }
 
   .burger-menu { display: flex !important; }
 
+  /* ── Выезжающее меню ───────────────────────────────────────────────────────
+     Было: белая панель с жирными разделительными линиями и текстом в пустоте —
+     выглядело как черновик и не сочеталось с остальным сервисом. Теперь спокойный
+     список в духе Notion: мягкая подложка, пункты — строки с закруглённой
+     подсветкой при нажатии, разделителей нет вовсе, вместо них воздух. */
   .nav-menu {
     position: fixed;
-    top: 70px;
+    top: 0;
     right: 0;
-    width: 280px;
-    height: calc(100vh - 70px);
-    background: white;
+    width: min(300px, 84vw);
+    height: 100dvh;
+    background: #FFFFFF;
     flex-direction: column;
-    padding: 2rem;
-    box-shadow: -4px 0 20px rgba(0,0,0,0.12);
-    border-left: 1px solid #F0F0F0;
+    padding: calc(70px + 0.75rem) 0.6rem 1.25rem;
+    box-shadow: -18px 0 44px rgba(16, 12, 32, 0.16);
+    border-left: 1px solid #EFECF6;
     transform: translateX(100%);
-    transition: transform 0.3s ease;
+    transition: transform 0.26s cubic-bezier(0.32, 0.72, 0, 1);
     z-index: 1001;
-    align-items: flex-start !important;
+    align-items: stretch !important;
     overflow-y: auto;
+    gap: 2px !important;
+    -webkit-overflow-scrolling: touch;
   }
 
   .nav-menu.active { transform: translateX(0); }
@@ -1627,19 +1634,55 @@ body.dark .accent-link { color: #B794F4 !important; }
   .nav-menu li {
     width: 100%;
     margin: 0 !important;
-    padding: 0.25rem 0;
-    border-bottom: 1px solid #F5F5F5;
+    padding: 0 !important;
+    border-bottom: none !important;
   }
-  /* Пункт меню — полноценная область нажатия под палец (было ~32px в высоту). */
-  .nav-menu li > a, .nav-menu li > .nav-link {
+
+  /* Пункт — строка с подсветкой под палец: удобно нажимать и видно, куда попал. */
+  .nav-menu li > a.nav-link {
     display: flex;
     align-items: center;
     width: 100%;
-    min-height: 44px;
-    padding: 0.35rem 0;
+    min-height: 42px;
+    padding: 0 0.7rem;
+    border-radius: 0.55rem;
+    font-size: 0.95rem;
+    font-weight: 500;
+    color: #37352F;
+    transition: background 0.14s;
   }
+  .nav-menu li > a.nav-link:active,
+  .nav-menu li > a.nav-link:hover { background: #F1EFF7; }
 
-  .nav-menu li:last-child { border-bottom: none; margin-top: 1rem !important; }
+  /* Кружки действий — ряд внизу, отделённый воздухом и одной тонкой чертой.
+     ВАЖНО: правило выше не должно их растягивать — от width:100% круглая
+     аватарка превращалась в овал, и подсветка вокруг неё шла эллипсом. */
+  #navMenu #psyNavActions {
+    margin-top: 1rem !important;
+    padding-top: 0.9rem !important;
+    border-top: 1px solid #F0EDF7 !important;
+    display: flex;
+    gap: 0.6rem;
+    justify-content: flex-start;
+  }
+  #navMenu #psyNavActions > * { width: auto !important; min-height: 0 !important; }
+  #navMenu #psyNavActions a,
+  #navMenu #psyNavActions button { flex: 0 0 auto; }
+
+  /* Затемнение под шторкой: без него меню висит поверх страницы без границы,
+     и непонятно, что оно перекрывает. */
+  .nav-scrim {
+    position: fixed; inset: 0; z-index: 998; background: rgba(20, 16, 32, 0.42);
+    opacity: 0; pointer-events: none; transition: opacity 0.26s ease;
+    -webkit-backdrop-filter: blur(1.5px); backdrop-filter: blur(1.5px);
+  }
+  .nav-scrim.active { opacity: 1; pointer-events: auto; }
+
+  body.dark .nav-menu { background: #242229 !important; border-left-color: #34313D !important; }
+  body.dark .nav-menu li > a.nav-link { color: #E4E2E9 !important; }
+  body.dark .nav-menu li > a.nav-link:active,
+  body.dark .nav-menu li > a.nav-link:hover { background: #2A2831 !important; }
+  body.dark #navMenu #psyNavActions { border-top-color: #2E2C36 !important; }
 
   .hero-cta-buttons {
     flex-direction: column !important;

@@ -242,6 +242,38 @@
   }
   global.psyUnsubscribePush = psyUnsubscribePush;
 
+  /**
+   * Что известно об уведомлениях на этом устройстве.
+   * Нужно, чтобы отличить «сервер отправил, а браузер не получил» от «получил, но
+   * не показал»: без этого разбор упирался в догадки о телефоне, к которому нет
+   * доступа. Отметку о полученном пуше пишет сервис-воркер (см. sw.js).
+   */
+  async function psyPushDiag() {
+    var out = { sw: 'нет', controlled: false, endpointHost: '', lastPush: null, permission: 'нет' };
+    try { out.permission = ('Notification' in global) ? Notification.permission : 'нет объекта'; } catch (e) {}
+    try {
+      if ('serviceWorker' in global.navigator) {
+        var regs = await global.navigator.serviceWorker.getRegistrations();
+        if (regs.length) {
+          var w = regs[0].active || regs[0].waiting || regs[0].installing;
+          out.sw = (regs[0].active ? 'работает' : 'ставится') + (w && w.scriptURL ? '' : '');
+          out.controlled = !!global.navigator.serviceWorker.controller;
+          var sub = regs[0].pushManager ? await regs[0].pushManager.getSubscription() : null;
+          if (sub) {
+            try { out.endpointHost = new URL(sub.endpoint).host; } catch (e) { out.endpointHost = 'есть'; }
+          }
+        }
+      }
+    } catch (e) {}
+    try {
+      var c = await caches.open('psy-push-log');
+      var r = await c.match('/__push-log');
+      if (r) out.lastPush = await r.json();
+    } catch (e) {}
+    return out;
+  }
+  global.psyPushDiag = psyPushDiag;
+
   /** Спросить разрешение на уведомления. Возвращает итоговое состояние. */
   async function psyAskNotify() {
     if (!('Notification' in global)) {

@@ -19,7 +19,7 @@
     { href: '/search.html', text: 'Найти психолога' },
     { href: '/offers.html', text: 'Пакеты и цены' },
     { href: '/feed.html', text: 'Лента' },
-    { href: '/blog.html', text: 'блог' }
+    { href: '/blog.html', text: 'Блог' }
   ];
 
   var personSvg =
@@ -123,12 +123,18 @@
       '.site-footer a{display:inline-block;margin:3px 6px}' +
       // Кружки-действия (чат/тема/вход) в мобильном меню — ровным рядом внизу, с разделителем,
       // а не вкривь по одному. Раньше у каждого был свой left-отступ и они «плясали».
-      '#navMenu #psyNavActions{width:100%;margin:1rem 0 0 0!important;padding-top:1rem!important;' +
-        'border-top:1px solid #F0F0F0!important;border-bottom:none!important;justify-content:flex-start;gap:0.75rem}' +
-      'body.dark #navMenu #psyNavActions{border-top-color:#333!important}' +
+      // Ряд кружков — сразу под пунктами, отделённый воздухом и тонкой чертой.
+      // К самому низу шторки прижимать нельзя: внизу висит плашка про cookie, она
+      // выше по слоям и просто накрывала бы кружки.
+      '#navMenu #psyNavActions{width:100%;margin:1rem 0 0 0!important;padding-top:0.9rem!important;' +
+        'border-top:1px solid #F0EDF7!important;border-bottom:none!important;justify-content:flex-start;gap:0.6rem}' +
+      'body.dark #navMenu #psyNavActions{border-top-color:#34313D!important}' +
     '}' +
     'body.dark .nav-link:hover{color:#A78BFA!important}' +
-    'body.dark .nav-menu{background:#1E1E1E!important}' +
+    // Панель шторки чуть светлее страницы, иначе в тёмной теме её границы не видно
+    // и меню выглядит «наплывом» без формы. Значение то же, что в css/styles.css;
+    // держим и здесь, потому что layout.js подключается позже и перебивает.
+    'body.dark .nav-menu{background:#242229!important}' +
     'body.dark .site-footer{background:#1A1A1A!important;color:#9CA3AF!important}' +
     'body.dark .site-footer a{color:#9CA3AF!important}' +
     // Логотипы платёжных систем — тёмные брендовые цвета текста. Перекрашивать их подложку
@@ -382,25 +388,39 @@
     var navMenu = document.getElementById('navMenu');
     var burger = document.getElementById('burgerMenu');
     if (!navMenu || !burger) return;
+
+    // Затемнение под шторкой. Отдельным элементом, а не тенью меню: по нему
+    // удобно закрывать меню нажатием, и видно, что страница под ним неактивна.
+    var scrim = document.getElementById('psyNavScrim');
+    if (!scrim) {
+      scrim = document.createElement('div');
+      scrim.id = 'psyNavScrim';
+      scrim.className = 'nav-scrim';
+      document.body.appendChild(scrim);
+    }
+
+    function setOpen(open) {
+      navMenu.classList.toggle('active', open);
+      burger.classList.toggle('active', open);
+      scrim.classList.toggle('active', open);
+      document.body.style.overflow = open ? 'hidden' : '';
+    }
+
     burger.addEventListener('click', function (e) {
       e.stopPropagation();
-      navMenu.classList.toggle('active');
-      burger.classList.toggle('active');
-      document.body.style.overflow = navMenu.classList.contains('active') ? 'hidden' : '';
+      setOpen(!navMenu.classList.contains('active'));
     });
+    scrim.addEventListener('click', function () { setOpen(false); });
     document.addEventListener('click', function (e) {
       if (navMenu.classList.contains('active') && !navMenu.contains(e.target) && !burger.contains(e.target)) {
-        navMenu.classList.remove('active');
-        burger.classList.remove('active');
-        document.body.style.overflow = '';
+        setOpen(false);
       }
     });
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && navMenu.classList.contains('active')) setOpen(false);
+    });
     navMenu.querySelectorAll('a').forEach(function (a) {
-      a.addEventListener('click', function () {
-        navMenu.classList.remove('active');
-        burger.classList.remove('active');
-        document.body.style.overflow = '';
-      });
+      a.addEventListener('click', function () { setOpen(false); });
     });
   }
 

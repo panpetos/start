@@ -8,6 +8,9 @@
     <link rel="stylesheet" href="/css/styles.css">
     <script src="/js/layout.js"></script>
     <script src="/js/auth.js"></script>
+    <!-- Напрямую, не через layout.js: иначе кнопки уведомлений зависят от того,
+         успел ли загрузиться внедряемый скрипт. -->
+    <script src="/js/app.js" defer></script>
     <style>
         :root {
             --i-bg: #F4F0FF; --i-card: #FFFFFF; --i-border: #EDE9FF; --i-text: #1A1A1A;
@@ -151,6 +154,28 @@
                 <a class="btn btn-ghost" href="/notify-settings.html" style="text-decoration:none;">Все уведомления</a>
             </div>
             <div class="msg" id="notifMsg"></div>
+            <!-- Разбор «отправили, а не пришло». Без этих строк оставалось только
+                 гадать про телефон, к которому нет доступа: теперь видно, приняла ли
+                 служба доставки сообщение и получил ли его браузер. -->
+            <dl class="state" id="diagBox" style="margin-top:0.8rem;"></dl>
+            <details>
+                <summary>Уведомление «отправлено», но не пришло</summary>
+                <ul>
+                    <li>Смотрите строку <b>«Воркер получал пуш»</b> выше. Если там «не получал» —
+                        сообщение до телефона не дошло, и дело не в сайте: чаще всего это
+                        <b>включённый VPN</b> (он рвёт связь с сервисом доставки Google),
+                        <b>режим энергосбережения</b> или ограничения производителя.</li>
+                    <li><b>Xiaomi, Redmi, POCO:</b> Настройки → Приложения → Chrome (или psytalk) →
+                        Экономия батареи → <b>«Нет ограничений»</b>, и там же включите
+                        «Автозапуск». Без этого MIUI глушит доставку в фоне.</li>
+                    <li><b>Huawei, Honor:</b> Настройки → Батарея → Запуск приложений →
+                        Chrome → управлять вручную, все переключатели включить.</li>
+                    <li><b>Samsung:</b> Настройки → Батарея → Ограничения в фоне →
+                        убрать Chrome из «Спящих приложений».</li>
+                    <li>Проверьте, что уведомления Chrome не выключены на уровне системы:
+                        Настройки → Уведомления → Chrome.</li>
+                </ul>
+            </details>
             <details>
                 <summary>Кнопка ничего не делает — что это значит</summary>
                 <ul>
@@ -339,7 +364,14 @@
                     d = await r.json();
                 } catch (e) { d = {}; }
                 if (d && d.sent > 0) {
-                    say('notifMsg', 'Отправили на устройств: ' + d.sent + '. Уведомление придёт через пару секунд.', 'ok');
+                    var where = (d.details || []).filter(x => x.ok)
+                        .map(x => x.host + ' (код ' + x.code + ')').join(', ');
+                    say('notifMsg', 'Служба доставки приняла сообщение: ' + (where || d.sent + ' устр.') +
+                        '. Если уведомление не появится за 10 секунд — смотрите строку «Воркер получал пуш» ниже.', 'ok');
+                    // Через пару секунд перечитываем отметку воркера: по ней и видно,
+                    // дошло ли сообщение до телефона.
+                    setTimeout(paintDiag, 3000);
+                    setTimeout(paintDiag, 9000);
                     await paint();
                     return;
                 }
@@ -359,7 +391,30 @@
                 setTimeout(function () { location.reload(); }, 2200);
             });
 
-            async function paint() { await loadSrv(); await paintState(); refreshInstallBtn(); }
+            /** Строки разбора: что с воркером, подпиской и получал ли он пуши. */
+            async function paintDiag() {
+                var box = el('diagBox');
+                if (!box) return;
+                if (typeof psyPushDiag !== 'function') { box.innerHTML = ''; return; }
+                var d = await psyPushDiag();
+                var when = (t) => {
+                    if (!t) return null;
+                    var sec = Math.round((Date.now() - t) / 1000);
+                    if (sec < 60) return sec + ' с назад';
+                    if (sec < 3600) return Math.round(sec / 60) + ' мин назад';
+                    return Math.round(sec / 3600) + ' ч назад';
+                };
+                var last = d.lastPush && d.lastPush.at ? when(d.lastPush.at) : null;
+                var rows = [
+                    ['Разрешение браузера', d.permission],
+                    ['Оболочка (сервис-воркер)', d.sw + (d.controlled ? ', управляет страницей' : ', ещё не управляет')],
+                    ['Подписка на доставку', d.endpointHost || '—'],
+                    ['Воркер получал пуш', last ? ('да, ' + last) : 'не получал'],
+                ];
+                box.innerHTML = rows.map(r => '<dt>' + r[0] + '</dt><dd>' + String(r[1]) + '</dd>').join('');
+            }
+
+            async function paint() { await loadSrv(); await paintState(); await paintDiag(); refreshInstallBtn(); }
 
             markMine();
             paint();
