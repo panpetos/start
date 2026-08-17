@@ -562,8 +562,9 @@
 
         .conversation-item {
             display: flex;
-            gap: 1rem;
-            padding: 1rem;
+            gap: 0.85rem;
+            padding: 0.7rem 0.85rem;
+            align-items: center;
             border-bottom: 1px solid #f0f0f0;
             cursor: pointer;
             transition: background 0.2s;
@@ -602,9 +603,12 @@
             background: #F3E8FF;
         }
 
+        /* Пропорции как в Telegram: аватарка крупнее, строка выше, имя и превью
+           читаются с расстояния. Было 50px и мелкий текст — раздел с группами
+           выглядел сжатым, названия и последние сообщения приходилось выискивать. */
         .conversation-avatar {
-            width: 50px;
-            height: 50px;
+            width: 56px;
+            height: 56px;
             border-radius: 50%;
             background: linear-gradient(135deg, #7C3AED 0%, #6D28D9 100%);
             display: flex;
@@ -641,8 +645,9 @@
            разъезжались на две строки, а кнопка папки уезжала под имя. */
         .conversation-name {
             font-weight: 600;
+            font-size: 1.02rem;
             color: #333;
-            margin-bottom: 0.25rem;
+            margin-bottom: 0.2rem;
             display: flex;
             align-items: center;
             gap: 0.3rem;
@@ -656,7 +661,8 @@
         }
 
         .conversation-preview {
-            font-size: 0.9rem;
+            font-size: 0.92rem;
+            line-height: 1.35;
             color: #999;
             white-space: nowrap;
             overflow: hidden;
@@ -1432,6 +1438,13 @@
             font-weight: 700; display: flex; align-items: center; justify-content: center;
         }
         .sa-ava img { width: 100%; height: 100%; object-fit: cover; display: block; }
+        .sa-write {
+            flex: 0 0 auto; border: 1.5px solid #E5E7EB; background: none; color: #7C3AED;
+            border-radius: 0.5rem; padding: 0.25rem 0.6rem; font: inherit; font-size: 0.78rem;
+            font-weight: 600; cursor: pointer;
+        }
+        .sa-write:hover { background: rgba(124,58,237,0.1); }
+        body.dark .sa-write { border-color: #444; color: #C4B5FD; }
         .sa-empty { padding: 0.7rem; font-size: 0.84rem; color: #9CA3AF; }
         .sa-go { margin: 0.5rem 0.6rem 0.2rem; width: calc(100% - 1.2rem); padding: 0.7rem;
                  background: linear-gradient(135deg,#7C3AED,#9F67FA); color: #fff; border: none;
@@ -2064,10 +2077,12 @@
                смысл подсказывает title. */
             .chat-header-actions .btn-label { display: none; }
 
-            .conversation-item { padding: 0.75rem; gap: 0.65rem; }
-            .conversation-avatar { width: 44px; height: 44px; }
-            .conversation-name { font-size: 0.95rem; }
-            .conversation-preview { font-size: 0.85rem; }
+            /* На телефоне те же пропорции: палец попадает по строке, а не по щели
+               между ними. Было 44px и текст 0.85rem — мельче, чем в любом мессенджере. */
+            .conversation-item { padding: 0.6rem 0.7rem; gap: 0.7rem; }
+            .conversation-avatar { width: 54px; height: 54px; }
+            .conversation-name { font-size: 1rem; }
+            .conversation-preview { font-size: 0.9rem; }
 
             .messages-container { padding: 0.65rem; gap: 0.5rem; -webkit-overflow-scrolling: touch; }
             .message { max-width: 85%; padding: 0.6rem 0.85rem; font-size: 0.95rem; }
@@ -3218,7 +3233,7 @@
                 const open = me ? '' : `onclick="closeGroupInfo();openUserCard('${escapeHtml(String(m.user_id))}')"`;
                 return `<div class="gi-member" ${open} style="display:flex;align-items:center;gap:0.6rem;padding:0.5rem 0;border-bottom:1px solid #f0f0f0;${me ? '' : 'cursor:pointer;'}"
                              title="${me ? 'Это вы' : 'Открыть карточку'}">
-                    <div class="conversation-avatar" style="width:34px;height:34px;font-size:0.85rem;">${m.avatar ? `<img src="${escapeHtml(m.avatar)}" alt="">` : escapeHtml(nm.charAt(0).toUpperCase())}</div>
+                    <div class="conversation-avatar" style="width:42px;height:42px;font-size:0.95rem;">${m.avatar ? `<img src="${escapeHtml(m.avatar)}" alt="">` : escapeHtml(nm.charAt(0).toUpperCase())}</div>
                     <div style="flex:1;min-width:0;">
                         <div style="font-weight:600;font-size:0.88rem;">${escapeHtml(nm)}${m.role === 'owner' ? ' <span style="color:#7C3AED;font-size:0.72rem;font-weight:700;">владелец</span>' : ''}${me ? ' <span style="color:#9CA3AF;font-size:0.72rem;">— вы</span>' : ''}</div>
                         <div style="color:#9CA3AF;font-size:0.75rem;">${roleLabel}</div>
@@ -3230,7 +3245,7 @@
             box.innerHTML = `
                 <div style="text-align:center;margin-bottom:0.9rem;">
                     <div class="chat-ava-edit" style="margin:0 auto 0.5rem;">
-                        <div class="conversation-avatar" id="giAvatar" style="width:72px;height:72px;background:linear-gradient(135deg,#059669,#10B981);font-size:1.7rem;">${g.avatar_url ? `<img src="${escapeHtml(g.avatar_url)}" alt="">` : '👥'}</div>
+                        <div class="conversation-avatar" id="giAvatar" style="width:88px;height:88px;background:linear-gradient(135deg,#059669,#10B981);font-size:2rem;">${g.avatar_url ? `<img src="${escapeHtml(g.avatar_url)}" alt="">` : '👥'}</div>
                         ${isOwner ? `<label class="chat-ava-btn" title="Сменить аватарку группы">📷
                             <input type="file" accept="image/*" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0;padding:0;margin:-1px;" onchange="uploadGroupAvatar(event)">
                         </label>` : ''}
@@ -5870,7 +5885,9 @@
                         <div class="sa-person" style="cursor:pointer;" title="Открыть профиль"
                              onclick="openViewerProfile('${escapeHtml(String(v.user_id || ''))}')">
                             <span class="sa-ava">${v.avatar ? `<img src="${escapeHtml(v.avatar)}" alt="">` : escapeHtml(storyInitial(v.name))}</span>
-                            <span>${escapeHtml(v.name)}<i class="sa-sub" style="margin-left:0.4rem;">${when(v.viewed_at)}</i></span>
+                            <span style="flex:1;min-width:0;">${escapeHtml(v.name)}<i class="sa-sub" style="margin-left:0.4rem;">${when(v.viewed_at)}</i></span>
+                            <button type="button" class="sa-write" title="Написать"
+                                    onclick="event.stopPropagation();writeToViewer('${escapeHtml(String(v.user_id || ''))}')">Написать</button>
                         </div>`).join('')}</div>`
                       : '<div class="sa-empty">Пока никто не посмотрел.</div>'}
                 </div>`;
@@ -5892,6 +5909,21 @@
             if (typeof openUserCard === 'function') openUserCard(uid);
         }
         window.openViewerProfile = openViewerProfile;
+
+        /**
+         * Написать тому, кто посмотрел историю. Раньше из просмотров можно было
+         * только узнать имя: чтобы ответить, приходилось выходить и искать человека
+         * в списке чатов — а история как раз и есть повод написать.
+         */
+        function writeToViewer(uid) {
+            if (!uid) return;
+            const m = document.getElementById('storyViewers');
+            if (m) m.style.display = 'none';
+            closeStoryViewer();
+            if (typeof startNewChat === 'function') startNewChat(uid);
+            else if (typeof openChatByKey === 'function') openChatByKey(uid);
+        }
+        window.writeToViewer = writeToViewer;
 
         // Привязываем сразу: элемент лежит выше по разметке, а вешать на DOMContentLoaded
         // ненадёжно — если событие уже прошло, обработчик не встанет и «плюс» молча ничего не делает.
@@ -5927,9 +5959,19 @@
         })();
 
         /** Открыть просмотр: isMine — свой блок, idx — индекс в storiesData.data, storyIdx — с какой истории начать. */
+        /**
+         * Открыть просмотр историй.
+         *
+         * Очередь — ВСЕ, у кого есть истории: сначала свои, потом остальные. Раньше
+         * очередь была только «свои» либо только «чужие», поэтому со своей истории
+         * просмотр закрывался, вместо того чтобы пойти дальше по людям — а истории
+         * должны идти одна за другой, пока не кончатся у всех.
+         */
         function openStoryViewer(isMine, idx, storyIdx) {
-            storyViewerQueue = isMine ? storiesData.mine : storiesData.data;
-            storyViewerUserIdx = idx || 0;
+            const mine = storiesData.mine || [];
+            const others = storiesData.data || [];
+            storyViewerQueue = mine.concat(others);
+            storyViewerUserIdx = (isMine ? 0 : mine.length) + (idx || 0);
             storyViewerStoryIdx = storyIdx || 0;
             if (!storyViewerQueue.length || !storyViewerQueue[storyViewerUserIdx]) return;
             document.getElementById('storyViewer').classList.add('open');

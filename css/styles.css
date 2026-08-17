@@ -1665,9 +1665,22 @@ body.dark .accent-link { color: #B794F4 !important; }
     gap: 0.6rem;
     justify-content: flex-start;
   }
-  #navMenu #psyNavActions > * { width: auto !important; min-height: 0 !important; }
-  #navMenu #psyNavActions a,
-  #navMenu #psyNavActions button { flex: 0 0 auto; }
+  /* Размеры кружков задаём явно. Сначала здесь стояло width:auto — и это
+     переломило по-другому: auto перебивал инлайновые 40px, кружок подстраивался
+     под пропорции фотографии и на неквадратном снимке становился эллипсом 72×40,
+     из-под которого лез фиолетовый фон. Фиксированные значения не зависят ни от
+     фотографии, ни от того, какое ещё правило захочет растянуть пункт меню. */
+  #navMenu #psyNavActions > * { min-height: 0 !important; }
+  #navMenu #psyNavActions #psyLoginCircle {
+    width: 40px !important; height: 40px !important; flex: 0 0 40px; border-radius: 50%; overflow: hidden;
+  }
+  #navMenu #psyNavActions #psyChatLink,
+  #navMenu #psyNavActions #psyThemeToggle {
+    width: 38px !important; height: 38px !important; flex: 0 0 38px; border-radius: 50%;
+  }
+  #navMenu #psyNavActions #psyLoginCircle img {
+    width: 100% !important; height: 100% !important; object-fit: cover; display: block;
+  }
 
   /* Затемнение под шторкой: без него меню висит поверх страницы без границы,
      и непонятно, что оно перекрывает. */
