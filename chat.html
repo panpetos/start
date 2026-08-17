@@ -4509,6 +4509,24 @@
             catch (e) { /* не наша забота: не вышло — попробуем через две минуты */ }
         }
 
+        /**
+         * Попросить сервер прислать получателю пуш прямо сейчас.
+         * Обычная рассылка ждёт: свежие сообщения она намеренно пропускает (человек,
+         * скорее всего, ещё в диалоге) и запускается не чаще раза в несколько минут —
+         * в переписке это выглядело как «уведомления приходят через раз». Сервер
+         * проверяет, что мы и правда только что написали этому человеку.
+         */
+        function pokePush(uid) {
+            if (!uid) return;
+            try {
+                fetch('/api/push.php?action=poke', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include', keepalive: true,
+                    body: JSON.stringify({ to: String(uid) })
+                }).catch(function () {});
+            } catch (e) {}
+        }
+
         function notifyNewMessage(title, body, chatKey) {
             // Показываем через сервис-воркер (psyNotify): в установленном приложении на
             // iOS это единственный работающий способ, а на клик по уведомлению воркер сам
@@ -7451,6 +7469,7 @@
         async function forwardToUser(uid) {
             const n = await forwardAll((it) =>
                 postJson('/api/messages.php?action=send', Object.assign({ receiver_id: uid }, it)));
+            if (n) pokePush(uid);
             closeForwardModal();
             if (n && String(selectedUserId) === String(uid)) await loadMessages();
         }
@@ -8152,6 +8171,7 @@
                     credentials: 'include',
                     body: JSON.stringify(messageData)
                 });
+                pokePush(selectedUserId);
 
                 await loadMessages();
 
@@ -8836,6 +8856,7 @@
                     method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
                     body: JSON.stringify(dm)
                 });
+                pokePush(selectedUserId);
                 await loadMessages();
             }
             const c = document.getElementById('messagesContainer');
@@ -10215,6 +10236,7 @@
                     method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
                     body: JSON.stringify({ receiver_id: selectedUserId, content: '[ORDER#' + d.id + '] 💳 Счёт: ' + title + ' — ' + amount.toLocaleString('ru-RU') + ' ₽' })
                 });
+                pokePush(selectedUserId);
                 closeOrderModal();
                 await loadMessages();
                 const c = document.getElementById('messagesContainer'); c.scrollTop = c.scrollHeight;
@@ -10286,6 +10308,7 @@
                     method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
                     body: JSON.stringify({ receiver_id: selectedUserId, content: reply })
                 });
+                pokePush(selectedUserId);
                 await loadMessages();
             } catch (e) { alert('Ошибка сети'); }
         }
@@ -10311,6 +10334,7 @@
                     credentials: 'include',
                     body: JSON.stringify(msg)
                 });
+                pokePush(selectedUserId);
                 closeVideoModal();
                 await loadMessages();
                 // Хосту тоже открываем встречу

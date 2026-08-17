@@ -204,6 +204,22 @@ if ($action === 'save-token' && $_SERVER['REQUEST_METHOD'] === 'POST') {
  */
 function dispatchRun(PDO $pdo, $dry) {
     $chCfg = notify_channels_config();
+    // Push — четвёртый канал наравне с почтой и Telegram. Подключаем здесь, а не
+    // сверху файла: push.php сам разбирает запросы, и на других действиях он не нужен.
+    if (!function_exists('push_send_to_user')) {
+        $pf = __DIR__ . '/push.php';
+        if (is_file($pf)) {
+            // Файл при подключении не должен ничего отвечать: у него есть свой роутер,
+            // поэтому просим его молчать заранее известным «действием».
+            $GLOBALS['__PUSH_LIB_ONLY'] = true;
+            // include внутри функции выполняется в ЕЁ области видимости, а push.php
+            // объявляет на верхнем уровне свои $pdo и $userId — без этого наш $pdo
+            // молча подменился бы чужим. Возвращаем свой обратно.
+            $keepPdo = $pdo;
+            include_once $pf;
+            $pdo = $keepPdo;
+        }
+    }
 
     $since = stateGet($pdo, 'last_run');
     if (!$since) $since = date('Y-m-d H:i:s', time() - NOTIFY_LOOKBACK_H * 3600);
@@ -288,6 +304,24 @@ function dispatchRun(PDO $pdo, $dry) {
                 $r = notify_tg_send($chCfg['telegram_token'], $links['telegram'], $text,
                                     $chCfg['telegram_proxy'] ?? null, $chCfg['telegram_api_base'] ?? null);
                 $tries[] = ['telegram', !empty($r['ok']), $r['description'] ?? $r['error'] ?? null];
+            }
+        }
+        // Push — канал по факту подписки: человек нажал «разрешить» и подключил
+        // устройство, это и есть согласие. Отдельной галочки не спрашиваем, чтобы
+        // «разрешил, а не приходит» не стало новой загадкой; выключается отключением
+        // устройства в настройках уведомлений.
+        if (function_exists('push_send_to_user') && function_exists('push_device_count')
+            && push_device_count($pdo, $to) > 0) {
+            // Пуш мог уже уйти сразу после сообщения (push.php, action=poke и группы).
+            // Тогда второй раз не шлём: это то же уведомление повторно, а если человек
+            // к этому времени всё прочитал — и вовсе уведомление ни о чём.
+            $lastPush = function_exists('push_last_ok') ? push_last_ok($pdo, $to) : null;
+            if ($lastPush && $lastPush >= $info['last_at']) { $tries[] = ['push', true, 'уже доставлено сразу']; }
+            elseif ($dry) { $tries[] = ['push', true, 'dry-run']; }
+            else {
+                $pr = push_send_to_user($pdo, $to);
+                if ($pr['sent'] > 0) $tries[] = ['push', true, $pr['sent'] . ' устр.'];
+                else $tries[] = ['push', false, $pr['errors'] ? implode('; ', array_slice($pr['errors'], 0, 2)) : 'служба доставки не приняла'];
             }
         }
         if ($prefs['max'] && !empty($links['max']) && !empty($chCfg['max_token'])) {

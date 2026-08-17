@@ -85,17 +85,95 @@
     } catch (e) { return false; }
   }
 
+  // ── Подписка на настоящие push-уведомления ────────────────────────────────
+  // Без неё уведомление показывалось только пока открыта страница: она сама
+  // опрашивала сервер. Браузер усыпляет такие опросы в фоне (на iPhone почти
+  // сразу) — отсюда и «приходят через раз». Подписка отдаёт доставку службе
+  // браузера, и сообщение приходит даже при закрытом приложении.
+
+  function urlB64ToU8(base64) {
+    var pad = '='.repeat((4 - base64.length % 4) % 4);
+    var raw = atob((base64 + pad).replace(/-/g, '+').replace(/_/g, '/'));
+    var out = new Uint8Array(raw.length);
+    for (var i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i);
+    return out;
+  }
+
+  /** Подписаться и отдать подписку серверу. Возвращает true, если получилось. */
+  async function psySubscribePush() {
+    try {
+      if (!('serviceWorker' in global.navigator) || !('PushManager' in global)) return false;
+      if (!('Notification' in global) || Notification.permission !== 'granted') return false;
+      var reg = await registerSw();
+      if (!reg || !reg.pushManager) return false;
+
+      var keyRes = await fetch('/api/push.php?action=key', { credentials: 'include' });
+      var keyJson = await keyRes.json();
+      if (!keyJson || !keyJson.ok || !keyJson.key) return false;
+
+      var sub = await reg.pushManager.getSubscription();
+      // Ключ сервера мог смениться — старая подписка тогда бесполезна, пересоздаём.
+      if (sub) {
+        var same = false;
+        try {
+          var cur = new Uint8Array(sub.options.applicationServerKey || []);
+          var want = urlB64ToU8(keyJson.key);
+          same = cur.length === want.length && cur.every(function (v, i) { return v === want[i]; });
+        } catch (e) { same = false; }
+        if (!same) { try { await sub.unsubscribe(); } catch (e) {} sub = null; }
+      }
+      if (!sub) {
+        sub = await reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlB64ToU8(keyJson.key),
+        });
+      }
+      var raw = sub.toJSON ? sub.toJSON() : sub;
+      var r = await fetch('/api/push.php?action=subscribe', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+        body: JSON.stringify({ endpoint: raw.endpoint, keys: raw.keys || {} }),
+      });
+      var d = await r.json().catch(function () { return {}; });
+      return !!(d && d.ok);
+    } catch (e) { return false; }
+  }
+  global.psySubscribePush = psySubscribePush;
+
+  /**
+   * Отключить это устройство от уведомлений.
+   * Подписка — и есть согласие: рассылка смотрит на список устройств, а не на
+   * отдельную галочку. Поэтому «не присылать» должно снимать именно подписку,
+   * иначе уведомления продолжали бы приходить при выключенном переключателе.
+   */
+  async function psyUnsubscribePush() {
+    try {
+      if (!('serviceWorker' in global.navigator)) return false;
+      var reg = await registerSw();
+      var sub = reg && reg.pushManager ? await reg.pushManager.getSubscription() : null;
+      var endpoint = sub ? (sub.endpoint || (sub.toJSON ? sub.toJSON().endpoint : '')) : '';
+      if (sub) { try { await sub.unsubscribe(); } catch (e) {} }
+      if (!endpoint) return false;
+      var r = await fetch('/api/push.php?action=unsubscribe', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+        body: JSON.stringify({ endpoint: endpoint }),
+      });
+      var d = await r.json().catch(function () { return {}; });
+      return !!(d && d.ok);
+    } catch (e) { return false; }
+  }
+  global.psyUnsubscribePush = psyUnsubscribePush;
+
   /** Спросить разрешение на уведомления. Возвращает итоговое состояние. */
   async function psyAskNotify() {
     if (!('Notification' in global)) {
       // iOS до 16.4 и не установленное приложение: объекта Notification нет вовсе.
       return isIos() && !isStandalone() ? 'need-install' : 'unsupported';
     }
-    if (Notification.permission === 'granted') { registerSw(); return 'granted'; }
+    if (Notification.permission === 'granted') { registerSw(); psySubscribePush(); return 'granted'; }
     if (Notification.permission === 'denied') return 'denied';
     try {
       var res = await Notification.requestPermission();
-      if (res === 'granted') registerSw();
+      if (res === 'granted') { registerSw(); psySubscribePush(); }
       return res;
     } catch (e) { return 'denied'; }
   }
@@ -174,9 +252,60 @@
   global.psyRegisterSw = registerSw;
   global.psyOfferInstall = function () { showBar(isIos() ? 'ios' : 'android'); };
 
+  /**
+   * Воркер сообщил, что обновился, — перезагружаем страницу один раз.
+   * Без этого у уже открытого окна остаются файлы прежней версии, и правки
+   * интерфейса «не появляются» (именно так в кабинете оставались два меню).
+   */
+  function watchSwUpdates() {
+    if (!('serviceWorker' in global.navigator)) return;
+    // Была ли страница под управлением ПРЕЖНЕГО воркера. Если воркер ставится
+    // впервые, устаревших файлов взяться негде — перезагружать нечего.
+    var hadOldWorker = !!global.navigator.serviceWorker.controller;
+    global.navigator.serviceWorker.addEventListener('message', function (e) {
+      var d = e.data || {};
+      if (d.type !== 'sw-updated') return;
+      if (!hadOldWorker) return;
+      var key = 'psy-sw-reloaded';
+      var seen = null;
+      try { seen = sessionStorage.getItem(key); } catch (err) {}
+      if (seen === d.version) return;          // одна перезагрузка на версию, не цикл
+      try { sessionStorage.setItem(key, d.version); } catch (err) {}
+      reloadWhenSafe();
+    });
+  }
+
+  /**
+   * Перезагрузить, но не вырвав работу из рук: если человек что-то печатает или
+   * открыт диалог, ждём, пока он уйдёт со страницы. Забрать недописанное
+   * сообщение ради обновления интерфейса — плохая цена.
+   */
+  function reloadWhenSafe() {
+    function busy() {
+      try {
+        var a = document.activeElement;
+        if (a && /^(INPUT|TEXTAREA)$/.test(a.tagName) && String(a.value || '').trim() !== '') return true;
+        var typed = document.querySelector('textarea');
+        if (typed && String(typed.value || '').trim() !== '') return true;
+        return !!document.querySelector('dialog[open]');
+      } catch (e) { return false; }
+    }
+    if (!busy()) { location.reload(); return; }
+    document.addEventListener('visibilitychange', function onHide() {
+      if (document.visibilityState !== 'hidden') return;
+      document.removeEventListener('visibilitychange', onHide);
+      location.reload();
+    });
+  }
+
   function onReady() {
     registerSw();
+    watchSwUpdates();
     maybeOfferInstall();
+    // Подписка живёт не вечно: браузер её сбрасывает при чистке данных, а служба
+    // доставки — сама по себе. Проверяем при каждом запуске, иначе уведомления
+    // однажды тихо перестают приходить и никто не понимает почему.
+    if ('Notification' in global && Notification.permission === 'granted') psySubscribePush();
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', onReady);
   else onReady();

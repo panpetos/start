@@ -6,6 +6,14 @@
     <title>Уведомления — psytalk.pro</title>
     <link rel="stylesheet" href="/css/styles.css">
     <script src="/js/layout.js"></script>
+    <!-- Одно меню в кабинете. Разделы сайта живут в боковом меню («Сайт»), поэтому
+         бургер шапки здесь лишний: на телефоне рядом оказывались два меню, и человек
+         не понимал, в какое жать. Правило дублирует логику layout.js намеренно —
+         HTML не кэшируется, а js мог остаться в кэше телефона прежней версии. -->
+    <style id="psyOneMenu">
+      #burgerMenu{display:none!important}
+      @media (max-width:768px){#navMenu.nav-menu:not(.nav-menu-slim){display:none!important}}
+    </style>
     <script src="/js/api.js"></script>
     <script src="/js/auth.js"></script>
     <script src="/js/dash-sidebar.js"></script>
@@ -124,15 +132,39 @@
         function pushDenied() { return !pushUnsupported() && Notification.permission === 'denied'; }
 
         function pushState() {
-            if (!('Notification' in window)) return { txt: 'Браузер не умеет показывать уведомления', cls: 'b-warn' };
-            if (Notification.permission === 'granted') return { txt: 'разрешены', cls: 'b-on' };
+            var srv = state.pushSrv || {};
+            if (!('Notification' in window)) {
+                // На iPhone это не «браузер не умеет», а «приложение не установлено» —
+                // после добавления на экран «Домой» уведомления работают.
+                if (typeof psyIsIos === 'function' && psyIsIos()) return { txt: 'нужно установить приложение', cls: 'b-warn' };
+                return { txt: 'браузер не умеет показывать уведомления', cls: 'b-warn' };
+            }
             if (Notification.permission === 'denied') return { txt: 'запрещены в браузере', cls: 'b-warn' };
+            if (Notification.permission === 'granted') {
+                return srv.devices > 0 ? { txt: 'работают', cls: 'b-on' }
+                                       : { txt: 'разрешены, устройство не подключено', cls: 'b-off' };
+            }
             return { txt: 'не спрошены', cls: 'b-off' };
+        }
+
+        /** Сколько устройств подключено и готов ли сервер отправлять (см. api/push.php). */
+        async function loadPushSrv() {
+            try {
+                const r = await fetch('/api/push.php?action=status', { credentials: 'include' });
+                state.pushSrv = await r.json();
+            } catch (e) { state.pushSrv = {}; }
         }
 
         function render() {
             const p = state.prefs, a = state.available, links = state.links || {};
             const ps = pushState();
+            const srv = state.pushSrv || {};
+            // На iPhone «разрешить уведомления» в обычной вкладке Safari невозможно: объекта
+            // Notification там нет вовсе. Пишем это прямо, иначе человек жмёт кнопку и не
+            // понимает, почему ничего не происходит.
+            const needInstall = pushUnsupported() &&
+                typeof psyIsIos === 'function' && psyIsIos() &&
+                !(typeof psyIsStandalone === 'function' && psyIsStandalone());
             const evRows = Object.entries(state.events).map(([k, label]) => `
                 <label class="sw" style="font-weight:500;">
                     <input type="checkbox" id="ev-${k}" ${p.events[k] ? 'checked' : ''}>
@@ -194,14 +226,16 @@
                 </div>
 
                 <div class="card">
-                    <h2>🔔 Уведомления в браузере <span class="badge ${ps.cls}">${ps.txt}</span></h2>
-                    <div class="hint">Всплывают на этом устройстве, пока сайт открыт хотя бы в одной вкладке.
-                        Нажатие на уведомление открывает нужный диалог.
+                    <h2>🔔 Уведомления на устройство <span class="badge ${ps.cls}">${ps.txt}</span></h2>
+                    <div class="hint">Приходят как у обычного приложения — даже когда сайт закрыт: доставку
+                        берёт на себя служба браузера. Нажатие на уведомление открывает нужный диалог.
+                        ${srv.devices ? 'Подключено устройств: ' + srv.devices + '.' : 'Ни одного устройства пока не подключено.'}
+                        ${needInstall ? 'На iPhone это работает только из приложения на экране «Домой»: нажмите «Поделиться» в Safari → «На экран „Домой“», откройте psytalk с домашнего экрана и нажмите «Подключить это устройство».' : ''}
                         ${pushDenied() ? 'Сейчас они запрещены в настройках браузера — разрешите их для psytalk.pro и обновите страницу.' : ''}
-                        ${pushUnsupported() ? 'На этом устройстве браузер не умеет показывать уведомления — так работает Safari на iPhone. Выберите Telegram, MAX или почту: туда сообщения дойдут.' : ''}</div>
-                    <label class="sw"><input type="checkbox" id="pushOn" ${p.push_enabled ? 'checked' : ''}><span>Показывать в браузере</span></label>
+                        ${srv.ready === false ? 'Сервер пока не может отправлять уведомления на устройства — сообщите администратору.' : ''}</div>
+                    <label class="sw"><input type="checkbox" id="pushOn" ${p.push_enabled ? 'checked' : ''}><span>Присылать на устройство</span></label>
                     <div class="row">
-                        <button class="btn btn-ghost" id="askPush">Разрешить в браузере</button>
+                        <button class="btn btn-ghost" id="askPush">Подключить это устройство</button>
                         <button class="btn btn-ghost" id="testPush">Проверить</button>
                     </div>
                     <div class="msg" id="pushMsg"></div>
@@ -363,30 +397,70 @@
             unlink('telegram', 'unlinkTg', 'tgMsg');
             unlink('max', 'unlinkMax', 'maxMsg');
 
-            document.getElementById('askPush').onclick = async () => {
-                if (!('Notification' in window)) { say('pushMsg', 'Браузер не умеет показывать уведомления.', 'err'); return; }
-                if (Notification.permission === 'denied') {
-                    say('pushMsg', 'Уведомления запрещены в настройках браузера — разрешите их для psytalk.pro и обновите страницу.', 'err');
-                    return;
+            // Переключатель должен именно включать и выключать доставку, а не только
+            // ставить галочку: рассылка смотрит на список подключённых устройств.
+            document.getElementById('pushOn').onchange = async (e) => {
+                if (e.target.checked) {
+                    say('pushMsg', 'Подключаем устройство…', '');
+                    const res = typeof psyAskNotify === 'function' ? await psyAskNotify() : 'unsupported';
+                    if (res !== 'granted') { e.target.checked = false; document.getElementById('askPush').click(); return; }
+                    await loadPushSrv();
+                    say('pushMsg', 'Устройство подключено.', 'ok');
+                } else {
+                    if (typeof psyUnsubscribePush === 'function') await psyUnsubscribePush();
+                    await loadPushSrv();
+                    say('pushMsg', 'Это устройство отключено от уведомлений.', 'ok');
                 }
-                const res = await Notification.requestPermission();
-                say('pushMsg', res === 'granted' ? 'Разрешено.' : 'Разрешение не выдано.', res === 'granted' ? 'ok' : 'err');
-                document.getElementById('pushOn').checked = res === 'granted';
                 render();
             };
-            document.getElementById('testPush').onclick = () => {
-                if (!('Notification' in window) || Notification.permission !== 'granted') {
-                    say('pushMsg', 'Сначала разрешите уведомления в браузере.', 'err');
+            document.getElementById('askPush').onclick = async () => {
+                // psyAskNotify (js/app.js) не только спрашивает разрешение, но и подписывает
+                // устройство на доставку — без подписки уведомления приходили бы только
+                // пока открыта вкладка, а в фоне телефон их глушит.
+                if (typeof psyAskNotify !== 'function') { say('pushMsg', 'Не удалось загрузить модуль уведомлений — обновите страницу.', 'err'); return; }
+                say('pushMsg', 'Подключаем…', '');
+                const res = await psyAskNotify();
+                if (res === 'need-install') {
+                    say('pushMsg', 'На iPhone уведомления работают только из приложения: «Поделиться» в Safari → «На экран „Домой“», затем откройте psytalk с домашнего экрана.', 'err');
+                    if (typeof psyOfferInstall === 'function') psyOfferInstall();
                     return;
                 }
-                // Через сервис-воркер: на iPhone обычный new Notification() недоступен,
-                // и проверка молча ничего не показывала.
-                if (typeof psyNotify === 'function') {
-                    psyNotify('psytalk.pro', 'Проверка: уведомления работают.', '/chat.html', 'psy-test');
-                } else {
-                    new Notification('psytalk.pro', { body: 'Проверка: уведомления в браузере работают.', icon: '/assets/icon-192.png' });
+                if (res !== 'granted') {
+                    say('pushMsg', res === 'denied'
+                        ? 'Уведомления запрещены в настройках браузера — разрешите их для psytalk.pro и обновите страницу.'
+                        : 'Разрешение не выдано.', 'err');
+                    return;
                 }
-                say('pushMsg', 'Показали уведомление.', 'ok');
+                await loadPushSrv();
+                document.getElementById('pushOn').checked = true;
+                const n = (state.pushSrv && state.pushSrv.devices) || 0;
+                say('pushMsg', n > 0 ? 'Устройство подключено. Проверьте кнопкой «Проверить».'
+                                     : 'Разрешение есть, но подписка не сохранилась — попробуйте ещё раз.', n > 0 ? 'ok' : 'err');
+                render();
+            };
+            document.getElementById('testPush').onclick = async () => {
+                // Проверяем весь путь целиком: сервер → служба доставки → устройство.
+                // Локальный показ уведомления ничего не доказывал: он работал и тогда,
+                // когда доставки в фоне не было вовсе.
+                say('pushMsg', 'Отправляем…', '');
+                let d = {};
+                try {
+                    const r = await fetch('/api/push.php?action=test', { method: 'POST', credentials: 'include' });
+                    d = await r.json();
+                } catch (e) { d = {}; }
+                if (d && d.sent > 0) {
+                    say('pushMsg', 'Отправили на устройств: ' + d.sent + '. Уведомление должно появиться через пару секунд.', 'ok');
+                    await loadPushSrv();
+                    return;
+                }
+                const why = (d && d.errors && d.errors.length) ? ' (' + d.errors[0] + ')' : '';
+                if (!('Notification' in window) || Notification.permission !== 'granted') {
+                    say('pushMsg', 'Сначала нажмите «Подключить это устройство».' + why, 'err');
+                    return;
+                }
+                // Разрешение есть, а доставки нет — покажем хотя бы локально и скажем прямо.
+                if (typeof psyNotify === 'function') psyNotify('psytalk.pro', 'Проверка: уведомление показано, но доставка в фоне не настроена.', '/chat.html', 'psy-test');
+                say('pushMsg', 'Доставка на устройство не сработала' + why + '. Нажмите «Подключить это устройство» и повторите.', 'err');
             };
         }
 
@@ -444,6 +518,7 @@
         async function load() {
             const d = await api('get');
             state = d;
+            await loadPushSrv();
             render();
             loadLog();
             loadLastSeenPref();

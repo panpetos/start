@@ -13,7 +13,7 @@
  * переписка — это ещё и чужие данные на общем устройстве.
  */
 
-const VERSION = 'psy-v1';
+const VERSION = 'psy-v2';
 const SHELL = VERSION + '-shell';
 
 // Оболочка: то, без чего окно не нарисуется. Страницы сюда не входят намеренно —
@@ -41,6 +41,11 @@ self.addEventListener('activate', (e) => {
         const keys = await caches.keys();
         await Promise.all(keys.filter(k => k !== SHELL).map(k => caches.delete(k)));
         await self.clients.claim();
+        // Открытым окнам говорим, что версия сменилась: у тех, кто уже успел
+        // получить старые файлы, интерфейс иначе останется прежним до ручной
+        // перезагрузки — именно так и «остались два меню».
+        const all = await self.clients.matchAll({ type: 'window' });
+        all.forEach(c => { try { c.postMessage({ type: 'sw-updated', version: VERSION }); } catch (err) {} });
     })());
 });
 
@@ -80,38 +85,67 @@ self.addEventListener('fetch', (e) => {
         return;
     }
 
-    // Статика (css/js/иконки): сначала кэш, параллельно обновляем — так оболочка
-    // открывается мгновенно, но не залипает на старой версии.
+    // Статика (css/js/иконки): СНАЧАЛА СЕТЬ, кэш — только если сети нет.
+    //
+    // Сначала было наоборот («сначала кэш, потом тихо обновим»), и это дало
+    // настоящую беду: телефон продолжал открывать вчерашний layout.js, поэтому
+    // правки интерфейса не появлялись — в кабинете так и висели два меню, хотя
+    // на сервере лежал уже исправленный файл. Наш css/js меняется каждый день,
+    // и мгновенная отрисовка не стоит показа устаревшего интерфейса.
     e.respondWith((async () => {
         const cache = await caches.open(SHELL);
-        const hit = await cache.match(req);
-        const net = fetch(req).then(res => {
+        try {
+            const res = await fetch(req);
             if (res && res.ok) cache.put(req, res.clone()).catch(() => {});
             return res;
-        }).catch(() => null);
-        return hit || (await net) || new Response('', { status: 504 });
+        } catch (err) {
+            const hit = await cache.match(req);
+            return hit || new Response('', { status: 504 });
+        }
     })());
 });
 
 // ── Уведомления ─────────────────────────────────────────────────────────────
 // Показ уведомления из сервис-воркера. На iOS это единственный работающий путь.
+// Пуш приходит БЕЗ содержимого: текст переписки не должен идти через чужую службу
+// доставки, да и шифрование содержимого — отдельная гора кода. Поэтому воркер сам
+// спрашивает сервер, что показать. Если спросить не удалось, показываем нейтральное
+// уведомление: правило браузера — на каждый пуш обязано быть видимое уведомление,
+// иначе подписку у нас отберут.
 self.addEventListener('push', (e) => {
-    let d = {};
-    try { d = e.data ? e.data.json() : {}; } catch (err) { d = { body: e.data ? e.data.text() : '' }; }
-    const title = d.title || 'psytalk.pro';
-    e.waitUntil(self.registration.showNotification(title, {
-        body: d.body || 'Новое сообщение',
-        icon: '/assets/icon-192.png',
-        badge: '/assets/icon-192.png',
-        tag: d.tag || 'psy-msg',
-        renotify: true,
-        data: { url: d.url || '/chat.html' },
-    }));
+    e.waitUntil((async () => {
+        let d = null;
+        // На всякий случай понимаем и пуш с содержимым — если когда-нибудь начнём его слать
+        try { if (e.data) d = e.data.json(); } catch (err) { d = null; }
+        if (!d) {
+            try {
+                const r = await fetch('/api/push.php?action=pending', { credentials: 'include', cache: 'no-store' });
+                if (r.ok) d = await r.json();
+            } catch (err) { d = null; }
+        }
+        const title = (d && d.title) || 'psytalk.pro';
+        const body = (d && d.body) || 'Новое сообщение в чатах';
+        const url = (d && d.url) || '/chat.html';
+        const count = d && typeof d.count === 'number' ? d.count : 0;
+        await self.registration.showNotification(title, {
+            body,
+            icon: '/assets/icon-192.png',
+            badge: '/assets/icon-192.png',
+            tag: 'psy-msg',          // одно уведомление, а не лента одинаковых
+            renotify: true,
+            data: { url },
+        });
+        // Число на иконке приложения, где это поддерживается
+        try {
+            if (count > 0 && self.navigator && self.navigator.setAppBadge) await self.navigator.setAppBadge(count);
+        } catch (err) {}
+    })());
 });
 
 // Клик по уведомлению: переводим в уже открытое окно, а не плодим новые вкладки.
 self.addEventListener('notificationclick', (e) => {
     e.notification.close();
+    try { if (self.navigator && self.navigator.clearAppBadge) self.navigator.clearAppBadge(); } catch (err) {}
     const target = (e.notification.data && e.notification.data.url) || '/chat.html';
     e.waitUntil((async () => {
         const all = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });

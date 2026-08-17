@@ -199,7 +199,26 @@ if ($action === 'send' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         // а колонка NOT NULL — в strict-режиме MySQL это ошибка и всё сообщение бы «не отправилось».
         $pdo->prepare("UPDATE chat_group_members SET last_read_message_id = GREATEST(COALESCE(last_read_message_id, 0), ?) WHERE group_id = ? AND user_id = ?")
             ->execute([$mid, $groupId, $userId]);
-        out(['ok' => true, 'id' => $mid]);
+        // Уведомления участникам — сразу, а не с рассылкой раз в несколько минут.
+        // Отвечаем клиенту первым делом: обращений к службам доставки столько же,
+        // сколько участников, и ждать их «отправить» не должно.
+        http_response_code(200);
+        echo json_encode(['ok' => true, 'id' => $mid], JSON_UNESCAPED_UNICODE);
+        // push.php при подключении объявляет свои $pdo и $userId на верхнем уровне,
+        // поэтому автора запоминаем заранее: иначе рассылка зависела бы от того,
+        // что чужой файл положит в переменную с тем же именем.
+        $senderId = $userId;
+        $senderPdo = $pdo;
+        try {
+            $pf = __DIR__ . '/push.php';
+            if (is_file($pf)) {
+                $GLOBALS['__PUSH_LIB_ONLY'] = true;   // у push.php свой роутер — просим его молчать
+                include_once $pf;
+            }
+            if (function_exists('push_flush_response')) push_flush_response();
+            if (function_exists('push_notify_group')) push_notify_group($senderPdo, $groupId, $senderId);
+        } catch (Exception $e) { /* сообщение уже отправлено — молчим */ }
+        exit;
     } catch (Exception $e) { out(['error' => 'Не удалось отправить: ' . $e->getMessage()], 500); }
 }
 

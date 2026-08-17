@@ -7,6 +7,14 @@
     <title>Кабинет психолога - psytalk.pro</title>
     <link rel="stylesheet" href="/css/styles.css">
     <script src="/js/layout.js"></script>
+    <!-- Одно меню в кабинете. Разделы сайта живут в боковом меню («Сайт»), поэтому
+         бургер шапки здесь лишний: на телефоне рядом оказывались два меню, и человек
+         не понимал, в какое жать. Правило дублирует логику layout.js намеренно —
+         HTML не кэшируется, а js мог остаться в кэше телефона прежней версии. -->
+    <style id="psyOneMenu">
+      #burgerMenu{display:none!important}
+      @media (max-width:768px){#navMenu.nav-menu:not(.nav-menu-slim){display:none!important}}
+    </style>
     <script src="/js/lightbox.js?v=2"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
