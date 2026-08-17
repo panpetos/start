@@ -33,7 +33,9 @@
       for (var a in attrs) el.setAttribute(a, attrs[a]);
       head().appendChild(el);
     }
-    addOnce('link[rel="manifest"]', 'link', { rel: 'manifest', href: '/manifest.webmanifest' });
+    // Через PHP: статический .webmanifest reg.ru отдаёт без Content-Type и с nosniff,
+    // и браузер отказывается считать его манифестом — установка не предлагается.
+    addOnce('link[rel="manifest"]', 'link', { rel: 'manifest', href: '/api/manifest.php' });
     addOnce('link[rel="apple-touch-icon"]', 'link', { rel: 'apple-touch-icon', href: '/assets/icon-192.png' });
     addOnce('meta[name="theme-color"]', 'meta', { name: 'theme-color', content: '#7C3AED' });
     // Без этих строк приложение с домашнего экрана открывается как обычная вкладка Safari

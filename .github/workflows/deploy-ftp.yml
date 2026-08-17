@@ -65,7 +65,6 @@ jobs:
             put privacy.html;
             put refund.html;
             put qr.html;
-            put manifest.webmanifest;
             put sw.js;
             mkdir -f css;
             put css/styles.css -o css/styles.css;
@@ -130,6 +129,7 @@ jobs:
             put api/notify_dispatch.php -o api/notify_dispatch.php;
             put api/blog.php -o api/blog.php;
             put api/schema_util.php -o api/schema_util.php;
+            put api/manifest.php -o api/manifest.php;
             bye;
           "
           echo "Deployment complete"
