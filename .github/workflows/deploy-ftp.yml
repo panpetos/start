@@ -25,6 +25,9 @@ jobs:
             cd /var/www/u3105470/data/www/psytalk.pro;
             mkdir -f assets;
             put assets/favicon.svg -o assets/favicon.svg;
+            put assets/icon-192.png -o assets/icon-192.png;
+            put assets/icon-512.png -o assets/icon-512.png;
+            put assets/icon-maskable-512.png -o assets/icon-maskable-512.png;
             put assets/quiz-hero.jpg -o assets/quiz-hero.jpg;
             put assets/session.mp4 -o assets/session.mp4;
             put assets/session-poster.jpg -o assets/session-poster.jpg;
@@ -62,6 +65,8 @@ jobs:
             put privacy.html;
             put refund.html;
             put qr.html;
+            put manifest.webmanifest;
+            put sw.js;
             mkdir -f css;
             put css/styles.css -o css/styles.css;
             put js/layout.js -o js/layout.js;
@@ -72,6 +77,7 @@ jobs:
             put js/dash-sidebar.js -o js/dash-sidebar.js;
             put js/lightbox.js -o js/lightbox.js;
             put js/qr.js -o js/qr.js;
+            put js/app.js -o js/app.js;
             put api/admin_ext.php -o api/admin_ext.php;
             put api/subscribe.php -o api/subscribe.php;
             put api/my_profile.php -o api/my_profile.php;

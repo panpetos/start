@@ -108,39 +108,47 @@
         .chat-sb-head #sbSearchClose { display: none; }
         .chat-sb-head.searching #sbCabinetBtn,
         .chat-sb-head.searching #sbSearchBtn,
-        .chat-sb-head.searching #sbSettingsBtn { display: none; }
+        .chat-sb-head.searching #sbSettingsBtn,
+        .chat-sb-head.searching #storiesRow { display: none !important; }
         .chat-sb-head.searching .chat-sb-search { display: block; }
         .chat-sb-head.searching #sbSearchClose { display: flex; }
 
         /* ── Истории: кружки над списком чатов, как в Telegram/MAX ── */
+        /* Компактно и в одну линию: кружки того же размера, что иконки в шапке (38px),
+           без подписей под ними — подписи забирали вторую строку и делали блок громоздким.
+           «Плюса» на своём кружке нет: он лежал внутри круга с overflow:hidden и обрезался,
+           а добавить историю и так можно из меню «+» в списке чатов. */
         .stories-row {
-            display: flex; gap: 0.7rem; padding: 0.7rem 0.75rem; overflow-x: auto;
-            flex-shrink: 0; border-bottom: 1px solid #e0e0e0; scrollbar-width: none;
+            display: flex; align-items: center; gap: 0.35rem; overflow-x: auto;
+            flex: 1; min-width: 0; scrollbar-width: none;
         }
         .stories-row::-webkit-scrollbar { display: none; }
-        .story-item { flex-shrink: 0; width: 58px; text-align: center; cursor: pointer; border: none; background: none; font-family: inherit; padding: 0; }
+        .story-item {
+            flex-shrink: 0; cursor: pointer; border: none; background: none; font-family: inherit;
+            padding: 0; line-height: 0;
+        }
         .story-ring {
-            width: 54px; height: 54px; border-radius: 50%; padding: 2.5px;
+            width: 38px; height: 38px; border-radius: 50%; padding: 2px;
             background: #D1D5DB; /* просмотрено или нет своих историй */
-            display: flex; align-items: center; justify-content: center; margin: 0 auto;
+            display: flex; align-items: center; justify-content: center;
         }
         .story-ring.unseen { background: linear-gradient(135deg,#7C3AED,#F59E0B,#EC4899); }
         .story-ring.mine-empty { background: none; border: 1.5px dashed #9CA3AF; }
         .story-avatar {
             width: 100%; height: 100%; border-radius: 50%; background: linear-gradient(135deg,#7C3AED,#9F67FA);
             color: #fff; display: flex; align-items: center; justify-content: center;
-            font-weight: 700; font-size: 1.1rem; overflow: hidden; border: 2px solid #fff;
-            position: relative;
+            font-weight: 700; font-size: 0.8rem; line-height: 1; overflow: hidden; border: 2px solid #fff;
         }
         .story-avatar img { width: 100%; height: 100%; object-fit: cover; }
-        .story-avatar .story-plus {
-            position: absolute; right: -2px; bottom: -2px; width: 18px; height: 18px; border-radius: 50%;
-            background: #7C3AED; color: #fff; display: flex; align-items: center; justify-content: center;
-            font-size: 0.85rem; border: 2px solid #fff; line-height: 1;
+        /* Кнопка «добавить историю» — отдельным элементом рядом, а не наклейкой на аватарке */
+        .story-add {
+            flex-shrink: 0; width: 34px; height: 34px; border-radius: 50%; border: 1.5px dashed #9CA3AF;
+            background: none; color: #7C3AED; font-size: 1.05rem; line-height: 1; cursor: pointer;
+            display: flex; align-items: center; justify-content: center; font-family: inherit;
         }
-        .story-name { font-size: 0.7rem; color: #6B7280; margin-top: 0.25rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        body.dark .stories-row { border-bottom-color: #333; }
-        body.dark .story-name { color: #9CA3AF; }
+        .story-add:hover { border-color: #7C3AED; background: rgba(124,58,237,0.08); }
+        .stories-label { font-size: 0.72rem; color: #9CA3AF; flex-shrink: 0; margin-right: 0.1rem; }
+        body.dark .stories-label { color: #7A7A7A; }
         body.dark .story-ring { background: #444; }
 
         /* ── Полноэкранный просмотр историй ── */
@@ -1345,6 +1353,25 @@
         }
         body.dark .scroll-down-btn { background: #2A2A2A; color: #D0D0D0; border-color: #3A3A3A; }
 
+        /* Окно «кому показать историю» и список просмотров */
+        .sa-row { display: flex; gap: 0.55rem; align-items: flex-start; padding: 0.6rem 0.7rem; margin: 0 0.6rem 0.3rem;
+                  border: 1.5px solid rgba(128,128,128,0.25); border-radius: 0.7rem; cursor: pointer; }
+        .sa-row:hover { border-color: #7C3AED; }
+        .sa-row input { width: 18px; height: 18px; margin-top: 2px; accent-color: #7C3AED; flex: 0 0 auto; cursor: pointer; }
+        .sa-row b { display: block; font-size: 0.9rem; }
+        .sa-row i { display: block; font-style: normal; font-size: 0.75rem; color: #9CA3AF; margin-top: 1px; line-height: 1.35; }
+        .sa-people { max-height: 220px; overflow-y: auto; margin: 0.2rem 0.6rem 0.4rem; border: 1px solid rgba(128,128,128,0.2);
+                     border-radius: 0.6rem; padding: 0.3rem; }
+        .sa-person { display: flex; gap: 0.5rem; align-items: center; padding: 0.35rem 0.4rem; font-size: 0.88rem; cursor: pointer; }
+        .sa-person:hover { background: rgba(124,58,237,0.08); border-radius: 0.4rem; }
+        .sa-person input { width: 17px; height: 17px; accent-color: #7C3AED; flex: 0 0 auto; cursor: pointer; }
+        .sa-sub { font-style: normal; font-size: 0.72rem; color: #9CA3AF; }
+        .sa-empty { padding: 0.7rem; font-size: 0.84rem; color: #9CA3AF; }
+        .sa-go { margin: 0.5rem 0.6rem 0.2rem; width: calc(100% - 1.2rem); padding: 0.7rem;
+                 background: linear-gradient(135deg,#7C3AED,#9F67FA); color: #fff; border: none;
+                 border-radius: 0.7rem; font-family: inherit; font-weight: 700; cursor: pointer; }
+        .sa-note { margin: 0.2rem 0.6rem 0.7rem; font-size: 0.75rem; color: #9CA3AF; line-height: 1.45; }
+
         /* Подсветка, когда в окно тащат файл */
         .chat-area.drop-hint { position: relative; }
         .chat-area.drop-hint::after {
@@ -2179,6 +2206,8 @@
         body.dark .note-text-edit { background: #1E1E1E !important; border-color: #7C3AED !important; color: #E6E6E6 !important; }
         body.dark #chatThemeToggle { background: #2A2A2A; border-color: #444; color: #E6E6E6; }
     </style>
+    <!-- Приложение: манифест, сервис-воркер, уведомления (в т.ч. на iOS) -->
+    <script src="/js/app.js" defer></script>
 </head>
 
 <body>
@@ -2212,10 +2241,13 @@
                 <button type="button" class="chat-hdr-btn" id="sbSettingsBtn" onclick="openChatSettings()" title="Настройки" aria-label="Настройки">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06A1.65 1.65 0 005 15.4a1.65 1.65 0 00-1.51-1H3.4a2 2 0 110-4h.09A1.65 1.65 0 005 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06A1.65 1.65 0 009 5.4a1.65 1.65 0 001-1.51V3.4a2 2 0 114 0v.09A1.65 1.65 0 0015 5.4a1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06A1.65 1.65 0 0019 9c.36.24.83.4 1.31.4H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
                 </button>
+                <!-- Истории — в этой же строке, теми же кружками: отдельная полоса под
+                     шапкой занимала целую строку и делала список громоздким. -->
+                <div id="storiesRow" class="stories-row" style="display:none;"></div>
                 <input id="chatSearchInput" class="chat-sb-search" type="text" placeholder="Поиск по чатам..." oninput="filterConversations()">
                 <button type="button" class="chat-hdr-btn" id="sbSearchClose" onclick="closeSbSearch()" title="Закрыть поиск" aria-label="Закрыть поиск">✕</button>
             </div>
-            <div id="storiesRow" class="stories-row" style="display:none;"></div>
+
             <input type="file" id="storyFileInput" accept="image/*" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;">
             <div id="conversationsList" style="overflow-y:auto;flex:1;min-height:0;touch-action:pan-y;">
                 <div class="no-conversations">Загрузка...</div>
@@ -2223,7 +2255,7 @@
             <!-- Круглый «плюс», как в Telegram: создать группу, канал или блог, не уходя из чата -->
             <button type="button" class="chat-sb-new" id="chatNewBtn" onclick="toggleCreateMenu(event)" title="Создать группу, канал или блог">＋</button>
             <div class="chat-new-menu" id="chatNewMenu">
-                <button type="button" onclick="closeCreateMenu();addStoryClick()"><span>📸</span><div><b>История</b><i>фото на 24 часа — увидят ваши контакты</i></div></button>
+                <button type="button" onclick="closeCreateMenu();openStoryComposer()"><span>📸</span><div><b>История</b><i>фото на 24 часа — выберете, кому показать</i></div></button>
                 <button type="button" onclick="closeCreateMenu();openCreateGroupModal()"><span>👥</span><div><b>Группа</b><i>общая переписка на несколько человек</i></div></button>
                 <button type="button" onclick="closeCreateMenu();openMyChannel()"><span>📢</span><div><b>Канал</b><i>публикации для подписчиков, попадают в Ленту</i></div></button>
                 <button type="button" onclick="closeCreateMenu();openMyBlog()"><span>📝</span><div><b>Блог</b><i>статьи с просмотрами и лайками</i></div></button>
@@ -2618,6 +2650,7 @@
             <div class="story-viewer-head">
                 <div class="sv-ava" id="storyViewerAva"></div>
                 <div class="sv-name" id="storyViewerName"></div>
+                <button type="button" class="sv-del" id="storyViewerViews" onclick="storyViewersClick(event)" title="Кто посмотрел" style="display:none;">👁 <span id="storyViewsCount">0</span></button>
                 <button type="button" class="sv-del" id="storyViewerDel" onclick="deleteCurrentStory()" title="Удалить" style="display:none;">🗑</button>
                 <button type="button" class="sv-close" onclick="closeStoryViewer()" title="Закрыть" aria-label="Закрыть">✕</button>
             </div>
@@ -4276,9 +4309,17 @@
         // раньше уведомления не было вовсе, и о сообщении узнавали, только вернувшись в чат.
         let notifyAsked = false;
         function askNotifyPermission() {
-            if (notifyAsked || !window.Notification) return;
+            if (notifyAsked) return;
             notifyAsked = true;
-            if (Notification.permission === 'default') {
+            // Через psyAskNotify (js/app.js): он же регистрирует сервис-воркер, без которого
+            // на iPhone уведомлений нет вообще, и умеет отличить «нужно установить приложение».
+            if (typeof psyAskNotify === 'function') {
+                psyAskNotify().then(res => {
+                    if (res === 'need-install' && typeof psyOfferInstall === 'function') psyOfferInstall();
+                });
+                return;
+            }
+            if (window.Notification && Notification.permission === 'default') {
                 try { Notification.requestPermission(); } catch (e) {}
             }
         }
@@ -4469,18 +4510,25 @@
         }
 
         function notifyNewMessage(title, body, chatKey) {
+            // Показываем через сервис-воркер (psyNotify): в установленном приложении на
+            // iOS это единственный работающий способ, а на клик по уведомлению воркер сам
+            // переводит в уже открытое окно — new Notification() так не умеет.
+            if (typeof psyNotify === 'function') {
+                psyNotify(title, (body || '').slice(0, 160),
+                          '/chat.html?open=' + encodeURIComponent(chatKey),
+                          'psy-chat-' + chatKey);   // одно уведомление на диалог, а не десять
+                return;
+            }
             try {
                 if (!window.Notification || Notification.permission !== 'granted') return;
                 const n = new Notification(title, {
                     body: (body || '').slice(0, 160),
-                    icon: '/assets/favicon.svg',
-                    tag: 'psy-chat-' + chatKey,     // одно уведомление на диалог, а не десять
+                    icon: '/assets/icon-192.png',
+                    tag: 'psy-chat-' + chatKey,
                 });
                 n.onclick = () => {
                     try { window.focus(); } catch (e) {}
                     n.close();
-                    // если чат уже открыт в этой вкладке — просто переключаем диалог,
-                    // иначе переходим на страницу чата с нужным диалогом в адресе
                     if (typeof openChatByKey === 'function' && document.getElementById('conversationsList')) {
                         openChatByKey(chatKey);
                     } else {
@@ -5409,26 +5457,28 @@
             const mine = storiesData.mine[0] || null;
             const hasMine = mine && mine.stories && mine.stories.length;
             const items = [];
-            items.push(`
-                <button type="button" class="story-item" onclick="${hasMine ? 'openStoryViewer(true,0,0)' : 'addStoryClick()'}" title="${hasMine ? 'Ваша история' : 'Добавить историю'}">
-                    <div class="story-ring ${hasMine ? '' : 'mine-empty'}">
-                        <div class="story-avatar">
-                            ${currentUser.avatar ? `<img src="${escapeHtml(currentUser.avatar)}" alt="">` : storyInitial((currentUser.first_name || '') + ' ' + (currentUser.last_name || ''))}
-                            <span class="story-plus" onclick="event.stopPropagation();addStoryClick();">＋</span>
+            // Кнопка «добавить» стоит рядом с кружками, а не наклейкой поверх аватарки.
+            items.push(`<button type="button" class="story-add" onclick="openStoryComposer()"
+                                title="Добавить историю">＋</button>`);
+            if (hasMine) {
+                const seenAll = mine.stories.every(x => x.seen);
+                items.push(`
+                    <button type="button" class="story-item" onclick="openStoryViewer(true,0,0)" title="Ваша история">
+                        <div class="story-ring ${seenAll ? '' : 'unseen'}">
+                            <div class="story-avatar">${currentUser.avatar ? `<img src="${escapeHtml(currentUser.avatar)}" alt="">` : storyInitial((currentUser.first_name || '') + ' ' + (currentUser.last_name || ''))}</div>
                         </div>
-                    </div>
-                    <div class="story-name">Вы</div>
-                </button>`);
+                    </button>`);
+            }
             storiesData.data.forEach((u, idx) => {
                 items.push(`
                     <button type="button" class="story-item" onclick="openStoryViewer(false,${idx},0)" title="${escapeHtml(u.name)}">
                         <div class="story-ring ${u.has_unseen ? 'unseen' : ''}">
                             <div class="story-avatar">${u.avatar ? `<img src="${escapeHtml(u.avatar)}" alt="">` : storyInitial(u.name)}</div>
                         </div>
-                        <div class="story-name">${escapeHtml((u.name || '').split(' ')[0] || 'Контакт')}</div>
                     </button>`);
             });
-            if (!hasMine && !storiesData.data.length) { row.style.display = 'none'; row.innerHTML = ''; return; }
+            // Пусто — оставляем только «плюс» с подписью, чтобы понятно было, что это такое.
+            if (!hasMine && !storiesData.data.length) items.push('<span class="stories-label">Истории</span>');
             row.style.display = 'flex';
             row.innerHTML = items.join('');
         }
@@ -5438,6 +5488,123 @@
             if (inp) inp.click();
         }
         window.addStoryClick = addStoryClick;
+
+        // ── Кому показать историю ───────────────────────────────────────────────
+        // Раньше история уходила всем контактам без спроса. Теперь перед выбором файла
+        // спрашиваем аудиторию: все контакты, только подписчики канала или выбранные люди.
+        let storyAudience = 'contacts';
+        let storyAllowed = new Set();
+
+        async function openStoryComposer() {
+            let people = [], hasChannel = false;
+            try {
+                const r = await fetch('/api/stories.php?action=contacts', { credentials: 'include' });
+                const d = await r.json();
+                people = (d && d.data) || [];
+                hasChannel = !!(d && d.has_channel);
+            } catch (e) {}
+
+            let m = document.getElementById('storyComposer');
+            if (!m) {
+                m = document.createElement('div');
+                m.id = 'storyComposer';
+                m.className = 'cs-modal';
+                m.onclick = (e) => { if (e.target === m) closeStoryComposer(); };
+                document.body.appendChild(m);
+            }
+            const row = (val, icon, title, hint) => `
+                <label class="sa-row">
+                    <input type="radio" name="storyAud" value="${val}" ${storyAudience === val ? 'checked' : ''}
+                           onchange="setStoryAudience('${val}')">
+                    <span><b>${icon} ${title}</b><i>${hint}</i></span>
+                </label>`;
+            m.innerHTML = `
+                <div class="cs-box">
+                    <div class="cs-head"><b>📸 Новая история</b>
+                        <button type="button" onclick="closeStoryComposer()" title="Закрыть">✕</button></div>
+                    <div class="cs-group-title">Кому показать</div>
+                    ${row('contacts', '👥', 'Все контакты', 'все, с кем у вас есть переписка')}
+                    ${hasChannel ? row('subscribers', '📢', 'Подписчикам канала', 'только те, кто подписан на ваш канал') : ''}
+                    ${row('selected', '✅', 'Выбранным людям', 'отметьте вручную, кому она будет видна')}
+                    <div id="storyPeople" class="sa-people" style="display:${storyAudience === 'selected' ? 'block' : 'none'};">
+                        ${people.length ? people.map(x => `
+                            <label class="sa-person">
+                                <input type="checkbox" value="${escapeHtml(x.user_id)}"
+                                       ${storyAllowed.has(String(x.user_id)) ? 'checked' : ''}
+                                       onchange="toggleStoryPerson('${escapeHtml(x.user_id)}', this.checked)">
+                                <span>${escapeHtml(x.name)}${x.is_subscriber ? ' <i class="sa-sub">подписчик</i>' : ''}</span>
+                            </label>`).join('')
+                          : '<div class="sa-empty">Пока некому показать — начните переписку или соберите подписчиков.</div>'}
+                    </div>
+                    <button class="sa-go" onclick="storyPickFile()">Выбрать фото и опубликовать</button>
+                    <p class="sa-note">История видна 24 часа. Вы увидите, кто её посмотрел.</p>
+                </div>`;
+            m.style.display = 'flex';
+        }
+        window.openStoryComposer = openStoryComposer;
+
+        function closeStoryComposer() {
+            const m = document.getElementById('storyComposer');
+            if (m) m.style.display = 'none';
+        }
+        function setStoryAudience(v) {
+            storyAudience = v;
+            const box = document.getElementById('storyPeople');
+            if (box) box.style.display = v === 'selected' ? 'block' : 'none';
+        }
+        function toggleStoryPerson(id, on) {
+            if (on) storyAllowed.add(String(id)); else storyAllowed.delete(String(id));
+        }
+        function storyPickFile() {
+            if (storyAudience === 'selected' && !storyAllowed.size) {
+                toast('Отметьте, кому показать историю');
+                return;
+            }
+            closeStoryComposer();
+            addStoryClick();
+        }
+        window.closeStoryComposer = closeStoryComposer;
+        window.setStoryAudience = setStoryAudience;
+        window.toggleStoryPerson = toggleStoryPerson;
+        window.storyPickFile = storyPickFile;
+
+        // ── Кто посмотрел мою историю ───────────────────────────────────────────
+        async function openStoryViewers(storyId) {
+            let rows = [];
+            try {
+                const r = await fetch('/api/stories.php?action=viewers&story_id=' + encodeURIComponent(storyId),
+                                      { credentials: 'include' });
+                const d = await r.json();
+                if (!d || !d.ok) { toast((d && d.error) || 'Не удалось получить просмотры'); return; }
+                rows = d.data || [];
+            } catch (e) { toast('Не удалось получить просмотры'); return; }
+
+            let m = document.getElementById('storyViewers');
+            if (!m) {
+                m = document.createElement('div');
+                m.id = 'storyViewers';
+                m.className = 'cs-modal';
+                m.style.zIndex = '5200';       // поверх самого просмотра истории
+                m.onclick = (e) => { if (e.target === m) m.style.display = 'none'; };
+                document.body.appendChild(m);
+            }
+            const when = (t) => {
+                const d2 = new Date(String(t || '').replace(' ', 'T'));
+                return isNaN(d2) ? '' : d2.toLocaleString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+            };
+            m.innerHTML = `
+                <div class="cs-box">
+                    <div class="cs-head"><b>👁 Посмотрели: ${rows.length}</b>
+                        <button type="button" onclick="document.getElementById('storyViewers').style.display='none'">✕</button></div>
+                    ${rows.length ? `<div class="sa-people">${rows.map(v => `
+                        <div class="sa-person" style="cursor:default;">
+                            <span>${escapeHtml(v.name)}<i class="sa-sub" style="margin-left:0.4rem;">${when(v.viewed_at)}</i></span>
+                        </div>`).join('')}</div>`
+                      : '<div class="sa-empty">Пока никто не посмотрел.</div>'}
+                </div>`;
+            m.style.display = 'flex';
+        }
+        window.openStoryViewers = openStoryViewers;
 
         // Привязываем сразу: элемент лежит выше по разметке, а вешать на DOMContentLoaded
         // ненадёжно — если событие уже прошло, обработчик не встанет и «плюс» молча ничего не делает.
@@ -5455,11 +5622,16 @@
                     const url = await uploadImage(file);
                     const r = await fetch('/api/stories.php?action=create', {
                         method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
-                        body: JSON.stringify({ media_url: url, media_type: 'image' })
+                        body: JSON.stringify({ media_url: url, media_type: 'image',
+                                               audience: storyAudience,
+                                               allowed: [...storyAllowed] })
                     });
                     const d = await r.json().catch(() => ({}));
                     if (!d || !d.ok) throw new Error((d && d.error) || 'сервер отказал');
-                    toast('История опубликована — видна 24 часа');
+                    toast(storyAudience === 'selected'
+                        ? `История опубликована — видна ${storyAllowed.size} чел.`
+                        : (storyAudience === 'subscribers' ? 'История опубликована — видна подписчикам'
+                                                           : 'История опубликована — видна вашим контактам'));
                     await loadStoriesRow();
                 } catch (e) { alert('Не удалось опубликовать историю: ' + e.message); }
             });
@@ -5506,6 +5678,13 @@
             const cap = document.getElementById('storyViewerCaption');
             if (s.caption) { cap.textContent = s.caption; cap.style.display = 'block'; } else { cap.style.display = 'none'; }
             document.getElementById('storyViewerDel').style.display = u.is_mine ? 'flex' : 'none';
+            // Свою историю можно открыть и посмотреть, кто её видел.
+            const vBtn = document.getElementById('storyViewerViews');
+            if (vBtn) {
+                vBtn.style.display = u.is_mine ? 'flex' : 'none';
+                const cnt = document.getElementById('storyViewsCount');
+                if (cnt) cnt.textContent = String(s.views_count == null ? 0 : s.views_count);
+            }
 
             const track = document.getElementById('storyProgressRow');
             track.innerHTML = u.stories.map(() => '<div class="story-progress-track"><div class="story-progress-fill"></div></div>').join('');
@@ -5529,6 +5708,15 @@
             }
             storyAdvanceTimer = setTimeout(() => storyStep(1), STORY_DURATION_MS);
         }
+
+        /** Открыть список просмотров, не дав истории уехать дальше по таймеру. */
+        function storyViewersClick(evt) {
+            if (evt) { evt.stopPropagation(); evt.preventDefault(); }
+            clearTimeout(storyAdvanceTimer);
+            const s = currentStory();
+            if (s) openStoryViewers(s.id);
+        }
+        window.storyViewersClick = storyViewersClick;
 
         /** dir: 1 — вперёд (следующая история/автор), -1 — назад. */
         function storyStep(dir) {

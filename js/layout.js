@@ -144,6 +144,23 @@
     'body.dark #psyDevNotice h3{color:#E6E6E6!important}' +
     'body.dark #psyDevNotice p{color:#9CA3AF!important}' +
     'body.dark #psyThemeToggle{background:#2A2A2A!important;border-color:#444!important;color:#E6E6E6!important}' +
+    // Тонкая шапка кабинета: меню всегда в строку, бургера нет вовсе.
+    // Мобильные правила .nav-menu делают из меню выезжающую панель: рамка, тень и высота
+    // на весь экран. В тонкой шапке кабинета это давало светлую полосу сверху справа —
+    // гасим всё, что относится к панели, а не к строке кнопок.
+    '.nav-menu-slim{display:flex!important;position:static!important;flex-direction:row!important;' +
+      'background:none!important;box-shadow:none!important;padding:0!important;gap:0;height:auto!important;' +
+      'width:auto!important;transform:none!important;border:none!important;border-left:none!important;' +
+      'overflow:visible!important;align-items:center!important;top:auto!important;right:auto!important;}' +
+    // Разделитель над кружками нужен только в выезжающем меню сайта. В тонкой шапке
+    // кабинета он рисовался светлой чертой над иконками — гасим целиком, вместе с
+    // отступами, которые в панели раздвигали ряд по вертикали.
+    // Селектор с двумя id — иначе правило мобильного меню (#navMenu #psyNavActions)
+    // весит больше и разделитель остаётся: у обоих !important, решает специфичность.
+    '#navMenu.nav-menu-slim #psyNavActions,#navMenu.nav-menu-slim li{border:none!important;' +
+      'padding:0!important;margin:0!important;width:auto!important}' +
+    '#navMenu.nav-menu-slim #psyNavActions{gap:0.55rem!important}' +
+    '.nav-menu-slim li{margin-left:0!important}' +
     'body.dark #psyChatLink{background:#2A2A2A!important;border-color:#444!important}' +
     'body.dark #psyChatBadge{box-shadow:0 0 0 2px #1E1E1E!important}';
   document.head.appendChild(darkCss);
@@ -183,8 +200,47 @@
     btn.addEventListener('click', toggleSiteTheme);
   }
 
+  // ── Страницы кабинета: шапка без своего меню ──────────────────────────────────
+  // Там есть боковое меню (dash-sidebar), и вторая навигация в шапке давала на
+  // телефоне два бургера рядом — человек не понимал, в какое меню жать. Разделы
+  // сайта переехали в боковое меню (группа «Сайт»), а здесь шапка остаётся
+  // тонкой полосой: логотип, чат со счётчиком и вход в кабинет.
+  var DASH_PAGES = [
+    '/client-dashboard.html', '/psychologist-dashboard.html', '/dashboard-admin.html',
+    '/psychologist-notes.html', '/psychologist-blog.html', '/schedule.html',
+    '/supervision.html', '/notify-settings.html', '/edit-profile.html'
+  ];
+  function isDashPage() {
+    var p = path.replace(/\/index\.html$/, '/');
+    return DASH_PAGES.indexOf(p) !== -1;
+  }
+
+  var slimMenu = actionsItem;
+  var slimHeaderHtml =
+    '<nav class="nav" style="background:#fff;border-bottom:1px solid #F0F0F0;">' +
+      '<div style="max-width:1200px;margin:0 auto;padding:0 1.5rem;width:100%;"><div class="nav-container">' +
+        '<a href="/" class="nav-brand" style="font-size:1.25rem;font-weight:600;word-spacing:0;letter-spacing:0;">' +
+          '<span style="color:#1A1A1A;">psy</span><span style="color:#7C3AED;font-style:italic;">talk.pro</span>' +
+        '</a>' +
+        '<ul class="nav-menu nav-menu-slim" id="navMenu">' + slimMenu + '</ul>' +
+      '</div></div>' +
+    '</nav>';
+
   // Синхронная вставка во время разбора HTML — без мерцания.
-  window.psyWriteHeader = function () { applyStoredTheme(); document.write(headerHtml); };
+  // Приложение (манифест, сервис-воркер, установка) — в js/app.js. Он сам ставит
+  // нужные теги, поэтому здесь достаточно его подключить.
+  (function loadAppJs() {
+    if (document.querySelector('script[src="/js/app.js"]')) return;
+    var sc = document.createElement('script');
+    sc.src = '/js/app.js';
+    sc.defer = true;
+    (document.head || document.documentElement).appendChild(sc);
+  })();
+
+  window.psyWriteHeader = function () {
+    applyStoredTheme();
+    document.write(isDashPage() ? slimHeaderHtml : headerHtml);
+  };
   window.psyWriteFooter = function () { document.write(footerHtml); };
 
   // ── Страховка читаемости текста в тёмной теме ──────────────────────────────────

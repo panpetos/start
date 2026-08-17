@@ -42,13 +42,27 @@
             ]},
         ],
     };
+
+    // Разделы сайта, которые раньше висели во ВТОРОМ меню — в шапке. Теперь они здесь:
+    // в кабинете остаётся одно меню, и на телефоне не два бургера рядом.
+    const SITE_LINKS = [
+        { href: '/', icon: '🏡', label: 'На сайт' },
+        { href: '/search.html', icon: '🔍', label: 'Найти психолога' },
+        { href: '/offers.html', icon: '💳', label: 'Пакеты и цены' },
+        { href: '/feed.html', icon: '📰', label: 'Лента' },
+        { href: '/blog.html', icon: '📖', label: 'Блог' },
+    ];
     const TITLES = { psychologist: 'Кабинет психолога', client: 'Личный кабинет' };
 
     function esc(s) { const d = document.createElement('div'); d.textContent = (s == null ? '' : String(s)); return d.innerHTML; }
 
     function renderDashSidebarHtml(role, name) {
-        const groups = NAV[role] || NAV.client;
+        const base = NAV[role] || NAV.client;
         const path = location.pathname;
+        // Не повторяем ссылку дважды: «Найти психолога» и «Лента» у клиента уже есть выше.
+        const already = new Set(base.flatMap(g => g.items.map(i => i.href)));
+        const site = SITE_LINKS.filter(l => !already.has(l.href));
+        const groups = site.length ? base.concat([{ group: 'Сайт', items: site }]) : base;
         const groupsHtml = groups.map(g => `
             <div class="dash-sidebar-group">
                 <div class="dash-sidebar-group-label">${esc(g.group)}</div>

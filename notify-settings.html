@@ -379,7 +379,13 @@
                     say('pushMsg', 'Сначала разрешите уведомления в браузере.', 'err');
                     return;
                 }
-                new Notification('psytalk.pro', { body: 'Проверка: уведомления в браузере работают.', icon: '/assets/favicon.svg' });
+                // Через сервис-воркер: на iPhone обычный new Notification() недоступен,
+                // и проверка молча ничего не показывала.
+                if (typeof psyNotify === 'function') {
+                    psyNotify('psytalk.pro', 'Проверка: уведомления работают.', '/chat.html', 'psy-test');
+                } else {
+                    new Notification('psytalk.pro', { body: 'Проверка: уведомления в браузере работают.', icon: '/assets/icon-192.png' });
+                }
                 say('pushMsg', 'Показали уведомление.', 'ok');
             };
         }
