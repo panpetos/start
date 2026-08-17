@@ -282,8 +282,6 @@
            движения идут «не в ту сторону» и запись выглядит кривой. На саму
            запись это не влияет: кадр собирается отдельно, см. vnCanvas. */
         .vn-ring video.vn-mirror { transform: scaleX(-1); }
-        .vn-mirror-btn { background: rgba(255,255,255,0.14); color: #fff; }
-        .vn-mirror-btn.on { background: rgba(124,58,237,0.85); }
         .vn-progress {
             position: absolute; inset: -6px; border-radius: 50%;
             border: 4px solid rgba(255,255,255,0.18); pointer-events: none;
@@ -938,25 +936,34 @@
         }
 
         /* Своё фото на фон.
-           Поверх снимка лежит полупрозрачная заливка — без неё светлые пузыри
-           тонут в светлом фото, а тёмные в тёмном, и читать переписку невозможно.
-           Насколько она плотная, человек выбирает сам ползунком «Затемнение». */
-        body[data-wall="photo"] .messages-container {
+           Фон рисуем отдельным слоем под перепиской, а не фоном самой прокручиваемой
+           области. Раньше было именно так, и фото растягивалось на всю высоту
+           переписки: в длинном диалоге это тысячи пикселей, снимок раздувался и
+           расплывался, а при прокрутке ещё и «ехал». Слой прибит к видимой части
+           чата: сколько бы ни было сообщений, фото остаётся на месте и в своём
+           размере.
+           Поверх снимка — полупрозрачная заливка: без неё светлые пузыри тонут в
+           светлом фото, а тёмные в тёмном. Плотность выбирается ползунком. */
+        body[data-wall="photo"] #chatContent { position: relative; }
+        body[data-wall="photo"] #chatContent::before {
+            content: ''; position: absolute; inset: 0; z-index: 0; pointer-events: none;
             background-image: linear-gradient(rgba(255,255,255,var(--wall-dim,0.45)), rgba(255,255,255,var(--wall-dim,0.45))), var(--wall-img, none);
             background-size: cover, cover;
             background-position: center, center;
             background-repeat: no-repeat, no-repeat;
-            background-attachment: local, local;
         }
-        body.dark[data-wall="photo"] .messages-container {
+        body.dark[data-wall="photo"] #chatContent::before {
             background-image: linear-gradient(rgba(0,0,0,var(--wall-dim,0.45)), rgba(0,0,0,var(--wall-dim,0.45))), var(--wall-img, none);
         }
+        /* Всё содержимое чата — над слоем с фото. Кнопку «вниз» не трогаем: она
+           позиционируется абсолютно, и position:relative её бы сорвал с места. */
+        body[data-wall="photo"] #chatContent > *:not(.scroll-down-btn) { position: relative; z-index: 1; }
+        body[data-wall="photo"] .messages-container { background: transparent !important; }
         /* Свои цвета пузырей. Работают только когда человек их задал: без атрибута
            остаются фирменные, чтобы «сброс» действительно возвращал исходный вид. */
         body[data-own-color] .message.mine {
             background: linear-gradient(135deg, var(--own-1) 0%, var(--own-2) 100%) !important;
         }
-        body[data-theirs-color] .message.theirs { background: var(--theirs-1) !important; }
 
         /* Выбор обоев */
         .wall-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.6rem; }
@@ -974,18 +981,22 @@
         .wall-tune > label { display: block; font-size: 0.82rem; font-weight: 600; margin-bottom: 0.35rem; }
         .wall-tune input[type=range] { width: 100%; accent-color: #7C3AED; }
         .wall-note { color: #9CA3AF; font-size: 0.75rem; line-height: 1.45; margin-top: 0.3rem; }
-        .wall-colors { display: flex; gap: 0.9rem; flex-wrap: wrap; }
-        .wall-colors span { display: flex; flex-direction: column; align-items: center; gap: 0.25rem; }
-        .wall-colors i { font-style: normal; font-size: 0.72rem; color: #9CA3AF; }
-        .wall-colors input[type=color] {
-            width: 46px; height: 34px; padding: 0; border: 1px solid #E5E7EB;
-            border-radius: 0.5rem; background: none; cursor: pointer;
+        /* Готовые сочетания: кружок с самим градиентом — видно, что получится, до нажатия */
+        .theme-row { display: flex; gap: 0.7rem; flex-wrap: wrap; }
+        .theme-dot {
+            border: none; background: none; padding: 0; cursor: pointer; font: inherit;
+            display: flex; flex-direction: column; align-items: center; gap: 0.25rem; width: 56px;
         }
-        .wall-reset {
-            margin-top: 0.6rem; background: none; border: 1.5px solid #E5E7EB; color: #7C3AED;
-            border-radius: 0.5rem; padding: 0.4rem 0.8rem; font: inherit; font-size: 0.8rem; cursor: pointer;
+        .theme-dot > span {
+            width: 38px; height: 38px; border-radius: 50%; display: block;
+            box-shadow: 0 0 0 2px transparent, 0 2px 6px rgba(0,0,0,0.16); transition: box-shadow 0.15s;
         }
-        body.dark .wall-colors input[type=color], body.dark .wall-reset { border-color: #444; }
+        .theme-dot.on > span { box-shadow: 0 0 0 2px #fff, 0 0 0 4px #7C3AED; }
+        .theme-dot i {
+            font-style: normal; font-size: 0.68rem; color: #6B7280; line-height: 1.2; text-align: center;
+        }
+        body.dark .theme-dot i { color: #A0A0A0; }
+        body.dark .theme-dot.on > span { box-shadow: 0 0 0 2px #1E1E1E, 0 0 0 4px #A78BFA; }
         body.dark .wall-item { border-color: #3A3A3A; }
         body.dark .wall-item.on { border-color: #7C3AED; }
         body.dark .wall-label { background: #2A2A2A; color: #B4B4B4; }
@@ -2607,8 +2618,6 @@
             <div id="vnHint" style="color:rgba(255,255,255,0.72);font-size:0.82rem;text-align:center;max-width:280px;line-height:1.45;">Нажмите «Записать» — кружок пишется до 60 секунд</div>
             <div class="vn-actions">
                 <button onclick="cancelVideoNote()" class="vn-btn vn-btn-ghost" title="Отменить">✕ Отмена</button>
-                <button id="vnMirrorBtn" onclick="toggleVideoNoteMirror()" class="vn-btn vn-mirror-btn"
-                        title="Зеркальный кадр — как вы видите себя в зеркале">⇄ Зеркало</button>
                 <button id="vnRecBtn" onclick="toggleVideoNoteRecording()" class="vn-btn vn-btn-rec" title="Начать запись">● Записать</button>
                 <!-- После записи можно посмотреть, что получилось, и перезаписать, а не отправлять наугад -->
                 <button id="vnReplayBtn" onclick="replayVideoNote()" class="vn-btn vn-btn-ghost" style="display:none;" title="Посмотреть запись">▶ Посмотреть</button>
@@ -3313,12 +3322,14 @@
         }
 
         /** Общая загрузка картинки — используется аватарками групп и каналов. */
-        async function uploadImage(file) {
-            const fd = new FormData();
-            fd.append('file', file);
-            const res = await fetch('/api/upload.php', { method: 'POST', body: fd, credentials: 'include' });
-            const d = await res.json().catch(() => ({}));
-            if (!res.ok || !d.url) throw new Error(d.error || ('HTTP ' + res.status));
+        /**
+         * Картинка на сервер (истории, аватарки групп и каналов).
+         * Через общий загрузчик: напрямую в upload.php упирается в его собственный
+         * потолок — снимок с телефона отбивался «файл больше 5 МБ», хотя такой же
+         * файл в переписке уже проходил.
+         */
+        async function uploadImage(file, onProgress) {
+            const d = await psyUpload(file, onProgress);
             return d.url;
         }
 
@@ -4789,6 +4800,30 @@
         const WALL_DIM_DEFAULT = 45;          // проценты затемнения поверх фото
         const OWN_COLOR_DEFAULT = '#7C3AED';  // фирменные цвета своих пузырей
         const OWN_COLOR2_DEFAULT = '#6D28D9';
+
+        /**
+         * Готовые сочетания для своих сообщений.
+         *
+         * Сначала здесь были три пипетки — и это оказалось «сыро»: человек выбирал
+         * цвет, который не сочетался ни со светлой, ни с тёмной темой, а белый текст
+         * на нём переставал читаться. Меняем только свои пузыри и только на заранее
+         * подобранные пары: каждая достаточно тёмная, чтобы белый текст оставался
+         * читаемым, и не спорит с остальным оформлением. Цвет собеседника не трогаем
+         * вовсе — он должен оставаться в теме, иначе в тёмной теме получается
+         * светлое пятно.
+         */
+        const CHAT_THEMES = [
+            { id: 'brand',  label: 'Фирменный', a: '#7C3AED', b: '#6D28D9' },
+            { id: 'indigo', label: 'Индиго',    a: '#4F46E5', b: '#4338CA' },
+            { id: 'ocean',  label: 'Океан',     a: '#0284C7', b: '#0369A1' },
+            { id: 'teal',   label: 'Бирюза',    a: '#0D9488', b: '#0F766E' },
+            { id: 'forest', label: 'Хвоя',      a: '#059669', b: '#047857' },
+            { id: 'sunset', label: 'Закат',     a: '#EA580C', b: '#C2410C' },
+            { id: 'rose',   label: 'Роза',      a: '#DB2777', b: '#BE185D' },
+            { id: 'cherry', label: 'Вишня',     a: '#E11D48', b: '#9F1239' },
+            { id: 'plum',   label: 'Слива',     a: '#7E22CE', b: '#581C87' },
+            { id: 'slate',  label: 'Графит',    a: '#475569', b: '#334155' },
+        ];
         const PANE_MIN = 200, PANE_MAX = 640, PANE_DEFAULT = 320;
 
         async function prefsApi(action, payload) {
@@ -4820,7 +4855,7 @@
          * атрибут снимаем, а не подставляем «цвет по умолчанию»: так «Сбросить»
          * действительно возвращает исходный вид, а не похожий на него.
          */
-        function applyChatColors(own, own2, theirs) {
+        function applyChatColors(own, own2) {
             const root = document.documentElement, b = document.body;
             if (own) {
                 root.style.setProperty('--own-1', own);
@@ -4828,12 +4863,6 @@
                 b.setAttribute('data-own-color', '1');
             } else {
                 b.removeAttribute('data-own-color');
-            }
-            if (theirs) {
-                root.style.setProperty('--theirs-1', theirs);
-                b.setAttribute('data-theirs-color', '1');
-            } else {
-                b.removeAttribute('data-theirs-color');
             }
         }
         // Ниже этой ширины три кнопки-действия и поиск в шапке уже не помещаются: кнопки
@@ -4864,8 +4893,7 @@
                                localStorage.getItem('psy-chat-wall-url') || '');
                 applyWallDim(localStorage.getItem('psy-chat-wall-dim') || WALL_DIM_DEFAULT);
                 applyChatColors(localStorage.getItem('psy-chat-own') || '',
-                                localStorage.getItem('psy-chat-own2') || '',
-                                localStorage.getItem('psy-chat-theirs') || '');
+                                localStorage.getItem('psy-chat-own2') || '');
                 applyPaneWidth(localStorage.getItem('psy-chat-pane-w') || PANE_DEFAULT);
             } catch (e) { applyWallpaper('none'); }
         }
@@ -4883,11 +4911,10 @@
                     } catch (e) {}
                 }
                 if (p.wall_dim != null) { applyWallDim(p.wall_dim); try { localStorage.setItem('psy-chat-wall-dim', String(p.wall_dim)); } catch (e) {} }
-                applyChatColors(p.own_color || '', p.own_color2 || '', p.theirs_color || '');
+                applyChatColors(p.own_color || '', p.own_color2 || '');
                 try {
                     localStorage.setItem('psy-chat-own', p.own_color || '');
                     localStorage.setItem('psy-chat-own2', p.own_color2 || '');
-                    localStorage.setItem('psy-chat-theirs', p.theirs_color || '');
                 } catch (e) {}
                 if (p.sidebar_width) { applyPaneWidth(p.sidebar_width); try { localStorage.setItem('psy-chat-pane-w', String(p.sidebar_width)); } catch (e) {} }
             } catch (e) { /* настройки — удобство, чат работает и без них */ }
@@ -4914,8 +4941,7 @@
             const curUrl = currentWallUrl();
             const dim = currentDim();
             const own = currentColor('psy-chat-own', '');
-            const own2 = currentColor('psy-chat-own2', '');
-            const theirs = currentColor('psy-chat-theirs', '');
+            const curTheme = (CHAT_THEMES.find(t => t.a.toLowerCase() === own.toLowerCase()) || {}).id || 'brand';
             document.getElementById('wallpaperBody').innerHTML = `
                 <div class="wall-grid">
                     ${WALLPAPERS.map(w => `
@@ -4947,16 +4973,17 @@
                 </div>
 
                 <div class="wall-tune">
-                    <label>Цвета переписки</label>
-                    <div class="wall-colors">
-                        <span><input type="color" id="ownColor" value="${own || OWN_COLOR_DEFAULT}"
-                                     onchange="saveChatColor()"><i>Мои сообщения</i></span>
-                        <span><input type="color" id="ownColor2" value="${own2 || own || OWN_COLOR2_DEFAULT}"
-                                     onchange="saveChatColor()"><i>Переход</i></span>
-                        <span><input type="color" id="theirsColor" value="${theirs || '#FFFFFF'}"
-                                     onchange="saveChatColor()"><i>Собеседник</i></span>
+                    <label>Цвет моих сообщений</label>
+                    <div class="theme-row">
+                        ${CHAT_THEMES.map(t => `
+                            <button type="button" class="theme-dot ${curTheme === t.id ? 'on' : ''}"
+                                    onclick="pickChatTheme('${t.id}')" title="${escapeHtml(t.label)}">
+                                <span style="background:linear-gradient(135deg,${t.a} 0%,${t.b} 100%)"></span>
+                                <i>${escapeHtml(t.label)}</i>
+                            </button>`).join('')}
                     </div>
-                    <button type="button" class="wall-reset" onclick="resetChatColors()">Вернуть фирменные</button>
+                    <div class="wall-note">Меняется только цвет ваших пузырей. Сообщения собеседника
+                        остаются в теме — иначе в тёмной теме они превращаются в светлое пятно.</div>
                 </div>
                 <div style="color:#9CA3AF;font-size:0.78rem;margin-top:0.8rem;line-height:1.45;">Настройки применяются ко всем перепискам и сохраняются в вашем профиле.</div>`;
             // предпросмотр рисуем теми же правилами, что и сам фон
@@ -5036,39 +5063,31 @@
         }
         window.saveWallDim = saveWallDim;
 
-        function saveChatColor() {
-            const own = (document.getElementById('ownColor') || {}).value || '';
-            const own2 = (document.getElementById('ownColor2') || {}).value || own;
-            const theirs = (document.getElementById('theirsColor') || {}).value || '';
-            applyChatColors(own, own2, theirs);
+        /**
+         * Выбрать готовое сочетание. Фирменное не храним как «своё»: пустое значение
+         * возвращает оформление темы, и «вернуться как было» — это просто выбрать
+         * фирменный, а не подобрать похожий цвет.
+         */
+        function pickChatTheme(id) {
+            const t = CHAT_THEMES.find(x => x.id === id);
+            if (!t) return;
+            const own = id === 'brand' ? '' : t.a;
+            const own2 = id === 'brand' ? '' : t.b;
+            applyChatColors(own, own2);
             try {
                 localStorage.setItem('psy-chat-own', own);
                 localStorage.setItem('psy-chat-own2', own2);
-                localStorage.setItem('psy-chat-theirs', theirs);
+                localStorage.removeItem('psy-chat-theirs');
             } catch (e) {}
             savePref('own_color', own);
             savePref('own_color2', own2);
-            savePref('theirs_color', theirs);
-        }
-        window.saveChatColor = saveChatColor;
-
-        /** Вернуть фирменные цвета: снимаем свои, а не подставляем похожие. */
-        function resetChatColors() {
-            applyChatColors('', '', '');
-            try {
-                localStorage.removeItem('psy-chat-own');
-                localStorage.removeItem('psy-chat-own2');
-                localStorage.removeItem('psy-chat-theirs');
-            } catch (e) {}
-            savePref('own_color', '');
-            savePref('own_color2', '');
             savePref('theirs_color', '');
-            const o = document.getElementById('ownColor'); if (o) o.value = OWN_COLOR_DEFAULT;
-            const o2 = document.getElementById('ownColor2'); if (o2) o2.value = OWN_COLOR2_DEFAULT;
-            const t = document.getElementById('theirsColor'); if (t) t.value = '#FFFFFF';
-            toast('Вернули фирменные цвета');
+            document.querySelectorAll('.theme-dot').forEach(b => b.classList.remove('on'));
+            const btn = [...document.querySelectorAll('.theme-dot')]
+                .find(b => (b.getAttribute('title') || '') === t.label);
+            if (btn) btn.classList.add('on');
         }
-        window.resetChatColors = resetChatColors;
+        window.pickChatTheme = pickChatTheme;
 
         // ── Перетаскивание ширины списка чатов ──
         // Ниже PANE_SNAP шторка защёлкивается в компактный вид (только аватарки), выше —
@@ -5910,7 +5929,9 @@
                 if (file.size > MAX_UPLOAD_MB * 1024 * 1024) { alert(`Файл больше ${MAX_UPLOAD_MB} МБ — выберите поменьше.`); return; }
                 toast('Публикуем историю…');
                 try {
-                    const url = await uploadImage(file);
+                    const url = await uploadImage(file, (pr) => {
+                        if (pr < 1) toast('Загружаю ' + fmtSize(file.size) + '… ' + Math.round(pr * 100) + '%');
+                    });
                     const r = await fetch('/api/stories.php?action=create', {
                         method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
                         body: JSON.stringify({ media_url: url, media_type: 'image',
@@ -8982,30 +9003,19 @@
         // Теперь кадр собираем сами: вырезаем квадрат из центра и, если включено
         // зеркало, отражаем — ровно то, что человек видит на превью. Пишем уже
         // этот кадр, поэтому отправленное совпадает с показанным.
-        let vnMirror = true;          // по умолчанию как в зеркале — так привычнее
+        const vnMirror = true;        // всегда как в зеркале — так человек себя и видит
         let vnCanvas = null, vnCanvasCtx = null, vnRaf = 0, vnDrawing = false;
         const VN_SIZE = 480;          // сторона квадрата записи
 
-        try {
-            const saved = localStorage.getItem('psy-vn-mirror');
-            if (saved === '0' || saved === '1') vnMirror = saved === '1';
-        } catch (e) {}
-
+        // Кнопку-переключатель убрали: кадр и так собирается правильно, а лишняя
+        // кнопка в окне записи только занимала место. Само зеркало осталось —
+        // человек видит себя как в зеркале и таким же себя отправляет.
         function paintVnMirrorBtn() {
-            const b = vnEl('vnMirrorBtn');
-            if (b) b.classList.toggle('on', vnMirror);
             const prev = vnEl('vnPreview');
             // Класс только на живой камере: у записи зеркало уже внутри файла,
             // второй раз отражать — значит показать не то, что отправится.
             if (prev) prev.classList.toggle('vn-mirror', vnMirror && !!prev.srcObject);
         }
-
-        function toggleVideoNoteMirror() {
-            vnMirror = !vnMirror;
-            try { localStorage.setItem('psy-vn-mirror', vnMirror ? '1' : '0'); } catch (e) {}
-            paintVnMirrorBtn();
-        }
-        window.toggleVideoNoteMirror = toggleVideoNoteMirror;
 
         /** Рисовать квадратный (и при желании зеркальный) кадр, пока идёт запись. */
         function startVnCanvas() {
