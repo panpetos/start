@@ -1956,16 +1956,21 @@
             }, 3000);
         }
 
-        function supUploadFile(file) {
-            if (file.size > 5 * 1024 * 1024) { alert('Файл слишком большой (макс. 5 МБ)'); return; }
-            const fd = new FormData(); fd.append('file', file);
-            fetch('/api/upload.php', { method: 'POST', credentials: 'include', body: fd })
-                .then(r => r.json()).then(d => {
-                    if (d.error) { alert(d.error); return; }
-                    supPendingFile = { url: d.url, type: file.type, name: file.name };
-                    const el = document.getElementById('supAttachPreview');
-                    if (el) { el.innerHTML = '📎 ' + esc(file.name) + ' <span style="cursor:pointer;margin-left:0.3rem;" onclick="supPendingFile=null;this.parentNode.style.display=\'none\'">✕</span>'; el.style.display = 'block'; }
-                }).catch(() => alert('Ошибка загрузки'));
+        // Через общий загрузчик (js/app.js): крупное уходит частями, иначе файл
+        // больше 256 МБ обрывал бы сам сервер, ещё до нашей проверки.
+        async function supUploadFile(file) {
+            const el = document.getElementById('supAttachPreview');
+            const show = (html) => { if (el) { el.innerHTML = html; el.style.display = 'block'; } };
+            try {
+                show('📎 ' + esc(file.name) + ' — загрузка…');
+                const d = await psyUpload(file, (p) => show('📎 ' + esc(file.name) + ' — ' + Math.round(p * 100) + '%'));
+                supPendingFile = { url: d.url, type: file.type, name: file.name };
+                show('📎 ' + esc(file.name) + ' <span style="cursor:pointer;margin-left:0.3rem;" onclick="supPendingFile=null;this.parentNode.style.display=\'none\'">✕</span>');
+            } catch (e) {
+                show('');
+                if (el) el.style.display = 'none';
+                alert(e.message || 'Ошибка загрузки');
+            }
         }
         function supHandleFile(input) {
             const file = input.files[0]; if (!file) return;

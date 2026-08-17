@@ -718,7 +718,9 @@
 
     function handleFiles(files) {
         for (const f of files) {
-            if (f.size > 5 * 1024 * 1024) { alert('Файл ' + f.name + ' слишком большой (макс. 5 МБ)'); continue; }
+            // Здесь файл уходит в модель целиком, прямо в тексте запроса, поэтому
+            // потолок свой и небольшой: гигабайт в data:URL кладёт саму вкладку.
+            if (f.size > 20 * 1024 * 1024) { alert('Файл ' + f.name + ' больше 20 МБ — для разбора ИИ это слишком много'); continue; }
             const reader = new FileReader();
             reader.onload = function(e) {
                 attachedFiles.push({

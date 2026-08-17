@@ -204,8 +204,11 @@ if ($action === 'upload') {
     if (empty($_FILES['file']) || !is_array($_FILES['file'])) { http_response_code(400); echo json_encode(['error' => 'Файл не передан']); exit; }
     $f = $_FILES['file'];
     if (($f['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) { http_response_code(400); echo json_encode(['error' => 'Ошибка загрузки файла']); exit; }
-    if (($f['size'] ?? 0) > 5 * 1024 * 1024) { http_response_code(400); echo json_encode(['error' => 'Файл больше 5 МБ']); exit; }
-    $allowExt = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'pdf', 'doc', 'docx', 'txt', 'webm', 'ogg', 'mp3', 'm4a', 'wav'];
+    // Потолок здесь ниже, чем в чате, намеренно: виджет открыт анонимным
+    // посетителям, а место на диске хостинга общее и ничьё.
+    if (($f['size'] ?? 0) > 50 * 1024 * 1024) { http_response_code(400); echo json_encode(['error' => 'Файл больше 50 МБ']); exit; }
+    $allowExt = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'heic', 'pdf', 'doc', 'docx', 'txt', 'webm', 'ogg',
+                 'mp3', 'm4a', 'wav', 'mp4', 'mov'];
     $ext = strtolower(pathinfo((string)($f['name'] ?? ''), PATHINFO_EXTENSION));
     if ($ext === 'jpeg') $ext = 'jpg';
     if (!in_array($ext, $allowExt, true)) { http_response_code(400); echo json_encode(['error' => 'Недопустимый тип файла']); exit; }

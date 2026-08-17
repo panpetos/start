@@ -278,6 +278,12 @@
             width: 100%; height: 100%; border-radius: 50%; object-fit: cover;
             background: #000; display: block;
         }
+        /* Живое превью показываем зеркально — как в зеркале, иначе собственные
+           движения идут «не в ту сторону» и запись выглядит кривой. На саму
+           запись это не влияет: кадр собирается отдельно, см. vnCanvas. */
+        .vn-ring video.vn-mirror { transform: scaleX(-1); }
+        .vn-mirror-btn { background: rgba(255,255,255,0.14); color: #fff; }
+        .vn-mirror-btn.on { background: rgba(124,58,237,0.85); }
         .vn-progress {
             position: absolute; inset: -6px; border-radius: 50%;
             border: 4px solid rgba(255,255,255,0.18); pointer-events: none;
@@ -931,6 +937,27 @@
             background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="44" height="44"><circle cx="6" cy="8" r="1" fill="%233B4470"/><circle cx="28" cy="20" r="1.4" fill="%23454E7D"/><circle cx="16" cy="34" r="1" fill="%233B4470"/><circle cx="38" cy="6" r="1" fill="%234A5288"/></svg>');
         }
 
+        /* Своё фото на фон.
+           Поверх снимка лежит полупрозрачная заливка — без неё светлые пузыри
+           тонут в светлом фото, а тёмные в тёмном, и читать переписку невозможно.
+           Насколько она плотная, человек выбирает сам ползунком «Затемнение». */
+        body[data-wall="photo"] .messages-container {
+            background-image: linear-gradient(rgba(255,255,255,var(--wall-dim,0.45)), rgba(255,255,255,var(--wall-dim,0.45))), var(--wall-img, none);
+            background-size: cover, cover;
+            background-position: center, center;
+            background-repeat: no-repeat, no-repeat;
+            background-attachment: local, local;
+        }
+        body.dark[data-wall="photo"] .messages-container {
+            background-image: linear-gradient(rgba(0,0,0,var(--wall-dim,0.45)), rgba(0,0,0,var(--wall-dim,0.45))), var(--wall-img, none);
+        }
+        /* Свои цвета пузырей. Работают только когда человек их задал: без атрибута
+           остаются фирменные, чтобы «сброс» действительно возвращал исходный вид. */
+        body[data-own-color] .message.mine {
+            background: linear-gradient(135deg, var(--own-1) 0%, var(--own-2) 100%) !important;
+        }
+        body[data-theirs-color] .message.theirs { background: var(--theirs-1) !important; }
+
         /* Выбор обоев */
         .wall-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.6rem; }
         .wall-item {
@@ -943,6 +970,22 @@
             display: block; font-size: 0.72rem; color: #6B7280; padding: 0.25rem 0.2rem;
             background: #fff; text-align: center;
         }
+        .wall-tune { margin-top: 1rem; }
+        .wall-tune > label { display: block; font-size: 0.82rem; font-weight: 600; margin-bottom: 0.35rem; }
+        .wall-tune input[type=range] { width: 100%; accent-color: #7C3AED; }
+        .wall-note { color: #9CA3AF; font-size: 0.75rem; line-height: 1.45; margin-top: 0.3rem; }
+        .wall-colors { display: flex; gap: 0.9rem; flex-wrap: wrap; }
+        .wall-colors span { display: flex; flex-direction: column; align-items: center; gap: 0.25rem; }
+        .wall-colors i { font-style: normal; font-size: 0.72rem; color: #9CA3AF; }
+        .wall-colors input[type=color] {
+            width: 46px; height: 34px; padding: 0; border: 1px solid #E5E7EB;
+            border-radius: 0.5rem; background: none; cursor: pointer;
+        }
+        .wall-reset {
+            margin-top: 0.6rem; background: none; border: 1.5px solid #E5E7EB; color: #7C3AED;
+            border-radius: 0.5rem; padding: 0.4rem 0.8rem; font: inherit; font-size: 0.8rem; cursor: pointer;
+        }
+        body.dark .wall-colors input[type=color], body.dark .wall-reset { border-color: #444; }
         body.dark .wall-item { border-color: #3A3A3A; }
         body.dark .wall-item.on { border-color: #7C3AED; }
         body.dark .wall-label { background: #2A2A2A; color: #B4B4B4; }
@@ -1366,6 +1409,13 @@
         .sa-person:hover { background: rgba(124,58,237,0.08); border-radius: 0.4rem; }
         .sa-person input { width: 17px; height: 17px; accent-color: #7C3AED; flex: 0 0 auto; cursor: pointer; }
         .sa-sub { font-style: normal; font-size: 0.72rem; color: #9CA3AF; }
+        /* Кружок с фото того, кто посмотрел историю: по одному имени человека часто не узнать */
+        .sa-ava {
+            width: 30px; height: 30px; flex: 0 0 auto; border-radius: 50%; overflow: hidden;
+            background: linear-gradient(135deg,#7C3AED,#9F67FA); color: #fff; font-size: 0.78rem;
+            font-weight: 700; display: flex; align-items: center; justify-content: center;
+        }
+        .sa-ava img { width: 100%; height: 100%; object-fit: cover; display: block; }
         .sa-empty { padding: 0.7rem; font-size: 0.84rem; color: #9CA3AF; }
         .sa-go { margin: 0.5rem 0.6rem 0.2rem; width: calc(100% - 1.2rem); padding: 0.7rem;
                  background: linear-gradient(135deg,#7C3AED,#9F67FA); color: #fff; border: none;
@@ -2557,6 +2607,8 @@
             <div id="vnHint" style="color:rgba(255,255,255,0.72);font-size:0.82rem;text-align:center;max-width:280px;line-height:1.45;">Нажмите «Записать» — кружок пишется до 60 секунд</div>
             <div class="vn-actions">
                 <button onclick="cancelVideoNote()" class="vn-btn vn-btn-ghost" title="Отменить">✕ Отмена</button>
+                <button id="vnMirrorBtn" onclick="toggleVideoNoteMirror()" class="vn-btn vn-mirror-btn"
+                        title="Зеркальный кадр — как вы видите себя в зеркале">⇄ Зеркало</button>
                 <button id="vnRecBtn" onclick="toggleVideoNoteRecording()" class="vn-btn vn-btn-rec" title="Начать запись">● Записать</button>
                 <!-- После записи можно посмотреть, что получилось, и перезаписать, а не отправлять наугад -->
                 <button id="vnReplayBtn" onclick="replayVideoNote()" class="vn-btn vn-btn-ghost" style="display:none;" title="Посмотреть запись">▶ Посмотреть</button>
@@ -2650,6 +2702,7 @@
             <div class="story-viewer-head">
                 <div class="sv-ava" id="storyViewerAva"></div>
                 <div class="sv-name" id="storyViewerName"></div>
+                <button type="button" class="sv-del" id="storyPauseBtn" onclick="toggleStoryPause(event)" title="Пауза">⏸</button>
                 <button type="button" class="sv-del" id="storyViewerViews" onclick="storyViewersClick(event)" title="Кто посмотрел" style="display:none;">👁 <span id="storyViewsCount">0</span></button>
                 <button type="button" class="sv-del" id="storyViewerDel" onclick="deleteCurrentStory()" title="Удалить" style="display:none;">🗑</button>
                 <button type="button" class="sv-close" onclick="closeStoryViewer()" title="Закрыть" aria-label="Закрыть">✕</button>
@@ -2669,7 +2722,12 @@
     <script>
         const FAVORITES_ID = '__fav__'; // псевдо-собеседник «Избранное» (свой личный диалог)
         const FEED_ID = '__feed__';     // раздел «Лента» — посты каналов, на которые подписан человек
-        const MAX_UPLOAD_MB = 10;       // потолок вложения: было 5, подняли до 10 (видеосообщения не влезали)
+        // Потолок вложения. Было 5, потом 10 — и в 10 МБ не влезала ни съёмка с
+        // телефона, ни сколько-нибудь длинное видео. Теперь гигабайт: файлы больше
+        // порога уходят частями через api/upload_chunk.php, потому что одним
+        // запросом столько не принимает ни PHP (256 МБ), ни nginx (рубит около гига).
+        const MAX_UPLOAD_MB = 1024;
+        const CHUNK_UPLOAD_FROM = 4 * 1024 * 1024;   // с этого размера показываем прогресс
         let msgCache = {};   // id сообщения -> {content, attachment_*} — для пересылки
         let favMessagesCache = [];
         let pendingForward = null;
@@ -4723,6 +4781,14 @@
             { id: 'paper', label: 'Бумага' },
             { id: 'stars', label: 'Звёзды' },
         ];
+        // Готовые фото на фон. Лежат у нас же в uploads — не тянем чужие домены:
+        // каждый показ чата иначе стучался бы на сторонний сервер.
+        const PHOTO_WALLS = [
+            { url: '/uploads/messages/0c3ea41b55ee0f30e168dcd4a8903844.jpeg', label: 'Звёздная ночь' },
+        ];
+        const WALL_DIM_DEFAULT = 45;          // проценты затемнения поверх фото
+        const OWN_COLOR_DEFAULT = '#7C3AED';  // фирменные цвета своих пузырей
+        const OWN_COLOR2_DEFAULT = '#6D28D9';
         const PANE_MIN = 200, PANE_MAX = 640, PANE_DEFAULT = 320;
 
         async function prefsApi(action, payload) {
@@ -4735,8 +4801,40 @@
             return d;
         }
 
-        function applyWallpaper(id) {
+        function applyWallpaper(id, url) {
             document.body.setAttribute('data-wall', id || 'none');
+            if (id === 'photo' && url) {
+                document.documentElement.style.setProperty('--wall-img', `url("${url.replace(/"/g, '%22')}")`);
+            }
+        }
+
+        /** Плотность заливки поверх фото: 0 — фото как есть, 90 — почти однотонный фон. */
+        function applyWallDim(percent) {
+            const v = Math.min(90, Math.max(0, parseInt(percent, 10)));
+            document.documentElement.style.setProperty('--wall-dim', (isNaN(v) ? WALL_DIM_DEFAULT : v) / 100);
+            return isNaN(v) ? WALL_DIM_DEFAULT : v;
+        }
+
+        /**
+         * Свои цвета пузырей. Пустое значение возвращает фирменные — поэтому
+         * атрибут снимаем, а не подставляем «цвет по умолчанию»: так «Сбросить»
+         * действительно возвращает исходный вид, а не похожий на него.
+         */
+        function applyChatColors(own, own2, theirs) {
+            const root = document.documentElement, b = document.body;
+            if (own) {
+                root.style.setProperty('--own-1', own);
+                root.style.setProperty('--own-2', own2 || own);
+                b.setAttribute('data-own-color', '1');
+            } else {
+                b.removeAttribute('data-own-color');
+            }
+            if (theirs) {
+                root.style.setProperty('--theirs-1', theirs);
+                b.setAttribute('data-theirs-color', '1');
+            } else {
+                b.removeAttribute('data-theirs-color');
+            }
         }
         // Ниже этой ширины три кнопки-действия и поиск в шапке уже не помещаются: кнопки
         // не сжимаются, и последняя (тема) выезжала за край панели, налезая на переписку.
@@ -4762,7 +4860,12 @@
         /** Мгновенно применяем кэш, затем уточняем с сервера. */
         function applyCachedChatPrefs() {
             try {
-                applyWallpaper(localStorage.getItem('psy-chat-wall') || 'none');
+                applyWallpaper(localStorage.getItem('psy-chat-wall') || 'none',
+                               localStorage.getItem('psy-chat-wall-url') || '');
+                applyWallDim(localStorage.getItem('psy-chat-wall-dim') || WALL_DIM_DEFAULT);
+                applyChatColors(localStorage.getItem('psy-chat-own') || '',
+                                localStorage.getItem('psy-chat-own2') || '',
+                                localStorage.getItem('psy-chat-theirs') || '');
                 applyPaneWidth(localStorage.getItem('psy-chat-pane-w') || PANE_DEFAULT);
             } catch (e) { applyWallpaper('none'); }
         }
@@ -4772,7 +4875,20 @@
             try {
                 const d = await prefsApi('get');
                 const p = d.data || {};
-                if (p.wallpaper) { applyWallpaper(p.wallpaper); try { localStorage.setItem('psy-chat-wall', p.wallpaper); } catch (e) {} }
+                if (p.wallpaper) {
+                    applyWallpaper(p.wallpaper, p.wall_url || '');
+                    try {
+                        localStorage.setItem('psy-chat-wall', p.wallpaper);
+                        localStorage.setItem('psy-chat-wall-url', p.wall_url || '');
+                    } catch (e) {}
+                }
+                if (p.wall_dim != null) { applyWallDim(p.wall_dim); try { localStorage.setItem('psy-chat-wall-dim', String(p.wall_dim)); } catch (e) {} }
+                applyChatColors(p.own_color || '', p.own_color2 || '', p.theirs_color || '');
+                try {
+                    localStorage.setItem('psy-chat-own', p.own_color || '');
+                    localStorage.setItem('psy-chat-own2', p.own_color2 || '');
+                    localStorage.setItem('psy-chat-theirs', p.theirs_color || '');
+                } catch (e) {}
                 if (p.sidebar_width) { applyPaneWidth(p.sidebar_width); try { localStorage.setItem('psy-chat-pane-w', String(p.sidebar_width)); } catch (e) {} }
             } catch (e) { /* настройки — удобство, чат работает и без них */ }
         }
@@ -4781,9 +4897,25 @@
             prefsApi('set', { key, value: String(value) }).catch(() => {});
         }
 
-        // ── Обои ──
+        // ── Обои и цвета ──
+        function currentWallUrl() {
+            try { return localStorage.getItem('psy-chat-wall-url') || ''; } catch (e) { return ''; }
+        }
+        function currentDim() {
+            try { return parseInt(localStorage.getItem('psy-chat-wall-dim'), 10) || WALL_DIM_DEFAULT; }
+            catch (e) { return WALL_DIM_DEFAULT; }
+        }
+        function currentColor(key, def) {
+            try { return localStorage.getItem(key) || def; } catch (e) { return def; }
+        }
+
         function openWallpaperPicker() {
             const cur = document.body.getAttribute('data-wall') || 'none';
+            const curUrl = currentWallUrl();
+            const dim = currentDim();
+            const own = currentColor('psy-chat-own', '');
+            const own2 = currentColor('psy-chat-own2', '');
+            const theirs = currentColor('psy-chat-theirs', '');
             document.getElementById('wallpaperBody').innerHTML = `
                 <div class="wall-grid">
                     ${WALLPAPERS.map(w => `
@@ -4791,8 +4923,42 @@
                             <span class="wall-swatch" data-wallpreview="${w.id}"></span>
                             <span class="wall-label">${escapeHtml(w.label)}</span>
                         </button>`).join('')}
+                    ${PHOTO_WALLS.map(w => `
+                        <button class="wall-item ${cur === 'photo' && curUrl === w.url ? 'on' : ''}"
+                                onclick="pickPhotoWallpaper('${escapeHtml(w.url)}')" title="${escapeHtml(w.label)}">
+                            <span class="wall-swatch" style="background-image:url('${escapeHtml(w.url)}');background-size:cover;background-position:center;"></span>
+                            <span class="wall-label">${escapeHtml(w.label)}</span>
+                        </button>`).join('')}
+                    <button class="wall-item ${cur === 'photo' && curUrl && !PHOTO_WALLS.some(w => w.url === curUrl) ? 'on' : ''}"
+                            onclick="pickOwnWallpaper()" title="Своё фото на фон">
+                        <span class="wall-swatch" style="${cur === 'photo' && curUrl ? `background-image:url('${escapeHtml(curUrl)}');background-size:cover;background-position:center;` : 'background:linear-gradient(135deg,#7C3AED,#9F67FA);'}
+                                     display:flex;align-items:center;justify-content:center;color:#fff;font-size:1.4rem;">＋</span>
+                        <span class="wall-label">Своё фото</span>
+                    </button>
                 </div>
-                <div style="color:#9CA3AF;font-size:0.78rem;margin-top:0.8rem;line-height:1.45;">Обои применяются ко всем перепискам и сохраняются в вашем профиле.</div>`;
+                <input type="file" id="wallFileInput" accept="image/*" style="display:none;">
+
+                <div class="wall-tune" id="wallDimRow" style="${cur === 'photo' ? '' : 'display:none;'}">
+                    <label for="wallDim">Затемнение фото <b id="wallDimVal">${dim}%</b></label>
+                    <input type="range" id="wallDim" min="0" max="90" step="5" value="${dim}"
+                           oninput="previewWallDim(this.value)" onchange="saveWallDim(this.value)">
+                    <div class="wall-note">Чем больше, тем спокойнее фон. Без затемнения светлые сообщения
+                        сливаются со светлым снимком, и переписку не прочитать.</div>
+                </div>
+
+                <div class="wall-tune">
+                    <label>Цвета переписки</label>
+                    <div class="wall-colors">
+                        <span><input type="color" id="ownColor" value="${own || OWN_COLOR_DEFAULT}"
+                                     onchange="saveChatColor()"><i>Мои сообщения</i></span>
+                        <span><input type="color" id="ownColor2" value="${own2 || own || OWN_COLOR2_DEFAULT}"
+                                     onchange="saveChatColor()"><i>Переход</i></span>
+                        <span><input type="color" id="theirsColor" value="${theirs || '#FFFFFF'}"
+                                     onchange="saveChatColor()"><i>Собеседник</i></span>
+                    </div>
+                    <button type="button" class="wall-reset" onclick="resetChatColors()">Вернуть фирменные</button>
+                </div>
+                <div style="color:#9CA3AF;font-size:0.78rem;margin-top:0.8rem;line-height:1.45;">Настройки применяются ко всем перепискам и сохраняются в вашем профиле.</div>`;
             // предпросмотр рисуем теми же правилами, что и сам фон
             document.querySelectorAll('[data-wallpreview]').forEach(el => {
                 const id = el.getAttribute('data-wallpreview');
@@ -4819,6 +4985,90 @@
             savePref('wallpaper', id);
             closeWallpaperPicker();
         }
+
+        /** Готовое фото из набора. */
+        function pickPhotoWallpaper(url) {
+            applyWallpaper('photo', url);
+            applyWallDim(currentDim());
+            try {
+                localStorage.setItem('psy-chat-wall', 'photo');
+                localStorage.setItem('psy-chat-wall-url', url);
+            } catch (e) {}
+            savePref('wallpaper', 'photo');
+            savePref('wall_url', url);
+            closeWallpaperPicker();
+        }
+        window.pickPhotoWallpaper = pickPhotoWallpaper;
+
+        /** Своё фото на фон: грузим на сайт и ставим. */
+        function pickOwnWallpaper() {
+            const inp = document.getElementById('wallFileInput');
+            if (!inp) return;
+            inp.onchange = async function () {
+                const f = this.files && this.files[0];
+                this.value = '';
+                if (!f) return;
+                if (!/^image\//.test(f.type)) { alert('Нужна картинка — фото или скриншот.'); return; }
+                toast('Загружаю фон…');
+                try {
+                    const up = await uploadOne(f, (pr) => { if (pr < 1) toast('Загружаю фон… ' + Math.round(pr * 100) + '%'); });
+                    pickPhotoWallpaper(up.url);
+                    toast('Фон поставлен');
+                } catch (e) {
+                    alert(e.message || 'Не удалось загрузить фон');
+                }
+            };
+            inp.click();
+        }
+        window.pickOwnWallpaper = pickOwnWallpaper;
+
+        function previewWallDim(v) {
+            applyWallDim(v);
+            const el = document.getElementById('wallDimVal');
+            if (el) el.textContent = v + '%';
+        }
+        window.previewWallDim = previewWallDim;
+
+        function saveWallDim(v) {
+            const val = applyWallDim(v);
+            try { localStorage.setItem('psy-chat-wall-dim', String(val)); } catch (e) {}
+            savePref('wall_dim', val);
+        }
+        window.saveWallDim = saveWallDim;
+
+        function saveChatColor() {
+            const own = (document.getElementById('ownColor') || {}).value || '';
+            const own2 = (document.getElementById('ownColor2') || {}).value || own;
+            const theirs = (document.getElementById('theirsColor') || {}).value || '';
+            applyChatColors(own, own2, theirs);
+            try {
+                localStorage.setItem('psy-chat-own', own);
+                localStorage.setItem('psy-chat-own2', own2);
+                localStorage.setItem('psy-chat-theirs', theirs);
+            } catch (e) {}
+            savePref('own_color', own);
+            savePref('own_color2', own2);
+            savePref('theirs_color', theirs);
+        }
+        window.saveChatColor = saveChatColor;
+
+        /** Вернуть фирменные цвета: снимаем свои, а не подставляем похожие. */
+        function resetChatColors() {
+            applyChatColors('', '', '');
+            try {
+                localStorage.removeItem('psy-chat-own');
+                localStorage.removeItem('psy-chat-own2');
+                localStorage.removeItem('psy-chat-theirs');
+            } catch (e) {}
+            savePref('own_color', '');
+            savePref('own_color2', '');
+            savePref('theirs_color', '');
+            const o = document.getElementById('ownColor'); if (o) o.value = OWN_COLOR_DEFAULT;
+            const o2 = document.getElementById('ownColor2'); if (o2) o2.value = OWN_COLOR2_DEFAULT;
+            const t = document.getElementById('theirsColor'); if (t) t.value = '#FFFFFF';
+            toast('Вернули фирменные цвета');
+        }
+        window.resetChatColors = resetChatColors;
 
         // ── Перетаскивание ширины списка чатов ──
         // Ниже PANE_SNAP шторка защёлкивается в компактный вид (только аватарки), выше —
@@ -5458,6 +5708,12 @@
         let storyViewerQueue = [];                      // плоский список {user_id,name,avatar,stories:[...]} для навигации
         let storyViewerUserIdx = 0, storyViewerStoryIdx = 0;
         let storyAdvanceTimer = null;
+        // Пауза кадра. Раньше история уезжала строго через STORY_DURATION_MS, и рассмотреть
+        // подпись или мелкий текст на фото было нельзя — приходилось открывать заново.
+        // Держим момент запуска и остаток, чтобы после паузы досчитать, а не начать сначала.
+        let storyPaused = false;
+        let storyStartedAt = 0;        // когда пошёл текущий кадр
+        let storyRemainMs = 0;         // сколько ему осталось на момент паузы
         const STORY_DURATION_MS = 5000;
 
         function storyInitial(name) { return ((name || '').trim().charAt(0) || '?').toUpperCase(); }
@@ -5615,7 +5871,9 @@
                     <div class="cs-head"><b>👁 Посмотрели: ${rows.length}</b>
                         <button type="button" onclick="document.getElementById('storyViewers').style.display='none'">✕</button></div>
                     ${rows.length ? `<div class="sa-people">${rows.map(v => `
-                        <div class="sa-person" style="cursor:default;">
+                        <div class="sa-person" style="cursor:pointer;" title="Открыть профиль"
+                             onclick="openViewerProfile('${escapeHtml(String(v.user_id || ''))}')">
+                            <span class="sa-ava">${v.avatar ? `<img src="${escapeHtml(v.avatar)}" alt="">` : escapeHtml(storyInitial(v.name))}</span>
                             <span>${escapeHtml(v.name)}<i class="sa-sub" style="margin-left:0.4rem;">${when(v.viewed_at)}</i></span>
                         </div>`).join('')}</div>`
                       : '<div class="sa-empty">Пока никто не посмотрел.</div>'}
@@ -5623,6 +5881,21 @@
             m.style.display = 'flex';
         }
         window.openStoryViewers = openStoryViewers;
+
+        /**
+         * Из списка просмотревших — в профиль человека.
+         * Раньше строки были неактивны: было видно, что посмотрели, но не понять, кто
+         * это, если имя ни о чём не говорит. Закрываем и список, и саму историю:
+         * карточка иначе открывается под ними и выглядит как «ничего не произошло».
+         */
+        function openViewerProfile(uid) {
+            if (!uid) return;
+            const m = document.getElementById('storyViewers');
+            if (m) m.style.display = 'none';
+            closeStoryViewer();
+            if (typeof openUserCard === 'function') openUserCard(uid);
+        }
+        window.openViewerProfile = openViewerProfile;
 
         // Привязываем сразу: элемент лежит выше по разметке, а вешать на DOMContentLoaded
         // ненадёжно — если событие уже прошло, обработчик не встанет и «плюс» молча ничего не делает.
@@ -5669,6 +5942,7 @@
 
         function closeStoryViewer() {
             clearTimeout(storyAdvanceTimer);
+            storyPaused = false;
             document.getElementById('storyViewer').classList.remove('open');
             document.body.style.overflow = '';
             document.getElementById('storyViewerMedia').src = '';
@@ -5680,6 +5954,32 @@
             if (evt.target.id === 'storyViewer') closeStoryViewer();
         }
         window.storyViewerBgClick = storyViewerBgClick;
+
+        // Удержание — пауза, отпустил — дальше. Так это работает во всех историях,
+        // и это единственный способ рассмотреть кадр, не открывая его заново.
+        (function wireStoryHold() {
+            const box = document.getElementById('storyViewer');
+            if (!box) return;
+            let holdTimer = null, held = false;
+            const start = (e) => {
+                if (!box.classList.contains('open')) return;
+                if (e.target.closest && e.target.closest('button, a, .sv-del')) return;
+                held = false;
+                holdTimer = setTimeout(() => { held = true; pauseStory(); }, 200);
+            };
+            const end = () => {
+                if (holdTimer) { clearTimeout(holdTimer); holdTimer = null; }
+                if (held) { held = false; resumeStory(); }
+            };
+            box.addEventListener('pointerdown', start, { passive: true });
+            ['pointerup', 'pointercancel', 'pointerleave'].forEach(ev =>
+                box.addEventListener(ev, end, { passive: true }));
+            document.addEventListener('keydown', (e) => {
+                if (!box.classList.contains('open')) return;
+                if (e.code === 'Space') { e.preventDefault(); toggleStoryPause(); }
+                if (e.key === 'Escape') closeStoryViewer();
+            });
+        })();
 
         function currentStoryUser() { return storyViewerQueue[storyViewerUserIdx] || null; }
         function currentStory() { const u = currentStoryUser(); return u ? (u.stories[storyViewerStoryIdx] || null) : null; }
@@ -5717,20 +6017,77 @@
                 s.seen = true;
             }
 
+            storyPaused = false;
+            storyRemainMs = STORY_DURATION_MS;
+            paintStoryPauseBtn();
+            runStoryTimer();
+        }
+
+        /** Полоса и таймер текущего кадра — на оставшееся время (после паузы это не полный кадр). */
+        function runStoryTimer() {
+            clearTimeout(storyAdvanceTimer);
+            const fills = document.querySelectorAll('#storyProgressRow .story-progress-fill');
+            const activeFill = fills[storyViewerStoryIdx];
+            const done = 1 - (storyRemainMs / STORY_DURATION_MS);
+            if (activeFill) {
+                activeFill.style.transition = 'none';
+                activeFill.style.width = (done * 100).toFixed(2) + '%';
+                // Заставляем браузер применить стартовую ширину до того, как включим
+                // переход. Через requestAnimationFrame этого не происходит: оба
+                // изменения попадают в один пересчёт стилей, промежуточного значения
+                // браузер не видит — и полоса прыгала в конец сразу, а пауза
+                // останавливать было уже нечего.
+                void activeFill.offsetWidth;
+                activeFill.style.transition = `width ${storyRemainMs}ms linear`;
+                activeFill.style.width = '100%';
+            }
+            storyStartedAt = Date.now();
+            storyAdvanceTimer = setTimeout(() => storyStep(1), storyRemainMs);
+        }
+
+        function paintStoryPauseBtn() {
+            const b = document.getElementById('storyPauseBtn');
+            if (b) { b.textContent = storyPaused ? '▶' : '⏸'; b.title = storyPaused ? 'Продолжить' : 'Пауза'; }
+        }
+
+        /** Остановить кадр: полосу замораживаем там, где она есть сейчас. */
+        function pauseStory() {
+            if (storyPaused) return;
+            storyPaused = true;
+            clearTimeout(storyAdvanceTimer);
+            storyRemainMs = Math.max(0, storyRemainMs - (Date.now() - storyStartedAt));
+            const fills = document.querySelectorAll('#storyProgressRow .story-progress-fill');
             const activeFill = fills[storyViewerStoryIdx];
             if (activeFill) {
-                requestAnimationFrame(() => {
-                    activeFill.style.transition = `width ${STORY_DURATION_MS}ms linear`;
-                    activeFill.style.width = '100%';
-                });
+                // Ширину берём фактическую: остановить переход иначе нечем, он доедет до конца
+                const w = activeFill.getBoundingClientRect().width;
+                const trackW = activeFill.parentNode ? activeFill.parentNode.getBoundingClientRect().width : 0;
+                activeFill.style.transition = 'none';
+                activeFill.style.width = trackW ? ((w / trackW) * 100).toFixed(2) + '%' : activeFill.style.width;
             }
-            storyAdvanceTimer = setTimeout(() => storyStep(1), STORY_DURATION_MS);
+            paintStoryPauseBtn();
         }
+
+        function resumeStory() {
+            if (!storyPaused) return;
+            storyPaused = false;
+            if (storyRemainMs <= 60) { storyStep(1); return; }
+            runStoryTimer();
+            paintStoryPauseBtn();
+        }
+
+        function toggleStoryPause(evt) {
+            if (evt) { evt.stopPropagation(); evt.preventDefault(); }
+            storyPaused ? resumeStory() : pauseStory();
+        }
+        window.toggleStoryPause = toggleStoryPause;
+        window.pauseStory = pauseStory;
+        window.resumeStory = resumeStory;
 
         /** Открыть список просмотров, не дав истории уехать дальше по таймеру. */
         function storyViewersClick(evt) {
             if (evt) { evt.stopPropagation(); evt.preventDefault(); }
-            clearTimeout(storyAdvanceTimer);
+            pauseStory();
             const s = currentStory();
             if (s) openStoryViewers(s.id);
         }
@@ -6119,7 +6476,7 @@
                 const isImg = a.type !== 'file'
                     && (a.type === 'image' || /\.(png|jpe?g|gif|webp|bmp)(\?|$)/i.test(String(a.url || '')));
                 return isImg
-                    ? `<a href="${escapeHtml(a.url)}" target="_blank"${groupAttr}><img src="${escapeHtml(a.url)}" loading="lazy" alt=""></a>`
+                    ? `<a href="${escapeHtml(a.url)}" target="_blank"${groupAttr}><img src="${escapeHtml(a.url)}" loading="lazy" alt="" data-zoom></a>`
                     : `<a class="album-file" href="${escapeHtml(a.url)}" target="_blank" download>📄 ${escapeHtml(a.name || 'файл')}</a>`;
             }).join('') + '</div>';
         }
@@ -7081,7 +7438,7 @@
                         attachmentHtml = isVideoNote(m)
                             ? videoNoteHtml(m.attachment_url, m.attachment_name)
                             : (isImg
-                                ? `<div class="message-attachment"><img src="${m.attachment_url}" alt="${escapeHtml(m.attachment_name || 'Изображение')}" loading="lazy"></div>`
+                                ? `<div class="message-attachment"><img src="${m.attachment_url}" alt="${escapeHtml(m.attachment_name || 'Изображение')}" loading="lazy" data-zoom></div>`
                                 : `<div class="message-attachment"><a href="${m.attachment_url}" target="_blank" download="${m.attachment_name || 'file'}">📄 ${m.attachment_name || 'Скачать файл'}</a></div>`);
                     }
                     const content = m.body ? escapeHtml(m.body) : '';
@@ -7157,7 +7514,7 @@
             if (isImageAttachment(m)) {
                 // Без <a target="_blank">: раньше клик по фото открывал и лайтбокс, и оригинал
                 // отдельной вкладкой одновременно (та же причина, что и в постах канала/ленты).
-                return `<div class="message-attachment"><img src="${m.attachment_url}" alt="${escapeHtml(m.attachment_name || 'Изображение')}" loading="lazy"></div>`;
+                return `<div class="message-attachment"><img src="${m.attachment_url}" alt="${escapeHtml(m.attachment_name || 'Изображение')}" loading="lazy" data-zoom></div>`;
             }
             return `<div class="message-attachment"><a href="${m.attachment_url}" target="_blank" download="${escapeHtml(m.attachment_name || 'file')}">📄 ${escapeHtml(m.attachment_name || 'Скачать файл')}</a></div>`;
         }
@@ -7574,7 +7931,7 @@
                             const groupAttr = m.__album ? ` data-group="${escapeHtml(m.__album)}"` : '';
                             attachmentHtml = `
                                 <div class="message-attachment">
-                                    <img src="${m.attachment_url}" alt="${escapeHtml(m.attachment_name || 'Изображение')}" loading="lazy"${groupAttr}>
+                                    <img src="${m.attachment_url}" alt="${escapeHtml(m.attachment_name || 'Изображение')}" loading="lazy" data-zoom${groupAttr}>
                                 </div>
                             `;
                         } else {
@@ -8614,6 +8971,89 @@
 
         function vnEl(id) { return document.getElementById(id); }
 
+        // ── Кадр кружка: зеркало и настоящий квадрат ──────────────────────────
+        //
+        // Раньше писали прямо с камеры, а круг делали обрезкой в CSS. Из-за этого
+        // было два перекоса. Первый: себя человек видел не как в зеркале, и запись
+        // выглядела «отражённой» — движения шли не в ту сторону. Второй: в файл
+        // уходил прямоугольник камеры (обычно 4:3), и стоило открыть кружок вне
+        // чата или переслать — вместо круга был прямоугольник с полями.
+        //
+        // Теперь кадр собираем сами: вырезаем квадрат из центра и, если включено
+        // зеркало, отражаем — ровно то, что человек видит на превью. Пишем уже
+        // этот кадр, поэтому отправленное совпадает с показанным.
+        let vnMirror = true;          // по умолчанию как в зеркале — так привычнее
+        let vnCanvas = null, vnCanvasCtx = null, vnRaf = 0, vnDrawing = false;
+        const VN_SIZE = 480;          // сторона квадрата записи
+
+        try {
+            const saved = localStorage.getItem('psy-vn-mirror');
+            if (saved === '0' || saved === '1') vnMirror = saved === '1';
+        } catch (e) {}
+
+        function paintVnMirrorBtn() {
+            const b = vnEl('vnMirrorBtn');
+            if (b) b.classList.toggle('on', vnMirror);
+            const prev = vnEl('vnPreview');
+            // Класс только на живой камере: у записи зеркало уже внутри файла,
+            // второй раз отражать — значит показать не то, что отправится.
+            if (prev) prev.classList.toggle('vn-mirror', vnMirror && !!prev.srcObject);
+        }
+
+        function toggleVideoNoteMirror() {
+            vnMirror = !vnMirror;
+            try { localStorage.setItem('psy-vn-mirror', vnMirror ? '1' : '0'); } catch (e) {}
+            paintVnMirrorBtn();
+        }
+        window.toggleVideoNoteMirror = toggleVideoNoteMirror;
+
+        /** Рисовать квадратный (и при желании зеркальный) кадр, пока идёт запись. */
+        function startVnCanvas() {
+            const src = vnEl('vnPreview');
+            if (!src) return null;
+            if (!vnCanvas) {
+                vnCanvas = document.createElement('canvas');
+                vnCanvas.width = vnCanvas.height = VN_SIZE;
+                vnCanvasCtx = vnCanvas.getContext('2d');
+            }
+            vnDrawing = true;
+            const draw = () => {
+                if (!vnDrawing) return;
+                const vw = src.videoWidth, vh = src.videoHeight;
+                if (vw && vh) {
+                    const side = Math.min(vw, vh);          // квадрат из центра кадра
+                    const sx = (vw - side) / 2, sy = (vh - side) / 2;
+                    vnCanvasCtx.save();
+                    if (vnMirror) { vnCanvasCtx.translate(VN_SIZE, 0); vnCanvasCtx.scale(-1, 1); }
+                    vnCanvasCtx.drawImage(src, sx, sy, side, side, 0, 0, VN_SIZE, VN_SIZE);
+                    vnCanvasCtx.restore();
+                }
+                vnRaf = requestAnimationFrame(draw);
+            };
+            draw();
+            return vnCanvas;
+        }
+
+        function stopVnCanvas() {
+            vnDrawing = false;
+            if (vnRaf) { cancelAnimationFrame(vnRaf); vnRaf = 0; }
+        }
+
+        /**
+         * Что записывать: наш собранный кадр плюс звук с микрофона.
+         * Если браузер не умеет снимать поток с холста (старые Safari), пишем
+         * камеру как есть — лучше кружок без квадрата, чем совсем без кружка.
+         */
+        function videoNoteRecordStream() {
+            if (!vnCanvas || typeof vnCanvas.captureStream !== 'function') return videoNoteStream;
+            let cs;
+            try { cs = vnCanvas.captureStream(30); } catch (e) { return videoNoteStream; }
+            try {
+                (videoNoteStream ? videoNoteStream.getAudioTracks() : []).forEach(t => cs.addTrack(t));
+            } catch (e) { return videoNoteStream; }
+            return cs;
+        }
+
         async function startVideoNote() {
             if (consentNeeded() && !requireHealthConsent()) return;
             if (!navigator.mediaDevices || !window.MediaRecorder) {
@@ -8653,6 +9093,7 @@
             vnEl('vnReplayBtn').style.display = 'none';
             vnEl('vnAgainBtn').style.display = 'none';
             vnEl('vnProgress').classList.remove('rec');
+            paintVnMirrorBtn();
             vnEl('videoNoteModal').style.display = 'flex';
         }
 
@@ -8667,11 +9108,16 @@
             if (prevEl && prevEl.getAttribute('src')) redoVideoNote();
             const candidates = ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm', 'video/mp4'];
             const mime = candidates.find(m => MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(m));
-            videoNoteRecorder = mime ? new MediaRecorder(videoNoteStream, { mimeType: mime })
-                                     : new MediaRecorder(videoNoteStream);
+            // Пишем не камеру напрямую, а собранный нами квадратный кадр — тогда
+            // отправленный кружок совпадает с тем, что человек видел на превью.
+            startVnCanvas();
+            const recStream = videoNoteRecordStream();
+            videoNoteRecorder = mime ? new MediaRecorder(recStream, { mimeType: mime })
+                                     : new MediaRecorder(recStream);
             videoNoteChunks = [];
             videoNoteRecorder.ondataavailable = e => { if (e.data && e.data.size > 0) videoNoteChunks.push(e.data); };
             videoNoteRecorder.onstop = () => {
+                stopVnCanvas();
                 const type = videoNoteRecorder.mimeType || 'video/webm';
                 videoNoteBlob = videoNoteChunks.length ? new Blob(videoNoteChunks, { type }) : null;
                 clearInterval(videoNoteTimer);
@@ -8712,6 +9158,7 @@
         /** Закрыть окно и обязательно погасить камеру с микрофоном. */
         function closeVideoNote() {
             clearInterval(videoNoteTimer);
+            stopVnCanvas();          // без этого отрисовка кадра крутится и после закрытия
             if (videoNoteRecorder && videoNoteRecorder.state === 'recording') {
                 videoNoteRecorder.onstop = null;
                 try { videoNoteRecorder.stop(); } catch (e) {}
@@ -8743,6 +9190,7 @@
             if (vnPlaybackUrl) { try { URL.revokeObjectURL(vnPlaybackUrl); } catch (e) {} }
             vnPlaybackUrl = URL.createObjectURL(videoNoteBlob);
             prev.srcObject = null;
+            prev.classList.remove('vn-mirror');   // в записи зеркало уже внутри кадра
             prev.muted = false;          // живой звук уже не идёт, эха не будет
             prev.autoplay = false;
             prev.src = vnPlaybackUrl;
@@ -8773,6 +9221,7 @@
                 prev.muted = true;
                 prev.autoplay = true;
                 if (videoNoteStream) { prev.srcObject = videoNoteStream; prev.play().catch(() => {}); }
+                paintVnMirrorBtn();
             }
             vnEl('vnTime').textContent = '00:00';
             vnEl('vnHint').textContent = 'Нажмите «Записать» — кружок пишется до 60 секунд';
@@ -8803,11 +9252,12 @@
             const btn = vnEl('vnSendBtn');
             if (btn) { btn.disabled = true; btn.textContent = 'Отправляем…'; }
             try {
-                const fd = new FormData();
-                fd.append('file', blob, `videonote_${Date.now()}.${ext}`);
-                const up = await fetch('/api/upload.php', { method: 'POST', credentials: 'include', body: fd });
-                const res = await up.json().catch(() => ({}));
-                if (!up.ok || !res.url) throw new Error(res.error || ('HTTP ' + up.status));
+                // Через общий загрузчик: длинный кружок в один запрос уже не влезает
+                const file = new File([blob], `videonote_${Date.now()}.${ext}`, { type: blob.type || 'video/webm' });
+                const res = await uploadOne(file, (p) => {
+                    if (btn) btn.textContent = p < 1 ? `Отправляем… ${Math.round(p * 100)}%` : 'Отправляем…';
+                });
+                if (!res || !res.url) throw new Error('Не удалось загрузить кружок');
                 await sendAttachmentMessage({
                     content: `[Видеосообщение: ${dur}]`,
                     attachment_url: res.url,
@@ -9276,21 +9726,17 @@
             voiceState = 'idle';
             hideVoiceRecording();
 
-            // Загрузить аудио файл
-            const formData = new FormData();
-            formData.append('file', audioBlob, `voice_${Date.now()}.${ext}`);
+            // Загрузить аудио файл — общим путём: длинное голосовое тоже может
+            // не влезть в один запрос, тогда оно уйдёт частями
+            const voiceFile = new File([audioBlob], `voice_${Date.now()}.${ext}`,
+                                       { type: audioBlob.type || 'audio/webm' });
 
             try {
-                const uploadResponse = await fetch('/api/upload.php', {
-                    method: 'POST',
-                    credentials: 'include',
-                    body: formData
-                });
-
-                const uploadResult = await uploadResponse.json();
-
-                if (uploadResult.error) {
-                    alert(uploadResult.error);
+                let uploadResult;
+                try {
+                    uploadResult = await uploadOne(voiceFile);
+                } catch (e) {
+                    alert(e.message || 'Не удалось загрузить голосовое');
                     return;
                 }
 
@@ -10039,17 +10485,43 @@
         let attachGrouped = true;      // несколько файлов — одним сообщением-альбомом
         let attachAsFile = false;      // отправить картинки документом, без превью
 
-        async function uploadOne(file) {
-            const formData = new FormData();
-            formData.append('file', file);
-            const response = await fetch('/api/upload.php', { method: 'POST', credentials: 'include', body: formData });
-            const result = await response.json();
-            if (result.error) throw new Error(result.error);
+        /** Размер файла словами. Формат общий с остальным сайтом (js/app.js). */
+        function fmtSize(bytes) {
+            return typeof psyFmtSize === 'function' ? psyFmtSize(bytes) : Math.round(bytes / 1048576) + ' МБ';
+        }
+
+        /**
+         * Загрузка вложения. Сама разбивка на части и потолок живут в js/app.js
+         * (psyUpload) — тем же путём грузят и другие страницы, чтобы лимит был
+         * один на весь сайт, а не свой в каждом файле.
+         */
+        async function uploadOne(file, onProgress) {
+            if (typeof psyUpload !== 'function') throw new Error('Модуль загрузки не подключился — обновите страницу');
+            const res = await psyUpload(file, onProgress);
             return {
-                url: result.url, name: file.name,
+                url: res.url, name: file.name,
                 type: file.type.startsWith('image/') ? 'image' : 'file',
                 isImage: file.type.startsWith('image/'),
             };
+        }
+
+        /**
+         * Загрузить список файлов, показывая прогресс.
+         * Гигабайт по мобильной связи идёт минутами — без строки состояния чат
+         * выглядит зависшим, и человек уходит, не дождавшись.
+         */
+        async function uploadWithProgress(files) {
+            const out = [];
+            for (let i = 0; i < files.length; i++) {
+                const f = files[i];
+                const many = files.length > 1 ? ` (${i + 1} из ${files.length})` : '';
+                const big = f.size > CHUNK_UPLOAD_FROM;
+                toast(big ? `Загружаю ${fmtSize(f.size)}${many}… 0%` : `Загружаю…${many}`);
+                out.push(await uploadOne(f, big ? (p) => {
+                    toast(`Загружаю ${fmtSize(f.size)}${many}… ${Math.round(p * 100)}%`);
+                } : null));
+            }
+            return out;
         }
 
         /** Общий путь для файлов: из проводника, из буфера обмена и перетаскиванием. */
@@ -10061,9 +10533,8 @@
             const ok = files.filter(f => f.size <= MAX_UPLOAD_MB * 1024 * 1024);
             if (tooBig.length) alert(`Больше ${MAX_UPLOAD_MB} МБ и потому не отправятся: ${tooBig.join(', ')}`);
             if (!ok.length) return false;
-            toast(ok.length > 1 ? `Загружаю ${ok.length} файла(ов)…` : 'Загружаю…');
             try {
-                for (const f of ok) pendingAttachments.push(await uploadOne(f));
+                (await uploadWithProgress(ok)).forEach(a => pendingAttachments.push(a));
                 renderAttachBar();
                 const inp = document.getElementById('messageInput');
                 if (inp) inp.focus();
@@ -10087,9 +10558,8 @@
             }
             if (!ok.length) { event.target.value = ''; return; }
 
-            toast(ok.length > 1 ? `Загружаю ${ok.length} файла(ов)…` : 'Загружаю…');
             try {
-                for (const f of ok) pendingAttachments.push(await uploadOne(f));
+                (await uploadWithProgress(ok)).forEach(a => pendingAttachments.push(a));
                 event.target.value = '';
                 // Не отправляем сразу: даём написать подпись — как в обычных мессенджерах
                 renderAttachBar();
@@ -10106,6 +10576,20 @@
         }
 
         /** Плашка «что прикреплено» над строкой ввода: миниатюры, счётчик, снять по крестику. */
+        /**
+         * Посмотреть прикреплённое фото до отправки — во весь экран, с листанием
+         * по всем прикреплённым. Превью в панели всего 56 пикселей: на нём не
+         * разобрать, тот ли это скриншот, а открыть его было нечем.
+         */
+        function openPendingAttachment(i) {
+            const imgs = pendingAttachments.filter(a => a.isImage);
+            const a = pendingAttachments[i];
+            if (!a || !a.isImage || typeof psyLightbox !== 'function') return;
+            const gallery = imgs.map(x => ({ src: x.url, alt: x.name || '' }));
+            psyLightbox(a.url, a.name || '', gallery, Math.max(0, imgs.indexOf(a)));
+        }
+        window.openPendingAttachment = openPendingAttachment;
+
         function renderAttachBar() {
             updateMicButton();     // без вложений — микро/кружок, с вложениями — отправка
             let bar = document.getElementById('attachBar');
@@ -10119,8 +10603,10 @@
             }
             const images = pendingAttachments.filter(a => a.isImage).length;
             bar.innerHTML = `<div class="ab-items">` + pendingAttachments.map((a, i) => a.isImage && !attachAsFile
-                ? `<div class="ab-item"><img src="${escapeHtml(a.url)}" alt="">
-                       <button type="button" onclick="dropAttachment(${i})" title="Убрать">✕</button></div>`
+                ? `<div class="ab-item"><img src="${escapeHtml(a.url)}" alt="${escapeHtml(a.name || '')}"
+                            title="Открыть во весь экран" style="cursor:zoom-in"
+                            onclick="openPendingAttachment(${i})">
+                       <button type="button" onclick="event.stopPropagation();dropAttachment(${i})" title="Убрать">✕</button></div>`
                 : `<div class="ab-item ab-file"><span>📄 ${escapeHtml(a.name.slice(0, 18))}</span>
                        <button type="button" onclick="dropAttachment(${i})" title="Убрать">✕</button></div>`
             ).join('') + `</div>

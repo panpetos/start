@@ -701,7 +701,7 @@
             document.getElementById('avatarInput')?.addEventListener('change', (e) => {
                 const file = e.target.files[0];
                 if (file) {
-                    if (file.size > 5 * 1024 * 1024) {
+                    if (file.size > 25 * 1024 * 1024) {
                         showError('Файл слишком большой. Максимум 5MB');
                         return;
                     }
@@ -725,7 +725,7 @@
             document.getElementById('psyAvatarInput')?.addEventListener('change', (e) => {
                 const file = e.target.files[0];
                 if (file) {
-                    if (file.size > 5 * 1024 * 1024) {
+                    if (file.size > 25 * 1024 * 1024) {
                         showError('Файл слишком большой. Максимум 5MB');
                         return;
                     }
@@ -781,8 +781,7 @@
                 const old = btn.textContent; btn.disabled = true; btn.textContent = 'Загрузка...';
                 for (const f of files) {
                     try {
-                        const fd = new FormData(); fd.append('file', f);
-                        const up = await (await fetch('/api/upload.php', { method:'POST', credentials:'include', body: fd })).json();
+                        const up = await psyUpload(f, (pr) => { btn.textContent = 'Загрузка ' + Math.round(pr * 100) + '%'; });
                         if (up && up.url) await fetch('/api/credentials.php?action=add', { method:'POST', headers:{'Content-Type':'application/json'}, credentials:'include', body: JSON.stringify({ type:'diploma', url: up.url, name: f.name }) });
                     } catch(e){}
                 }

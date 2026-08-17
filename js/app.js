@@ -36,6 +36,12 @@
     // Через PHP: статический .webmanifest reg.ru отдаёт без Content-Type и с nosniff,
     // и браузер отказывается считать его манифестом — установка не предлагается.
     addOnce('link[rel="manifest"]', 'link', { rel: 'manifest', href: '/api/manifest.php' });
+    // Одна и та же буква «p» во вкладке, на домашнем экране и в уведомлениях.
+    // Ставим и здесь, а не только в layout.js: chat.html свою шапку рисует сам и
+    // layout.js не подключает — во вкладке чата иконки не было вовсе.
+    addOnce('link[rel="icon"]', 'link', { rel: 'icon', type: 'image/svg+xml', href: '/assets/favicon.svg' });
+    // Запасная растровая — для браузеров, которые не берут SVG во вкладку
+    addOnce('link[rel="alternate icon"]', 'link', { rel: 'alternate icon', type: 'image/png', href: '/assets/icon-192.png' });
     addOnce('link[rel="apple-touch-icon"]', 'link', { rel: 'apple-touch-icon', href: '/assets/icon-192.png' });
     addOnce('meta[name="theme-color"]', 'meta', { name: 'theme-color', content: '#7C3AED' });
     // Без этих строк приложение с домашнего экрана открывается как обычная вкладка Safari
@@ -84,6 +90,79 @@
       return true;
     } catch (e) { return false; }
   }
+
+  // ── Загрузка файлов, в том числе больших ──────────────────────────────────
+  //
+  // Общий загрузчик для всех страниц. Раньше каждая страница слала файл одним
+  // запросом в api/upload.php и держала свой потолок в 5–10 МБ: съёмка с телефона
+  // в него уже не влезала. Одним запросом больше и не пройдёт — замеры на бою:
+  // PHP принимает до 256 МБ, nginx рубит запрос около гигабайта. Поэтому крупные
+  // файлы режем на части и отправляем через api/upload_chunk.php, который
+  // дописывает их в конец. Побочно появляется прогресс — без него загрузка на
+  // сотни мегабайт выглядит как зависшая страница.
+
+  var PSY_CHUNK_FROM = 4 * 1024 * 1024;    // с этого размера — частями
+  var PSY_CHUNK_SIZE = 8 * 1024 * 1024;    // размер части, как на сервере
+  global.PSY_MAX_UPLOAD_MB = 1024;
+
+  /** Человеческий размер файла: «7,4 МБ» вместо 7761920. */
+  function psyFmtSize(bytes) {
+    if (bytes >= 1073741824) return (bytes / 1073741824).toFixed(bytes >= 10737418240 ? 0 : 1).replace('.', ',') + ' ГБ';
+    if (bytes >= 1048576) return (bytes / 1048576).toFixed(bytes >= 10485760 ? 0 : 1).replace('.', ',') + ' МБ';
+    return Math.max(1, Math.round(bytes / 1024)) + ' КБ';
+  }
+  global.psyFmtSize = psyFmtSize;
+
+  async function psyUploadChunked(file, onProgress) {
+    var uploadId = Date.now().toString(36) + Math.random().toString(36).slice(2, 12);
+    var total = Math.max(1, Math.ceil(file.size / PSY_CHUNK_SIZE));
+    var sent = 0;
+    for (var i = 0; i < total; i++) {
+      var part = file.slice(i * PSY_CHUNK_SIZE, (i + 1) * PSY_CHUNK_SIZE);
+      var fd = new FormData();
+      fd.append('upload_id', uploadId);
+      fd.append('index', String(i));
+      fd.append('total', String(total));
+      fd.append('name', file.name || 'file');
+      fd.append('chunk', part, 'part');
+      var res = null, data = {};
+      // Одна повторная попытка на часть: на мобильной связи обрыв одной части
+      // не должен стоить человеку всей загрузки.
+      for (var attempt = 0; attempt < 2; attempt++) {
+        try {
+          res = await fetch('/api/upload_chunk.php?action=chunk', { method: 'POST', credentials: 'include', body: fd });
+          data = await res.json().catch(function () { return {}; });
+          if (res.ok) break;
+        } catch (e) { res = null; data = { error: 'Связь прервалась' }; }
+        if (attempt === 0) await new Promise(function (r) { setTimeout(r, 800); });
+      }
+      if (!res || !res.ok) throw new Error((data && data.error) || 'Не удалось загрузить часть файла');
+      sent += part.size;
+      if (onProgress) onProgress(Math.min(1, sent / file.size), sent, file.size);
+      if (data && data.url) return { url: data.url, name: file.name, bytes: data.bytes || file.size };
+    }
+    throw new Error('Сервер не вернул ссылку на файл');
+  }
+
+  /**
+   * Загрузить файл и вернуть {url, name, bytes}.
+   * Мелочь идёт одним запросом (как раньше), крупное — частями.
+   */
+  async function psyUpload(file, onProgress) {
+    if (!file) throw new Error('Файл не выбран');
+    if (file.size > global.PSY_MAX_UPLOAD_MB * 1024 * 1024) {
+      throw new Error('Файл больше ' + global.PSY_MAX_UPLOAD_MB + ' МБ');
+    }
+    if (file.size > PSY_CHUNK_FROM) return psyUploadChunked(file, onProgress);
+    var fd = new FormData();
+    fd.append('file', file);
+    var r = await fetch('/api/upload.php', { method: 'POST', credentials: 'include', body: fd });
+    var d = await r.json().catch(function () { return {}; });
+    if (!r.ok || d.error || !d.url) throw new Error(d.error || ('Ошибка загрузки (HTTP ' + r.status + ')'));
+    if (onProgress) onProgress(1, file.size, file.size);
+    return { url: d.url, name: file.name, bytes: file.size };
+  }
+  global.psyUpload = psyUpload;
 
   // ── Подписка на настоящие push-уведомления ────────────────────────────────
   // Без неё уведомление показывалось только пока открыта страница: она сама

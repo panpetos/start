@@ -1,18 +1,13 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <defs>
-    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#9F67FA"/>
-      <stop offset="100%" stop-color="#7C3AED"/>
-    </linearGradient>
-  </defs>
-  <circle cx="32" cy="32" r="30" fill="url(#g)"/>
-  <g fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M22 38c-4-2-7-6-7-11a13 13 0 0 1 26 0c0 5-3 9-7 11"/>
-    <path d="M25 38v3a7 7 0 0 0 14 0v-3"/>
-    <path d="M28 44h8"/>
-    <path d="M28 48h8"/>
-    <path d="M32 14v-2"/>
-    <path d="M24 16l-2-2"/>
-    <path d="M40 16l2-2"/>
+<!-- Иконка сайта: та же буква «p», что и у приложения (assets/icon-192.png и др.).
+     Раньше здесь был отдельный рисунок с головой и лампочкой — во вкладке он
+     превращался в кашу из штрихов, и в списке приложений сайт выглядел как
+     что-то другое. Одна и та же буква во вкладке, на домашнем экране и в
+     уведомлениях делает сайт узнаваемым.
+     Буква нарисована фигурами, а не текстом: шрифта в фавиконе может не быть. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="psytalk.pro">
+  <circle cx="32" cy="32" r="32" fill="#7C3AED"/>
+  <g fill="#fff">
+    <rect x="19" y="16" width="7" height="34" rx="1"/>
+    <path fill-rule="evenodd" d="M34 16.5a15 15 0 1 1 0 30 15 15 0 0 1 0-30Zm0 7.5a7.5 7.5 0 1 0 0 15 7.5 7.5 0 0 0 0-15Z"/>
   </g>
 </svg>

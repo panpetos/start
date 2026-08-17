@@ -551,6 +551,11 @@
   }
   function escSup(s) { var d = document.createElement('div'); d.textContent = (s == null ? '' : String(s)); return d.innerHTML; }
 
+  // Виджет поддержки открыт и тем, кто не вошёл. Потолок здесь ниже, чем в чате,
+  // намеренно: гигабайтные файлы от анонимных посетителей — это забитый диск
+  // хостинга и ничья ответственность.
+  var SUP_MAX_MB = 50;
+
   function buildSupportWidget() {
     if (document.getElementById('psySupport')) return;
     var user = getCachedUserSafe();
@@ -812,7 +817,7 @@
     document.getElementById('psySupFileInput').addEventListener('change', function() {
       var file = this.files[0];
       if (!file) return;
-      if (file.size > 5 * 1024 * 1024) { alert('Файл слишком большой (макс. 5 МБ)'); return; }
+      if (file.size > SUP_MAX_MB * 1024 * 1024) { alert('Файл больше ' + SUP_MAX_MB + ' МБ — выберите поменьше.'); return; }
       uploadFile(file, function(att) { pendingFile = att; showAttachPreview(att.name, 'psySupAttachPreview'); });
       this.value = '';
     });
@@ -824,7 +829,7 @@
       formFileInput.addEventListener('change', function() {
         var file = this.files[0];
         if (!file) return;
-        if (file.size > 5 * 1024 * 1024) { alert('Файл слишком большой (макс. 5 МБ)'); return; }
+        if (file.size > SUP_MAX_MB * 1024 * 1024) { alert('Файл больше ' + SUP_MAX_MB + ' МБ — выберите поменьше.'); return; }
         uploadFile(file, function(att) { pendingFile = att; showAttachPreview(att.name, 'psySupFormAttachPreview'); });
         this.value = '';
       });
