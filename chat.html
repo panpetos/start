@@ -1091,7 +1091,10 @@
         /* Пузырь сжимается по содержимому, поэтому width:100% у textarea упирался в её
            min-width и поле для правки получалось узкой полоской (220px в переписке шириной
            под тысячу). Задаём редактируемому пузырю нормальную ширину явно. */
-        .message.editing { max-width: 90%; width: min(560px, 90%); }
+        /* Правится не пузырь, а поле ввода — пузырь только подсвечиваем, чтобы было
+           видно, какое именно сообщение сейчас меняется. */
+        .message.editing { outline: 2px solid #7C3AED; outline-offset: 2px; }
+        .reply-bar.rb-edit .rb-ico { opacity: 0.9; }
         /* Группа: аватар автора рядом с чужим сообщением (как в Телеграме) */
         .g-msg-row { display: flex; align-items: flex-end; gap: 0.45rem; align-self: flex-start; max-width: 85%; }
         .g-msg-row .message { max-width: 100%; }
@@ -1322,8 +1325,10 @@
         }
 
         .message-attachment img {
-            max-width: 250px;
-            max-height: 200px;
+            /* Было 250×200 — снимок с телефона превращался в марку, на которой
+               ничего не разобрать, и открывать во весь экран приходилось всегда. */
+            max-width: 420px;
+            max-height: 460px;
             border-radius: 8px;
             cursor: pointer;
             /* Ссылка вокруг картинки — flex-контейнер (правило ниже задумано для файлов),
@@ -2119,7 +2124,9 @@
             .msg-edit-textarea { font-size: 16px !important; min-width: 0 !important; width: 100% !important; }
             .message.editing { max-width: 92% !important; }
             .voice-message { min-width: 0; width: 100%; }
-            .message-attachment img { max-width: 200px; max-height: 160px; }
+            /* На телефоне — по ширине пузыря и не выше половины экрана, чтобы
+               снимок было видно, но он не занимал переписку целиком. */
+            .message-attachment img { max-width: 100%; max-height: 52vh; }
 
             .video-modal-header { padding: 12px 16px; padding-top: max(12px, env(safe-area-inset-top)); }
         }
@@ -2385,7 +2392,8 @@
                         <div class="rb-name" id="replyName">Ответ</div>
                         <div class="rb-body" id="replyBody"></div>
                     </div>
-                    <button class="rb-x" onclick="cancelReply()" title="Отменить ответ" aria-label="Отменить ответ">✕</button>
+                    <button class="rb-x" onclick="editingMessageId ? cancelEditMessage() : cancelReply()"
+                            title="Отменить" aria-label="Отменить">✕</button>
                 </div>
                 <div class="chat-input" id="chatInputBar">
                     <button type="button" onclick="toggleEmojiPicker()" class="icon-btn cin-emoji" title="Эмодзи" aria-label="Эмодзи">
@@ -2746,7 +2754,9 @@
         let pollInterval = null;
         let isAdminMode = false;  // Режим отправки от имени техподдержки
         let headerRenderedFor = null; // чтобы не пересобирать шапку при каждом поллинге
-        let editingMessageId = null; // id сообщения, которое сейчас редактируется — пока не null, поллинг не перерисовывает список (иначе textarea сбрасывается на середине печати)
+        // id сообщения, которое сейчас правится. Правка идёт в обычном поле ввода,
+        // поэтому перерисовку переписки останавливать больше не нужно.
+        let editingMessageId = null;
         let ordersMap = {};       // id ордера -> объект (живое состояние для карточек в чате)
         let platformCommission = 40; // % комиссии сервиса (для предпросмотра выплаты психологу)
         let bookPsychId = null;   // id профиля психолога (из ?pid=) — для кнопки «Записаться» у клиента
@@ -2931,11 +2941,11 @@
         async function openGroupChat(groupId) {
             pinnedMessage = null; renderPinnedBar();
             loadMentionMembers(groupId);   // чтобы подсказка по @ знала, кого предлагать
-            editingMessageId = null;
+            cancelEditMessage();
             selectedUserId = GROUP_PREFIX + groupId;
             syncChatUrl(selectedUserId);
             document.body.classList.remove('ai-chat');
-            editingMessageId = null;
+            cancelEditMessage();
             headerRenderedFor = selectedUserId;
 
             document.querySelectorAll('.conversation-item').forEach(el => {
@@ -3028,15 +3038,10 @@
             return isMine ? bubble : `<div class="g-msg-row">${ava}${bubble}</div>`;
         }
 
-        function cancelEditGroupMessage() {
-            editingMessageId = null;
-            loadGroupMessages();
-        }
-
         async function deleteGroupMessage(evt, id) {
             if (evt) evt.stopPropagation();
             if (!confirm('Удалить это сообщение?')) return;
-            editingMessageId = null;
+            cancelEditMessage();
             const d = await groupApi('delete-message', { message_id: id });
             if (!d.ok) { alert('Не удалось удалить: ' + d.error); return; }
             await loadGroupMessages();
@@ -3071,39 +3076,12 @@
         function startEditGroupMessage(evt, id) {
             if (evt) evt.stopPropagation();
             const cached = groupMsgCache[id];
-            const body = document.getElementById('gmsg-body-' + id);
-            if (!cached || !body) return;
-            // Тот же приём, что и для личных сообщений: пока форма открыта, поллинг не перерисовывает
-            // ленту, иначе textarea пропадает на середине печати.
-            editingMessageId = id;
-            const bubble = body.closest('.message');
-            if (bubble) bubble.classList.add('editing');
-            // как и в личной переписке: маркер ответа в поле не показываем
-            const gEdSplit = splitReply(cached.content || '');
-            body.innerHTML = `
-                <textarea id="gmsg-edit-input-${id}" class="msg-edit-textarea" rows="2" style="padding:0.4rem 0.6rem;border:1.5px solid #7C3AED;border-radius:0.5rem;font-family:inherit;resize:vertical;color:inherit;background:rgba(255,255,255,0.15);box-sizing:border-box;">${escapeHtml(gEdSplit.body)}</textarea>
-                <div style="display:flex;gap:0.5rem;margin-top:0.3rem;">
-                    <button onclick="saveEditGroupMessage(event,'${id}')" style="cursor:pointer;border:none;background:#7C3AED;color:#fff;border-radius:0.4rem;padding:0.25rem 0.6rem;font-size:0.8rem;">Сохранить</button>
-                    <button onclick="cancelEditGroupMessage()" style="cursor:pointer;border:1px solid currentColor;background:transparent;color:inherit;border-radius:0.4rem;padding:0.25rem 0.6rem;font-size:0.8rem;opacity:0.85;">Отмена</button>
-                </div>`;
-            const ta = document.getElementById('gmsg-edit-input-' + id);
-            if (ta) { ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); }
+            if (!cached) return;
+            beginEdit(id, 'group', cached.content || '');
         }
-        async function saveEditGroupMessage(evt, id) {
-            if (evt) evt.stopPropagation();
-            const ta = document.getElementById('gmsg-edit-input-' + id);
-            if (!ta) return;
-            const typed = ta.value.trim();
-            if (!typed) { alert('Текст не может быть пустым'); return; }
-            const wasReply = splitReply((groupMsgCache[id] || {}).content || '').replyId;
-            const content = wasReply ? '[RE#' + wasReply + '] ' + typed : typed;
-            const d = await groupApi('edit-message', { message_id: id, content });
-            if (!d.ok) { alert('Не удалось сохранить: ' + d.error); return; }
-            editingMessageId = null;
-            await loadGroupMessages();
-        }
+        function cancelEditGroupMessage() { cancelEditMessage(); }
+        window.cancelEditGroupMessage = cancelEditGroupMessage;
         window.startEditGroupMessage = startEditGroupMessage;
-        window.saveEditGroupMessage = saveEditGroupMessage;
         window.openGroupChat = openGroupChat;
 
         // ── Создание группы + управление участниками ──
@@ -3329,8 +3307,7 @@
          * файл в переписке уже проходил.
          */
         async function uploadImage(file, onProgress) {
-            const d = await psyUpload(file, onProgress);
-            return d.url;
+            return uploadFileUrl(file, onProgress);
         }
 
         async function kickGroupMember(userId) {
@@ -3388,7 +3365,7 @@
             selectedUserId = CHANNEL_PREFIX + psychId;
             syncChatUrl(selectedUserId);
             document.body.classList.remove('ai-chat');
-            editingMessageId = null;
+            cancelEditMessage();
             headerRenderedFor = selectedUserId;
 
             document.querySelectorAll('.conversation-item').forEach(el => {
@@ -3564,7 +3541,7 @@
             selectedUserId = FEED_ID;
             syncChatUrl(selectedUserId);
             document.body.classList.remove('ai-chat');
-            editingMessageId = null;
+            cancelEditMessage();
             headerRenderedFor = FEED_ID;
 
             document.getElementById('emptyState').style.display = 'none';
@@ -4648,7 +4625,7 @@
         async function startNewChat(userId) {
             selectedUserId = userId;
             document.body.classList.remove('ai-chat');
-            editingMessageId = null;
+            cancelEditMessage();
 
             // Получить информацию о пользователе
             try {
@@ -6204,7 +6181,7 @@
 
             // Esc — снять начатое: сначала правку, потом ответ, потом поиск.
             if (e.key === 'Escape') {
-                if (editingMessageId) { e.preventDefault(); cancelEditMessage(null, editingMessageId); return; }
+                if (editingMessageId) { e.preventDefault(); cancelEditMessage(); return; }
                 if (replyTo) { e.preventDefault(); cancelReply(); return; }
                 const sb = document.getElementById('chatSearchBar');
                 if (sb && sb.style.display !== 'none' && typeof closeChatSearch === 'function') {
@@ -6525,6 +6502,13 @@
         function previewText(t) {
             return String(t || '')
                 .replace(RE_MARK, '')
+                .replace(ALB_MARK, '')
+                // В списке чатов вместо «[Фото: IMG_6507.png]» — просто «Фото»:
+                // имя файла с телефона ничего не говорит о сообщении.
+                .replace(/^\[Фото:[^\]]*\]$/, '📷 Фото')
+                .replace(/^\[Файл:\s*([^\]]*)\]$/, '📄 $1')
+                .replace(/^\[Голосовое сообщение:[^\]]*\]$/, '🎤 Голосовое')
+                .replace(/^\[Видеосообщение:[^\]]*\]$/, '⏺ Кружок')
                 .replace(/\*\*|~~|__|`/g, '')
                 .replace(/([*_])(\S[^\n*_]*?\S|\S)\1/g, '$2')
                 .replace(/^\s*#{2,3}\s+/, '')
@@ -7218,7 +7202,7 @@
             pinnedMessage = null; renderPinnedBar();
             selectedUserId = AI_ID;
             syncChatUrl(selectedUserId);
-            editingMessageId = null;
+            cancelEditMessage();
             headerRenderedFor = AI_ID;
             if (pollInterval) { clearInterval(pollInterval); pollInterval = null; }  // боту опрос не нужен
 
@@ -7371,7 +7355,7 @@
             selectedUserId = FAVORITES_ID;
             syncChatUrl(selectedUserId);
             document.body.classList.remove('ai-chat');
-            editingMessageId = null;
+            cancelEditMessage();
             headerRenderedFor = FAVORITES_ID;
 
             document.querySelectorAll('.conversation-item').forEach(el => {
@@ -7407,7 +7391,7 @@
             selectedUserId = SUPPORT_PREFIX + threadId;
             syncChatUrl(selectedUserId);
             document.body.classList.remove('ai-chat');
-            editingMessageId = null;
+            cancelEditMessage();
             headerRenderedFor = null;
 
             document.querySelectorAll('.conversation-item').forEach(el => {
@@ -7481,7 +7465,7 @@
             mentionMembers = [];                           // список прошлого чата больше не годится
             setTimeout(() => loadMentionMembers(), 600);   // после отрисовки шапки — оттуда берём имя
             document.body.classList.remove('ai-chat');
-            editingMessageId = null;
+            cancelEditMessage();
             headerRenderedFor = null; // пересобрать шапку под нового собеседника
 
             // Обновить активный элемент
@@ -7563,49 +7547,16 @@
                 </div>`;
         }
 
-        /** Правка своей записи в «Избранном» (задача #45) — тот же приём, что и в личных чатах/группах. */
+        /** Правка своей записи в «Избранном» — той же полоской над вводом. */
         function startEditFavMessage(evt, id) {
             if (evt) evt.stopPropagation();
             const cached = favMsgCache[id];
-            const body = document.getElementById('fav-body-' + id);
-            if (!cached || !body) return;
-            editingMessageId = id;
-            const bubble = body.closest('.message');
-            if (bubble) bubble.classList.add('editing');
-            const favEdSplit = splitReply(cached.content || '');
-            body.innerHTML = `
-                <textarea id="fav-edit-input-${id}" class="msg-edit-textarea" rows="2" style="padding:0.4rem 0.6rem;border:1.5px solid #7C3AED;border-radius:0.5rem;font-family:inherit;resize:vertical;color:inherit;background:rgba(255,255,255,0.15);box-sizing:border-box;">${escapeHtml(favEdSplit.body)}</textarea>
-                <div style="display:flex;gap:0.5rem;margin-top:0.3rem;">
-                    <button onclick="saveEditFavMessage(event,'${id}')" style="cursor:pointer;border:none;background:#7C3AED;color:#fff;border-radius:0.4rem;padding:0.25rem 0.6rem;font-size:0.8rem;">Сохранить</button>
-                    <button onclick="cancelEditFavMessage()" style="cursor:pointer;border:1px solid currentColor;background:transparent;color:inherit;border-radius:0.4rem;padding:0.25rem 0.6rem;font-size:0.8rem;opacity:0.85;">Отмена</button>
-                </div>`;
-            const ta = document.getElementById('fav-edit-input-' + id);
-            if (ta) { ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); }
+            if (!cached) return;
+            beginEdit(id, 'fav', cached.content || '');
         }
-        async function saveEditFavMessage(evt, id) {
-            if (evt) evt.stopPropagation();
-            const ta = document.getElementById('fav-edit-input-' + id);
-            if (!ta) return;
-            const typed = ta.value.trim();
-            if (!typed) { alert('Текст не может быть пустым'); return; }
-            const wasReply = splitReply((favMsgCache[id] || {}).content || '').replyId;
-            const content = wasReply ? '[RE#' + wasReply + '] ' + typed : typed;
-            try {
-                const r = await (await fetch('/api/favorites.php?action=edit', {
-                    method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
-                    body: JSON.stringify({ id, content })
-                })).json();
-                if (!r.ok) { alert(r.error || 'Не удалось сохранить'); return; }
-            } catch (e) { alert('Ошибка сети'); return; }
-            editingMessageId = null;
-            await loadFavoritesMessages();
-        }
-        function cancelEditFavMessage() {
-            editingMessageId = null;
-            loadFavoritesMessages();
-        }
+        function cancelEditFavMessage() { cancelEditMessage(); }
+
         window.startEditFavMessage = startEditFavMessage;
-        window.saveEditFavMessage = saveEditFavMessage;
         window.cancelEditFavMessage = cancelEditFavMessage;
 
         async function deleteFavorite(id) {
@@ -7696,7 +7647,7 @@
         async function deletePersonalMessage(evt, id) {
             if (evt) evt.stopPropagation();
             if (!confirm('Удалить это сообщение? Отменить будет нельзя.')) return;
-            editingMessageId = null;
+            cancelEditMessage();
             try {
                 const res = await fetch('/api/message_edit.php?action=delete', {
                     method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -7711,50 +7662,105 @@
         }
 
         // ── Редактирование своего сообщения (задачи #29, #42) — правки логируются на сервере для админа ──
+        /**
+         * Правка сообщения — в обычном поле ввода, а не внутри пузыря.
+         *
+         * Раньше пузырь превращался в большое поле с кнопками «Сохранить» и
+         * «Отмена»: на телефоне это занимало пол-экрана, съезжало и выглядело как
+         * чужеродная шторка поверх переписки. Теперь как в привычных мессенджерах:
+         * над вводом появляется узкая полоска «Редактирование» с исходным текстом,
+         * сам текст правится там же, где обычно печатают, а отправка сохраняет.
+         */
+        let editingKind = 'dm';           // где правим: личное, группа или «Избранное»
+
         function startEditMessage(evt, id) {
             if (evt) evt.stopPropagation();
             const cached = msgCache[id];
-            const body = document.getElementById('msg-body-' + id);
-            if (!cached || !body) return;
-            editingMessageId = id;
-            const bubble = body.closest('.message');
-            if (bubble) bubble.classList.add('editing');
-            // В поле показываем текст без служебного маркера ответа — иначе пользователь видел бы
-            // «[RE#…]» и стёр бы его, потеряв связь с исходным сообщением.
-            const edSplit = splitReply(cached.content || '');
-            body.innerHTML = `
-                <textarea id="msg-edit-input-${id}" class="msg-edit-textarea" rows="2" style="padding:0.4rem 0.6rem;border:1.5px solid #7C3AED;border-radius:0.5rem;font-family:inherit;resize:vertical;color:inherit;background:rgba(255,255,255,0.15);box-sizing:border-box;">${escapeHtml(edSplit.body)}</textarea>
-                <div style="display:flex;gap:0.5rem;margin-top:0.3rem;">
-                    <button onclick="saveEditMessage(event,'${id}')" style="cursor:pointer;border:none;background:#7C3AED;color:#fff;border-radius:0.4rem;padding:0.25rem 0.6rem;font-size:0.8rem;">Сохранить</button>
-                    <button onclick="cancelEditMessage(event,'${id}')" style="cursor:pointer;border:1px solid currentColor;background:transparent;color:inherit;border-radius:0.4rem;padding:0.25rem 0.6rem;font-size:0.8rem;opacity:0.85;">Отмена</button>
-                </div>
-            `;
-            const ta = document.getElementById('msg-edit-input-' + id);
-            if (ta) { ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); }
+            if (!cached) return;
+            beginEdit(id, 'dm', cached.content || '');
         }
-        async function saveEditMessage(evt, id) {
-            if (evt) evt.stopPropagation();
-            const ta = document.getElementById('msg-edit-input-' + id);
-            if (!ta) return;
-            const typed = ta.value.trim();
-            if (!typed) { alert('Текст не может быть пустым'); return; }
+
+        /** Открыть правку: полоска над вводом плюс сам текст в поле. */
+        function beginEdit(id, kind, rawContent) {
+            cancelReply();                    // правка и ответ занимают одну полоску
+            editingMessageId = id;
+            editingKind = kind;
+            // Служебный маркер ответа в поле не показываем: иначе человек увидит
+            // «[RE#…]» и сотрёт его, потеряв связь с исходным сообщением.
+            const edSplit = splitReply(rawContent || '');
+            const input = document.getElementById('messageInput');
+            if (input) {
+                input.value = edSplit.body;
+                autoGrowInput(input);
+                input.focus();
+                try { input.setSelectionRange(input.value.length, input.value.length); } catch (e) {}
+            }
+            document.querySelectorAll('.message.editing').forEach(b => b.classList.remove('editing'));
+            const bubble = document.querySelector(`.message[data-msg-id="${id}"]`)
+                        || document.querySelector(`.message[data-fav-id="${id}"]`);
+            if (bubble) bubble.classList.add('editing');
+            const bar = document.getElementById('replyBar');
+            if (bar) {
+                bar.classList.add('rb-edit');
+                document.getElementById('replyName').textContent = 'Редактирование';
+                document.getElementById('replyBody').textContent = previewText(edSplit.body).slice(0, 120) || 'сообщение';
+                bar.style.display = 'flex';
+            }
+            updateMicButton();
+        }
+
+        /** Сохранить правку. Вызывается отправкой сообщения — отдельной кнопки нет. */
+        async function saveEditMessage(evt) {
+            if (evt && evt.stopPropagation) evt.stopPropagation();
+            const id = editingMessageId;
+            const input = document.getElementById('messageInput');
+            if (!id || !input) return;
+            const typed = input.value.trim();
+            if (!typed) { toast('Текст не может быть пустым'); return; }
             // маркер ответа возвращаем на место, он не должен пропасть при правке
-            const wasReply = splitReply((msgCache[id] || {}).content || '').replyId;
+            const cache = editingKind === 'group' ? groupMsgCache
+                        : editingKind === 'fav' ? favMsgCache : msgCache;
+            const wasReply = splitReply((cache[id] || {}).content || '').replyId;
             const content = wasReply ? '[RE#' + wasReply + '] ' + typed : typed;
             try {
-                const r = await (await fetch('/api/message_edit.php?action=edit', {
-                    method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
-                    body: JSON.stringify({ message_id: id, content })
-                })).json();
-                if (!r.ok) { alert(r.error || 'Не удалось сохранить'); return; }
+                if (editingKind === 'group') {
+                    const d = await groupApi('edit-message', { message_id: id, content });
+                    if (!d.ok) { alert('Не удалось сохранить: ' + d.error); return; }
+                } else if (editingKind === 'fav') {
+                    const r = await (await fetch('/api/favorites.php?action=edit', {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+                        body: JSON.stringify({ id, content })
+                    })).json();
+                    if (!r.ok) { alert(r.error || 'Не удалось сохранить'); return; }
+                } else {
+                    const r = await (await fetch('/api/message_edit.php?action=edit', {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+                        body: JSON.stringify({ message_id: id, content })
+                    })).json();
+                    if (!r.ok) { alert(r.error || 'Не удалось сохранить'); return; }
+                }
             } catch (e) { alert('Ошибка сети'); return; }
-            editingMessageId = null;
-            await loadMessages();
+            const kind = editingKind;
+            cancelEditMessage();
+            if (kind === 'group') await loadGroupMessages();
+            else if (kind === 'fav') await loadFavoritesMessages();
+            else await loadMessages();
         }
-        function cancelEditMessage(evt, id) {
-            if (evt) evt.stopPropagation();
+
+        function cancelEditMessage(evt) {
+            if (evt && evt.stopPropagation) evt.stopPropagation();
+            const was = editingMessageId;
             editingMessageId = null;
-            loadMessages();
+            // Ничего не правили — не трогаем ни поле, ни полоску: эту же функцию
+            // зовут при смене чата, и она стёрла бы начатое сообщение или спрятала
+            // полоску ответа, к правке отношения не имеющую.
+            if (!was) return;
+            const input = document.getElementById('messageInput');
+            if (input) { input.value = ''; resetInputHeight(); }
+            document.querySelectorAll('.message.editing').forEach(b => b.classList.remove('editing'));
+            const bar = document.getElementById('replyBar');
+            if (bar) { bar.classList.remove('rb-edit'); bar.style.display = 'none'; }
+            updateMicButton();
         }
         window.startEditMessage = startEditMessage;
         window.saveEditMessage = saveEditMessage;
@@ -7866,7 +7872,6 @@
         async function loadMessages() {
             if (!selectedUserId) return;
             if (isAiMode()) { renderAiMessages(); return; }   // у бота переписка локальная
-            if (editingMessageId) return; // не перерисовывать список поверх открытой формы редактирования (иначе она пропадает на середине печати)
             // Реальная переписка (в отличие от read-only канала) — вернуть панель ввода сообщений, если она была скрыта.
             const inputBar = document.getElementById('chatInputBar');
             if (inputBar && inputBar.style.display === 'none') inputBar.style.display = '';
@@ -8443,6 +8448,8 @@
         }
 
         async function sendMessage() {
+            // Идёт правка — «отправить» означает «сохранить», как и в других мессенджерах
+            if (editingMessageId) { await saveEditMessage(); return; }
             const input = document.getElementById('messageInput');
             // Маркер ответа приписывается один раз здесь — дальше все ветки (группа,
             // поддержка, «Избранное», обычный чат) отправляют уже готовый текст.
@@ -9501,7 +9508,9 @@
         function isAttachmentPlaceholder(m) {
             const text = String(m.content || '');
             if (!m.attachment_url || !text) return false;
-            return /^\[(Файл|Голосовое|Видеосообщение)/.test(text);
+            // «Фото» сюда не входило, и над каждым снимком висела строка вида
+            // «[Фото: IMG_6507.png]» — имя файла с телефона, которое никому не нужно.
+            return /^\[(Фото|Файл|Голосовое|Видеосообщение)/.test(text);
         }
 
         /**
@@ -10495,21 +10504,78 @@
         let attachGrouped = true;      // несколько файлов — одним сообщением-альбомом
         let attachAsFile = false;      // отправить картинки документом, без превью
 
-        /** Размер файла словами. Формат общий с остальным сайтом (js/app.js). */
+        /** Размер файла словами: «7,4 МБ» вместо 7761920. */
         function fmtSize(bytes) {
-            return typeof psyFmtSize === 'function' ? psyFmtSize(bytes) : Math.round(bytes / 1048576) + ' МБ';
+            if (bytes >= 1073741824) return (bytes / 1073741824).toFixed(bytes >= 10737418240 ? 0 : 1).replace('.', ',') + ' ГБ';
+            if (bytes >= 1048576) return (bytes / 1048576).toFixed(bytes >= 10485760 ? 0 : 1).replace('.', ',') + ' МБ';
+            return Math.max(1, Math.round(bytes / 1024)) + ' КБ';
         }
 
         /**
-         * Загрузка вложения. Сама разбивка на части и потолок живут в js/app.js
-         * (psyUpload) — тем же путём грузят и другие страницы, чтобы лимит был
-         * один на весь сайт, а не свой в каждом файле.
+         * Загрузка вложения — своя, без зависимости от других файлов.
+         *
+         * Сначала чат вызывал psyUpload из js/app.js. Это вышло боком: если app.js
+         * не успел загрузиться или приехал из кэша прежней версии, отправка файлов
+         * переставала работать целиком — «модуль загрузки не подключился». Чат
+         * должен отправлять файлы всегда, поэтому разбивка на части лежит здесь же.
+         *
+         * Почему части: одним запросом гигабайт не проходит — PHP на хостинге
+         * принимает не больше 256 МБ, а nginx рубит запрос около гигабайта, и
+         * человек видит страницу сервера вместо нашей ошибки.
          */
+        const UPLOAD_CHUNK_BYTES = 8 * 1024 * 1024;
+
+        async function uploadChunked(file, onProgress) {
+            const uploadId = Date.now().toString(36) + Math.random().toString(36).slice(2, 12);
+            const total = Math.max(1, Math.ceil(file.size / UPLOAD_CHUNK_BYTES));
+            let sent = 0;
+            for (let i = 0; i < total; i++) {
+                const part = file.slice(i * UPLOAD_CHUNK_BYTES, (i + 1) * UPLOAD_CHUNK_BYTES);
+                const fd = new FormData();
+                fd.append('upload_id', uploadId);
+                fd.append('index', String(i));
+                fd.append('total', String(total));
+                fd.append('name', file.name || 'file');
+                fd.append('chunk', part, 'part');
+                let res = null, data = {};
+                // Одна повторная попытка на часть: на мобильной связи обрыв одной
+                // части не должен стоить человеку всей загрузки.
+                for (let attempt = 0; attempt < 2; attempt++) {
+                    try {
+                        res = await fetch('/api/upload_chunk.php?action=chunk', {
+                            method: 'POST', credentials: 'include', body: fd,
+                        });
+                        data = await res.json().catch(() => ({}));
+                        if (res.ok) break;
+                    } catch (e) { res = null; data = { error: 'Связь прервалась' }; }
+                    if (attempt === 0) await new Promise(r => setTimeout(r, 800));
+                }
+                if (!res || !res.ok) throw new Error((data && data.error) || 'Не удалось загрузить часть файла');
+                sent += part.size;
+                if (onProgress) onProgress(Math.min(1, sent / file.size), sent, file.size);
+                if (data && data.url) return data.url;
+            }
+            throw new Error('Сервер не вернул ссылку на файл');
+        }
+
+        /** Вернуть только адрес загруженного файла. */
+        async function uploadFileUrl(file, onProgress) {
+            if (!file) throw new Error('Файл не выбран');
+            if (file.size > MAX_UPLOAD_MB * 1024 * 1024) throw new Error(`Файл больше ${MAX_UPLOAD_MB} МБ`);
+            if (file.size > CHUNK_UPLOAD_FROM) return uploadChunked(file, onProgress);
+            const fd = new FormData();
+            fd.append('file', file);
+            const r = await fetch('/api/upload.php', { method: 'POST', credentials: 'include', body: fd });
+            const d = await r.json().catch(() => ({}));
+            if (!r.ok || d.error || !d.url) throw new Error(d.error || ('Ошибка загрузки (HTTP ' + r.status + ')'));
+            if (onProgress) onProgress(1, file.size, file.size);
+            return d.url;
+        }
+
         async function uploadOne(file, onProgress) {
-            if (typeof psyUpload !== 'function') throw new Error('Модуль загрузки не подключился — обновите страницу');
-            const res = await psyUpload(file, onProgress);
+            const url = await uploadFileUrl(file, onProgress);
             return {
-                url: res.url, name: file.name,
+                url, name: file.name,
                 type: file.type.startsWith('image/') ? 'image' : 'file',
                 isImage: file.type.startsWith('image/'),
             };
