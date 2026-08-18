@@ -217,6 +217,8 @@ function aiParseWebSearchXml($xml) {
 
     // Яндекс подсвечивает совпадения тегами <hlword>, в тексте они не нужны
     $plain = function ($node) {
+        // Узла может не быть вовсе (страница без заголовка) — тогда просто пусто
+        if (!$node instanceof SimpleXMLElement) return '';
         return trim(preg_replace('/\s+/u', ' ', strip_tags((string)$node->asXML())));
     };
 
