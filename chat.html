@@ -1160,6 +1160,46 @@
         .ai-status { font-size: 0.82rem; color: #6D28D9; background: #F5F3FF; border-radius: 0.5rem;
                      padding: 0.3rem 0.55rem; display: inline-block; margin-bottom: 0.35rem; }
         body.dark .ai-status { color: #C4B5FD; background: #2D1F4E; }
+        /* Источники — под спойлером: они нужны для проверки, но не должны занимать
+           пол-экрана под каждым ответом. */
+        /* Осторожно с этим блоком: в styles.css живёт оформление аккордеона FAQ
+           (details summary{display:flex}, «+» в ::after, белый фон у открытого).
+           Из-за display:flex у summary свёрнутый список ПЕРЕСТАЁТ скрываться, поэтому
+           здесь возвращаем summary обычный list-item и гасим чужие украшения. */
+        .ai-src { margin-top: .5rem; font-size: .82rem; border-radius: 0 !important; }
+        .ai-src[open] { background-color: transparent !important; }
+        .ai-src > summary { display: list-item; list-style: none; cursor: pointer;
+                            color: #6D28D9; font-weight: 600; padding: 0; }
+        .ai-src > summary::-webkit-details-marker { display: none; }
+        .ai-src > summary::after { content: none !important; }
+        .ai-src > summary::before { content: '▸ '; display: inline-block; transition: transform .15s; }
+        .ai-src[open] > summary::before { content: '▾ '; }
+        /* Без display на самом списке: заданный display перебивает скрытие содержимого
+           свёрнутого <details>, и источники оставались на виду. Отступы — на пунктах. */
+        .ai-src ol { margin: .4rem 0 0 1.1rem; }
+        .ai-src li + li { margin-top: .25rem; }
+        .ai-src a { color: #4B5563; text-decoration: none; border-bottom: 1px solid #E5E7EB;
+                    overflow-wrap: anywhere; }
+        .ai-src a:hover { color: #6D28D9; }
+        body.dark .ai-src > summary { color: #C4B5FD; }
+        body.dark .ai-src a { color: #B5B5B5; border-color: #444; }
+        /* Приложенный к вопросу файл — строкой в самом сообщении */
+        .ai-file { display: inline-flex; align-items: center; gap: .35rem; font-size: .82rem;
+                   background: rgba(0,0,0,.05); border-radius: .45rem; padding: .2rem .45rem;
+                   margin-top: .35rem; }
+        body.dark .ai-file { background: rgba(255,255,255,.08); }
+        .ai-file.bad { color: #B91C1C; }
+        body.dark .ai-file.bad { color: #FCA5A5; }
+        /* Выбор модели — обычный список, а не окно с номерами */
+        .ai-select { font-family: inherit; font-size: .8rem; font-weight: 600; line-height: 1;
+                     padding: .35rem 1.4rem .35rem .6rem; border-radius: 999px;
+                     border: 1px solid #E5E7EB; background: #F9FAFB; color: #4B5563;
+                     cursor: pointer; max-width: 46vw; text-overflow: ellipsis;
+                     appearance: none; -webkit-appearance: none;
+                     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%236B7280' stroke-width='1.6' stroke-linecap='round'/%3E%3C/svg%3E");
+                     background-repeat: no-repeat; background-position: right .5rem center; }
+        body.dark .ai-select { background-color: #2A2A2A; border-color: #444; color: #C9C9C9; }
+
         /* Полоска над полем ввода: интернет и модель на виду, только у ассистента */
         .ai-bar { display: none; align-items: center; gap: 0.4rem; flex-wrap: wrap;
                   padding: 0.45rem 0.75rem 0; }
@@ -1183,7 +1223,6 @@
         body.dark .ai-chip { background: #2A2A2A; border-color: #444; color: #C9C9C9; }
         body.dark .ai-chip.on { background: #2D1F4E; border-color: #6D28D9; color: #C4B5FD; }
         body.dark .ai-bar-hint { color: #8A8A8A; }
-        body.ai-chat .cin-attach,
         body.ai-chat .cin-voice,
         body.ai-chat .cin-video,
         body.ai-chat .chat-input .cin-mic { display: none; }
@@ -7303,10 +7342,12 @@
                         title="${aiSearchAvailable ? 'Поиск в интернете: выкл → авто → вкл' : escapeAttr(aiSearchReason)}">
                     <span aria-hidden="true">🌐</span> Интернет: ${aiSearchAvailable ? AI_SEARCH_LABELS[mode] : 'недоступен'}
                 </button>
-                <button type="button" class="ai-chip" onclick="pickAiModel()"
-                        title="${escapeAttr(cur ? cur.name : 'Выбрать модель')}">
-                    <span aria-hidden="true">🧠</span> ${escapeHtml(cur ? cur.name.split('—')[0].trim() : 'Модель')}
-                </button>
+                <select class="ai-select" id="aiModelSel" onchange="setAiModel(this.value)"
+                        title="${escapeAttr(cur ? cur.name : 'Выбрать модель')}" aria-label="Модель">
+                    ${aiModels.length
+                        ? aiModels.map(m => `<option value="${escapeAttr(m.id)}"${m.id === aiModel() ? ' selected' : ''}>${escapeHtml(m.name)}</option>`).join('')
+                        : '<option>Модели недоступны</option>'}
+                </select>
                 <span class="ai-bar-hint">${escapeHtml(hint)}</span>`;
         }
         window.renderAiBar = renderAiBar;
@@ -7321,18 +7362,21 @@
             return aiModels;
         }
 
-        function pickAiModel() {
-            if (!aiModels.length) { alert('Список моделей недоступен.'); return; }
-            const cur = aiModel();
-            const list = aiModels.map((m, i) => `${i + 1}. ${m.name}${m.id === cur ? ' (текущая)' : ''}`).join('\n');
-            const ans = prompt('Какую модель использовать?\n\n' + list + '\n\nВведите номер:', '');
-            const n = parseInt(ans, 10);
-            if (!n || n < 1 || n > aiModels.length) return;
-            try { localStorage.setItem(AI_MODEL_KEY, aiModels[n - 1].id); } catch (e) {}
+        /** Выбрать модель. Список живёт в полоске над вводом — сюда попадаем из меню «⋮». */
+        function setAiModel(id) {
+            if (!id) return;
+            try { localStorage.setItem(AI_MODEL_KEY, id); } catch (e) {}
             renderAiBar();
             renderAiHeader();
-            renderAiMessages();
         }
+        function pickAiModel() {
+            const sel = document.getElementById('aiModelSel');
+            if (!sel) { toast('Список моделей недоступен'); return; }
+            sel.focus();
+            // showPicker есть не везде — там просто подсветится сам список
+            if (typeof sel.showPicker === 'function') { try { sel.showPicker(); } catch (e) {} }
+        }
+        window.setAiModel = setAiModel;
 
         function clearAiChat() {
             if (!confirm('Очистить переписку с ассистентом? Отменить будет нельзя.')) return;
@@ -7399,6 +7443,44 @@
         window.pickAiModel = pickAiModel;
         window.clearAiChat = clearAiChat;
 
+        /**
+         * Отделить список источников от самого ответа. Раньше он шёл простым текстом
+         * и занимал под каждым ответом пол-экрана — теперь прячем под спойлер, а старые
+         * сообщения разбираем тем же способом, чтобы и они подобрались.
+         */
+        function splitAiSources(text) {
+            const mark = '**Источники**';
+            const i = text.lastIndexOf(mark);
+            if (i < 0) return { body: text, srcs: [] };
+            const srcs = text.slice(i + mark.length).split('\n')
+                .map(l => l.trim()).filter(Boolean)
+                .map(l => {
+                    const m = l.match(/^\d+\.\s*(.*?)\s+—\s+(https?:\/\/\S+)$/);
+                    return m ? { title: m[1], url: m[2] } : null;
+                })
+                .filter(Boolean);
+            return srcs.length ? { body: text.slice(0, i).trim(), srcs } : { body: text, srcs: [] };
+        }
+
+        function sourcesHtml(srcs) {
+            if (!srcs || !srcs.length) return '';
+            return `<details class="ai-src"><summary>Источники · ${srcs.length}</summary><ol>`
+                + srcs.map(x => `<li><a href="${escapeAttr(x.url)}" target="_blank" rel="noopener">${escapeHtml(x.title)}</a></li>`).join('')
+                + '</ol></details>';
+        }
+
+        /** Что было приложено к вопросу — строкой в самом сообщении. */
+        function aiFilesHtml(files) {
+            if (!files || !files.length) return '';
+            const short = n => { n = String(n || 'файл'); return n.length > 30 ? n.slice(0, 27) + '…' : n; };
+            return files.map(f => f.reading
+                ? `<div class="ai-file">📎 ${escapeHtml(short(f.name))} · читаю…</div>`
+                : f.error
+                ? `<div class="ai-file bad">📎 ${escapeHtml(short(f.name))} — ${escapeHtml(f.error)}</div>`
+                : `<div class="ai-file">📎 ${escapeHtml(short(f.name))} · прочитано ${Math.round((f.chars || 0) / 1000 * 10) / 10} тыс. знаков</div>`
+            ).join('');
+        }
+
         function renderAiMessages() {
             const c = document.getElementById('messagesContainer');
             if (!c) return;
@@ -7406,19 +7488,25 @@
             if (!aiMessages.length) {
                 c.innerHTML = `<div class="empty-state"><div>
                     <p style="color:#9CA3AF;">🤖 Спросите что угодно: формулировки для клиента, план сессии,
-                    разбор случая. Ассистент не заменяет супервизию и не видит ваши переписки.</p></div></div>`;
+                    разбор случая. Скрепкой можно приложить документ — .txt, .md, .csv, .docx или текстовый .pdf,
+                    ассистент прочитает и ответит по нему. Он не заменяет супервизию и не видит ваши переписки.</p></div></div>`;
                 return;
             }
             const isAdm = currentUser && currentUser.role === 'admin';
-            c.innerHTML = aiMessages.map((m, i) => `
+            c.innerHTML = aiMessages.map((m, i) => {
+                const parts = splitAiSources(String(m.content || ''));
+                return `
                 <div class="message ${m.role === 'user' ? 'mine' : 'theirs'}" data-ai-idx="${i}">
-                    <div>${msgText(String(m.content || ''))}</div>
+                    <div>${msgText(parts.body)}</div>
+                    ${aiFilesHtml(m.files)}
+                    ${sourcesHtml(parts.srcs)}
                     <div class="ai-acts">
                         <button onclick="aiCopy(${i})" title="Скопировать">📋</button>
                         <button onclick="aiForward(${i})" title="Переслать в переписку">↪</button>
                         ${isAdm ? `<button onclick="aiToTask(${i})" title="В задачи Клоду">🧩</button>` : ''}
                     </div>
-                </div>`).join('') + '<div id="aiTail"></div>';
+                </div>`;
+            }).join('') + '<div id="aiTail"></div>';
             c.scrollTop = c.scrollHeight;
         }
 
@@ -7439,11 +7527,54 @@
         function aiToTask(i) { sendToDevTasks(null, aiText(i)); }
         window.aiCopy = aiCopy; window.aiForward = aiForward; window.aiToTask = aiToTask;
 
+        /**
+         * Что уходит модели: сам вопрос плюс текст приложенных файлов. В переписке
+         * файл показан строкой, а не портянкой на два экрана.
+         */
+        function aiExpand(m) {
+            let c = String(m.content || '');
+            for (const f of (m.files || [])) {
+                if (!f || !f.text) continue;
+                c += (c ? '\n\n' : '') + '--- Приложенный файл «' + f.name + '» ---\n' + f.text;
+            }
+            return c || '(файл без вопроса — разбери его и скажи главное)';
+        }
+
+        /** Прочитать приложенные файлы на сервере: браузер .docx и .pdf не разберёт. */
+        async function aiReadFiles(atts) {
+            try {
+                const r = await fetch('/api/ai_file.php?action=read', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+                    body: JSON.stringify({ urls: atts.map(a => a.url) })
+                });
+                const d = await r.json();
+                if (!d.ok) throw new Error(d.error || 'сервер не смог прочитать файлы');
+                return d.files || [];
+            } catch (e) {
+                return atts.map(a => ({ name: a.name, url: a.url, error: e.message }));
+            }
+        }
+
         /** Отправить вопрос ассистенту и вывести ответ по мере поступления. */
-        async function sendToAi(text) {
+        async function sendToAi(text, atts) {
             if (aiBusy) return;
             aiBusy = true;
-            aiMessages.push({ role: 'user', content: text });
+            const msg = { role: 'user', content: text };
+            if (atts && atts.length) {
+                msg.files = atts.map(a => ({ name: a.name, url: a.url, reading: true }));
+                aiMessages.push(msg);
+                renderAiMessages();
+                const read = await aiReadFiles(atts);
+                // Имя показываем то, под которым файл выбрали: на сервере он лежит
+                // под случайным именем, и «1787_9774_zametka.txt» человеку ни о чём не говорит.
+                const byUrl = {};
+                atts.forEach(a => { byUrl[a.url] = a.name; });
+                // В переписке храним урезанный текст: иначе localStorage распухнет
+                msg.files = read.map(f => ({ name: byUrl[f.url] || f.name, url: f.url, chars: f.chars || 0,
+                                             error: f.error || '', text: (f.text || '').slice(0, 6000) }));
+            } else {
+                aiMessages.push(msg);
+            }
             aiSave();
             renderAiMessages();
             const c = document.getElementById('messagesContainer');
@@ -7465,7 +7596,7 @@
             try {
                 const res = await fetch('/api/ai_chat.php?action=chat', {
                     method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
-                    body: JSON.stringify({ messages: aiMessages.map(m => ({ role: m.role, content: m.content })),
+                    body: JSON.stringify({ messages: aiMessages.map(m => ({ role: m.role, content: aiExpand(m) })),
                                            model: aiModel(), search: aiSearchSend(), ui: 1 })
                 });
                 if (!res.ok) {
@@ -8647,6 +8778,17 @@
             // Маркер ответа приписывается один раз здесь — дальше все ветки (группа,
             // поддержка, «Избранное», обычный чат) отправляют уже готовый текст.
             const content = withReplyMark(input.value.trim());
+
+            // Ассистенту файл не «отправляют» — его читают и прикладывают к вопросу
+            if (isAiMode() && pendingAttachments.length) {
+                const caption = input.value.trim();
+                const files = pendingAttachments.splice(0);
+                input.value = '';
+                resetInputHeight();
+                renderAttachBar();
+                await sendToAi(caption, files);
+                return;
+            }
 
             // Прикреплённые файлы отправляем вместе с подписью — она уходит с первым из них
             if (pendingAttachments.length && selectedUserId) {

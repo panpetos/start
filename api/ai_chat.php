@@ -23,6 +23,7 @@ header('Access-Control-Allow-Headers: Content-Type');
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') { http_response_code(204); exit; }
 
 require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/ai_text.php';   // разбор страниц и приложенных файлов — общий с ai_file.php
 if (!function_exists('getDB') && !function_exists('getDbConnection') && !function_exists('getPDO')) {
     require_once __DIR__ . '/db.php';
 }
@@ -217,29 +218,6 @@ function aiUsefulSource($url) {
     return true;
 }
 
-/**
- * Превратить страницу в текст. Без этого от «поиска» оставались одни заголовки,
- * и ассистент честно не знал ответа — отсюда и «посмотрите на сайте».
- */
-function aiHtmlToText($html, $maxChars = 2000) {
-    $html = (string)$html;
-    // Кодировка: половина рунета всё ещё в windows-1251, иначе на выходе каша
-    $enc = '';
-    if (preg_match('/charset=["\']?\s*([A-Za-z0-9_-]+)/i', substr($html, 0, 4000), $m)) $enc = strtoupper($m[1]);
-    if ($enc !== '' && $enc !== 'UTF-8' && function_exists('mb_convert_encoding')) {
-        $conv = @mb_convert_encoding($html, 'UTF-8', $enc);
-        if (is_string($conv) && $conv !== '') $html = $conv;
-    }
-    $html = preg_replace('#<(script|style|noscript|svg|template|iframe)\b[^>]*>.*?</\1>#is', ' ', $html);
-    $html = preg_replace('#<!--.*?-->#s', ' ', $html);
-    $html = preg_replace('#<(br|/p|/div|/li|/tr|/h[1-6])\s*/?>#i', "\n", $html);
-    $txt = html_entity_decode(strip_tags((string)$html), ENT_QUOTES | ENT_HTML5, 'UTF-8');
-    $txt = preg_replace('/[ \t\x{00A0}]+/u', ' ', $txt);
-    $txt = preg_replace('/(\s*\n\s*)+/u', "\n", $txt);
-    $txt = trim((string)$txt);
-    if ($txt === '' || !mb_check_encoding($txt, 'UTF-8')) return '';
-    return mb_substr($txt, 0, $maxChars);
-}
 
 /**
  * Скачать несколько найденных страниц разом и вернуть [url => текст].
@@ -425,8 +403,11 @@ function aiSearchQuery($messages) {
  * числа, ни того, что она на платформе психологической помощи, и легко выдумывала.
  */
 function aiSystemPrompt($searchOn) {
-    $today = date('d.m.Y');
-    $p = "Ты — ассистент платформы психологической помощи psytalk.pro. Сегодня {$today}.\n"
+    $tz = @date_default_timezone_get();
+    @date_default_timezone_set('Europe/Moscow');
+    $today = date('d.m.Y, H:i') . ' по Москве';
+    @date_default_timezone_set($tz ?: 'UTC');
+    $p = "Ты — ассистент платформы психологической помощи psytalk.pro. Сейчас {$today}.\n"
        . "Отвечай по-русски, по делу и без воды. Если просят текст (письмо клиенту, пост, "
        . "упражнение, план сессии) — сразу давай готовый текст, а не рассуждения о нём.\n"
        . "Ты не ставишь диагнозов и не заменяешь супервизию: в сложных случаях предлагай "
@@ -438,7 +419,10 @@ function aiSystemPrompt($searchOn) {
         ? "\nК этому ответу приложены свежие сведения из интернета — отвечай по ним. "
         . "Называй конкретику: числа, даты, суммы, градусы — прямо в первой фразе. "
         . "Если в материалах нужного нет, честно скажи одной фразой, чего именно не нашлось, "
-        . "и добавь то, что всё же известно. Спорные и важные числа подкрепляй номером источника."
+        . "и добавь то, что всё же известно. Спорные и важные числа подкрепляй номером источника.\n"
+        . "Числа бери из одного источника, не смешивая страницы: на странице рядом лежат и "
+        . "«сейчас», и прогноз на дни — если непонятно, к какому времени относится значение, "
+        . "так и скажи и назови, что это прогноз, а не текущее наблюдение."
         : "\nСейчас у тебя нет доступа к интернету: твои знания ограничены датой обучения. "
         . "Если вопрос про свежее (новости, цены, законы, расписания), честно предупреди об этом "
         . "и посоветуй включить «Интернет» переключателем над полем ввода.";
@@ -708,7 +692,7 @@ if ($action === 'chat') {
             $pages = [];
             if ($srcs) {
                 $note(['stage' => 'reading', 'count' => min(3, count($srcs))]);
-                $pages = aiFetchPages(array_slice(array_column($srcs, 'url'), 0, 3));
+                $pages = aiFetchPages(array_slice(array_column($srcs, 'url'), 0, 3), 3000);
             }
 
             $ref = ($found['via'] ?? '') === 'web'
@@ -724,6 +708,15 @@ if ($action === 'chat') {
                 $ref .= "\n\n--- Со страницы " . $url . " ---\n" . $text;
             }
             if ($n) $note(['stage' => 'read_done', 'count' => $n]);
+            // Админу отдаём сами вычитанные куски: когда ответ оказывается ерундой,
+            // спорить о причинах бессмысленно — надо видеть, что было на входе.
+            if ($n && $isAdmin) {
+                $dump = [];
+                foreach ($pages as $url => $text) {
+                    $dump[] = ['url' => $url, 'text' => mb_substr($text, 0, 1200)];
+                }
+                $note(['stage' => 'read_dump', 'pages' => $dump]);
+            }
             if ($srcs) {
                 $ref .= "\n\nСписок источников (ссылайся на них номерами):\n";
                 foreach ($srcs as $n => $src) {
