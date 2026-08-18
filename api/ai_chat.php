@@ -188,7 +188,7 @@ function aiPlainSearch($query, $apiKey, $folderId) {
         ],
         'sortSpec'  => ['sortMode' => 'SORT_MODE_BY_RELEVANCE', 'sortOrder' => 'SORT_ORDER_DESC'],
         'groupSpec' => ['groupsOnPage' => '8', 'groupMode' => 'GROUP_MODE_DEEP', 'docsInGroup' => '1'],
-        'maxPassages'    => '4',
+        'maxPassages'    => '5',
         'l10n'           => 'LOCALIZATION_RU',
         'folderId'       => $folderId,
         'responseFormat' => 'FORMAT_XML',
@@ -202,6 +202,96 @@ function aiPlainSearch($query, $apiKey, $folderId) {
     $xml = base64_decode($raw, true);
     if ($xml === false) return ['error' => 'не удалось разобрать ответ поиска'];
     return aiParseWebSearchXml($xml);
+}
+
+/**
+ * Стоит ли вообще показывать эту ссылку. Выдача поисковиков и «картинки по запросу»
+ * пользы не несут: человек и так пришёл из-за того, что не хочет листать поиск.
+ */
+function aiUsefulSource($url) {
+    $host = strtolower((string)parse_url($url, PHP_URL_HOST));
+    $path = (string)parse_url($url, PHP_URL_PATH);
+    if ($host === '') return false;
+    if (preg_match('#^(www\.)?(yandex|google)\.[a-z.]+$#', $host) && preg_match('#^/(images/|video/)?search#', $path)) return false;
+    if (strpos($host, 'webcache.') === 0) return false;
+    return true;
+}
+
+/**
+ * Превратить страницу в текст. Без этого от «поиска» оставались одни заголовки,
+ * и ассистент честно не знал ответа — отсюда и «посмотрите на сайте».
+ */
+function aiHtmlToText($html, $maxChars = 2000) {
+    $html = (string)$html;
+    // Кодировка: половина рунета всё ещё в windows-1251, иначе на выходе каша
+    $enc = '';
+    if (preg_match('/charset=["\']?\s*([A-Za-z0-9_-]+)/i', substr($html, 0, 4000), $m)) $enc = strtoupper($m[1]);
+    if ($enc !== '' && $enc !== 'UTF-8' && function_exists('mb_convert_encoding')) {
+        $conv = @mb_convert_encoding($html, 'UTF-8', $enc);
+        if (is_string($conv) && $conv !== '') $html = $conv;
+    }
+    $html = preg_replace('#<(script|style|noscript|svg|template|iframe)\b[^>]*>.*?</\1>#is', ' ', $html);
+    $html = preg_replace('#<!--.*?-->#s', ' ', $html);
+    $html = preg_replace('#<(br|/p|/div|/li|/tr|/h[1-6])\s*/?>#i', "\n", $html);
+    $txt = html_entity_decode(strip_tags((string)$html), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+    $txt = preg_replace('/[ \t\x{00A0}]+/u', ' ', $txt);
+    $txt = preg_replace('/(\s*\n\s*)+/u', "\n", $txt);
+    $txt = trim((string)$txt);
+    if ($txt === '' || !mb_check_encoding($txt, 'UTF-8')) return '';
+    return mb_substr($txt, 0, $maxChars);
+}
+
+/**
+ * Скачать несколько найденных страниц разом и вернуть [url => текст].
+ * Качаем параллельно и с короткими сроками: ждать ответа дольше нескольких секунд
+ * человеку в чате нельзя, лучше ответить по тому, что успели прочитать.
+ */
+function aiFetchPages($urls, $maxChars = 2000, $timeout = 6) {
+    $urls = array_values(array_unique(array_filter((array)$urls, function ($u) {
+        return preg_match('#^https?://#i', (string)$u) && aiUsefulSource($u);
+    })));
+    if (!$urls) return [];
+
+    $mh = curl_multi_init();
+    $handles = [];
+    foreach ($urls as $u) {
+        $ch = curl_init($u);
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_MAXREDIRS      => 3,
+            CURLOPT_TIMEOUT        => $timeout,
+            CURLOPT_CONNECTTIMEOUT => 4,
+            CURLOPT_ENCODING       => '',
+            CURLOPT_USERAGENT      => 'Mozilla/5.0 (compatible; PsyTalkBot/1.0; +https://psytalk.pro)',
+            CURLOPT_HTTPHEADER     => ['Accept: text/html,application/xhtml+xml', 'Accept-Language: ru,en;q=0.8'],
+            // Тяжёлую страницу обрываем: нам нужен текст сверху, а не весь файл
+            CURLOPT_NOPROGRESS     => false,
+            CURLOPT_PROGRESSFUNCTION => function ($c, $dt, $dn, $ut, $un) { return $dn > 1500000 ? 1 : 0; },
+        ]);
+        curl_multi_add_handle($mh, $ch);
+        $handles[$u] = $ch;
+    }
+    $running = null;
+    do {
+        curl_multi_exec($mh, $running);
+        if ($running > 0) curl_multi_select($mh, 0.2);
+    } while ($running > 0);
+
+    $out = [];
+    foreach ($handles as $u => $ch) {
+        $body = curl_multi_getcontent($ch);
+        $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $type = (string)curl_getinfo($ch, CURLINFO_CONTENT_TYPE);
+        curl_multi_remove_handle($mh, $ch);
+        curl_close($ch);
+        if ($code < 200 || $code >= 300 || !is_string($body) || $body === '') continue;
+        if ($type !== '' && stripos($type, 'html') === false && stripos($type, 'text') === false) continue;
+        $txt = aiHtmlToText($body, $maxChars);
+        if ($txt !== '') $out[$u] = $txt;
+    }
+    curl_multi_close($mh);
+    return $out;
 }
 
 /**
@@ -234,6 +324,7 @@ function aiParseWebSearchXml($xml) {
         }
         if ($text === '' && isset($doc1->headline)) $text = $plain($doc1->headline);
         $text = trim(preg_replace('/\s+/u', ' ', $text));
+        if (!aiUsefulSource($url)) continue;      // выдача поисковика вместо ответа не нужна
         $sources[$url] = ['title' => $title !== '' ? $title : $url, 'url' => $url];
         $parts[] = (count($parts) + 1) . '. ' . ($title !== '' ? $title : $url)
                  . ($text !== '' ? "\n" . mb_substr($text, 0, 600) : '');
@@ -265,7 +356,7 @@ function aiParseSearchResponse($resp) {
         if (isset($node['message']['content'])) $text .= (string)$node['message']['content'];
         foreach ((array)($node['sources'] ?? []) as $src) {
             $u = (string)($src['url'] ?? '');
-            if ($u === '') continue;
+            if ($u === '' || !aiUsefulSource($u)) continue;
             $sources[$u] = ['title' => (string)($src['title'] ?? $u), 'url' => $u];
         }
     }
@@ -340,9 +431,14 @@ function aiSystemPrompt($searchOn) {
        . "упражнение, план сессии) — сразу давай готовый текст, а не рассуждения о нём.\n"
        . "Ты не ставишь диагнозов и не заменяешь супервизию: в сложных случаях предлагай "
        . "обратиться к живому специалисту, а при признаках угрозы жизни — к экстренной помощи.\n"
-       . "Не выдумывай фактов, ссылок и цитат. Если чего-то не знаешь — так и скажи.";
+       . "Не выдумывай фактов, ссылок и цитат. Если чего-то не знаешь — так и скажи.\n"
+       . "Никогда не отвечай «посмотрите на сайте» и не отсылай к поисковикам и погодным "
+       . "сервисам: человек пришёл за ответом, а не за списком ссылок.";
     $p .= $searchOn
-        ? "\nК этому ответу приложены свежие сведения из интернета — опирайся на них и ссылайся на источники."
+        ? "\nК этому ответу приложены свежие сведения из интернета — отвечай по ним. "
+        . "Называй конкретику: числа, даты, суммы, градусы — прямо в первой фразе. "
+        . "Если в материалах нужного нет, честно скажи одной фразой, чего именно не нашлось, "
+        . "и добавь то, что всё же известно. Спорные и важные числа подкрепляй номером источника."
         : "\nСейчас у тебя нет доступа к интернету: твои знания ограничены датой обучения. "
         . "Если вопрос про свежее (новости, цены, законы, расписания), честно предупреди об этом "
         . "и посоветуй включить «Интернет» переключателем над полем ввода.";
@@ -604,15 +700,32 @@ if ($action === 'chat') {
                    'is_admin' => $isAdmin]);
             if (!$richUi) $emit('_Поиск в интернете не сработал: ' . $found['error'] . '. Отвечаю без него._' . "\n\n");
         } else {
+            $srcs = array_slice($found['sources'] ?? [], 0, 6);
+
+            // Заголовков и обрывков из выдачи не хватает, чтобы ответить по существу:
+            // именно из-за этого ассистент отвечал «посмотрите на сайте». Открываем
+            // первые страницы и читаем их сами — как сделал бы человек.
+            $pages = [];
+            if ($srcs) {
+                $note(['stage' => 'reading', 'count' => min(3, count($srcs))]);
+                $pages = aiFetchPages(array_slice(array_column($srcs, 'url'), 0, 3));
+            }
+
             $ref = ($found['via'] ?? '') === 'web'
-                 ? "Ниже — отрывки страниц, найденных в интернете по вопросу человека. "
-                 . "Собери из них короткий связный ответ и сошлись на источники. "
+                 ? "Ниже — что нашлось в интернете по вопросу человека: отрывки из выдачи и текст "
+                 . "самих страниц. Ответь по существу и сразу с конкретикой, не пересказывая названия сайтов. "
                  : "Ниже — свежие сведения из интернета по вопросу человека. "
                  . "Опирайся на них, если они относятся к делу, не выдумывай того, чего в них нет, "
                  . "и прямо скажи, если находки не отвечают на вопрос.\n\n" . (string)($found['text'] ?? '');
-            $srcs = array_slice($found['sources'] ?? [], 0, 6);
+
+            $n = 0;
+            foreach ($pages as $url => $text) {
+                $n++;
+                $ref .= "\n\n--- Со страницы " . $url . " ---\n" . $text;
+            }
+            if ($n) $note(['stage' => 'read_done', 'count' => $n]);
             if ($srcs) {
-                $ref .= "\n\nИсточники:\n";
+                $ref .= "\n\nСписок источников (ссылайся на них номерами):\n";
                 foreach ($srcs as $n => $src) {
                     $ref .= ($n + 1) . '. ' . $src['title'] . ' — ' . $src['url'] . "\n";
                 }

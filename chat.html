@@ -7497,7 +7497,11 @@
                                         statusHtml = `<div class="ai-status">🌐 Ищу в интернете: «${escapeHtml(String(p.query || '').slice(0, 90))}»</div>`;
                                     } else if (p.stage === 'search_done') {
                                         sources = p.sources || [];
-                                        statusHtml = `<div class="ai-status">🌐 Нашёл источников: ${sources.length}. Пишу ответ…</div>`;
+                                        statusHtml = `<div class="ai-status">🌐 Нашёл источников: ${sources.length}</div>`;
+                                    } else if (p.stage === 'reading') {
+                                        statusHtml = `<div class="ai-status">📄 Читаю найденные страницы…</div>`;
+                                    } else if (p.stage === 'read_done') {
+                                        statusHtml = `<div class="ai-status">📄 Прочитал страниц: ${p.count}. Пишу ответ…</div>`;
                                     } else if (p.stage === 'search_fail') {
                                         statusHtml = '<div class="ai-typing">…</div>';
                                         preface = '_Поиск в интернете не сработал: ' + (p.error || 'причина неизвестна') + '._'
