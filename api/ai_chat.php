@@ -119,19 +119,31 @@ function aiWebSearch($query, $apiKey, $folderId) {
     if ($query === '') return ['error' => 'Пустой запрос'];
     if ($apiKey === '' || $folderId === '') return ['error' => 'Не настроены ключ или каталог Yandex Cloud'];
 
-    $body = json_encode([
-        'messages' => [['content' => mb_substr($query, 0, 1000), 'role' => 'ROLE_USER']],
-        'folderId' => $folderId,
-        'site' => new stdClass(),
-    ], JSON_UNESCAPED_UNICODE);
+    // Сначала генеративный поиск: он сам делает выжимку и отдаёт источники.
+    $gen = aiGenSearch($query, $apiKey, $folderId);
+    if (!isset($gen['error'])) { $gen['query'] = $query; $gen['via'] = 'gen'; return $gen; }
 
-    $ch = curl_init('https://searchapi.api.cloud.yandex.net/v2/gen/search');
+    // Не вышло — обычный поиск по вебу. Он доступен всем, у кого подключён Search API,
+    // а генеративный местами открывают отдельно: без запасного пути ассистент оставался
+    // без интернета там, где поиск на самом деле есть.
+    $web = aiPlainSearch($query, $apiKey, $folderId);
+    if (!isset($web['error'])) { $web['query'] = $query; $web['via'] = 'web'; return $web; }
+
+    // Обе не сработали — показываем ту причину, что понятнее, и не прячем вторую.
+    $web['gen_error'] = $gen['error'];
+    if (empty($web['hint']) && !empty($gen['hint'])) $web['hint'] = $gen['hint'];
+    return $web;
+}
+
+/** Один POST в Search API. Возвращает ['body'=>…] либо ['error'=>…, 'code'=>…, 'hint'=>…]. */
+function aiSearchPost($url, $body, $apiKey, $timeout = 20) {
+    $ch = curl_init($url);
     curl_setopt_array($ch, [
         CURLOPT_POST => true,
         CURLOPT_POSTFIELDS => $body,
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_HTTPHEADER => ['Content-Type: application/json', 'Authorization: Api-Key ' . $apiKey],
-        CURLOPT_TIMEOUT => 25,
+        CURLOPT_TIMEOUT => $timeout,
         CURLOPT_CONNECTTIMEOUT => 8,
     ]);
     $resp = curl_exec($ch);
@@ -140,16 +152,92 @@ function aiWebSearch($query, $apiKey, $folderId) {
     curl_close($ch);
 
     if ($err) return ['error' => 'не достучались до поиска: ' . $err, 'code' => 0];
-    $d = json_decode((string)$resp, true);
     if ($code < 200 || $code >= 300) {
+        $d = json_decode((string)$resp, true);
         $msg = $d['message'] ?? ($d['error_message'] ?? substr((string)$resp, 0, 200));
         return ['error' => 'сервис поиска отказал (' . $code . '): ' . $msg,
                 'code' => $code, 'hint' => aiSearchHint($code, (string)$msg)];
     }
+    return ['body' => (string)$resp];
+}
 
-    $out = aiParseSearchResponse($resp);
-    $out['query'] = $query;
-    return $out;
+/** Генеративный поиск: готовая выжимка со ссылками. */
+function aiGenSearch($query, $apiKey, $folderId) {
+    $body = json_encode([
+        'messages' => [['content' => mb_substr($query, 0, 1000), 'role' => 'ROLE_USER']],
+        'folderId' => $folderId,
+        'site' => new stdClass(),
+    ], JSON_UNESCAPED_UNICODE);
+    $r = aiSearchPost('https://searchapi.api.cloud.yandex.net/v2/gen/search', $body, $apiKey, 20);
+    if (isset($r['error'])) return $r;
+    return aiParseSearchResponse($r['body']);
+}
+
+/**
+ * Обычный поиск по вебу: тот самый запрос, что показывает Playground в AI Studio.
+ * Ответ приходит как XML, упакованный в base64 внутри поля rawData.
+ */
+function aiPlainSearch($query, $apiKey, $folderId) {
+    $body = json_encode([
+        'query' => [
+            'searchType'  => 'SEARCH_TYPE_RU',
+            'queryText'   => mb_substr($query, 0, 400),
+            'familyMode'  => 'FAMILY_MODE_MODERATE',
+            'page'        => '0',
+            'fixTypoMode' => 'FIX_TYPO_MODE_ON',
+        ],
+        'sortSpec'  => ['sortMode' => 'SORT_MODE_BY_RELEVANCE', 'sortOrder' => 'SORT_ORDER_DESC'],
+        'groupSpec' => ['groupsOnPage' => '8', 'groupMode' => 'GROUP_MODE_DEEP', 'docsInGroup' => '1'],
+        'maxPassages'    => '4',
+        'l10n'           => 'LOCALIZATION_RU',
+        'folderId'       => $folderId,
+        'responseFormat' => 'FORMAT_XML',
+    ], JSON_UNESCAPED_UNICODE);
+    $r = aiSearchPost('https://searchapi.api.cloud.yandex.net/v2/web/search', $body, $apiKey, 20);
+    if (isset($r['error'])) return $r;
+
+    $d = json_decode($r['body'], true);
+    $raw = $d['rawData'] ?? '';
+    if ($raw === '') return ['error' => 'поиск вернул пустой ответ'];
+    $xml = base64_decode($raw, true);
+    if ($xml === false) return ['error' => 'не удалось разобрать ответ поиска'];
+    return aiParseWebSearchXml($xml);
+}
+
+/**
+ * Разобрать выдачу обычного поиска: заголовок, адрес и найденные отрывки по каждой
+ * странице. Вынесено отдельно — разбор XML проверяем без обращения к платной услуге.
+ */
+function aiParseWebSearchXml($xml) {
+    $prev = libxml_use_internal_errors(true);
+    $doc = simplexml_load_string((string)$xml);
+    libxml_clear_errors();
+    libxml_use_internal_errors($prev);
+    if (!$doc) return ['error' => 'поиск ответил в непонятном виде'];
+
+    // Яндекс подсвечивает совпадения тегами <hlword>, в тексте они не нужны
+    $plain = function ($node) {
+        return trim(preg_replace('/\s+/u', ' ', strip_tags((string)$node->asXML())));
+    };
+
+    $sources = []; $parts = [];
+    foreach ($doc->xpath('//doc') ?: [] as $n => $doc1) {
+        if ($n >= 8) break;
+        $url = trim((string)$doc1->url);
+        if ($url === '') continue;
+        $title = $plain($doc1->title);
+        $text = '';
+        if (isset($doc1->passages->passage)) {
+            foreach ($doc1->passages->passage as $ps) $text .= ' ' . $plain($ps);
+        }
+        if ($text === '' && isset($doc1->headline)) $text = $plain($doc1->headline);
+        $text = trim(preg_replace('/\s+/u', ' ', $text));
+        $sources[$url] = ['title' => $title !== '' ? $title : $url, 'url' => $url];
+        $parts[] = (count($parts) + 1) . '. ' . ($title !== '' ? $title : $url)
+                 . ($text !== '' ? "\n" . mb_substr($text, 0, 600) : '');
+    }
+    if (!$parts) return ['error' => 'поиск ничего не нашёл'];
+    return ['text' => implode("\n\n", $parts), 'sources' => array_values($sources)];
 }
 
 /**
@@ -342,13 +430,17 @@ if ($action === 'config' || $action === 'save-config' || $action === 'test' || $
         $q = trim((string)($body['query'] ?? '')) ?: 'какие сегодня новости в России';
         $found = aiWebSearch($q, $apiKey, $folderId);
         if (isset($found['error'])) {
+            // Показываем обе причины: генеративный поиск и обычный включаются по-разному,
+            // и по одной строке не понять, что именно не дали.
             echo json_encode(['ok'=>false, 'query'=>$q, 'error'=>$found['error'],
+                              'gen_error'=>$found['gen_error'] ?? '',
                               'hint'=>$found['hint'] ?? aiSearchHint((int)($found['code'] ?? 0))], JSON_UNESCAPED_UNICODE);
             exit;
         }
         echo json_encode([
             'ok'      => true,
             'query'   => $q,
+            'via'     => $found['via'] ?? '',
             'answer'  => mb_substr((string)($found['text'] ?? ''), 0, 400),
             'sources' => array_slice($found['sources'] ?? [], 0, 5),
             'note'    => $searchEnabled ? '' : 'Поиск работает, но галочка «Разрешить поиск в интернете» пока снята — в чате его не будет.',
@@ -510,7 +602,10 @@ if ($action === 'chat') {
                    'is_admin' => $isAdmin]);
             if (!$richUi) $emit('_Поиск в интернете не сработал: ' . $found['error'] . '. Отвечаю без него._' . "\n\n");
         } else {
-            $ref = "Ниже — свежие сведения из интернета по вопросу человека. "
+            $ref = ($found['via'] ?? '') === 'web'
+                 ? "Ниже — отрывки страниц, найденных в интернете по вопросу человека. "
+                 . "Собери из них короткий связный ответ и сошлись на источники. "
+                 : "Ниже — свежие сведения из интернета по вопросу человека. "
                  . "Опирайся на них, если они относятся к делу, не выдумывай того, чего в них нет, "
                  . "и прямо скажи, если находки не отвечают на вопрос.\n\n" . (string)($found['text'] ?? '');
             $srcs = array_slice($found['sources'] ?? [], 0, 6);

@@ -2512,15 +2512,14 @@
                     </span>
                   </label>
                   <details id="aiSearchHow" style="border:1px solid #E6E3F0;border-radius:0.7rem;padding:0.6rem 0.8rem;font-size:0.84rem;">
-                    <summary style="cursor:pointer;font-weight:600;">Как включить поиск в интернете в Yandex Cloud (5 шагов)</summary>
+                    <summary style="cursor:pointer;font-weight:600;">Как включить поиск в интернете (4 шага)</summary>
                     <ol style="margin:0.6rem 0 0 1.1rem;display:grid;gap:0.35rem;color:#4B5563;">
-                      <li>Зайдите в <a href="https://console.yandex.cloud/" target="_blank" rel="noopener">консоль Yandex Cloud</a> тем же аккаунтом, где заведён ключ ассистента, и откройте <b>тот же каталог</b>, что указан выше в поле folder_id.</li>
-                      <li>В списке сервисов каталога найдите <b>Search API</b> и нажмите «Подключить» (услуга платная и отдельная от моделей — на неё нужен привязанный платёжный аккаунт).</li>
-                      <li>Откройте «Сервисные аккаунты», выберите тот, чьим API-ключом мы ходим, и добавьте ему роли <code>search-api.webSearch.user</code> и <code>search-api.executor</code>.</li>
-                      <li>Ключ менять не нужно: поиск ходит тем же <code>Api-Key</code>, что и модели. Если ключ всё же перевыпускали — вставьте новый в поле выше и сохраните.</li>
-                      <li>Нажмите здесь «🌐 Проверить поиск». Если пришёл ответ со ссылками — поставьте галочку выше и сохраните: в чате у людей появится переключатель «Интернет».</li>
+                      <li>Откройте <a href="https://aistudio.yandex.ru/" target="_blank" rel="noopener">Yandex AI Studio</a> (или консоль Yandex Cloud) тем же аккаунтом, где заведён ключ ассистента, и зайдите в раздел <b>Yandex Search API</b>. Если его страница открывается и там есть «Текстовый поиск» — услуга уже подключена.</li>
+                      <li>Скопируйте <b>идентификатор каталога прямо из адресной строки</b>: он стоит после <code>/folders/</code> — например <code>.../folders/b1g…/search-api</code>. Вставьте его в поле folder_id выше: буквы и цифры легко перепутать на глаз, поэтому именно копированием.</li>
+                      <li>Ключ менять не нужно — поиск ходит тем же <code>Api-Key</code>, что и модели, если ключ из этого же каталога. Если сервисному аккаунту не хватает прав, выдайте ему роли <code>search-api.webSearch.user</code> и <code>search-api.executor</code>.</li>
+                      <li>Нажмите «🌐 Проверить поиск». Придёт ответ со ссылками — поставьте галочку выше и сохраните: в чате у людей появится переключатель «Интернет».</li>
                     </ol>
-                    <div style="margin-top:0.5rem;color:#6B7280;">Права в облаке применяются не мгновенно — если сразу отказ, подождите минуту и проверьте ещё раз.</div>
+                    <div style="margin-top:0.5rem;color:#6B7280;">Мы сначала пробуем <b>генеративный поиск</b> (готовая выжимка со ссылками), а если он у вас не открыт — сам переходим на <b>обычный текстовый поиск</b>, тот же, что в Playground. Отдельно включать ничего не нужно. Права в облаке применяются не мгновенно: при отказе подождите минуту и проверьте ещё раз. Все запросы к Search API тарифицируются.</div>
                   </details>
                   <div style="display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center;">
                     <button class="btn-sm btn-purple" onclick="aiSaveConfig()">Сохранить</button>
@@ -2622,13 +2621,16 @@
                 if (d.ok) {
                     const src = (d.sources || []).map(s => '<div>• <a href="' + esc(s.url) + '" target="_blank" rel="noopener">'
                         + esc(s.title || s.url) + '</a></div>').join('');
-                    msg.innerHTML = '<span style="color:#16A34A;">Поиск работает. На запрос «' + esc(d.query) + '» пришло: '
+                    const via = d.via === 'web' ? ' (обычный текстовый поиск)'
+                              : d.via === 'gen' ? ' (генеративный поиск)' : '';
+                    msg.innerHTML = '<span style="color:#16A34A;">Поиск работает' + via + '. На запрос «' + esc(d.query) + '» пришло: '
                         + esc((d.answer || '').slice(0, 220)) + '…</span>'
                         + (src ? '<div style="margin-top:0.4rem;">' + src + '</div>' : '')
                         + (d.note ? '<div style="color:#B45309;margin-top:0.4rem;">' + esc(d.note) + '</div>' : '');
                     return;
                 }
                 msg.innerHTML = '<span style="color:#DC2626;">' + esc(d.error || 'не получилось') + '</span>'
+                    + (d.gen_error ? '<div style="margin-top:0.3rem;color:#9CA3AF;">Генеративный поиск: ' + esc(d.gen_error) + '</div>' : '')
                     + (d.hint ? '<div style="margin-top:0.4rem;color:#4B5563;">' + esc(d.hint) + '</div>' : '')
                     + '<div style="margin-top:0.3rem;color:#6B7280;">Разверните «Как включить поиск в интернете» выше — там по шагам.</div>';
             } catch (e) { msg.innerHTML = '<span style="color:#DC2626;">' + esc(e.message) + '</span>'; }
