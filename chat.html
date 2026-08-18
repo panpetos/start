@@ -1172,8 +1172,8 @@
                             color: #6D28D9; font-weight: 600; padding: 0; }
         .ai-src > summary::-webkit-details-marker { display: none; }
         .ai-src > summary::after { content: none !important; }
-        .ai-src > summary::before { content: '▸ '; display: inline-block; transition: transform .15s; }
-        .ai-src[open] > summary::before { content: '▾ '; }
+        .ai-src > summary::before { content: '▸'; display: inline-block; margin-right: .3rem; }
+        .ai-src[open] > summary::before { content: '▾'; }
         /* Без display на самом списке: заданный display перебивает скрытие содержимого
            свёрнутого <details>, и источники оставались на виду. Отступы — на пунктах. */
         .ai-src ol { margin: .4rem 0 0 1.1rem; }
