@@ -6,8 +6,9 @@
  * GET  ?action=models                                           → список моделей
  * GET  ?action=config      (админ)                              → текущая настройка, ключ скрыт
  * POST ?action=save-config (админ) {provider, api_key, folder_id, models, search_enabled}
- * GET  ?action=search-status                                   → доступен ли поиск в интернете
+ * GET  ?action=search-status                                   → доступен ли поиск и почему нет
  * POST ?action=test        (админ) {model?}                     → живая проверка ключа
+ * POST ?action=search-test (админ) {query?}                     → живая проверка поиска в интернете
  *
  * Ключи в репозитории не хранятся: админка записывает их в ai_chat_config.php,
  * который лежит вне git (см. .gitignore).
@@ -138,15 +139,17 @@ function aiWebSearch($query, $apiKey, $folderId) {
     $err  = curl_error($ch);
     curl_close($ch);
 
-    if ($err) return ['error' => 'не достучались до поиска: ' . $err];
+    if ($err) return ['error' => 'не достучались до поиска: ' . $err, 'code' => 0];
     $d = json_decode((string)$resp, true);
     if ($code < 200 || $code >= 300) {
         $msg = $d['message'] ?? ($d['error_message'] ?? substr((string)$resp, 0, 200));
-        if ($code === 403) $msg = 'нет доступа к Search API — его нужно включить в Yandex Cloud (' . $msg . ')';
-        return ['error' => 'сервис поиска отказал (' . $code . '): ' . $msg];
+        return ['error' => 'сервис поиска отказал (' . $code . '): ' . $msg,
+                'code' => $code, 'hint' => aiSearchHint($code, (string)$msg)];
     }
 
-    return aiParseSearchResponse($resp);
+    $out = aiParseSearchResponse($resp);
+    $out['query'] = $query;
+    return $out;
 }
 
 /**
@@ -181,10 +184,110 @@ function aiParseSearchResponse($resp) {
     return ['text' => $text, 'sources' => array_values($sources)];
 }
 
+/**
+ * Что именно делать, если поиск отказал. Коды у Search API говорящие, но человеку
+ * от «403 permission denied» толку нет — переводим в шаги, которые он выполнит в консоли.
+ */
+function aiSearchHint($code, $msg = '') {
+    if ($code === 403 || $code === 401) {
+        return 'Похоже, услуга «Поиск в интернете» ещё не включена или у ключа нет прав. '
+             . 'В консоли Yandex Cloud: 1) откройте каталог, «Search API» → «Подключить»; '
+             . '2) сервисному аккаунту, чьим ключом мы ходим, выдайте роль search-api.webSearch.user '
+             . '(и search-api.executor); 3) убедитесь, что в биллинге привязан платёжный аккаунт — '
+             . 'услуга платная и без него сервис отвечает отказом.';
+    }
+    if ($code === 404) return 'Сервис не нашёл каталог. Проверьте folder_id — он должен быть тем же, где включён Search API.';
+    if ($code === 429) return 'Слишком много запросов подряд — сервис попросил подождать. Попробуйте через минуту.';
+    if ($code >= 500) return 'Это сбой на стороне Яндекса, не у нас. Стоит повторить позже.';
+    return '';
+}
+
+/**
+ * Похоже ли, что вопрос про «сейчас», а не про вечное. Модель знает мир только до
+ * своей даты обучения, и в режиме «Авто» мы идём в интернет именно по таким вопросам,
+ * а не по каждому — поиск платный и на «объясни, что такое тревога» он лишний.
+ */
+function aiNeedsFresh($text) {
+    $t = mb_strtolower(trim((string)$text));
+    if ($t === '') return false;
+    if (preg_match('~https?://|\bwww\.~u', $t)) return true;
+    if (preg_match('/\b20(2[4-9]|[3-9][0-9])\b/u', $t)) return true;   // год после обучения модели
+    $marks = ['сегодня', 'сейчас', 'вчера', 'на этой неделе', 'в этом году', 'последн', 'свеж',
+              'актуальн', 'новост', 'что нового', 'курс ', 'погод', 'сколько стоит', 'цена', 'цены',
+              'стоимость', 'тариф', 'расписание', 'афиш', 'кто победил', 'когда выйдет', 'вышел ли',
+              'обновлени', 'закон ', 'поправк', 'статистик', 'рейтинг', 'отзыв', 'кто такой', 'кто такая'];
+    foreach ($marks as $m) if (mb_strpos($t, $m) !== false) return true;
+    return false;
+}
+
+/**
+ * Из чего складывать поисковый запрос. Брать буквально последнюю реплику мало:
+ * «а в рублях?» сам по себе не значит ничего, и поиск вернул бы мусор. Поэтому
+ * короткое уточнение склеиваем с предыдущим вопросом.
+ */
+function aiSearchQuery($messages) {
+    $users = [];
+    for ($i = count($messages) - 1; $i >= 0 && count($users) < 2; $i--) {
+        if (($messages[$i]['role'] ?? '') === 'user') {
+            $c = trim((string)($messages[$i]['content'] ?? ''));
+            if ($c !== '') $users[] = $c;
+        }
+    }
+    if (!$users) return '';
+    $q = $users[0];
+    if (isset($users[1]) && mb_strlen($q) < 40) $q = $users[1] . ' — ' . $q;
+    return mb_substr($q, 0, 400);
+}
+
+/**
+ * Кто такой ассистент. Без этого модель отвечала «в вакууме»: не знала ни сегодняшнего
+ * числа, ни того, что она на платформе психологической помощи, и легко выдумывала.
+ */
+function aiSystemPrompt($searchOn) {
+    $today = date('d.m.Y');
+    $p = "Ты — ассистент платформы психологической помощи psytalk.pro. Сегодня {$today}.\n"
+       . "Отвечай по-русски, по делу и без воды. Если просят текст (письмо клиенту, пост, "
+       . "упражнение, план сессии) — сразу давай готовый текст, а не рассуждения о нём.\n"
+       . "Ты не ставишь диагнозов и не заменяешь супервизию: в сложных случаях предлагай "
+       . "обратиться к живому специалисту, а при признаках угрозы жизни — к экстренной помощи.\n"
+       . "Не выдумывай фактов, ссылок и цитат. Если чего-то не знаешь — так и скажи.";
+    $p .= $searchOn
+        ? "\nК этому ответу приложены свежие сведения из интернета — опирайся на них и ссылайся на источники."
+        : "\nСейчас у тебя нет доступа к интернету: твои знания ограничены датой обучения. "
+        . "Если вопрос про свежее (новости, цены, законы, расписания), честно предупреди об этом "
+        . "и посоветуй включить «Интернет» переключателем над полем ввода.";
+    return $p;
+}
+
+/**
+ * Что из переписки отдаём модели. Целиком не нужно: длинный диалог упирается в лимит
+ * контекста, и вместо ответа приходит отказ или невпопад. Свои системные сообщения
+ * выбрасываем — на запрос ставится ровно одно, собранное здесь.
+ */
+function aiTrimHistory($messages, $keep = 24) {
+    $out = [];
+    foreach ((array)$messages as $m) {
+        $role = $m['role'] ?? '';
+        if ($role !== 'user' && $role !== 'assistant') continue;
+        $c = (string)($m['content'] ?? '');
+        if (trim($c) === '') continue;
+        $out[] = ['role' => $role, 'content' => mb_substr($c, 0, 8000)];
+    }
+    return array_slice($out, -$keep);
+}
+
+/** Почему поиск недоступен — одной фразой для того, кто это читает в чате. */
+function aiSearchReason($searchEnabled, $provider, $apiKey, $folderId) {
+    if ($provider !== 'yandex') return 'Поиск в интернете есть только у Yandex Cloud — сейчас выбран другой сервис.';
+    if ($apiKey === '' || $folderId === '') return 'Ассистент ещё не настроен: нет ключа или каталога Yandex Cloud.';
+    if (!$searchEnabled) return 'Поиск в интернете выключен в настройках платформы (админка → «ИИ-ассистент»).';
+    return '';
+}
+
 $action = $_GET['action'] ?? '';
 
 // ── Настройка из админки: ключи в репозиторий не попадают ──────────────────────
-if ($action === 'config' || $action === 'save-config' || $action === 'test') {
+if ($action === 'config' || $action === 'save-config' || $action === 'test' || $action === 'search-test') {
     header('Content-Type: application/json; charset=utf-8');
     if (!$isAdmin) { http_response_code(403); echo json_encode(['error'=>'Только для администратора']); exit; }
 
@@ -227,6 +330,29 @@ if ($action === 'config' || $action === 'save-config' || $action === 'test') {
         }
         @chmod($cfgFile, 0640);
         echo json_encode(['ok'=>true, 'missing'=>aiMissing($np, $nk, $nf)], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
+    if ($action === 'search-test') {
+        // Отдельная кнопка: связь с моделью может работать, а Search API — нет,
+        // это разные услуги. Раньше это выяснялось только в живом чате.
+        if ($provider !== 'yandex') { echo json_encode(['ok'=>false, 'error'=>'Поиск в интернете есть только у Yandex Cloud.'], JSON_UNESCAPED_UNICODE); exit; }
+        $miss = aiMissing($provider, $apiKey, $folderId);
+        if ($miss !== '') { echo json_encode(['ok'=>false, 'error'=>$miss], JSON_UNESCAPED_UNICODE); exit; }
+        $q = trim((string)($body['query'] ?? '')) ?: 'какие сегодня новости в России';
+        $found = aiWebSearch($q, $apiKey, $folderId);
+        if (isset($found['error'])) {
+            echo json_encode(['ok'=>false, 'query'=>$q, 'error'=>$found['error'],
+                              'hint'=>$found['hint'] ?? aiSearchHint((int)($found['code'] ?? 0))], JSON_UNESCAPED_UNICODE);
+            exit;
+        }
+        echo json_encode([
+            'ok'      => true,
+            'query'   => $q,
+            'answer'  => mb_substr((string)($found['text'] ?? ''), 0, 400),
+            'sources' => array_slice($found['sources'] ?? [], 0, 5),
+            'note'    => $searchEnabled ? '' : 'Поиск работает, но галочка «Разрешить поиск в интернете» пока снята — в чате его не будет.',
+        ], JSON_UNESCAPED_UNICODE);
         exit;
     }
 
@@ -288,8 +414,17 @@ if ($action === 'models') {
 
 if ($action === 'search-status') {
     header('Content-Type: application/json; charset=utf-8');
-    echo json_encode(['ok' => true, 'available' => $searchEnabled && $provider === 'yandex'
-                                                   && $apiKey !== '' && $folderId !== '']);
+    $reason = aiSearchReason($searchEnabled, $provider, $apiKey, $folderId);
+    // Раньше отдавали одно «доступно/нет», и человек не понимал, почему переключателя
+    // нет. Теперь причина приходит вместе с ответом — её и показываем в чате.
+    echo json_encode([
+        'ok'        => true,
+        'available' => $reason === '',
+        'reason'    => $reason,
+        'enabled'   => $searchEnabled,
+        'provider'  => $provider,
+        'is_admin'  => $isAdmin,
+    ], JSON_UNESCAPED_UNICODE);
     exit;
 }
 
@@ -297,7 +432,14 @@ if ($action === 'chat') {
     $input = json_decode(file_get_contents('php://input'), true);
     $messages = $input['messages'] ?? [];
     $model = $input['model'] ?? array_key_first($models);
-    $wantSearch = !empty($input['search']);
+    // Режим поиска: 'off' | 'auto' | 'on'. Старые страницы шлют true/false — понимаем и их.
+    $rawSearch = $input['search'] ?? 'off';
+    if ($rawSearch === true) $rawSearch = 'on';
+    if ($rawSearch === false || $rawSearch === null) $rawSearch = 'off';
+    $searchMode = in_array($rawSearch, ['on', 'auto', 'off'], true) ? $rawSearch : 'off';
+    // Страница сообщает, что умеет показывать ход поиска и источники отдельным блоком.
+    // Без этого признака шлём то же самое обычным текстом, чтобы ничего не потерялось.
+    $richUi = !empty($input['ui']);
 
     if (!$messages || !is_array($messages)) {
         header('Content-Type: application/json');
@@ -330,41 +472,75 @@ if ($action === 'chat') {
         flush();
     };
 
+    /** Служебное событие для страницы: ход поиска, источники. Старая страница их не увидит. */
+    $note = function ($data) use ($richUi) {
+        if (!$richUi) return;
+        echo "data: " . json_encode(['psy' => $data], JSON_UNESCAPED_UNICODE) . "\n\n";
+        if (ob_get_level()) ob_flush();
+        flush();
+    };
+
     // Поиск в интернете: сначала ищем, потом отдаём находки модели как справку.
     // Модель сама по себе знает мир только до своей даты обучения, а спрашивают
     // у неё и про сегодняшнее. Если поиск не сработал — говорим об этом прямо
     // и всё равно отвечаем, а не оставляем человека без ответа.
     $sourcesTail = '';
-    if ($wantSearch && $searchEnabled && $provider === 'yandex') {
-        $lastUser = '';
-        for ($i = count($messages) - 1; $i >= 0; $i--) {
-            if (($messages[$i]['role'] ?? '') === 'user') { $lastUser = (string)($messages[$i]['content'] ?? ''); break; }
-        }
-        $found = aiWebSearch($lastUser, $apiKey, $folderId);
+    $searchRef = '';          // справка из интернета, если поиск сработал
+    $searchReason = aiSearchReason($searchEnabled, $provider, $apiKey, $folderId);
+    $query = $searchMode === 'off' ? '' : aiSearchQuery($messages);
+
+    // В режиме «Авто» идём в интернет только за тем, что меняется со временем:
+    // услуга платная, и на «объясни, что такое тревога» поиск не нужен.
+    $doSearch = $searchMode === 'on'
+        || ($searchMode === 'auto' && $query !== '' && aiNeedsFresh($query));
+
+    if ($doSearch && $searchReason !== '') {
+        // Просили искать, а нельзя — не молчим и не делаем вид, что искали.
+        $note(['stage' => 'search_off', 'reason' => $searchReason]);
+        if (!$richUi) $emit('_' . $searchReason . ' Отвечаю по своим знаниям._' . "\n\n");
+        $doSearch = false;
+    }
+
+    if ($doSearch) {
+        $note(['stage' => 'search', 'query' => $query]);
+        $found = aiWebSearch($query, $apiKey, $folderId);
         if (isset($found['error'])) {
-            $emit("_Поиск в интернете не сработал: " . $found['error'] . ". Отвечаю без него._\n\n");
+            $hint = $found['hint'] ?? '';
+            $note(['stage' => 'search_fail', 'error' => $found['error'], 'hint' => $hint,
+                   'is_admin' => $isAdmin]);
+            if (!$richUi) $emit('_Поиск в интернете не сработал: ' . $found['error'] . '. Отвечаю без него._' . "\n\n");
         } else {
-            $ref = "Ниже — свежие сведения из интернета по запросу человека. Опирайся на них, "
-                 . "если они относятся к делу, и не выдумывай того, чего в них нет.\n\n" . $found['text'];
-            if ($found['sources']) {
+            $ref = "Ниже — свежие сведения из интернета по вопросу человека. "
+                 . "Опирайся на них, если они относятся к делу, не выдумывай того, чего в них нет, "
+                 . "и прямо скажи, если находки не отвечают на вопрос.\n\n" . (string)($found['text'] ?? '');
+            $srcs = array_slice($found['sources'] ?? [], 0, 6);
+            if ($srcs) {
                 $ref .= "\n\nИсточники:\n";
-                foreach (array_slice($found['sources'], 0, 6) as $n => $src) {
+                foreach ($srcs as $n => $src) {
                     $ref .= ($n + 1) . '. ' . $src['title'] . ' — ' . $src['url'] . "\n";
                 }
-                $sourcesTail = "\n\n**Источники**\n";
-                foreach (array_slice($found['sources'], 0, 6) as $n => $src) {
-                    $sourcesTail .= ($n + 1) . '. ' . $src['title'] . ' — ' . $src['url'] . "\n";
+                if (!$richUi) {
+                    $sourcesTail = "\n\n**Источники**\n";
+                    foreach ($srcs as $n => $src) {
+                        $sourcesTail .= ($n + 1) . '. ' . $src['title'] . ' — ' . $src['url'] . "\n";
+                    }
                 }
             }
-            array_unshift($messages, ['role' => 'system', 'content' => $ref]);
+            $note(['stage' => 'search_done', 'query' => $query, 'sources' => $srcs]);
+            $searchRef = $ref;
         }
-    } elseif ($wantSearch && !$searchEnabled) {
-        $emit("_Поиск в интернете выключен в настройках платформы. Отвечаю по своим знаниям._\n\n");
     }
+
+    // Один системный промпт на запрос: два подряд Яндекс принимает неохотно, а справку
+    // из поиска всё равно логично держать вместе с описанием роли.
+    $sys = aiSystemPrompt($searchRef !== '');
+    if ($searchRef !== '') $sys .= "\n\n" . $searchRef;
+    $tail = aiTrimHistory($messages);
+    array_unshift($tail, ['role' => 'system', 'content' => $sys]);
 
     $payload = json_encode([
         'model'    => aiModelName($provider, $model, $folderId),
-        'messages' => $messages,
+        'messages' => $tail,
         'stream'   => true,
         'max_tokens' => 4096,
     ], JSON_UNESCAPED_UNICODE);
