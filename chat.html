@@ -7277,6 +7277,9 @@
          * Полоска над полем ввода: интернет и модель — теми же нажатиями, что и раньше,
          * но на виду. В выпадающем меню «⋮» их не находили, и ассистент казался немым.
          */
+        /** escapeHtml не трогает кавычки — для значения атрибута их надо убрать отдельно. */
+        function escapeAttr(text) { return escapeHtml(String(text == null ? '' : text)).replace(/"/g, '&quot;'); }
+
         function renderAiBar() {
             const input = document.getElementById('chatInputBar');
             if (!input || !isAiMode()) return;
@@ -7297,11 +7300,11 @@
             bar.innerHTML = `
                 <button type="button" class="ai-chip ${aiSearchAvailable && mode !== 'off' ? 'on' : 'off'}"
                         onclick="toggleAiSearch()"
-                        title="${aiSearchAvailable ? 'Поиск в интернете: выкл → авто → вкл' : escapeHtml(aiSearchReason)}">
+                        title="${aiSearchAvailable ? 'Поиск в интернете: выкл → авто → вкл' : escapeAttr(aiSearchReason)}">
                     <span aria-hidden="true">🌐</span> Интернет: ${aiSearchAvailable ? AI_SEARCH_LABELS[mode] : 'недоступен'}
                 </button>
                 <button type="button" class="ai-chip" onclick="pickAiModel()"
-                        title="${escapeHtml(cur ? cur.name : 'Выбрать модель')}">
+                        title="${escapeAttr(cur ? cur.name : 'Выбрать модель')}">
                     <span aria-hidden="true">🧠</span> ${escapeHtml(cur ? cur.name.split('—')[0].trim() : 'Модель')}
                 </button>
                 <span class="ai-bar-hint">${escapeHtml(hint)}</span>`;
