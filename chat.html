@@ -1504,6 +1504,24 @@
             font-weight: 700; display: flex; align-items: center; justify-content: center;
         }
         .sa-ava img { width: 100%; height: 100%; object-fit: cover; display: block; }
+        /* Строка ответа под историей: поле, отправка и сердце */
+        .story-reply { position: absolute; left: 0; right: 0; bottom: 0; z-index: 6;
+                       display: flex; align-items: center; gap: .5rem; padding: .6rem .7rem;
+                       background: linear-gradient(to top, rgba(0,0,0,.55), rgba(0,0,0,0)); }
+        .story-reply input { flex: 1; min-width: 0; font-family: inherit; font-size: 16px;
+                             padding: .5rem .8rem; border-radius: 999px; border: 1px solid rgba(255,255,255,.45);
+                             background: rgba(0,0,0,.35); color: #fff; outline: none; }
+        .story-reply input::placeholder { color: rgba(255,255,255,.75); }
+        .story-send, .story-like { border: none; background: rgba(0,0,0,.35); color: #fff; cursor: pointer;
+                                   width: 38px; height: 38px; border-radius: 50%; font-size: 1.05rem;
+                                   display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; }
+        .story-like { width: auto; min-width: 38px; padding: 0 .55rem; gap: .25rem; font-size: .95rem; }
+        .story-like.on { background: rgba(220,38,38,.85); }
+        #storyLikeCount:empty { display: none; }
+        /* Своя история: отвечать самому себе незачем — прячем строку */
+        #storyViewer.mine-story .story-reply { display: none; }
+        /* Кто лайкнул — сердечко в списке просмотревших */
+        .sa-liked { color: #DC2626; margin-left: .35rem; }
         .sa-write {
             flex: 0 0 auto; border: 1.5px solid #E5E7EB; background: none; color: #7C3AED;
             border-radius: 0.5rem; padding: 0.25rem 0.6rem; font: inherit; font-size: 0.78rem;
@@ -2851,6 +2869,18 @@
             <div class="story-viewer-caption" id="storyViewerCaption" style="display:none;"></div>
             <button type="button" class="story-viewer-nav prev" onclick="storyStep(-1)" aria-label="Предыдущая"></button>
             <button type="button" class="story-viewer-nav next" onclick="storyStep(1)" aria-label="Следующая"></button>
+            <!-- Ответ автору и лайк — как в Instagram: комментарий уходит ему в личку -->
+            <div class="story-reply" id="storyReply">
+                <input id="storyReplyInput" type="text" placeholder="Ответить…" maxlength="1000"
+                       onfocus="pauseStory()" onclick="event.stopPropagation()"
+                       onkeydown="if(event.key==='Enter'){event.preventDefault();sendStoryComment();}">
+                <button type="button" class="story-send" onclick="event.stopPropagation();sendStoryComment()"
+                        title="Отправить автору">➤</button>
+                <button type="button" class="story-like" id="storyLikeBtn"
+                        onclick="event.stopPropagation();toggleStoryLike()" title="Нравится">
+                    <span id="storyLikeIco">🤍</span><span id="storyLikeCount"></span>
+                </button>
+            </div>
         </div>
     </div>
 
@@ -6030,13 +6060,13 @@
             };
             m.innerHTML = `
                 <div class="cs-box">
-                    <div class="cs-head"><b>👁 Посмотрели: ${rows.length}</b>
+                    <div class="cs-head"><b>👁 Посмотрели: ${rows.length}${rows.filter(v => v.liked).length ? ' · ❤️ ' + rows.filter(v => v.liked).length : ''}</b>
                         <button type="button" onclick="document.getElementById('storyViewers').style.display='none'">✕</button></div>
                     ${rows.length ? `<div class="sa-people">${rows.map(v => `
                         <div class="sa-person" style="cursor:pointer;" title="Открыть профиль"
                              onclick="openViewerProfile('${escapeHtml(String(v.user_id || ''))}')">
                             <span class="sa-ava">${v.avatar ? `<img src="${escapeHtml(v.avatar)}" alt="">` : escapeHtml(storyInitial(v.name))}</span>
-                            <span style="flex:1;min-width:0;">${escapeHtml(v.name)}<i class="sa-sub" style="margin-left:0.4rem;">${when(v.viewed_at)}</i></span>
+                            <span style="flex:1;min-width:0;">${escapeHtml(v.name)}${v.liked ? '<span class="sa-liked" title="Поставил(а) отметку «нравится»">❤️</span>' : ''}<i class="sa-sub" style="margin-left:0.4rem;">${when(v.viewed_at)}</i></span>
                             <button type="button" class="sa-write" title="Написать"
                                     onclick="event.stopPropagation();writeToViewer('${escapeHtml(String(v.user_id || ''))}')">Написать</button>
                         </div>`).join('')}</div>`
@@ -6208,11 +6238,85 @@
                 s.seen = true;
             }
 
+            // Сердце и строка ответа: своей истории отвечать незачем
+            const viewer = document.getElementById('storyViewer');
+            if (viewer) viewer.classList.toggle('mine-story', !!u.is_mine);
+            paintStoryLike();
+            const inp = document.getElementById('storyReplyInput');
+            if (inp) inp.value = '';
+
             storyPaused = false;
             storyRemainMs = STORY_DURATION_MS;
             paintStoryPauseBtn();
             runStoryTimer();
         }
+
+        /** Показать состояние лайка текущего кадра. */
+        function paintStoryLike() {
+            const s = currentStory();
+            const btn = document.getElementById('storyLikeBtn');
+            const ico = document.getElementById('storyLikeIco');
+            const cnt = document.getElementById('storyLikeCount');
+            if (!btn || !s) return;
+            const liked = !!s.liked;
+            btn.classList.toggle('on', liked);
+            ico.textContent = liked ? '❤️' : '🤍';
+            cnt.textContent = s.likes_count ? String(s.likes_count) : '';
+            btn.title = liked ? 'Убрать отметку «нравится»' : 'Нравится';
+        }
+
+        /** Лайк истории. Автору уходит весточка в личку — как в Instagram. */
+        async function toggleStoryLike() {
+            const s = currentStory();
+            if (!s) return;
+            const on = !s.liked;
+            // Рисуем сразу, не дожидаясь сервера: иначе нажатие кажется «не сработавшим»
+            s.liked = on;
+            s.likes_count = Math.max(0, (s.likes_count || 0) + (on ? 1 : -1));
+            paintStoryLike();
+            try {
+                const r = await fetch('/api/stories.php?action=like', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+                    body: JSON.stringify({ story_id: s.id, on })
+                });
+                const d = await r.json();
+                if (!d || !d.ok) throw new Error((d && d.error) || 'не получилось');
+                s.liked = !!d.liked;
+                s.likes_count = d.count || 0;
+            } catch (e) {
+                s.liked = !on;                                   // возвращаем как было
+                s.likes_count = Math.max(0, (s.likes_count || 0) + (on ? -1 : 1));
+                toast('Не удалось поставить отметку: ' + e.message);
+            }
+            paintStoryLike();
+        }
+        window.toggleStoryLike = toggleStoryLike;
+
+        /** Комментарий к чужой истории уходит автору в личку с самой историей. */
+        async function sendStoryComment() {
+            const s = currentStory();
+            const u = currentStoryUser();
+            const inp = document.getElementById('storyReplyInput');
+            if (!s || !u || !inp) return;
+            const text = (inp.value || '').trim();
+            if (!text) { inp.focus(); return; }
+            inp.disabled = true;
+            try {
+                const r = await fetch('/api/stories.php?action=comment', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+                    body: JSON.stringify({ story_id: s.id, text })
+                });
+                const d = await r.json();
+                if (!d || !d.ok) throw new Error((d && d.error) || 'не отправилось');
+                inp.value = '';
+                toast('Отправлено ' + (u.name ? ('в личные сообщения: ' + u.name) : 'автору'));
+            } catch (e) {
+                toast('Комментарий не ушёл: ' + e.message);
+            }
+            inp.disabled = false;
+            resumeStory();
+        }
+        window.sendStoryComment = sendStoryComment;
 
         /** Полоса и таймер текущего кадра — на оставшееся время (после паузы это не полный кадр). */
         function runStoryTimer() {

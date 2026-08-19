@@ -74,13 +74,70 @@ try {
         viewed_at DATETIME NOT NULL,
         PRIMARY KEY (story_id, viewer_id)
     ) DEFAULT CHARSET=utf8mb4");
-    psy_align_collation($pdo, ['stories', 'story_views', 'story_audience']);
+    $pdo->exec("CREATE TABLE IF NOT EXISTS story_likes (
+        story_id INT NOT NULL,
+        user_id VARCHAR(64) NOT NULL,
+        created_at DATETIME NOT NULL,
+        PRIMARY KEY (story_id, user_id)
+    ) DEFAULT CHARSET=utf8mb4");
+    psy_align_collation($pdo, ['stories', 'story_views', 'story_audience', 'story_likes']);
 } catch (Exception $e) {
     $storiesError = $e->getMessage();
 }
 
 $action = $_GET['action'] ?? '';
 $body = ($_SERVER['REQUEST_METHOD'] === 'POST') ? (json_decode(file_get_contents('php://input'), true) ?: []) : [];
+
+/**
+ * Написать человеку в личку от чужого имени (комментарий к истории уходит автору
+ * в ЛС, как в Instagram). Таблицу messages мы не заводим — она серверная, и в разных
+ * установках ключ то автоинкрементный, то строковый: спрашиваем у базы, а не гадаем.
+ */
+function storyIdIsAuto(PDO $pdo) {
+    try {
+        $st = $pdo->query("SHOW COLUMNS FROM messages LIKE 'id'");
+        $r = $st ? $st->fetch(PDO::FETCH_ASSOC) : null;
+        if ($r && isset($r['Extra'])) return stripos((string)$r['Extra'], 'auto_increment') !== false;
+    } catch (Exception $e) {}
+    return false;
+}
+
+function storySendDm(PDO $pdo, $from, $to, $content, $attUrl = null) {
+    $now = date('Y-m-d H:i:s');
+    $type = $attUrl ? 'image' : null;
+    try {
+        if (storyIdIsAuto($pdo)) {
+            $st = $pdo->prepare("INSERT INTO messages (sender_id, receiver_id, content, created_at, attachment_url, attachment_type)
+                                 VALUES (?, ?, ?, ?, ?, ?)");
+            $st->execute([$from, $to, $content, $now, $attUrl, $type]);
+        } else {
+            $id = bin2hex(random_bytes(16));
+            $st = $pdo->prepare("INSERT INTO messages (id, sender_id, receiver_id, content, created_at, attachment_url, attachment_type)
+                                 VALUES (?, ?, ?, ?, ?, ?, ?)");
+            $st->execute([$id, $from, $to, $content, $now, $attUrl, $type]);
+        }
+        return true;
+    } catch (Exception $e) {
+        return false;
+    }
+}
+
+/** Сколько лайков у историй и какие из них мои — одним запросом на список. */
+function storyLikeMap(PDO $pdo, array $storyIds, $userId) {
+    $out = [];
+    if (!$storyIds) return $out;
+    $in = implode(',', array_fill(0, count($storyIds), '?'));
+    try {
+        $st = $pdo->prepare("SELECT story_id, COUNT(*) AS cnt,
+                                    SUM(CASE WHEN user_id = ? THEN 1 ELSE 0 END) AS mine
+                             FROM story_likes WHERE story_id IN ($in) GROUP BY story_id");
+        $st->execute(array_merge([$userId], $storyIds));
+        foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $r) {
+            $out[(int)$r['story_id']] = ['count' => (int)$r['cnt'], 'mine' => (int)$r['mine'] > 0];
+        }
+    } catch (Exception $e) {}
+    return $out;
+}
 
 /** Контакты — те, с кем была переписка (сообщение в любую сторону). */
 function contactIds(PDO $pdo, $userId) {
@@ -147,6 +204,7 @@ try {
         $rows = array_values(array_filter($st->fetchAll(PDO::FETCH_ASSOC),
                                           fn($r) => maySeeStory($pdo, $r, $userId)));
         $labels = userLabel($pdo, $ids);
+        $likes = storyLikeMap($pdo, array_map(fn($r) => (int)$r['id'], $rows), $userId);
 
         $byUser = [];
         foreach ($rows as $r) {
@@ -176,6 +234,8 @@ try {
                 'id' => (int)$r['id'], 'media_url' => $r['media_url'], 'media_type' => $r['media_type'],
                 'caption' => $r['caption'], 'created_at' => $r['created_at'], 'seen' => $seen,
                 'audience' => $r['audience'] ?? 'contacts', 'views_count' => $views,
+                'likes_count' => $likes[(int)$r['id']]['count'] ?? 0,
+                'liked' => $likes[(int)$r['id']]['mine'] ?? false,
             ];
         }
         // Мои — отдельно первыми, остальные контакты — у кого есть непросмотренные, вперёд остальных.
@@ -246,13 +306,94 @@ try {
                               FROM story_views v LEFT JOIN users u ON u.id = v.viewer_id
                               WHERE v.story_id = ? ORDER BY v.viewed_at DESC LIMIT 300");
         $st->execute([$storyId]);
+        $viewRows = $st->fetchAll(PDO::FETCH_ASSOC);
+
+        // Кто поставил лайк. Лайкнуть может и тот, кого нет в просмотрах (теоретически —
+        // если запись о просмотре не дошла), поэтому таких добавляем в список отдельно.
+        $liked = [];
+        try {
+            $lq = $pdo->prepare("SELECT l.user_id, l.created_at, u.first_name, u.last_name, u.avatar
+                                  FROM story_likes l LEFT JOIN users u ON u.id = l.user_id
+                                  WHERE l.story_id = ? ORDER BY l.created_at DESC LIMIT 300");
+            $lq->execute([$storyId]);
+            foreach ($lq->fetchAll(PDO::FETCH_ASSOC) as $l) $liked[(string)$l['user_id']] = $l;
+        } catch (Exception $e) {}
+
         $rows = array_map(fn($r) => [
             'user_id' => $r['viewer_id'],
             'name' => trim(($r['first_name'] ?? '') . ' ' . ($r['last_name'] ?? '')) ?: 'Пользователь',
             'avatar' => $r['avatar'] ?? null,
             'viewed_at' => $r['viewed_at'],
-        ], $st->fetchAll(PDO::FETCH_ASSOC));
-        out(['ok' => true, 'data' => $rows, 'count' => count($rows)]);
+            'liked' => isset($liked[(string)$r['viewer_id']]),
+        ], $viewRows);
+
+        $seenIds = array_map(fn($r) => (string)$r['viewer_id'], $viewRows);
+        foreach ($liked as $uid => $l) {
+            if (in_array((string)$uid, $seenIds, true)) continue;
+            $rows[] = [
+                'user_id' => $uid,
+                'name' => trim(($l['first_name'] ?? '') . ' ' . ($l['last_name'] ?? '')) ?: 'Пользователь',
+                'avatar' => $l['avatar'] ?? null,
+                'viewed_at' => $l['created_at'],
+                'liked' => true,
+            ];
+        }
+        out(['ok' => true, 'data' => $rows, 'count' => count($rows), 'likes' => count($liked)]);
+    }
+
+    if ($action === 'like' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+        $storyId = (int)($body['story_id'] ?? 0);
+        if (!$storyId) out(['ok' => false, 'error' => 'Не передана история'], 400);
+        $st = $pdo->prepare("SELECT * FROM stories WHERE id = ? AND expires_at > NOW() LIMIT 1");
+        $st->execute([$storyId]);
+        $story = $st->fetch(PDO::FETCH_ASSOC);
+        if (!$story) out(['ok' => false, 'error' => 'История не найдена или уже истекла'], 404);
+        // Лайкнуть можно только то, что тебе и так показано
+        if (!maySeeStory($pdo, $story, $userId)) out(['ok' => false, 'error' => 'Эта история вам не показывается'], 403);
+
+        $on = !empty($body['on']);
+        if ($on) {
+            try {
+                $q = $pdo->prepare("INSERT INTO story_likes (story_id, user_id, created_at) VALUES (?, ?, ?)");
+                $q->execute([$storyId, $userId, date('Y-m-d H:i:s')]);
+                // Автору — весточка в личку, но не самому себе и не на повторный лайк
+                if ((string)$story['user_id'] !== (string)$userId) {
+                    storySendDm($pdo, $userId, $story['user_id'],
+                                '❤️ Понравилась ваша история', $story['media_url']);
+                }
+            } catch (Exception $e) { /* уже лайкнуто — это не ошибка */ }
+        } else {
+            $q = $pdo->prepare("DELETE FROM story_likes WHERE story_id = ? AND user_id = ?");
+            $q->execute([$storyId, $userId]);
+        }
+        $c = $pdo->prepare("SELECT COUNT(*) FROM story_likes WHERE story_id = ?");
+        $c->execute([$storyId]);
+        out(['ok' => true, 'liked' => $on, 'count' => (int)$c->fetchColumn()]);
+    }
+
+    if ($action === 'comment' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+        // Комментарий к чужой истории уходит автору в личку с пометкой, к какой именно
+        // истории он относится (как в Instagram и Telegram) — отдельной ленты комментариев
+        // под историями нет намеренно: у нас всё общение живёт в переписках.
+        $storyId = (int)($body['story_id'] ?? 0);
+        $text = trim((string)($body['text'] ?? ''));
+        if (!$storyId) out(['ok' => false, 'error' => 'Не передана история'], 400);
+        if ($text === '') out(['ok' => false, 'error' => 'Пустой комментарий'], 400);
+        if (mb_strlen($text) > 1000) $text = mb_substr($text, 0, 1000);
+
+        $st = $pdo->prepare("SELECT * FROM stories WHERE id = ? AND expires_at > NOW() LIMIT 1");
+        $st->execute([$storyId]);
+        $story = $st->fetch(PDO::FETCH_ASSOC);
+        if (!$story) out(['ok' => false, 'error' => 'История не найдена или уже истекла'], 404);
+        if (!maySeeStory($pdo, $story, $userId)) out(['ok' => false, 'error' => 'Эта история вам не показывается'], 403);
+        if ((string)$story['user_id'] === (string)$userId) {
+            out(['ok' => false, 'error' => 'Это ваша история — комментировать её себе незачем'], 400);
+        }
+
+        $okSent = storySendDm($pdo, $userId, $story['user_id'],
+                              '💬 Комментарий к вашей истории: ' . $text, $story['media_url']);
+        if (!$okSent) out(['ok' => false, 'error' => 'Не удалось отправить сообщение автору'], 500);
+        out(['ok' => true, 'sent_to' => (string)$story['user_id']]);
     }
 
     if ($action === 'contacts') {
