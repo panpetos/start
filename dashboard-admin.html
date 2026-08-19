@@ -13,7 +13,8 @@
     <style id="psyOneMenu">
       #burgerMenu{display:none!important}
       @media (max-width:768px){#navMenu.nav-menu:not(.nav-menu-slim){display:none!important}}
-    </style>
+
+</style>
     <script src="/js/lightbox.js?v=2"></script>
     <script src="/js/api.js"></script>
     <script src="/js/auth.js"></script>
@@ -120,9 +121,10 @@
             .nav .burger-menu, .nav .nav-menu { display: none !important; }
             .admin-layout { display: block; }
             .main-content { padding: 0.75rem !important; }
-            .panel-head { flex-direction: column; align-items: flex-start; gap: 0.5rem; }
+            .panel-head { flex-direction: column; align-items: flex-start; gap: 0.4rem; padding: 0.7rem 0.8rem; }
             /* Поле поиска в шапке разделов — компактнее на мобильных */
             .panel-head .search { width: 100%; min-width: 0; padding: 0.4rem 0.6rem; font-size: 0.8rem; }
+
         }
 
         /* ── Main content ────────────────────────────────────────── */
@@ -263,6 +265,31 @@
 .pay-model-row:hover { border-color:#7C3AED; }
 .pay-model-row input[type=radio] { width:18px; height:18px; margin-top:2px; accent-color:#7C3AED; flex:0 0 auto; cursor:pointer; }
 .pay-model-row:has(input:checked) { border-color:#7C3AED; background:rgba(124,58,237,0.06); }
+        /* ── Компактная раскладка на телефоне ─────────────────────────────
+           Блок стоит в конце намеренно: базовые правила (.panel-head, .stat, th/td)
+           объявлены ниже первого медиазапроса и при равной специфичности перебивали его. */
+        @media (max-width: 768px) {
+            /* Плотнее: на телефоне половину экрана занимали поля и отступы, а до данных
+               приходилось долго листать (просьба админа «адаптируй компактнее»). */
+            .main-content { padding: 0.6rem !important; }
+            .panel { border-radius: 0.8rem; }
+            .panel-head { padding: 0.6rem 0.75rem; gap: 0.4rem; }
+            .panel-head h2 { font-size: 0.98rem; }
+            .stats-grid { gap: 0.55rem; margin-bottom: 0.8rem;
+                          grid-template-columns: repeat(auto-fit, minmax(min(132px, 46%), 1fr)); }
+            .stat { padding: 0.7rem 0.8rem; border-radius: 0.8rem; }
+            .stat .v { font-size: 1.35rem; }
+            .stat .l { font-size: 0.72rem; }
+            th, td { padding: 0.5rem 0.6rem; }
+            table { font-size: 0.82rem; }
+            .btn-sm { padding: 0.32rem 0.6rem !important; font-size: 0.78rem !important; }
+
+            /* Таблицы шире экрана прокручиваются вбок, а не обрезаются: раньше правые
+               колонки (роль, действия) просто не были видны и добраться до них было нельзя. */
+            .tbl-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+            .tbl-wrap table { min-width: 560px; }
+        }
+    
 </style>
     <script>
         (function(){
@@ -359,8 +386,13 @@
 
                 <div class="sidebar-group">
                     <div class="sidebar-group-label">Система</div>
+                    <!-- Свои чаты — отдельным пунктом: раньше в переписки попадали только
+                         через раздел поддержки, то есть «через кого-то». -->
+                    <a class="sidebar-item" href="/chat.html" style="text-decoration:none;">
+                        <span class="sidebar-item-icon">💬</span> Чаты
+                    </a>
                     <button class="sidebar-item" data-tab="support" onclick="switchTab('support')">
-                        <span class="sidebar-item-icon">💬</span> Поддержка
+                        <span class="sidebar-item-icon">🛟</span> Поддержка
                     </button>
                     <button class="sidebar-item" data-tab="devtasks" onclick="switchTab('devtasks')">
                         <span class="sidebar-item-icon">🤖</span> Задачи Клоду
@@ -541,8 +573,30 @@
             // Close mobile sidebar
             document.getElementById('sidebar').classList.remove('open');
             document.getElementById('sidebarOverlay').classList.remove('open');
+            wrapTablesSoon();
             ({ overview:renderOverview, support:renderSupport, users:renderUsers, psychologists:renderPsych, tariffs:renderTariffs, robokassa:renderRobokassa, yookassa:renderYookassa, devtasks:renderDevTasks, appointments:renderAppointments, replacements:renderReplacements, supervision:renderSupervision, calls:renderCalls, payments:renderPayments, subscribers:renderSubscribers, referrals:renderReferrals, activity:renderActivity, notes:renderNotes, notifications:renderNotifications, adminperms:renderAdminPerms, metrics:renderMetrics, sitemap:renderSitemap, content:renderContentMod, complaints:renderComplaints }[tab])();
         }
+
+        /**
+         * Обернуть таблицы в прокручиваемый контейнер. Разделов много, и в части из них
+         * таблица вставлялась без обёртки — на телефоне правые колонки обрезались.
+         * Делаем это после отрисовки, а не правим двадцать мест по отдельности.
+         */
+        function wrapTables() {
+            document.querySelectorAll('#content table').forEach(t => {
+                if (t.parentElement && t.parentElement.classList.contains('tbl-wrap')) return;
+                const w = document.createElement('div');
+                w.className = 'tbl-wrap';
+                t.parentNode.insertBefore(w, t);
+                w.appendChild(t);
+            });
+        }
+        function wrapTablesSoon() {
+            // Разделы рисуются асинхронно (данные приходят запросом), поэтому проверяем
+            // несколько раз, а не один: одного вызова хватало не всем разделам.
+            [80, 400, 1200].forEach(ms => setTimeout(wrapTables, ms));
+        }
+        window.wrapTables = wrapTables;
 
         // Точечно обновляет вложенное состояние текущего раздела в адресе (открытый тикет,
         // фильтр, поиск), не трогая остальные параметры — чтобы F5 возвращал не только
