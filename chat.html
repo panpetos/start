@@ -2222,6 +2222,36 @@
         body.dark .folder-tab:hover { background: #34274D; color: #C9AEFB; }
         body.dark .folder-tab.active { background: #37254A; color: #D3BEFA; }
         body.dark .folder-tab-add { color: #C9AEFB; }
+        /* Переключатель «Чаты | Сообщения» — виден только когда поиск раскрыт */
+        /* Показывается из JS, когда в поиске что-то набрано: пустая строка — нечего
+           и выбирать. Своего display здесь нет намеренно, иначе перебивал бы. */
+        .sb-mode { gap: .3rem; padding: .1rem 0 .35rem; }
+        .sbm-btn { font-family: inherit; font-size: .78rem; font-weight: 600; cursor: pointer;
+                   padding: .3rem .7rem; border-radius: 999px; border: 1px solid #E5E7EB;
+                   background: #F9FAFB; color: #6B7280; }
+        .sbm-btn.active { background: #F3E8FF; border-color: #C4B5FD; color: #6D28D9; }
+        body.dark .sbm-btn { background: #2A2A2A; border-color: #444; color: #B5B5B5; }
+        body.dark .sbm-btn.active { background: #2D1F4E; border-color: #6D28D9; color: #C4B5FD; }
+        /* Найденное сообщение: с кем, когда и сам кусок текста */
+        .msg-hit { display: flex; gap: .6rem; align-items: flex-start; padding: .6rem .85rem;
+                   cursor: pointer; border-bottom: 1px solid #F3F4F6; }
+        .msg-hit:hover { background: #FAF8FF; }
+        .msg-hit .mh-ava { width: 40px; height: 40px; flex: 0 0 40px; border-radius: 50%;
+                           background: #EDE9FE; color: #6D28D9; display: flex; align-items: center;
+                           justify-content: center; font-weight: 700; overflow: hidden; }
+        .msg-hit .mh-ava img { width: 100%; height: 100%; object-fit: cover; }
+        .msg-hit .mh-body { min-width: 0; flex: 1; }
+        .msg-hit .mh-top { display: flex; justify-content: space-between; gap: .5rem; }
+        .msg-hit .mh-name { font-weight: 600; font-size: .93rem; white-space: nowrap;
+                            overflow: hidden; text-overflow: ellipsis; }
+        .msg-hit .mh-date { font-size: .75rem; color: #9CA3AF; flex: 0 0 auto; }
+        .msg-hit .mh-text { font-size: .85rem; color: #6B7280; overflow-wrap: anywhere; }
+        .msg-hit .mh-text b { color: #6D28D9; background: #F3E8FF; border-radius: .2rem; }
+        .msg-hit .mh-me { color: #9CA3AF; }
+        body.dark .msg-hit { border-color: #333; }
+        body.dark .msg-hit:hover { background: #2A2A2A; }
+        body.dark .msg-hit .mh-text { color: #A0A0A0; }
+        body.dark .msg-hit .mh-text b { color: #C4B5FD; background: #2D1F4E; }
         body.dark #chatSearchInput { background: #1E1E1E; border-color: #444; color: #E6E6E6; }
         body.dark #chatSearchInput::placeholder { color: #777; }
         body.dark .conversation-item { border-bottom-color: #333; }
@@ -2394,6 +2424,12 @@
                      шапкой занимала целую строку и делала список громоздким. -->
                 <div id="storiesRow" class="stories-row" style="display:none;"></div>
                 <input id="chatSearchInput" class="chat-sb-search" type="text" placeholder="Поиск по чатам..." oninput="filterConversations()">
+                <!-- Что ищем: людей и чаты по названию или слова внутри переписок.
+                     По имени искалось всегда, а «где я это писал» — не находилось никак. -->
+                <div class="sb-mode" id="sbSearchMode" style="display:none;">
+                    <button type="button" class="sbm-btn active" data-mode="chats" onclick="setSearchMode('chats')">Чаты</button>
+                    <button type="button" class="sbm-btn" data-mode="messages" onclick="setSearchMode('messages')">Сообщения</button>
+                </div>
                 <button type="button" class="chat-hdr-btn" id="sbSearchClose" onclick="closeSbSearch()" title="Закрыть поиск" aria-label="Закрыть поиск">✕</button>
             </div>
 
@@ -2857,15 +2893,39 @@
         }
         // Держим открытый диалог/раздел в URL (?open=<ключ>), чтобы обновление страницы (F5)
         // возвращало туда же, а не сбрасывало на пустой список — раньше выбор жил только в JS-памяти.
+        /** Телефонная раскладка: список и переписка не помещаются рядом. */
+        function isPhoneLayout() {
+            try { return window.matchMedia('(max-width: 768px)').matches; } catch (e) { return false; }
+        }
+
         function syncChatUrl(key) {
             try {
                 const params = new URLSearchParams(window.location.search);
                 params.delete('user'); params.delete('support');
                 if (key) params.set('open', key); else params.delete('open');
                 const qs = params.toString();
-                history.replaceState(null, '', window.location.pathname + (qs ? '?' + qs : ''));
+                const url = window.location.pathname + (qs ? '?' + qs : '');
+                // На телефоне открытая переписка — отдельный шаг истории: тогда аппаратная
+                // «назад» возвращает к списку чатов, а не выкидывает в личный кабинет.
+                // Шаг добавляем один раз на весь заход в переписки: переход из диалога в
+                // диалог его не множит, иначе назад пришлось бы жать десять раз.
+                const inChat = key && isPhoneLayout();
+                const already = history.state && history.state.psyChat;
+                if (inChat && !already) history.pushState({ psyChat: 1 }, '', url);
+                else history.replaceState(inChat ? { psyChat: 1 } : null, '', url);
             } catch (e) {}
         }
+
+        // Аппаратная «назад» на телефоне: сначала возвращаемся к списку чатов и только
+        // следующим нажатием уходим со страницы.
+        window.addEventListener('popstate', () => {
+            const box = document.querySelector('.chat-container');
+            if (box && box.classList.contains('mobile-chat-open')) {
+                box.classList.remove('mobile-chat-open');
+                selectedUserId = null;
+                if (typeof refreshConversationList === 'function') refreshConversationList();
+            }
+        });
         function goToCabinet() { location.href = getDashboardUrl(); }
         // Поиск в шапке списка: свёрнут в иконку, по клику разворачивается на всю ширину.
         function openSbSearch() {
@@ -5611,7 +5671,26 @@
             activeFolder = id;
             try { localStorage.setItem('psy-chat-folder', id); } catch (e) {}
             renderFolderTabs();
+            scrollActiveFolderIntoView();
             refreshConversationList();
+        }
+
+        /**
+         * Подтянуть выбранную папку в видимую часть строки. На телефоне папки не влезают
+         * в экран целиком, и после свайпа выбранная уезжала за край — было не понять,
+         * куда переключился (фидбэк админа по задаче про свайпы).
+         */
+        function scrollActiveFolderIntoView() {
+            const box = document.getElementById('chatFolders');
+            const tab = box && box.querySelector('.folder-tab.active');
+            if (!box || !tab) return;
+            // Строкой папки лежат только на телефоне; колонку слева двигать незачем.
+            if (box.scrollWidth <= box.clientWidth + 4) return;
+            const left = tab.offsetLeft - (box.clientWidth - tab.offsetWidth) / 2;
+            const max = box.scrollWidth - box.clientWidth;
+            const to = Math.max(0, Math.min(max, left));
+            if (typeof box.scrollTo === 'function') box.scrollTo({ left: to, behavior: 'smooth' });
+            else box.scrollLeft = to;
         }
 
         /**
@@ -6480,6 +6559,8 @@
             }
             box.innerHTML = html;
             syncFolderPlacement();
+            // Открылись на непервой папке (её помним между заходами) — она тоже должна быть видна
+            requestAnimationFrame(scrollActiveFolderIntoView);
         }
 
         async function createChatFolder() {
@@ -7186,9 +7267,105 @@
         }
 
         let userSearchDebounce = null;
+        let msgSearchDebounce = null;
+        let searchMode = 'chats';          // 'chats' — по названиям и людям, 'messages' — по тексту переписок
+
+        /** Переключить, что ищем. Строка запроса остаётся — просто ищем иначе. */
+        function setSearchMode(mode) {
+            searchMode = mode === 'messages' ? 'messages' : 'chats';
+            document.querySelectorAll('#sbSearchMode .sbm-btn').forEach(b =>
+                b.classList.toggle('active', b.getAttribute('data-mode') === searchMode));
+            filterConversations();
+            const inp = document.getElementById('chatSearchInput');
+            if (inp) inp.focus();
+        }
+        window.setSearchMode = setSearchMode;
+
+        function highlightHit(text, q) {
+            const safe = escapeHtml(String(text || ''));
+            if (!q) return safe;
+            const rx = new RegExp('(' + q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'gi');
+            return safe.replace(rx, '<b>$1</b>');
+        }
+
+        /** Найденные сообщения вместо списка чатов: с кем, когда и за что зацепилось. */
+        function renderMessageHits(rows, q, state) {
+            const box = document.getElementById('conversationsList');
+            if (!box) return;
+            if (state === 'loading' && !rows.length) {
+                box.innerHTML = '<div class="empty-state" style="padding:1.2rem;color:#9CA3AF;">Ищу в переписках…</div>';
+                return;
+            }
+            if (!rows.length) {
+                box.innerHTML = '<div class="empty-state" style="padding:1.2rem;color:#9CA3AF;">'
+                    + (state === 'short' ? 'Введите хотя бы два символа' : 'В переписках такого не нашлось') + '</div>';
+                return;
+            }
+            box.innerHTML = rows.map(r => {
+                const initials = (r.name || '?').trim().charAt(0).toUpperCase();
+                const ava = r.avatar
+                    ? `<img src="${escapeAttr(r.avatar)}" alt="">`
+                    : escapeHtml(initials);
+                return `<div class="msg-hit" onclick="openSearchHit('${escapeAttr(r.kind)}','${escapeAttr(r.key)}','${escapeAttr(r.message_id)}')">
+                    <div class="mh-ava">${ava}</div>
+                    <div class="mh-body">
+                        <div class="mh-top">
+                            <div class="mh-name">${escapeHtml(r.name)}</div>
+                            <div class="mh-date">${escapeHtml(formatTime(r.created_at))}</div>
+                        </div>
+                        <div class="mh-text">${r.mine ? '<span class="mh-me">Вы: </span>' : ''}${highlightHit(r.snippet, q)}</div>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        /** Открыть найденное: нужный диалог или группу и подсветить само сообщение. */
+        async function openSearchHit(kind, key, messageId) {
+            closeSbSearch();
+            if (kind === 'group') await openGroupChat(key);      // сюда идёт голый id группы
+            else await openChat(key);
+            // Переписка грузится не мгновенно; ищем сообщение несколько раз, а не один
+            let tries = 0;
+            const seek = () => {
+                const el = document.querySelector(`[data-msg-id="${messageId}"]`)
+                        || document.querySelector(`[data-fav-id="${messageId}"]`);
+                if (el) {
+                    try { el.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (e) {}
+                    flashMessage(el, messageId);
+                    return;
+                }
+                if (++tries < 12) setTimeout(seek, 250);
+            };
+            setTimeout(seek, 350);
+        }
+        window.openSearchHit = openSearchHit;
 
         async function filterConversations() {
             const q = (document.getElementById('chatSearchInput').value || '').trim().toLowerCase();
+            const modeBox = document.getElementById('sbSearchMode');
+            if (modeBox) modeBox.style.display = q ? 'flex' : 'none';
+
+            if (searchMode === 'messages') {
+                if (!q) { renderConversationList(allConversations); return; }
+                if (q.length < 2) { renderMessageHits([], q, 'short'); return; }
+                renderMessageHits([], q, 'loading');
+                clearTimeout(msgSearchDebounce);
+                msgSearchDebounce = setTimeout(async () => {
+                    const cur = (document.getElementById('chatSearchInput').value || '').trim().toLowerCase();
+                    if (cur !== q || searchMode !== 'messages') return;
+                    try {
+                        const r = await fetch('/api/msg_search.php?action=search&q=' + encodeURIComponent(q),
+                                              { credentials: 'include' });
+                        const d = await r.json();
+                        if ((document.getElementById('chatSearchInput').value || '').trim().toLowerCase() !== q) return;
+                        renderMessageHits((d && d.data) || [], q, 'done');
+                    } catch (e) {
+                        renderMessageHits([], q, 'done');
+                    }
+                }, 300);
+                return;
+            }
+
             if (!q) { renderConversationList(allConversations); return; }
             const localFiltered = allConversations.filter(c => {
                 const name = `${c.first_name || ''} ${c.last_name || ''}`.trim().toLowerCase();
@@ -7462,6 +7639,26 @@
             return srcs.length ? { body: text.slice(0, i).trim(), srcs } : { body: text, srcs: [] };
         }
 
+        /**
+         * Убрать хвост вида «(по данным сайта yandex.ru/pogoda)» или «[1][2]» в конце
+         * ответа: источники теперь показаны отдельным спойлером, и приписка внизу —
+         * лишний шум. Ссылки внутри самого текста не трогаем — они там по делу.
+         */
+        function tidyAiAnswer(text) {
+            let t = String(text || '');
+            for (let i = 0; i < 3; i++) {            // хвостов может быть несколько подряд
+                const before = t;
+                // «(по данным …)», «(источник: …)», «(см. rbc.ru)» и просто «(сайт.ру)»
+                // Точка часто стоит уже ПОСЛЕ скобки — её тоже надо пропустить
+                t = t.replace(/\s*[（(]\s*(?:по\s+данным|источник\w*|данные|см\.|source)[^()]{0,120}[)）][\s.!?…]*$/iu, '');
+                t = t.replace(/\s*[（(]\s*(?:https?:\/\/|www\.)?[a-z0-9.-]+\.[a-z]{2,6}[^()]{0,60}[)）][\s.!?…]*$/iu, '');
+                // висящие сноски «[1]», «[1][2]», «【1】»
+                t = t.replace(/(?:\s*(?:\[\d{1,2}\]|【\d{1,2}】))+\s*$/u, '');
+                if (t === before) break;
+            }
+            return t.trim();
+        }
+
         function sourcesHtml(srcs) {
             if (!srcs || !srcs.length) return '';
             return `<details class="ai-src"><summary>Источники · ${srcs.length}</summary><ol>`
@@ -7495,6 +7692,7 @@
             const isAdm = currentUser && currentUser.role === 'admin';
             c.innerHTML = aiMessages.map((m, i) => {
                 const parts = splitAiSources(String(m.content || ''));
+                if (m.role !== 'user') parts.body = tidyAiAnswer(parts.body);
                 return `
                 <div class="message ${m.role === 'user' ? 'mine' : 'theirs'}" data-ai-idx="${i}">
                     <div>${msgText(parts.body)}</div>

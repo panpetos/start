@@ -576,10 +576,27 @@
   // хостинга и ничья ответственность.
   var SUP_MAX_MB = 50;
 
+  /**
+   * Убрать пузырь поддержки, если человек уже вошёл: у него поддержка есть прямо
+   * в чатах, отдельным диалогом, и второй чатик на том же экране только путает.
+   */
+  function dropSupportWidgetIfLoggedIn() {
+    try {
+      if (!window.Auth || !window.Auth.getCurrentUser) return;
+      Promise.resolve(window.Auth.getCurrentUser()).then(function (u) {
+        var el = document.getElementById('psySupport');
+        if (u && el) el.remove();
+      }).catch(function () {});
+    } catch (e) {}
+  }
+
   function buildSupportWidget() {
     if (document.getElementById('psySupport')) return;
     var user = getCachedUserSafe();
-    if (user && user.role === 'admin') return;
+    // Виджет — только для тех, кто НЕ вошёл. Вошедшим поддержка доступна в чатах.
+    // Кэша может ещё не быть, поэтому ниже, после сборки, проверяем и у сервера.
+    if (user) return;
+    dropSupportWidgetIfLoggedIn();
 
     var TOKEN_KEY = 'psy_support_token';
     var token = null; try { token = localStorage.getItem(TOKEN_KEY); } catch (e) {}
