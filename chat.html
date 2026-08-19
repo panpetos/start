@@ -1156,6 +1156,19 @@
 
         /* «Печатает…» у бота и скрытые для него кнопки вложений */
         .ai-typing { opacity: 0.6; letter-spacing: 0.2em; }
+        /* Готовые начала разговора на пустом диалоге */
+        .ai-ideas { display: flex; flex-wrap: wrap; gap: .4rem; justify-content: center; margin-top: .9rem; }
+        .ai-idea { font-family: inherit; font-size: .84rem; cursor: pointer; padding: .45rem .8rem;
+                   border-radius: 999px; border: 1px solid #E5E7EB; background: #fff; color: #4B5563; }
+        .ai-idea:hover { border-color: #C4B5FD; color: #6D28D9; background: #F9F5FF; }
+        body.dark .ai-idea { background: #2A2A2A; border-color: #444; color: #C9C9C9; }
+        body.dark .ai-idea:hover { border-color: #6D28D9; color: #C4B5FD; background: #2D1F4E; }
+        /* Кнопка «Стоп»: ответ бывает длинным, и ждать его до конца незачем */
+        .ai-stop { display: none; align-items: center; gap: .3rem; font-family: inherit; font-size: .8rem;
+                   font-weight: 600; cursor: pointer; padding: .35rem .7rem; border-radius: 999px;
+                   border: 1px solid #FCA5A5; background: #FEF2F2; color: #B91C1C; }
+        body.ai-answering .ai-stop { display: inline-flex; }
+        body.dark .ai-stop { background: #3B1D1D; border-color: #7F1D1D; color: #FCA5A5; }
         /* Ход поиска в интернете — строкой над ответом, пока он набирается */
         .ai-status { font-size: 0.82rem; color: #6D28D9; background: #F5F3FF; border-radius: 0.5rem;
                      padding: 0.3rem 0.55rem; display: inline-block; margin-bottom: 0.35rem; }
@@ -1202,7 +1215,9 @@
 
         /* Полоска над полем ввода: интернет и модель на виду, только у ассистента */
         .ai-bar { display: none; align-items: center; gap: 0.4rem; flex-wrap: wrap;
-                  padding: 0.45rem 0.75rem 0; }
+                  padding: 0.5rem 0.75rem 0.15rem; }
+        .ai-threads { max-width: 44vw; }
+        @media (min-width: 720px) { .ai-threads { max-width: 260px; } }
         body.ai-chat .ai-bar { display: flex; }
         .ai-chip { display: inline-flex; align-items: center; gap: 0.3rem; font-family: inherit;
                    font-size: 0.8rem; font-weight: 600; line-height: 1; cursor: pointer;
@@ -7531,15 +7546,109 @@
 
         function isAiMode() { return selectedUserId === AI_ID; }
 
+        // ── Несколько диалогов с ассистентом ────────────────────────────────────────
+        // Раньше переписка была одна на всё: разговор про клиента, про блог и про
+        // договор валились в одну ленту. Теперь это отдельные диалоги, как у Perplexity.
+        const AI_THREADS = 'psy-chat-ai-threads';
+        const AI_CURRENT = 'psy-chat-ai-current';
+        let aiThreads = [];          // [{id, title, at, messages:[…]}]
+        let aiThreadId = null;
+
+        function aiReadThreads() {
+            let list = [];
+            try { list = JSON.parse(localStorage.getItem(AI_THREADS) || '[]') || []; } catch (e) { list = []; }
+            if (!Array.isArray(list)) list = [];
+            if (!list.length) {
+                // Перенос старой единственной переписки — терять её нельзя
+                let old = [];
+                try { old = JSON.parse(localStorage.getItem(AI_STORE) || '[]') || []; } catch (e) { old = []; }
+                if (Array.isArray(old) && old.length) {
+                    list = [{ id: 'legacy', title: aiThreadTitle(old), at: Date.now(), messages: old }];
+                }
+            }
+            return list;
+        }
+
+        /** Название диалога — первый вопрос человека, обрезанный до строки. */
+        function aiThreadTitle(msgs) {
+            const first = (msgs || []).find(m => m.role === 'user');
+            const t = first ? String(first.content || '').replace(/\s+/g, ' ').trim() : '';
+            if (!t) return 'Новый диалог';
+            return t.length > 40 ? t.slice(0, 38) + '…' : t;
+        }
+
         function aiLoad() {
-            try { aiMessages = JSON.parse(localStorage.getItem(AI_STORE) || '[]') || []; }
-            catch (e) { aiMessages = []; }
-            if (!Array.isArray(aiMessages)) aiMessages = [];
+            aiThreads = aiReadThreads();
+            let cur = null;
+            try { cur = localStorage.getItem(AI_CURRENT); } catch (e) {}
+            let th = aiThreads.find(t => t.id === cur) || aiThreads[0];
+            if (!th) {
+                th = { id: 'n' + Date.now(), title: 'Новый диалог', at: Date.now(), messages: [] };
+                aiThreads = [th];
+            }
+            aiThreadId = th.id;
+            aiMessages = Array.isArray(th.messages) ? th.messages : [];
+            try { localStorage.setItem(AI_CURRENT, aiThreadId); } catch (e) {}
         }
+
         function aiSave() {
-            // держим последние 200 реплик: больше в localStorage складывать незачем
-            try { localStorage.setItem(AI_STORE, JSON.stringify(aiMessages.slice(-200))); } catch (e) {}
+            const th = aiThreads.find(t => t.id === aiThreadId);
+            if (th) {
+                // держим последние 200 реплик: больше в localStorage складывать незачем
+                th.messages = aiMessages.slice(-200);
+                th.title = aiThreadTitle(th.messages);
+                th.at = Date.now();
+            }
+            // самые свежие сверху, храним двадцать — дальше localStorage раздувается
+            aiThreads.sort((a, b) => (b.at || 0) - (a.at || 0));
+            aiThreads = aiThreads.slice(0, 20);
+            try {
+                localStorage.setItem(AI_THREADS, JSON.stringify(aiThreads));
+                localStorage.setItem(AI_CURRENT, aiThreadId);
+                localStorage.removeItem(AI_STORE);        // старое единственное хранилище больше не нужно
+            } catch (e) {}
         }
+
+        /** Начать чистый диалог. Прежний остаётся в списке — ничего не теряется. */
+        function aiNewThread() {
+            if (aiBusy) { toast('Дождитесь ответа'); return; }
+            const th = { id: 'n' + Date.now(), title: 'Новый диалог', at: Date.now(), messages: [] };
+            aiThreads.unshift(th);
+            aiThreadId = th.id;
+            aiMessages = [];
+            aiSave();
+            renderAiBar();
+            renderAiMessages();
+            const inp = document.getElementById('messageInput');
+            if (inp) inp.focus();
+        }
+        window.aiNewThread = aiNewThread;
+
+        function aiSwitchThread(id) {
+            if (id === '__new__') { aiNewThread(); return; }
+            const th = aiThreads.find(t => t.id === id);
+            if (!th) return;
+            aiThreadId = th.id;
+            aiMessages = Array.isArray(th.messages) ? th.messages : [];
+            try { localStorage.setItem(AI_CURRENT, aiThreadId); } catch (e) {}
+            renderAiBar();
+            renderAiMessages();
+        }
+        window.aiSwitchThread = aiSwitchThread;
+
+        function aiDeleteThread() {
+            const th = aiThreads.find(t => t.id === aiThreadId);
+            if (!th) return;
+            if (!confirm('Удалить диалог «' + th.title + '»? Отменить будет нельзя.')) return;
+            aiThreads = aiThreads.filter(t => t.id !== aiThreadId);
+            if (!aiThreads.length) aiThreads = [{ id: 'n' + Date.now(), title: 'Новый диалог', at: Date.now(), messages: [] }];
+            aiThreadId = aiThreads[0].id;
+            aiMessages = aiThreads[0].messages || [];
+            aiSave();
+            renderAiBar();
+            renderAiMessages();
+        }
+        window.aiDeleteThread = aiDeleteThread;
         function aiModel() {
             try { return localStorage.getItem(AI_MODEL_KEY) || (aiModels[0] && aiModels[0].id) || ''; }
             catch (e) { return (aiModels[0] && aiModels[0].id) || ''; }
@@ -7623,8 +7732,16 @@
                 : mode === 'on'   ? 'Каждый ответ — со свежими данными и ссылками'
                 :                   'Отвечаю по своим знаниям, без интернета';
             bar.className = 'ai-bar' + (aiSearchAvailable ? '' : ' warn');
+            const threads = (aiThreads || []).map(t =>
+                `<option value="${escapeAttr(t.id)}"${t.id === aiThreadId ? ' selected' : ''}>${escapeHtml(t.title || 'Диалог')}</option>`).join('');
             bar.innerHTML = `
-                <button type="button" class="ai-chip ${aiSearchAvailable && mode !== 'off' ? 'on' : 'off'}"
+                <select class="ai-select ai-threads" id="aiThreadSel" onchange="aiSwitchThread(this.value)"
+                        title="Диалоги с ассистентом" aria-label="Диалог">
+                    ${threads}<option value="__new__">＋ Новый диалог</option>
+                </select>
+                <button type="button" class="ai-chip" onclick="aiNewThread()" title="Новый диалог">＋</button>
+                <button type="button" class="ai-stop" onclick="aiStop()" title="Остановить ответ">■ Стоп</button>
+                <button type="button" id="aiWebChip" class="ai-chip ${aiSearchAvailable && mode !== 'off' ? 'on' : 'off'}"
                         onclick="toggleAiSearch()"
                         title="${aiSearchAvailable ? 'Поиск в интернете: выкл → авто → вкл' : escapeAttr(aiSearchReason)}">
                     <span aria-hidden="true">🌐</span> Интернет: ${aiSearchAvailable ? AI_SEARCH_LABELS[mode] : 'недоступен'}
@@ -7665,10 +7782,12 @@
         }
         window.setAiModel = setAiModel;
 
+        /** Очистить текущий диалог, не удаляя его из списка. Остальные не трогаем. */
         function clearAiChat() {
-            if (!confirm('Очистить переписку с ассистентом? Отменить будет нельзя.')) return;
+            if (!confirm('Очистить этот диалог с ассистентом? Отменить будет нельзя.')) return;
             aiMessages = [];
             aiSave();
+            renderAiBar();
             renderAiMessages();
         }
 
@@ -7693,9 +7812,9 @@
 
             await loadAiModels();
             await loadAiSearchState();
+            aiLoad();               // раньше полоска рисовалась до загрузки — список диалогов был пуст
             renderAiHeader();
             renderAiBar();
-            aiLoad();
             renderAiMessages();
         }
 
@@ -7723,7 +7842,8 @@
                       run: () => toggleAiSearch() },
                     { icon: '🔎', label: 'Поиск по переписке', run: () => openChatSearch() },
                     { icon: 'A', label: 'Форматирование текста', run: () => openComposer() },
-                    { icon: '🗑', label: 'Очистить переписку', run: () => clearAiChat() },
+                    { icon: '➕', label: 'Новый диалог', run: () => aiNewThread() },
+                    { icon: '🗑', label: 'Удалить этот диалог', run: () => aiDeleteThread() },
                 ], '')}`;
         }
         window.openAiBot = openAiBot;
@@ -7793,10 +7913,20 @@
             if (!c) return;
             dropRenderCache();
             if (!aiMessages.length) {
+                // Пустой экран с одной фразой ничего не подсказывает. Даём готовые начала —
+                // нажал и поехали, как в Perplexity.
+                const ideas = currentUser && currentUser.role === 'psychologist'
+                    ? ['План первой сессии с подростком', 'Как мягко сказать клиенту о переносе',
+                       'Упражнение на тревогу перед выступлением', 'Идея поста для канала']
+                    : ['Как выбрать психолога', 'Что делать при панической атаке',
+                       'Как подготовиться к первой сессии', 'Упражнение на сон'];
                 c.innerHTML = `<div class="empty-state"><div>
                     <p style="color:#9CA3AF;">🤖 Спросите что угодно: формулировки для клиента, план сессии,
                     разбор случая. Скрепкой можно приложить документ (.txt, .md, .csv, .docx, текстовый .pdf)
-                    или скриншот — ассистент прочитает и ответит по нему. Он не заменяет супервизию и не видит ваши переписки.</p></div></div>`;
+                    или скриншот — ассистент прочитает и ответит по нему. Он не заменяет супервизию и не видит ваши переписки.</p>
+                    <div class="ai-ideas">${ideas.map(t =>
+                        `<button type="button" class="ai-idea" onclick="aiAsk('${escapeAttr(t)}')">${escapeHtml(t)}</button>`).join('')}</div>
+                    </div></div>`;
                 return;
             }
             const isAdm = currentUser && currentUser.role === 'admin';
@@ -7863,10 +7993,26 @@
             }
         }
 
+        /** Спросить готовым вопросом из подсказок. */
+        function aiAsk(text) {
+            if (aiBusy) return;
+            sendToAi(String(text || ''));
+        }
+        window.aiAsk = aiAsk;
+
+        /** Прервать ответ: длинные ответы иногда не нужны целиком. */
+        let aiAbort = null;
+        function aiStop() {
+            if (aiAbort) { try { aiAbort.abort(); } catch (e) {} }
+        }
+        window.aiStop = aiStop;
+
         /** Отправить вопрос ассистенту и вывести ответ по мере поступления. */
         async function sendToAi(text, atts) {
             if (aiBusy) return;
             aiBusy = true;
+            document.body.classList.add('ai-answering');
+            aiAbort = (typeof AbortController === 'function') ? new AbortController() : null;
             const msg = { role: 'user', content: text };
             if (atts && atts.length) {
                 msg.files = atts.map(a => ({ name: a.name, url: a.url, reading: true }));
@@ -7904,6 +8050,7 @@
             try {
                 const res = await fetch('/api/ai_chat.php?action=chat', {
                     method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+                    signal: aiAbort ? aiAbort.signal : undefined,
                     body: JSON.stringify({ messages: aiMessages.map(m => ({ role: m.role, content: aiExpand(m) })),
                                            model: aiModel(), search: aiSearchSend(), ui: 1 })
                 });
@@ -7966,9 +8113,13 @@
                     }
                 }
             } catch (e) {
-                full = full || ('Не удалось получить ответ: ' + e.message);
+                // Остановили сами — оставляем то, что успело прийти, и не пугаем ошибкой
+                if (e && e.name === 'AbortError') full = full ? full + '\n\n_(остановлено)_' : '_(остановлено)_';
+                else full = full || ('Не удалось получить ответ: ' + e.message);
             }
             aiBusy = false;
+            aiAbort = null;
+            document.body.classList.remove('ai-answering');
             bubble.remove();
             // Источники дописываем в само сообщение: тогда они переживут перезагрузку
             // страницы, а ссылки в тексте и так становятся кликабельными.
@@ -7979,6 +8130,7 @@
             }
             aiMessages.push({ role: 'assistant', content: (preface + full + tail) || 'Пустой ответ' });
             aiSave();
+            renderAiBar();          // диалог мог получить название по первому вопросу
             renderAiMessages();
         }
 
