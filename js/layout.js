@@ -26,6 +26,17 @@
     '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
     '<circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6"/></svg>';
 
+  // Лого в начале шапки — та же буква «p», что в иконке приложения и на вкладке.
+  // Раньше слева было только слово; фирменный знак читается быстрее и держит строку
+  // компактнее (просьба админа: «лого в начало и сделать компактнее»).
+  var brandHtml =
+    '<a href="/" class="nav-brand" aria-label="psytalk.pro — на главную">' +
+      '<img class="nav-logo" src="/assets/favicon.svg" alt="" width="30" height="30">' +
+      '<span class="nav-brand-text">' +
+        '<span style="color:#1A1A1A;">psy</span><span style="color:#7C3AED;font-style:italic;">talk.pro</span>' +
+      '</span>' +
+    '</a>';
+
   // Инлайн-сброс, чтобы любые правила страниц для li/a не ломали шапку
   var liReset = 'list-style:none;margin:0;padding:0;border:0;display:flex;align-items:center;';
 
@@ -76,9 +87,7 @@
   var headerHtml =
     '<nav class="nav" style="background:#fff;border-bottom:1px solid #F0F0F0;">' +
       '<div style="max-width:1200px;margin:0 auto;padding:0 1.5rem;width:100%;"><div class="nav-container">' +
-        '<a href="/" class="nav-brand" style="font-size:1.25rem;font-weight:600;word-spacing:0;letter-spacing:0;">' +
-          '<span style="color:#1A1A1A;">psy</span><span style="color:#7C3AED;font-style:italic;">talk.pro</span>' +
-        '</a>' +
+        brandHtml +
         '<button class="burger-menu" id="burgerMenu" aria-label="Меню"><span></span><span></span><span></span></button>' +
         '<ul class="nav-menu" id="navMenu">' + menu + '</ul>' +
       '</div></div>' +
@@ -226,9 +235,7 @@
   var slimHeaderHtml =
     '<nav class="nav" style="background:#fff;border-bottom:1px solid #F0F0F0;">' +
       '<div style="max-width:1200px;margin:0 auto;padding:0 1.5rem;width:100%;"><div class="nav-container">' +
-        '<a href="/" class="nav-brand" style="font-size:1.25rem;font-weight:600;word-spacing:0;letter-spacing:0;">' +
-          '<span style="color:#1A1A1A;">psy</span><span style="color:#7C3AED;font-style:italic;">talk.pro</span>' +
-        '</a>' +
+        brandHtml +
         '<ul class="nav-menu nav-menu-slim" id="navMenu">' + slimMenu + '</ul>' +
       '</div></div>' +
     '</nav>';

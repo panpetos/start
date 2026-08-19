@@ -22,6 +22,68 @@ require_once __DIR__ . '/ai_text.php';
 if (session_status() === PHP_SESSION_NONE) session_start();
 if (empty($_SESSION['user_id'])) { http_response_code(401); echo json_encode(['error' => 'Требуется авторизация']); exit; }
 
+/**
+ * Распознать текст на картинке через Yandex Vision OCR — тем же ключом, что и модели.
+ * Услугу в облаке включают отдельно, поэтому при отказе говорим человеку, что именно
+ * не так, а не отмалчиваемся. Возвращает ['text'=>…] либо ['error'=>…].
+ */
+function aiOcrImage($path, $name, $maxChars = 20000) {
+    $cfgFile = __DIR__ . '/ai_chat_config.php';
+    $cfg = file_exists($cfgFile) ? (require $cfgFile) : [];
+    if (!is_array($cfg)) $cfg = [];
+    $key = trim((string)($cfg['api_key'] ?? ''));
+    $folder = trim((string)($cfg['folder_id'] ?? ''));
+    if ($key === '' || $folder === '') {
+        return ['error' => 'картинки читаются через Yandex Vision, а ключ облака ещё не настроен'];
+    }
+    $size = @filesize($path);
+    if ($size > 10 * 1024 * 1024) return ['error' => 'картинка слишком большая для распознавания (больше 10 МБ)'];
+
+    $ext = strtolower(pathinfo($name, PATHINFO_EXTENSION));
+    $mime = $ext === 'png' ? 'PNG' : ($ext === 'pdf' ? 'PDF' : 'JPEG');
+    $body = json_encode([
+        'mimeType'      => $mime,
+        'languageCodes' => ['ru', 'en'],
+        'model'         => 'page',
+        'content'       => base64_encode((string)@file_get_contents($path)),
+    ]);
+
+    $ch = curl_init('https://ocr.api.cloud.yandex.net/ocr/v1/recognizeText');
+    curl_setopt_array($ch, [
+        CURLOPT_POST => true,
+        CURLOPT_POSTFIELDS => $body,
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_HTTPHEADER => [
+            'Content-Type: application/json',
+            'Authorization: Api-Key ' . $key,
+            'x-folder-id: ' . $folder,
+            'x-data-logging-enabled: false',
+        ],
+        CURLOPT_TIMEOUT => 30,
+        CURLOPT_CONNECTTIMEOUT => 8,
+    ]);
+    $resp = curl_exec($ch);
+    $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $err  = curl_error($ch);
+    curl_close($ch);
+
+    if ($err) return ['error' => 'не достучались до распознавания: ' . $err];
+    $d = json_decode((string)$resp, true);
+    if ($code < 200 || $code >= 300) {
+        $msg = $d['message'] ?? substr((string)$resp, 0, 160);
+        if ($code === 403 || $code === 401) {
+            return ['error' => 'распознавание картинок не включено в Yandex Cloud (Vision OCR) — '
+                             . 'подключите сервис и выдайте ключу роль ai.vision.user'];
+        }
+        return ['error' => 'распознавание отказало (' . $code . '): ' . $msg];
+    }
+
+    $text = $d['result']['textAnnotation']['fullText'] ?? ($d['textAnnotation']['fullText'] ?? '');
+    $text = trim(preg_replace('/[ \t]+/u', ' ', (string)$text));
+    if ($text === '') return ['error' => 'на картинке не нашлось текста'];
+    return ['text' => mb_substr($text, 0, $maxChars)];
+}
+
 $action = $_GET['action'] ?? 'read';
 if ($action !== 'read') { echo json_encode(['error' => 'Неизвестное действие']); exit; }
 
@@ -58,7 +120,13 @@ try {
             continue;
         }
 
-        $res = aiFileToText($path, $name, min(20000, $left));
+        $isImage = in_array(strtolower(pathinfo($name, PATHINFO_EXTENSION)),
+                            ['jpg', 'jpeg', 'png', 'webp', 'bmp'], true);
+        // Картинку сначала пробуем прочитать распознаванием — скриншоты присылают чаще,
+        // чем документы, и «я не умею» на них выглядит беспомощно.
+        $res = $isImage ? aiOcrImage($path, $name, min(20000, $left))
+                        : aiFileToText($path, $name, min(20000, $left));
+        if ($isImage && isset($res['error'])) $row['kind'] = 'image';
         if (isset($res['error'])) {
             $row['error'] = $res['error'];
         } else {

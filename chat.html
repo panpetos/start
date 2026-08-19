@@ -2173,9 +2173,12 @@
                но в Safari на iPhone тап не отличался от удержания и запись начиналась сразу.
                Отдельные кнопки с обычным кликом работают одинаково в Safari и Android. */
             .chat-input { flex-wrap: nowrap; }
+            /* Слева — смайлик и скрепка, справа — запись и отправка (просьба админа).
+               Раньше скрепка стояла справа между полем и записью, и кнопка отправки
+               прыгала по строке, пока набираешь. */
             .cin-emoji  { order: 1; }
-            #messageInput { order: 2; flex: 1 1 auto; min-width: 0; margin-left: 0.2rem; }
-            .cin-attach { order: 3; }
+            .cin-attach { order: 2; }
+            #messageInput { order: 3; flex: 1 1 auto; min-width: 0; margin-left: 0.2rem; }
             .chat-input .cin-voice { order: 4; display: inline-flex; }
             .chat-input .cin-video { order: 5; display: inline-flex; }
             /* Совмещённую кнопку и форматирование на телефоне не показываем */
@@ -2186,6 +2189,9 @@
             #chatInputBar.has-text .cin-voice,
             #chatInputBar.has-text .cin-video { display: none; }
             #chatInputBar.has-text .cin-send { order: 6; display: inline-flex; }
+            /* У ассистента голосового и кружка нет: правый край пустовал, и кнопка
+               отправки то появлялась, то исчезала. Здесь она стоит всегда. */
+            body.ai-chat .chat-input .cin-send { order: 6; display: inline-flex; }
             /* Пока идёт запись — кнопка заметная, как в мессенджерах */
             /* специфичность выше, чем у body.dark .icon-btn — иначе цвет перебивался темой */
             .chat-input .cin-voice.recording { background: #DC2626; color: #fff; transform: scale(1.12); }
@@ -7685,8 +7691,8 @@
             if (!aiMessages.length) {
                 c.innerHTML = `<div class="empty-state"><div>
                     <p style="color:#9CA3AF;">🤖 Спросите что угодно: формулировки для клиента, план сессии,
-                    разбор случая. Скрепкой можно приложить документ — .txt, .md, .csv, .docx или текстовый .pdf,
-                    ассистент прочитает и ответит по нему. Он не заменяет супервизию и не видит ваши переписки.</p></div></div>`;
+                    разбор случая. Скрепкой можно приложить документ (.txt, .md, .csv, .docx, текстовый .pdf)
+                    или скриншот — ассистент прочитает и ответит по нему. Он не заменяет супервизию и не видит ваши переписки.</p></div></div>`;
                 return;
             }
             const isAdm = currentUser && currentUser.role === 'admin';
