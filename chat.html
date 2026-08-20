@@ -12422,7 +12422,7 @@
         }
 
         // ══════════════════════════════════════════════════════════════════════════════
-        //  СВОИ ЗВОНКИ (WebRTC) — api/calls.php
+        //  СВОИ ЗВОНКИ (WebRTC) — api/rtc_calls.php
         //
         //  Звук и видео идут НАПРЯМУЮ между браузерами и через наш сервер не проходят:
         //  хостинг переносит только «знакомство» — параметры соединения (SDP) и сетевые
@@ -12455,7 +12455,7 @@
         }
 
         async function callsApi(action, payload) {
-            const url = '/api/calls.php?action=' + action;
+            const url = '/api/rtc_calls.php?action=' + action;
             const res = payload
                 ? await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' },
                                      credentials: 'include', body: JSON.stringify(payload) })
@@ -12843,7 +12843,7 @@
                 try {
                     const blob = new Blob([JSON.stringify({ call_id: rtcCallId, reason: 'left' })],
                                           { type: 'application/json' });
-                    navigator.sendBeacon('/api/calls.php?action=end', blob);
+                    navigator.sendBeacon('/api/rtc_calls.php?action=end', blob);
                 } catch (e) {}
             }
         });

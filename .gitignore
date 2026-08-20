@@ -11,7 +11,7 @@ api/notifications_config.php
 api/ai_chat_config.php
 
 # Доступ к TURN-серверу для звонков — только на сервере, НЕ в git
-api/calls_config.php
+api/rtc_calls_config.php
 
 # Прочие локальные секреты/конфиги вне репозитория
 api/config.php

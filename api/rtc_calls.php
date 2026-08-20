@@ -1,6 +1,6 @@
 <?php
 /**
- * calls.php — свои аудио- и видеозвонки прямо на сайте, без Яндекс.Телемоста.
+ * rtc_calls.php — свои аудио- и видеозвонки прямо на сайте, без Яндекс.Телемоста.
  *
  * КАК ЭТО РАБОТАЕТ И ПОЧЕМУ ТАК
  * Звук и видео идут НАПРЯМУЮ между браузерами (WebRTC, peer-to-peer) и через наш
@@ -20,7 +20,7 @@
  *   • по умолчанию используем только STUN (бесплатно, ничего поднимать не нужно) —
  *     этого хватает большинству пар;
  *   • если у платформы появится TURN, его адрес и логин кладутся в
- *     api/calls_config.php (см. calls_config.sample.php) — код менять не придётся;
+ *     api/rtc_calls_config.php (см. rtc_calls_config.sample.php) — код менять не придётся;
  *   • когда соединиться не удалось, клиент честно говорит об этом и предлагает
  *     Телемост как запасной путь.
  *
@@ -62,7 +62,7 @@ const SIGNAL_MAX     = 200000; // потолок на один сигнал (SDP
 
 $schemaError = '';
 try {
-    $pdo->exec("CREATE TABLE IF NOT EXISTS calls (
+    $pdo->exec("CREATE TABLE IF NOT EXISTS rtc_calls (
         id INT AUTO_INCREMENT PRIMARY KEY,
         from_id VARCHAR(64) NOT NULL,
         to_id VARCHAR(64) NOT NULL,
@@ -76,7 +76,7 @@ try {
         INDEX idx_from (from_id, status),
         INDEX idx_created (created_at)
     ) DEFAULT CHARSET=utf8mb4");
-    $pdo->exec("CREATE TABLE IF NOT EXISTS call_signals (
+    $pdo->exec("CREATE TABLE IF NOT EXISTS rtc_call_signals (
         id INT AUTO_INCREMENT PRIMARY KEY,
         call_id INT NOT NULL,
         sender_id VARCHAR(64) NOT NULL,
@@ -85,7 +85,7 @@ try {
         created_at DATETIME NOT NULL,
         INDEX idx_call (call_id, id)
     ) DEFAULT CHARSET=utf8mb4");
-    psy_align_collation($pdo, ['calls', 'call_signals']);
+    psy_align_collation($pdo, ['rtc_calls', 'rtc_call_signals']);
 } catch (Exception $e) {
     $schemaError = $e->getMessage();
 }
@@ -94,17 +94,17 @@ if ($schemaError) out(['ok' => false, 'error' => 'Звонки недоступ�
 /** Незакрытые «звонит…» дольше RING_TIMEOUT — это неотвеченный вызов. */
 function expireStale($pdo) {
     try {
-        $pdo->prepare("UPDATE calls SET status = 'ended', end_reason = 'missed', ended_at = NOW()
+        $pdo->prepare("UPDATE rtc_calls SET status = 'ended', end_reason = 'missed', ended_at = NOW()
                        WHERE status = 'ringing' AND created_at < (NOW() - INTERVAL ? SECOND)")
             ->execute([RING_TIMEOUT]);
         // мусор старше суток не нужен никому
-        $pdo->exec("DELETE FROM call_signals WHERE created_at < (NOW() - INTERVAL 1 DAY)");
-        $pdo->exec("DELETE FROM calls WHERE created_at < (NOW() - INTERVAL 7 DAY)");
+        $pdo->exec("DELETE FROM rtc_call_signals WHERE created_at < (NOW() - INTERVAL 1 DAY)");
+        $pdo->exec("DELETE FROM rtc_calls WHERE created_at < (NOW() - INTERVAL 7 DAY)");
     } catch (Exception $e) {}
 }
 
 function loadCall($pdo, $id) {
-    $st = $pdo->prepare("SELECT * FROM calls WHERE id = ?");
+    $st = $pdo->prepare("SELECT * FROM rtc_calls WHERE id = ?");
     $st->execute([$id]);
     return $st->fetch(PDO::FETCH_ASSOC) ?: null;
 }
@@ -123,7 +123,7 @@ try {
         // Без него остаётся STUN — его достаточно, пока хотя бы один из собеседников
         // не за «строгим» NAT.
         $servers = [['urls' => ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302']]];
-        $cfg = __DIR__ . '/calls_config.php';
+        $cfg = __DIR__ . '/rtc_calls_config.php';
         if (file_exists($cfg)) {
             $turn = include $cfg;
             if (is_array($turn) && !empty($turn['turn_urls'])) {
@@ -141,14 +141,14 @@ try {
         $after = (int)($_GET['after'] ?? 0);
         // входящий вызов: кто-то звонит именно мне и ещё ждёт
         $st = $pdo->prepare("SELECT c.*, u.first_name, u.last_name, u.avatar
-                             FROM calls c LEFT JOIN users u ON u.id = c.from_id
+                             FROM rtc_calls c LEFT JOIN users u ON u.id = c.from_id
                              WHERE c.to_id = ? AND c.status = 'ringing'
                              ORDER BY c.id DESC LIMIT 1");
         $st->execute([$userId]);
         $incoming = $st->fetch(PDO::FETCH_ASSOC) ?: null;
 
         // состояние и новые сигналы по звонку, в котором я сейчас участвую
-        $st = $pdo->prepare("SELECT * FROM calls
+        $st = $pdo->prepare("SELECT * FROM rtc_calls
                              WHERE (from_id = ? OR to_id = ?) AND status IN ('ringing','accepted')
                              ORDER BY id DESC LIMIT 1");
         $st->execute([$userId, $userId]);
@@ -157,14 +157,14 @@ try {
         $signals = [];
         if ($active) {
             // свои же сигналы обратно не отдаём
-            $sg = $pdo->prepare("SELECT id, kind, payload, sender_id FROM call_signals
+            $sg = $pdo->prepare("SELECT id, kind, payload, sender_id FROM rtc_call_signals
                                  WHERE call_id = ? AND id > ? AND sender_id <> ?
                                  ORDER BY id ASC LIMIT 100");
             $sg->execute([$active['id'], $after, $userId]);
             $signals = $sg->fetchAll(PDO::FETCH_ASSOC) ?: [];
         }
         // если мой звонок только что завершился — отдадим его, чтобы клиент закрыл окно
-        $st = $pdo->prepare("SELECT id, status, end_reason FROM calls
+        $st = $pdo->prepare("SELECT id, status, end_reason FROM rtc_calls
                              WHERE (from_id = ? OR to_id = ?) AND status = 'ended'
                                AND ended_at > (NOW() - INTERVAL 30 SECOND)
                              ORDER BY id DESC LIMIT 1");
@@ -185,16 +185,16 @@ try {
         if (!$ex->fetchColumn()) out(['ok' => false, 'error' => 'Такого собеседника нет'], 404);
 
         expireStale($pdo);
-        $cnt = $pdo->prepare("SELECT COUNT(*) FROM calls WHERE from_id = ? AND created_at > (NOW() - INTERVAL 1 HOUR)");
+        $cnt = $pdo->prepare("SELECT COUNT(*) FROM rtc_calls WHERE from_id = ? AND created_at > (NOW() - INTERVAL 1 HOUR)");
         $cnt->execute([$userId]);
         if ((int)$cnt->fetchColumn() >= MAX_PER_HOUR)
             out(['ok' => false, 'error' => 'Слишком много звонков за час — попробуйте позже'], 429);
 
         // старые свои незакрытые вызовы закрываем, чтобы не было двух сразу
-        $pdo->prepare("UPDATE calls SET status = 'ended', end_reason = 'replaced', ended_at = NOW()
+        $pdo->prepare("UPDATE rtc_calls SET status = 'ended', end_reason = 'replaced', ended_at = NOW()
                        WHERE from_id = ? AND status IN ('ringing','accepted')")->execute([$userId]);
 
-        $pdo->prepare("INSERT INTO calls (from_id, to_id, kind, status, created_at)
+        $pdo->prepare("INSERT INTO rtc_calls (from_id, to_id, kind, status, created_at)
                        VALUES (?, ?, ?, 'ringing', NOW())")->execute([$userId, $to, $kind]);
         out(['ok' => true, 'call_id' => (int)$pdo->lastInsertId(), 'kind' => $kind]);
     }
@@ -208,7 +208,7 @@ try {
         $call = loadCall($pdo, $callId);
         if (!isParty($call, $userId)) out(['ok' => false, 'error' => 'Звонок недоступен'], 403);
         if ($call['status'] === 'ended') out(['ok' => false, 'error' => 'Звонок уже завершён'], 409);
-        $pdo->prepare("INSERT INTO call_signals (call_id, sender_id, kind, payload, created_at)
+        $pdo->prepare("INSERT INTO rtc_call_signals (call_id, sender_id, kind, payload, created_at)
                        VALUES (?, ?, ?, ?, NOW())")->execute([$callId, $userId, $kind, $payload]);
         out(['ok' => true, 'id' => (int)$pdo->lastInsertId()]);
     }
@@ -217,14 +217,14 @@ try {
         $call = loadCall($pdo, (int)($body['call_id'] ?? 0));
         if (!$call || (string)$call['to_id'] !== (string)$userId) out(['ok' => false, 'error' => 'Звонок недоступен'], 403);
         if ($call['status'] !== 'ringing') out(['ok' => false, 'error' => 'Звонок уже не активен'], 409);
-        $pdo->prepare("UPDATE calls SET status = 'accepted', answered_at = NOW() WHERE id = ?")->execute([$call['id']]);
+        $pdo->prepare("UPDATE rtc_calls SET status = 'accepted', answered_at = NOW() WHERE id = ?")->execute([$call['id']]);
         out(['ok' => true]);
     }
 
     if ($action === 'decline' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         $call = loadCall($pdo, (int)($body['call_id'] ?? 0));
         if (!isParty($call, $userId)) out(['ok' => false, 'error' => 'Звонок недоступен'], 403);
-        $pdo->prepare("UPDATE calls SET status = 'ended', end_reason = 'declined', ended_at = NOW()
+        $pdo->prepare("UPDATE rtc_calls SET status = 'ended', end_reason = 'declined', ended_at = NOW()
                        WHERE id = ? AND status <> 'ended'")->execute([$call['id']]);
         out(['ok' => true]);
     }
@@ -233,7 +233,7 @@ try {
         $call = loadCall($pdo, (int)($body['call_id'] ?? 0));
         if (!isParty($call, $userId)) out(['ok' => false, 'error' => 'Звонок недоступен'], 403);
         $reason = substr((string)($body['reason'] ?? 'hangup'), 0, 40);
-        $pdo->prepare("UPDATE calls SET status = 'ended', end_reason = ?, ended_at = NOW()
+        $pdo->prepare("UPDATE rtc_calls SET status = 'ended', end_reason = ?, ended_at = NOW()
                        WHERE id = ? AND status <> 'ended'")->execute([$reason, $call['id']]);
         out(['ok' => true]);
     }
