@@ -1222,12 +1222,12 @@
            переносились как попало и «слипались». Теперь два понятных блока —
            слева диалог (выбор + создать + удалить), справа режим (интернет + модель),
            между ними разделитель. Подсказка — отдельной строкой под ними. */
-        .ai-bar { display: none; flex-direction: column; gap: 0.3rem;
-                  padding: 0.5rem 0.75rem 0.15rem; }
+        /* Одна строка, и подсказка в ней же: колонкой полоска занимала две строки и
+           вместе со строкой ввода выглядела как «ввод раздвоился». Снизу — воздух,
+           иначе кнопки лежат прямо на рамке поля ввода и кажутся к ней приклеенными. */
+        .ai-bar { display: none; align-items: center; gap: 0.5rem; flex-wrap: nowrap;
+                  padding: 0.5rem 0.9rem 0.6rem; }
         body.ai-chat .ai-bar { display: flex; }
-        /* Строго одна строка: перенос добавлял ~12px высоты переписке на каждом
-           телефоне, а место экономится сжатием списков (см. min-width ниже). */
-        .ai-bar-row { display: flex; align-items: center; gap: 0.5rem; min-width: 0; }
         .ai-bar-group { display: flex; align-items: center; gap: 0.3rem; min-width: 0; }
         /* Правый блок прижат к правому краю. Сжиматься ему можно, но за счёт названия
            модели, а не значка интернета: чип с режимом должен остаться читаемым. */
@@ -1259,14 +1259,18 @@
         body.dark .ai-icon-btn { background: #2A2A2A; border-color: #444; color: #C9C9C9; }
         body.dark .ai-icon-btn:hover { border-color: #6D28D9; background: #2D1F4E; color: #C4B5FD; }
         body.dark .ai-icon-btn.danger:hover { border-color: #7F1D1D; background: #3B1D1D; color: #FCA5A5; }
-        .ai-bar-hint { font-size: 0.78rem; color: #9CA3AF; }
+        /* Подсказка занимает свободное место между блоками и обрезается многоточием,
+           а не переносит строку. Полный текст — в title. */
+        .ai-bar-hint { flex: 1 1 auto; min-width: 0; font-size: 0.78rem; color: #9CA3AF;
+                       white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         /* На телефоне подсказка съедала сотню точек высоты переписки. Оставляем её
-           только там, где она действительно нужна — когда поиск недоступен. */
+           только там, где она действительно нужна — когда поиск недоступен, и тогда
+           разрешаем перенос, чтобы она встала своей строкой и не сжимала кнопки. */
         @media (max-width: 719px) {
-            .ai-bar { padding: 0.35rem 0.6rem 0; gap: 0.25rem; }
-            .ai-bar-row { gap: 0.35rem; }
+            .ai-bar { padding: 0.4rem 0.6rem 0.45rem; gap: 0.35rem; }
             .ai-bar-hint { display: none; }
-            .ai-bar.warn .ai-bar-hint { display: block; }
+            .ai-bar.warn { flex-wrap: wrap; }
+            .ai-bar.warn .ai-bar-hint { display: block; flex: 1 1 100%; white-space: normal; }
         }
         /* Совсем узкий экран: у чипа остаётся значок и состояние («🌐 авто»),
            слово «Интернет» и подпись «Стоп» прячем — ряд перестаёт переполняться. */
@@ -2308,6 +2312,45 @@
             .video-modal-header { padding: 12px 16px; padding-top: max(12px, env(safe-area-inset-top)); }
         }
 
+        /* ── «⋮» в строке ввода ────────────────────────────────────────────────────
+           Строка ввода была заставлена иконками (смайлы, скрепка, голосовое, кружок,
+           диктовка, форматирование) — по просьбе админа всё это уехало в одно меню
+           слева. Правила идут ПОСЛЕ мобильного блока намеренно: иначе они не перебьют
+           display:inline-flex у .cin-voice/.cin-dictate, заданный там и выше. */
+        .cin-more { order: 0; }
+        .chat-input .cin-emoji,
+        .chat-input .cin-attach,
+        .chat-input .cin-format { display: none; }
+        body.ai-chat .chat-input .cin-dictate { display: none; }
+        /* Голосовое и кружок прячем только на широком экране: на телефоне они стоят
+           справа и меняются местами с отправкой — эту привычную механику не трогаем. */
+        @media (min-width: 769px) {
+            .chat-input .cin-voice,
+            .chat-input .cin-video { display: none; }
+        }
+        .cin-menu {
+            position: absolute; bottom: calc(100% + 8px); left: 8px; z-index: 120;
+            background: #fff; border: 1px solid #ECECF2; border-radius: 14px;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.18); padding: 0.35rem;
+            min-width: 232px; max-width: calc(100vw - 24px);
+        }
+        .cin-menu-row {
+            display: flex; align-items: center; gap: 0.65rem; width: 100%;
+            border: none; background: none; font-family: inherit; font-size: 0.9rem;
+            color: #1A1A1A; padding: 0.55rem 0.7rem; border-radius: 0.6rem;
+            cursor: pointer; text-align: left; line-height: 1.2;
+        }
+        .cin-menu-row:hover { background: #F3E8FF; color: #6D28D9; }
+        .cin-menu-ico {
+            width: 22px; flex-shrink: 0; color: #7C3AED;
+            display: inline-flex; align-items: center; justify-content: center;
+            font-size: 1.05rem; font-weight: 700; line-height: 1;
+        }
+        body.dark .cin-menu { background: #252525; border-color: #3A3A3A; box-shadow: 0 8px 30px rgba(0,0,0,0.5); }
+        body.dark .cin-menu-row { color: #E6E6E6; }
+        body.dark .cin-menu-row:hover { background: #37254A; color: #C9AEFB; }
+        body.dark .cin-menu-ico { color: #C9AEFB; }
+
         /* ── Dark theme ── */
         body.dark { background: #191919 !important; color: #E6E6E6 !important; }
         body.dark .conversations-list { background: #252525; border-right-color: #333; }
@@ -2609,6 +2652,14 @@
                             title="Отменить" aria-label="Отменить">✕</button>
                 </div>
                 <div class="chat-input" id="chatInputBar">
+                    <!-- «⋮» слева: смайлы, файлы, голосовое и прочее убраны внутрь, чтобы
+                         строка ввода не была заставлена иконками. Список пунктов зависит от
+                         того, где мы — у ассистента, в переписке, на телефоне (см. cinMenuItems). -->
+                    <button type="button" id="cinMoreBtn" onclick="toggleCinMenu(event)" class="icon-btn cin-more"
+                        title="Ещё" aria-label="Ещё" aria-haspopup="true" aria-expanded="false">
+                        <svg width="21" height="21" viewBox="0 0 24 24" fill="currentColor" stroke="none"><circle cx="12" cy="5.2" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="12" cy="18.8" r="1.7"/></svg>
+                    </button>
+                    <div id="cinMenu" class="cin-menu" style="display:none;"></div>
                     <button type="button" onclick="toggleEmojiPicker()" class="icon-btn cin-emoji" title="Эмодзи" aria-label="Эмодзи">
                         <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8.5 14.5s1.3 1.6 3.5 1.6 3.5-1.6 3.5-1.6"/><path d="M9 9.5h.01M15 9.5h.01"/></svg>
                     </button>
@@ -7795,36 +7846,34 @@
             const threads = (aiThreads || []).map(t =>
                 `<option value="${escapeAttr(t.id)}"${t.id === aiThreadId ? ' selected' : ''}>${escapeHtml(t.title || 'Диалог')}</option>`).join('');
             bar.innerHTML = `
-                <div class="ai-bar-row">
-                    <div class="ai-bar-group">
-                        <select class="ai-select ai-threads" id="aiThreadSel" onchange="aiSwitchThread(this.value)"
-                                title="Диалоги с ассистентом" aria-label="Диалог">
-                            ${threads}<option value="__new__">＋ Новый диалог</option>
-                        </select>
-                        <button type="button" class="ai-icon-btn" onclick="aiNewThread()"
-                                title="Новый диалог" aria-label="Новый диалог">＋</button>
-                        <button type="button" class="ai-icon-btn danger" onclick="aiDeleteThread()"
-                                title="Удалить этот диалог" aria-label="Удалить этот диалог">🗑</button>
-                    </div>
-                    <div class="ai-bar-sep" aria-hidden="true"></div>
-                    <div class="ai-bar-group ai-bar-right">
-                        <button type="button" class="ai-stop" onclick="aiStop()" title="Остановить ответ">
-                            ■<span class="ai-chip-txt"> Стоп</span>
-                        </button>
-                        <button type="button" id="aiWebChip" class="ai-chip ${aiSearchAvailable && mode !== 'off' ? 'on' : 'off'}"
-                                onclick="toggleAiSearch()"
-                                title="${aiSearchAvailable ? 'Поиск в интернете: выкл → авто → вкл' : escapeAttr(aiSearchReason)}">
-                            <span aria-hidden="true">🌐</span><span class="ai-chip-txt">Интернет:</span> ${aiSearchAvailable ? AI_SEARCH_LABELS[mode] : 'недоступен'}
-                        </button>
-                        <select class="ai-select" id="aiModelSel" onchange="setAiModel(this.value)"
-                                title="${escapeAttr(cur ? cur.name : 'Выбрать модель')}" aria-label="Модель">
-                            ${aiModels.length
-                                ? aiModels.map(m => `<option value="${escapeAttr(m.id)}"${m.id === aiModel() ? ' selected' : ''}>${escapeHtml(m.name)}</option>`).join('')
-                                : '<option>Модели недоступны</option>'}
-                        </select>
-                    </div>
+                <div class="ai-bar-group">
+                    <select class="ai-select ai-threads" id="aiThreadSel" onchange="aiSwitchThread(this.value)"
+                            title="Диалоги с ассистентом" aria-label="Диалог">
+                        ${threads}<option value="__new__">＋ Новый диалог</option>
+                    </select>
+                    <button type="button" class="ai-icon-btn" onclick="aiNewThread()"
+                            title="Новый диалог" aria-label="Новый диалог">＋</button>
+                    <button type="button" class="ai-icon-btn danger" onclick="aiDeleteThread()"
+                            title="Удалить этот диалог" aria-label="Удалить этот диалог">🗑</button>
                 </div>
-                <span class="ai-bar-hint">${escapeHtml(hint)}</span>`;
+                <span class="ai-bar-hint" title="${escapeAttr(hint)}">${escapeHtml(hint)}</span>
+                <div class="ai-bar-sep" aria-hidden="true"></div>
+                <div class="ai-bar-group ai-bar-right">
+                    <button type="button" class="ai-stop" onclick="aiStop()" title="Остановить ответ">
+                        ■<span class="ai-chip-txt"> Стоп</span>
+                    </button>
+                    <button type="button" id="aiWebChip" class="ai-chip ${aiSearchAvailable && mode !== 'off' ? 'on' : 'off'}"
+                            onclick="toggleAiSearch()"
+                            title="${aiSearchAvailable ? 'Поиск в интернете: выкл → авто → вкл' : escapeAttr(aiSearchReason)}">
+                        <span aria-hidden="true">🌐</span><span class="ai-chip-txt">Интернет:</span> ${aiSearchAvailable ? AI_SEARCH_LABELS[mode] : 'недоступен'}
+                    </button>
+                    <select class="ai-select" id="aiModelSel" onchange="setAiModel(this.value)"
+                            title="${escapeAttr(cur ? cur.name : 'Выбрать модель')}" aria-label="Модель">
+                        ${aiModels.length
+                            ? aiModels.map(m => `<option value="${escapeAttr(m.id)}"${m.id === aiModel() ? ' selected' : ''}>${escapeHtml(m.name)}</option>`).join('')
+                            : '<option>Модели недоступны</option>'}
+                    </select>
+                </div>`;
         }
         window.renderAiBar = renderAiBar;
 
@@ -9606,6 +9655,74 @@
             div.textContent = text;
             return div.innerHTML;
         }
+
+        // ── Меню «⋮» в строке ввода ──────────────────────────────────────────────
+        // Всё, что раньше стояло иконками слева от поля, собрано сюда. Набор пунктов
+        // зависит от места: у ассистента нет голосовых и кружков, зато есть диктовка;
+        // на телефоне голосовое и кружок остаются справа отдельными кнопками.
+        function cinMenuItems() {
+            const ai = document.body.classList.contains('ai-chat');
+            const mob = window.matchMedia('(max-width: 768px)').matches;
+            const items = [
+                { ico: '🙂', label: 'Смайлы', run: () => toggleEmojiPicker() },
+                { ico: '📎', label: 'Прикрепить файл', run: () => {
+                    const f = document.getElementById('fileInput');
+                    if (f) f.click();
+                } },
+            ];
+            if (!ai && !mob) {
+                items.push({ ico: '🎤', label: 'Голосовое сообщение', run: () => toggleVoiceRecording() });
+                items.push({ ico: '🎥', label: 'Видеосообщение-кружок', run: () => startVideoNote() });
+            }
+            if (ai) items.push({ ico: '🎤', label: 'Продиктовать голосом', run: () => toggleDictation() });
+            if (!mob) items.push({ ico: 'A', label: 'Форматирование текста', run: () => openComposer() });
+            return items;
+        }
+
+        let cinMenuActions = [];
+
+        function closeCinMenu() {
+            const m = document.getElementById('cinMenu');
+            if (m) m.style.display = 'none';
+            const b = document.getElementById('cinMoreBtn');
+            if (b) b.setAttribute('aria-expanded', 'false');
+        }
+        window.closeCinMenu = closeCinMenu;
+
+        function toggleCinMenu(evt) {
+            if (evt) evt.stopPropagation();
+            const m = document.getElementById('cinMenu');
+            if (!m) return;
+            if (m.style.display !== 'none') { closeCinMenu(); return; }
+            const items = cinMenuItems();
+            cinMenuActions = items.map(x => x.run);
+            m.innerHTML = items.map((x, i) =>
+                `<button type="button" class="cin-menu-row" onclick="runCinMenu(${i})">
+                    <span class="cin-menu-ico" aria-hidden="true">${escapeHtml(x.ico)}</span>${escapeHtml(x.label)}
+                </button>`).join('');
+            m.style.display = 'block';
+            const b = document.getElementById('cinMoreBtn');
+            if (b) b.setAttribute('aria-expanded', 'true');
+        }
+        window.toggleCinMenu = toggleCinMenu;
+
+        function runCinMenu(i) {
+            const run = cinMenuActions[i];
+            closeCinMenu();
+            // Панель смайликов сама рисуется относительно строки ввода — пусть меню
+            // сначала закроется, иначе они на мгновение перекрывают друг друга.
+            if (typeof run === 'function') setTimeout(run, 0);
+        }
+        window.runCinMenu = runCinMenu;
+
+        // Клик мимо и Escape закрывают меню — как любое всплывающее окно в чате
+        document.addEventListener('click', e => {
+            const m = document.getElementById('cinMenu');
+            if (!m || m.style.display === 'none') return;
+            if (e.target.closest('#cinMenu') || e.target.closest('#cinMoreBtn')) return;
+            closeCinMenu();
+        });
+        document.addEventListener('keydown', e => { if (e.key === 'Escape') closeCinMenu(); });
 
         // Emoji функции
         function toggleEmojiPicker() {
