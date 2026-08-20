@@ -122,6 +122,7 @@ jobs:
             put api/chat_folders.php -o api/chat_folders.php;
             put api/chat_pins.php -o api/chat_pins.php;
             put api/scheduled.php -o api/scheduled.php;
+            put api/calls.php -o api/calls.php;
             put api/rtc_calls.php -o api/rtc_calls.php;
             put api/rtc_calls_config.sample.php -o api/rtc_calls_config.sample.php;
             put api/stories.php -o api/stories.php;
