@@ -20,18 +20,18 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
         :root {
-            --d-bg: #F4F0FF; --d-panel: #FFFFFF; --d-panel-alt: #FAFAFA;
-            --d-border: #F0ECF8; --d-border-light: #F0F0F0; --d-border-accent: #EDE9FF;
+            --d-bg: #ECFDF5; --d-panel: #FFFFFF; --d-panel-alt: #FAFAFA;
+            --d-border: #EFF7F3; --d-border-light: #F0F0F0; --d-border-accent: #D1FAE5;
             --d-text: #1A1A1A; --d-text-sec: #6B7280; --d-text-muted: #9CA3AF; --d-text-dark: #374151;
-            --d-accent: #7C3AED; --d-accent-bg: #F3E8FF; --d-accent-hover: #FAF5FF;
+            --d-accent: #047857; --d-accent-bg: #D1FAE5; --d-accent-hover: #ECFDF5;
             --d-green-bg: #F0FDF4; --d-green: #16A34A; --d-red-bg: #FFF1F2; --d-red: #BE123C;
-            --d-shadow: rgba(124,58,237,0.1); --d-shadow-hover: rgba(124,58,237,0.12);
+            --d-shadow: rgba(4,120,87,0.1); --d-shadow-hover: rgba(4,120,87,0.12);
         }
         body.dark {
             --d-bg: #191919; --d-panel: #252525; --d-panel-alt: #2A2A2A;
-            --d-border: #333; --d-border-light: #333; --d-border-accent: #37254A;
+            --d-border: #333; --d-border-light: #333; --d-border-accent: #10402F;
             --d-text: #E6E6E6; --d-text-sec: #A0A0A0; --d-text-muted: #707070; --d-text-dark: #C0C0C0;
-            --d-accent: #B794F4; --d-accent-bg: #2D1F4E; --d-accent-hover: #37254A;
+            --d-accent: #6EE7B7; --d-accent-bg: #0B3B2E; --d-accent-hover: #10402F;
             --d-green-bg: #1A2E1A; --d-green: #4ADE80; --d-red-bg: #2E1A1A; --d-red: #F87171;
             --d-shadow: rgba(0,0,0,0.2); --d-shadow-hover: rgba(0,0,0,0.3);
         }
@@ -123,13 +123,13 @@
         .btn {
             display: inline-flex; align-items: center; gap: 0.5rem;
             padding: 0.625rem 1.375rem;
-            background: linear-gradient(135deg, #7C3AED 0%, #9F67FA 100%);
+            background: linear-gradient(135deg, #047857 0%, #059669 100%);
             color: white; text-decoration: none; border-radius: 0.625rem;
             font-weight: 600; font-size: 0.9375rem; transition: all 0.2s;
             border: none; cursor: pointer; font-family: inherit;
-            box-shadow: 0 3px 10px rgba(124,58,237,0.3);
+            box-shadow: 0 3px 10px rgba(4,120,87,0.3);
         }
-        .btn:hover { transform: translateY(-1px); box-shadow: 0 5px 16px rgba(124,58,237,0.4); color: white; }
+        .btn:hover { transform: translateY(-1px); box-shadow: 0 5px 16px rgba(4,120,87,0.4); color: white; }
 
         .appointments-list { margin-top: 1rem; }
         .appointment-item {
@@ -313,7 +313,7 @@
                 </h2>
                 <p style="margin-bottom: 1rem;">Посты пишутся в чате — там же, где переписка. Каждый пост
                     появляется у подписчиков, на вашей странице в каталоге и в общей
-                    <a href="/feed.html" style="color:#7C3AED;font-weight:600;">Ленте</a> сайта.</p>
+                    <a href="/feed.html" style="color:#047857;font-weight:600;">Ленте</a> сайта.</p>
                 <!-- max-width и перенос обязательны: inline-flex с длинной надписью задавал
                      колонке минимальную ширину, и на узком экране карточки уезжали за край -->
                 <a class="btn" id="channelChatLink" href="/chat.html"
@@ -455,7 +455,7 @@
                             <button type="button" onclick="wrapPostSelection(document.getElementById('cpostEditText-${p.id}'),'_')" style="width:1.8rem;height:1.8rem;border:1.5px solid var(--d-border);border-radius:0.35rem;background:var(--d-panel);color:var(--d-text);cursor:pointer;font-style:italic;font-size:0.8rem;">К</button>
                             <button type="button" onclick="prefixPostLine(document.getElementById('cpostEditText-${p.id}'),'- ')" style="width:1.8rem;height:1.8rem;border:1.5px solid var(--d-border);border-radius:0.35rem;background:var(--d-panel);color:var(--d-text);cursor:pointer;font-size:0.8rem;">☰</button>
                         </div>
-                        <textarea id="cpostEditText-${p.id}" style="width:100%;min-height:60px;border:1.5px solid #7C3AED;border-radius:0.5rem;padding:0.5rem;font-family:inherit;font-size:0.88rem;resize:vertical;background:var(--d-panel);color:var(--d-text);"></textarea>
+                        <textarea id="cpostEditText-${p.id}" style="width:100%;min-height:60px;border:1.5px solid #047857;border-radius:0.5rem;padding:0.5rem;font-family:inherit;font-size:0.88rem;resize:vertical;background:var(--d-panel);color:var(--d-text);"></textarea>
                         <div style="display:flex;gap:0.4rem;margin-top:0.3rem;">
                             <button type="button" class="btn" style="padding:0.35rem 0.8rem;font-size:0.8rem;" onclick="saveChannelPostEdit(${p.id})">Сохранить</button>
                             <button type="button" class="btn" style="padding:0.35rem 0.8rem;font-size:0.8rem;background:var(--d-panel-alt);color:var(--d-text);border:1.5px solid var(--d-border);" onclick="cancelEditChannelPost(${p.id})">Отмена</button>

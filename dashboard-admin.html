@@ -24,16 +24,16 @@
 
         /* ── Theme variables ─────────────────────────────────────── */
         :root {
-            --a-bg: #F4F0FF;
+            --a-bg: #ECFDF5;
             --a-sidebar: #FFFFFF;
-            --a-sidebar-hover: #F3E8FF;
-            --a-sidebar-active-bg: #EDE9FF;
-            --a-sidebar-active-text: #7C3AED;
-            --a-sidebar-border: #EDE9FF;
+            --a-sidebar-hover: #D1FAE5;
+            --a-sidebar-active-bg: #D1FAE5;
+            --a-sidebar-active-text: #047857;
+            --a-sidebar-border: #D1FAE5;
             --a-sidebar-group: #9CA3AF;
             --a-panel: #FFFFFF;
-            --a-panel-border: #EDE9FF;
-            --a-panel-head-border: #F0ECF8;
+            --a-panel-border: #D1FAE5;
+            --a-panel-head-border: #EFF7F3;
             --a-text: #1A1A1A;
             --a-text-sec: #6B7280;
             --a-text-muted: #9CA3AF;
@@ -45,16 +45,16 @@
             --a-note-bg: #FFF8E7;
             --a-note-border: #FCD34D;
             --a-note-color: #92400E;
-            --a-stat-shadow: rgba(124,58,237,0.06);
+            --a-stat-shadow: rgba(4,120,87,0.06);
             --a-drop-bg: #FAF8FF;
-            --a-drop-border: #C4B5FD;
+            --a-drop-border: #6EE7B7;
         }
         body.dark {
             --a-bg: #191919;
             --a-sidebar: #202020;
             --a-sidebar-hover: #2D2D2D;
-            --a-sidebar-active-bg: #37254A;
-            --a-sidebar-active-text: #B794F4;
+            --a-sidebar-active-bg: #10402F;
+            --a-sidebar-active-text: #6EE7B7;
             --a-sidebar-border: #333;
             --a-sidebar-group: #9A9A9A;
             --a-panel: #252525;
@@ -72,8 +72,8 @@
             --a-note-border: #5C4B1A;
             --a-note-color: #D4A944;
             --a-stat-shadow: rgba(0,0,0,0.2);
-            --a-drop-bg: #2A2235;
-            --a-drop-border: #5B3D8F;
+            --a-drop-bg: #0C2E24;
+            --a-drop-border: #1F6B4F;
         }
 
         /* ── Reset ───────────────────────────────────────────────── */
@@ -134,8 +134,8 @@
         /* ── Stats ───────────────────────────────────────────────── */
         .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(170px, 100%), 1fr)); gap: 1rem; margin-bottom: 1.5rem; background: none; }
         .stat { background: var(--a-panel); border-radius: 1rem; padding: 1.25rem; border: 1px solid var(--a-panel-border); box-shadow: 0 2px 10px var(--a-stat-shadow); transition: background 0.2s, border-color 0.2s; }
-        .stat .v { font-size: 1.75rem; font-weight: 800; color: #7C3AED; letter-spacing: -0.02em; }
-        body.dark .stat .v { color: #B794F4; }
+        .stat .v { font-size: 1.75rem; font-weight: 800; color: #047857; letter-spacing: -0.02em; }
+        body.dark .stat .v { color: #6EE7B7; }
         .stat .l { font-size: 0.8rem; color: var(--a-text-sec); margin-top: 0.2rem; }
 
         /* ── Panels ──────────────────────────────────────────────── */
@@ -143,7 +143,7 @@
         .panel-head { padding: 1rem 1.25rem; border-bottom: 1px solid var(--a-panel-head-border); display: flex; justify-content: space-between; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
         .panel-head h2 { font-size: 1.05rem; }
         .panel-head .search { padding: 0.5rem 0.85rem; border: 1.5px solid var(--a-input-border); border-radius: 0.6rem; font-size: 0.85rem; font-family: inherit; outline: none; min-width: 200px; background: var(--a-input-bg); color: var(--a-text); }
-        .panel-head .search:focus { border-color: #7C3AED; }
+        .panel-head .search:focus { border-color: #047857; }
 
         /* ── Tables ──────────────────────────────────────────────── */
         .tbl-wrap { overflow-x: auto; }
@@ -155,27 +155,27 @@
         /* ── Badges ──────────────────────────────────────────────── */
         .badge { display: inline-block; padding: 0.15rem 0.6rem; border-radius: 2rem; font-size: 0.72rem; font-weight: 700; }
         .b-green { background: #F0FDF4; color: #16A34A; border: 1px solid #BBF7D0; }
-        .b-purple { background: #F3E8FF; color: #7C3AED; border: 1px solid #E9D5FF; }
+        .b-brand { background: #D1FAE5; color: #047857; border: 1px solid #A7F3D0; }
         .b-red { background: #FFF1F2; color: #BE123C; border: 1px solid #FECDD3; }
         .b-amber { background: #FFF8E7; color: #92400E; border: 1px solid #FCD34D; }
         .b-gray { background: #F3F4F6; color: #6B7280; border: 1px solid #E5E7EB; }
         .b-blue { background: #EFF6FF; color: #2563EB; border: 1px solid #BFDBFE; }
         body.dark .b-green { background: #1A2E1A; color: #4ADE80; border-color: #2D5A2D; }
-        body.dark .b-purple { background: #2D1F4E; color: #B794F4; border-color: #4A3670; }
+        body.dark .b-brand { background: #0B3B2E; color: #6EE7B7; border-color: #1B5C44; }
         body.dark .b-red { background: #2E1A1A; color: #F87171; border-color: #5C2020; }
         body.dark .b-amber { background: #2E2A1A; color: #FBBF24; border-color: #5C4B1A; }
         body.dark .b-gray { background: #2A2A2A; color: #A0A0A0; border-color: #444; }
         body.dark .b-blue { background: #1A2438; color: #93C5FD; border-color: #2A3F63; }
         .dev-tab { padding: 0.4rem 0.85rem; border-radius: 2rem; font-size: 0.82rem; font-weight: 600; border: 1.5px solid var(--a-input-border); background: var(--a-input-bg); color: var(--a-text-sec); cursor: pointer; white-space: nowrap; }
-        .dev-tab.active { background: #7C3AED; color: #fff; border-color: #7C3AED; }
+        .dev-tab.active { background: #047857; color: #fff; border-color: #047857; }
         .dev-bulkbar { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; background: var(--a-sidebar-active-bg); border-radius: 0.6rem; padding: 0.6rem 0.8rem; margin-bottom: 0.75rem; }
 
         /* ── Buttons ─────────────────────────────────────────────── */
         .btn-sm { padding: 0.35rem 0.7rem; border-radius: 0.5rem; border: none; font-size: 0.78rem; font-weight: 600; cursor: pointer; font-family: inherit; transition: all 0.15s; }
-        .btn-purple { background: linear-gradient(135deg,#7C3AED,#9F67FA); color: #fff; }
+        .btn-brand { background: linear-gradient(135deg,#047857,#059669); color: #fff; }
         .btn-outline { background: var(--a-panel); border: 1.5px solid var(--a-input-border); color: var(--a-text-sec); }
-        .btn-outline:hover { border-color: #7C3AED; color: #7C3AED; }
-        body.dark .btn-outline:hover { color: #B794F4; border-color: #B794F4; }
+        .btn-outline:hover { border-color: #047857; color: #047857; }
+        body.dark .btn-outline:hover { color: #6EE7B7; border-color: #6EE7B7; }
         .btn-red { background: #FEF2F2; color: #DC2626; border: 1px solid #FECACA; }
         body.dark .btn-red { background: #2E1A1A; color: #F87171; border-color: #5C2020; }
 
@@ -198,7 +198,7 @@
         .note-card.is-done { opacity: 0.5; }
         .note-card.is-done .note-card-title { text-decoration: line-through; }
         .note-card-check { flex-shrink: 0; padding-top: 0.15rem; }
-        .note-card-check input[type="checkbox"] { width: 18px; height: 18px; accent-color: #7C3AED; cursor: pointer; }
+        .note-card-check input[type="checkbox"] { width: 18px; height: 18px; accent-color: #047857; cursor: pointer; }
         .note-card-content { flex: 1; min-width: 0; }
         .note-card-title { font-weight: 600; font-size: 0.93rem; margin-bottom: 0.15rem; word-break: break-word; }
         .note-card-text { font-size: 0.84rem; color: var(--a-text-sec); white-space: pre-wrap; word-break: break-word; }
@@ -215,7 +215,7 @@
         body.dark .note-card-due.due-over { background: #3A1F1F; color: #F87171; }
         .note-card-edit-btn { flex-shrink: 0; width: 26px; height: 26px; border-radius: 0.35rem; border: none; background: transparent; color: var(--a-text-muted); font-size: 0.95rem; cursor: pointer; display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.15s; }
         .note-card:hover .note-card-edit-btn { opacity: 1; }
-        .note-card-edit-btn:hover { background: var(--a-sidebar-active-bg); color: #7C3AED; }
+        .note-card-edit-btn:hover { background: var(--a-sidebar-active-bg); color: #047857; }
 
         /* ── Archive details/summary ────────────────────────────── */
         details { border: 1px solid var(--a-panel-border); border-radius: 0.7rem; overflow: hidden; background: var(--a-panel); transition: background 0.2s, border-color 0.2s; }
@@ -242,16 +242,16 @@
         #psychModal.active { display:flex; }
         #psychModal .pm-card { background:var(--a-panel); border-radius:1.25rem; max-width:680px; width:95%; max-height:90vh; overflow-y:auto; padding:2rem; position:relative; box-shadow:0 16px 48px rgba(0,0,0,0.18); }
         #psychModal .pm-close { position:absolute; top:1rem; right:1rem; background:none; border:none; font-size:1.5rem; cursor:pointer; color:var(--a-text-sec); line-height:1; z-index:1; }
-        #psychModal .pm-avatar { width:96px; height:96px; border-radius:50%; object-fit:cover; border:3px solid #F3E8FF; display:block; margin:0 auto 1rem; }
-        #psychModal .pm-initials { width:96px; height:96px; border-radius:50%; background:linear-gradient(135deg,#7C3AED,#9F67FA); display:flex; align-items:center; justify-content:center; color:#fff; font-size:2rem; font-weight:700; margin:0 auto 1rem; }
+        #psychModal .pm-avatar { width:96px; height:96px; border-radius:50%; object-fit:cover; border:3px solid #D1FAE5; display:block; margin:0 auto 1rem; }
+        #psychModal .pm-initials { width:96px; height:96px; border-radius:50%; background:linear-gradient(135deg,#047857,#059669); display:flex; align-items:center; justify-content:center; color:#fff; font-size:2rem; font-weight:700; margin:0 auto 1rem; }
         #psychModal .pm-name { text-align:center; font-size:1.25rem; font-weight:700; color:var(--a-text); margin-bottom:0.25rem; }
-        #psychModal .pm-spec { text-align:center; font-size:0.875rem; color:#7C3AED; margin-bottom:1rem; }
+        #psychModal .pm-spec { text-align:center; font-size:0.875rem; color:#047857; margin-bottom:1rem; }
         #psychModal .pm-section { font-size:0.8rem; font-weight:700; color:var(--a-text-sec); text-transform:uppercase; letter-spacing:0.04em; margin:1.25rem 0 0.5rem; padding-bottom:0.25rem; border-bottom:1px solid var(--a-td-border); }
         #psychModal .pm-row { display:flex; gap:0.5rem; margin-bottom:0.6rem; font-size:0.875rem; line-height:1.6; color:var(--a-text); align-items:flex-start; }
         #psychModal .pm-label { font-weight:600; min-width:120px; flex-shrink:0; color:var(--a-text-sec); padding-top:0.35rem; }
         #psychModal .pm-val { word-break:break-word; flex:1; }
         #psychModal .pm-input { width:100%; padding:0.4rem 0.6rem; border:1px solid var(--a-input-border); border-radius:0.5rem; background:var(--a-input-bg); color:var(--a-text); font-size:0.875rem; font-family:inherit; }
-        #psychModal .pm-input:focus { outline:none; border-color:#7C3AED; box-shadow:0 0 0 2px rgba(124,58,237,0.15); }
+        #psychModal .pm-input:focus { outline:none; border-color:#047857; box-shadow:0 0 0 2px rgba(4,120,87,0.15); }
         #psychModal textarea.pm-input { min-height:3.5rem; resize:vertical; }
         #psychModal .pm-actions { display:flex; gap:0.75rem; justify-content:center; margin-top:1.25rem; flex-wrap:wrap; }
         #psychModal .pm-creds { display:flex; flex-wrap:wrap; gap:0.5rem; margin-top:0.25rem; }
@@ -262,9 +262,9 @@
         #psychModal .pm-save-ok { color:#22C55E; font-size:0.8rem; margin-left:0.5rem; display:none; }
     .pay-model-row { display:flex; gap:0.6rem; align-items:flex-start; padding:0.6rem 0.7rem; margin-bottom:0.3rem;
   border:1.5px solid var(--a-panel-border); border-radius:0.7rem; cursor:pointer; line-height:1.45; }
-.pay-model-row:hover { border-color:#7C3AED; }
-.pay-model-row input[type=radio] { width:18px; height:18px; margin-top:2px; accent-color:#7C3AED; flex:0 0 auto; cursor:pointer; }
-.pay-model-row:has(input:checked) { border-color:#7C3AED; background:rgba(124,58,237,0.06); }
+.pay-model-row:hover { border-color:#047857; }
+.pay-model-row input[type=radio] { width:18px; height:18px; margin-top:2px; accent-color:#047857; flex:0 0 auto; cursor:pointer; }
+.pay-model-row:has(input:checked) { border-color:#047857; background:rgba(4,120,87,0.06); }
         /* ── Компактная раскладка на телефоне ─────────────────────────────
            Блок стоит в конце намеренно: базовые правила (.panel-head, .stat, th/td)
            объявлены ниже первого медиазапроса и при равной специфичности перебивали его. */
@@ -841,7 +841,7 @@
                     const status = approved?'<span class="badge b-green">одобрен</span>':'<span class="badge b-amber">на модерации</span>';
                     const btn = approved
                         ? `<button class="btn-sm btn-outline" onclick="toggleApproved('${esc(p.id)}',0)">Снять</button>`
-                        : `<button class="btn-sm btn-purple" onclick="toggleApproved('${esc(p.id)}',1)">Одобрить</button>`;
+                        : `<button class="btn-sm btn-brand" onclick="toggleApproved('${esc(p.id)}',1)">Одобрить</button>`;
                     const contactLines = [
                         p.phone ? '📞 '+esc(p.phone) : '',
                         p.telegram ? '✈️ TG: '+esc(p.telegram) : '',
@@ -859,7 +859,7 @@
                     ].filter(Boolean).join('<br>');
                     const priceCell = (parseFloat(p.price)>0)
                         ? `<div style="font-weight:700;margin-bottom:0.25rem;">${fmtMoney(p.price)} ₽</div><button class="btn-sm btn-outline" onclick="setPrice('${esc(p.id)}',${parseFloat(p.price)||0})" title="Изменить цену">✎ Изменить</button>`
-                        : `<div><span class="badge b-amber">не задана</span></div><button class="btn-sm btn-purple" style="margin-top:0.25rem;" onclick="setPrice('${esc(p.id)}',0)">Назначить цену</button>`;
+                        : `<div><span class="badge b-amber">не задана</span></div><button class="btn-sm btn-brand" style="margin-top:0.25rem;" onclick="setPrice('${esc(p.id)}',0)">Назначить цену</button>`;
                     const miniAvatar = p.avatar && p.avatar.length > 10
                         ? `<img src="${esc(p.avatar)}" alt="" style="width:32px;height:32px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:0.4rem;">`
                         : '';
@@ -890,7 +890,7 @@
             if (!res.ok) return fail();
             const rows = res.data || [];
             if (!rows.length) return empty('Нет записей');
-            const stMap = { scheduled:['b-purple','запланировано'], completed:['b-green','завершено'], cancelled:['b-red','отменено'] };
+            const stMap = { scheduled:['b-brand','запланировано'], completed:['b-green','завершено'], cancelled:['b-red','отменено'] };
             const body = `<table id="dataTable"><thead><tr>
                 <th>Дата/время</th><th>Клиент</th><th>Психолог</th><th>Формат</th><th>Цена</th><th>Статус</th></tr></thead><tbody>` +
                 rows.map(a => {
@@ -943,7 +943,7 @@
                 rows.map(r => `<tr><td>${esc(r.email)}</td><td class="muted">${fmtDateTime(r.created_at)}</td></tr>`).join('') + '</tbody></table>';
             document.getElementById('content').innerHTML =
                 `<div class="panel"><div class="panel-head"><h2>Подписки на рассылку (${rows.length})</h2>
-                  <button class="btn-sm btn-purple" onclick="copyEmails()">📋 Скопировать все email</button></div>
+                  <button class="btn-sm btn-brand" onclick="copyEmails()">📋 Скопировать все email</button></div>
                   <textarea id="allEmails" style="position:absolute;left:-9999px;">${esc(emails.join(', '))}</textarea>
                   <div class="tbl-wrap">${body}</div></div>`;
         }
@@ -984,7 +984,7 @@
             const topRef = res.top_referrers || [];
 
             const periods = [1,7,30,90];
-            const tabs = periods.map(d => `<button class="btn-sm ${d===metricsDays?'btn-purple':'btn-outline'}" onclick="metricsDays=${d};renderMetrics()">${d===1?'сутки':d+' дн.'}</button>`).join(' ');
+            const tabs = periods.map(d => `<button class="btn-sm ${d===metricsDays?'btn-brand':'btn-outline'}" onclick="metricsDays=${d};renderMetrics()">${d===1?'сутки':d+' дн.'}</button>`).join(' ');
 
             const statsHtml = '<div class="stats-grid">' +
                 `<div class="stat"><div class="v">${t.pageviews||0}</div><div class="l">Просмотров страниц</div></div>` +
@@ -1047,7 +1047,7 @@
                         const author = `${p.first_name||''} ${p.last_name||''}`.trim() || '<span class="muted">профиль не найден</span>';
                         const st = hidden ? '<span class="badge b-red">скрыт</span>' : '<span class="badge b-green">опубликован</span>';
                         const acts = hidden
-                            ? `<button class="btn-sm btn-purple" onclick="cmSetPostHidden(${p.id},0)">Вернуть</button>`
+                            ? `<button class="btn-sm btn-brand" onclick="cmSetPostHidden(${p.id},0)">Вернуть</button>`
                             : `<button class="btn-sm btn-outline" onclick="cmSetPostHidden(${p.id},1)">Скрыть</button>`;
                         return `<tr><td class="muted">${fmtDateTime(p.created_at)}</td>
                             <td>${author}</td>
@@ -1104,7 +1104,7 @@
                         const author = `${a.first_name||''} ${a.last_name||''}`.trim() || '—';
                         const acts = a.status === 'published'
                             ? `<button class="btn-sm btn-outline" onclick="cmSetArticleStatus(${a.id},'hidden')">Снять</button>`
-                            : `<button class="btn-sm btn-purple" onclick="cmSetArticleStatus(${a.id},'published')">Опубликовать</button>`;
+                            : `<button class="btn-sm btn-brand" onclick="cmSetArticleStatus(${a.id},'published')">Опубликовать</button>`;
                         return `<tr><td class="muted">${fmtDateTime(a.updated_at)}</td>
                             <td>${esc(author)}</td>
                             <td style="max-width:280px;"><div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(a.title)}</div>
@@ -1163,9 +1163,9 @@
                         <h2>Карта сайта</h2>
                         <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
                             <button class="btn-sm btn-outline" onclick="smAddNode()">+ Блок</button>
-                            <button class="btn-sm ${smLinkMode?'btn-purple':'btn-outline'}" id="smLinkBtn" onclick="smToggleLinkMode()">🔗 Связать</button>
+                            <button class="btn-sm ${smLinkMode?'btn-brand':'btn-outline'}" id="smLinkBtn" onclick="smToggleLinkMode()">🔗 Связать</button>
                             <button class="btn-sm btn-outline" onclick="smDeleteSelected()">🗑 Удалить</button>
-                            <button class="btn-sm btn-purple" onclick="smSave()">💾 Сохранить</button>
+                            <button class="btn-sm btn-brand" onclick="smSave()">💾 Сохранить</button>
                         </div>
                     </div>
                     <div id="smUpdatedNote" style="padding:0.4rem 1.1rem 0;color:var(--a-text-sec);font-size:0.78rem;"></div>
@@ -1198,7 +1198,7 @@
                 const el = document.createElement('div');
                 el.className = 'sm-node';
                 el.dataset.id = n.id;
-                el.style.cssText = `position:absolute;left:${n.x}px;top:${n.y}px;min-width:140px;max-width:220px;padding:0.6rem 0.9rem;border-radius:0.7rem;background:${n.color||'#7C3AED'};color:#fff;font-weight:600;font-size:0.85rem;cursor:move;box-shadow:0 2px 8px rgba(0,0,0,0.2);user-select:none;${smSelectedId===n.id?'outline:3px solid #FBBF24;':''}${smLinkMode?'cursor:pointer;':''}`;
+                el.style.cssText = `position:absolute;left:${n.x}px;top:${n.y}px;min-width:140px;max-width:220px;padding:0.6rem 0.9rem;border-radius:0.7rem;background:${n.color||'#047857'};color:#fff;font-weight:600;font-size:0.85rem;cursor:move;box-shadow:0 2px 8px rgba(0,0,0,0.2);user-select:none;${smSelectedId===n.id?'outline:3px solid #FBBF24;':''}${smLinkMode?'cursor:pointer;':''}`;
                 el.textContent = n.label || '…';
                 el.addEventListener('mousedown', (e) => smNodeMouseDown(e, n.id));
                 el.addEventListener('dblclick', (e) => { e.stopPropagation(); smRenameNode(n.id); });
@@ -1268,7 +1268,7 @@
             smLinkMode = !smLinkMode;
             smLinkFrom = null;
             const btn = document.getElementById('smLinkBtn');
-            if (btn) btn.className = 'btn-sm ' + (smLinkMode ? 'btn-purple' : 'btn-outline');
+            if (btn) btn.className = 'btn-sm ' + (smLinkMode ? 'btn-brand' : 'btn-outline');
             smRender();
         }
 
@@ -1278,7 +1278,7 @@
             smRenderEdges();
         }
 
-        const SM_COLORS = ['#7C3AED','#2563EB','#059669','#D97706','#DB2777','#0891B2','#DC2626'];
+        const SM_COLORS = ['#047857','#2563EB','#059669','#D97706','#DB2777','#0891B2','#DC2626'];
         function smAddNode(){
             const label = prompt('Название блока:', 'Новый блок');
             if (!label) return;
@@ -1478,7 +1478,7 @@
                 const en = String(sGet('promo_'+k+'_enabled','0'))==='1';
                 return `<div style="border:1px solid var(--a-panel-border);border-radius:0.8rem;padding:1rem 1.1rem;margin-bottom:0.8rem;">
                   <label style="display:flex;align-items:center;gap:0.5rem;font-weight:700;margin-bottom:0.7rem;cursor:pointer;">
-                    <input type="checkbox" id="promo_${k}_enabled" ${en?'checked':''} style="width:18px;height:18px;accent-color:#7C3AED;cursor:pointer;">
+                    <input type="checkbox" id="promo_${k}_enabled" ${en?'checked':''} style="width:18px;height:18px;accent-color:#047857;cursor:pointer;">
                     Акция «первая сессия» — ${t.label}
                   </label>
                   <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(150px, 100%), 1fr));gap:0.7rem;">
@@ -1553,7 +1553,7 @@
                 <div style="padding:1.25rem;">${promoBlocks}</div>
               </div>
               <div style="margin-top:1.25rem;display:flex;gap:0.75rem;align-items:center;">
-                <button class="btn-sm btn-purple" style="padding:0.7rem 1.6rem;font-size:0.95rem;" onclick="saveTariffs(this)">💾 Сохранить</button>
+                <button class="btn-sm btn-brand" style="padding:0.7rem 1.6rem;font-size:0.95rem;" onclick="saveTariffs(this)">💾 Сохранить</button>
                 <span id="saveMsg" style="font-size:0.88rem;"></span>
               </div>`;
             recalcIncome();
@@ -1730,7 +1730,7 @@
             if (!tbody || !supAllThreadRows.length) return;
             const roleBadge = (t) => {
                 const reg = t.registered ? '<span class="badge b-green">в системе</span>' : '<span class="badge b-amber">не зарегистрирован</span>';
-                const role = t.role ? `<span class="badge b-purple">${esc(t.role)}</span>` : '';
+                const role = t.role ? `<span class="badge b-brand">${esc(t.role)}</span>` : '';
                 return role + ' ' + reg;
             };
             const filtered = q ? supAllThreadRows.filter(t => {
@@ -1777,13 +1777,13 @@
             if (!notif) {
                 notif = document.createElement('div');
                 notif.id = 'supAdminNotif';
-                notif.style.cssText = 'position:fixed;top:92px;right:1rem;z-index:2000;background:var(--a-panel);border:1px solid var(--a-panel-border);border-left:3px solid #7C3AED;border-radius:0.6rem;padding:0.6rem 1rem;box-shadow:0 8px 24px rgba(0,0,0,0.15);max-width:320px;font-size:0.85rem;cursor:pointer;animation:supNotifIn 0.3s ease;';
+                notif.style.cssText = 'position:fixed;top:92px;right:1rem;z-index:2000;background:var(--a-panel);border:1px solid var(--a-panel-border);border-left:3px solid #047857;border-radius:0.6rem;padding:0.6rem 1rem;box-shadow:0 8px 24px rgba(0,0,0,0.15);max-width:320px;font-size:0.85rem;cursor:pointer;animation:supNotifIn 0.3s ease;';
                 document.body.appendChild(notif);
                 const style = document.createElement('style');
                 style.textContent = '@keyframes supNotifIn{from{opacity:0;transform:translateX(30px);}to{opacity:1;transform:translateX(0);}}';
                 document.head.appendChild(style);
             }
-            notif.innerHTML = '<div style="font-weight:600;font-size:0.78rem;color:#7C3AED;margin-bottom:0.15rem;">💬 Новое сообщение</div>' + esc(text.length > 100 ? text.slice(0,100) + '...' : text);
+            notif.innerHTML = '<div style="font-weight:600;font-size:0.78rem;color:#047857;margin-bottom:0.15rem;">💬 Новое сообщение</div>' + esc(text.length > 100 ? text.slice(0,100) + '...' : text);
             notif.style.display = 'block';
             notif.onclick = function() { notif.style.display = 'none'; };
             setTimeout(() => { notif.style.display = 'none'; }, 6000);
@@ -1842,7 +1842,7 @@
             if (!tbody || supportThreadId) return;
             const roleBadge = (t) => {
                 const reg = t.registered ? '<span class="badge b-green">в системе</span>' : '<span class="badge b-amber">не зарегистрирован</span>';
-                const role = t.role ? `<span class="badge b-purple">${esc(t.role)}</span>` : '';
+                const role = t.role ? `<span class="badge b-brand">${esc(t.role)}</span>` : '';
                 return role + ' ' + reg;
             };
             tbody.innerHTML = rows.length ? rows.map(t => {
@@ -1874,7 +1874,7 @@
                     <div style="display:flex;align-items:center;gap:0.5rem;flex-shrink:0;">
                         ${unread}
                         <span class="muted" style="font-size:0.75rem;">${c.last_message_time ? fmtDateTime(c.last_message_time) : ''}</span>
-                        <a class="btn-sm btn-purple" href="/chat.html?admin=1&user=${encodeURIComponent(c.user_id)}" target="_blank" rel="noopener">Открыть чат</a>
+                        <a class="btn-sm btn-brand" href="/chat.html?admin=1&user=${encodeURIComponent(c.user_id)}" target="_blank" rel="noopener">Открыть чат</a>
                     </div>
                 </div>`;
             }).join('');
@@ -1908,7 +1908,7 @@
             updateSupportBadge(supLastTotalUnread);
             const roleBadge = (t) => {
                 const reg = t.registered ? '<span class="badge b-green">в системе</span>' : '<span class="badge b-amber">не зарегистрирован</span>';
-                const role = t.role ? `<span class="badge b-purple">${esc(t.role)}</span>` : '';
+                const role = t.role ? `<span class="badge b-brand">${esc(t.role)}</span>` : '';
                 return role + ' ' + reg;
             };
             const list = rows.length ? rows.map(t => {
@@ -1938,7 +1938,7 @@
 
         function supRenderBubble(m) {
             const admin = m.sender === 'admin';
-            return `<div data-msg-id="${m.id||''}" style="align-self:${admin?'flex-end':'flex-start'};max-width:75%;background:${admin?'linear-gradient(135deg,#7C3AED,#9F67FA)':'var(--a-panel)'};color:${admin?'#fff':'var(--a-text)'};border:${admin?'none':'1px solid var(--a-panel-border)'};border-radius:0.9rem;padding:0.5rem 0.8rem;font-size:0.875rem;line-height:1.45;">${esc(m.body)}${supRenderAttachment(m)}<div style="font-size:0.68rem;opacity:0.7;margin-top:0.2rem;">${fmtDateTime(m.created_at)}</div></div>`;
+            return `<div data-msg-id="${m.id||''}" style="align-self:${admin?'flex-end':'flex-start'};max-width:75%;background:${admin?'linear-gradient(135deg,#047857,#059669)':'var(--a-panel)'};color:${admin?'#fff':'var(--a-text)'};border:${admin?'none':'1px solid var(--a-panel-border)'};border-radius:0.9rem;padding:0.5rem 0.8rem;font-size:0.875rem;line-height:1.45;">${esc(m.body)}${supRenderAttachment(m)}<div style="font-size:0.68rem;opacity:0.7;margin-top:0.2rem;">${fmtDateTime(m.created_at)}</div></div>`;
         }
 
         async function openSupportThread(id){
@@ -1953,12 +1953,12 @@
                         <h2 style="font-size:0.95rem;flex:1;margin:0;"></h2>
                     </div>
                     <div id="supMsgsBox" data-thread-id="${esc(id)}" style="display:flex;flex-direction:column;gap:0.5rem;padding:1rem;flex:1;overflow-y:auto;"></div>
-                    <div id="supAttachPreview" style="display:none;padding:0.3rem 0.75rem;font-size:0.78rem;color:#7C3AED;border-top:1px solid var(--a-panel-head-border);background:var(--a-panel);flex-shrink:0;"></div>
+                    <div id="supAttachPreview" style="display:none;padding:0.3rem 0.75rem;font-size:0.78rem;color:#047857;border-top:1px solid var(--a-panel-head-border);background:var(--a-panel);flex-shrink:0;"></div>
                     <div style="display:flex;gap:0.5rem;padding:0.75rem;border-top:1px solid var(--a-panel-head-border);align-items:center;background:var(--a-panel);flex-shrink:0;">
                         <button onclick="document.getElementById('supFileInput').click()" style="border:1px solid var(--a-input-border);background:none;cursor:pointer;padding:0.4rem;border-radius:0.4rem;font-size:1rem;color:var(--a-text-sec);" title="Прикрепить файл">📎</button>
                         <input type="file" id="supFileInput" accept="image/*,.pdf,.txt,.doc,.docx" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0;padding:0;margin:-1px;" onchange="supHandleFile(this)">
                         <input id="supReplyInput" placeholder="Ответ клиенту..." style="flex:1;padding:0.6rem 0.85rem;border:1.5px solid var(--a-input-border);border-radius:0.6rem;font-family:inherit;outline:none;background:var(--a-input-bg);color:var(--a-text);" onkeypress="if(event.key==='Enter')sendSupportReply()">
-                        <button class="btn-sm btn-purple" style="padding:0.6rem 1.2rem;" onclick="sendSupportReply()">Ответить</button>
+                        <button class="btn-sm btn-brand" style="padding:0.6rem 1.2rem;" onclick="sendSupportReply()">Ответить</button>
                     </div>
                 </div>`;
                 const inp = document.getElementById('supReplyInput');
@@ -2055,7 +2055,7 @@
         let devNewFiles = [];
         let devReworkFiles = [];
         let devTasksCache = [];
-        const DEV_STMAP = { new:['b-amber','новая'], in_progress:['b-purple','в работе у Клода'], paused:['b-blue','на паузе'], done:['b-green','готово — проверьте'], rework:['b-red','на доработку'], closed:['b-gray','закрыто ✓'] };
+        const DEV_STMAP = { new:['b-amber','новая'], in_progress:['b-brand','в работе у Клода'], paused:['b-blue','на паузе'], done:['b-green','готово — проверьте'], rework:['b-red','на доработку'], closed:['b-gray','закрыто ✓'] };
         const DEV_TABS = [
             {key:'open', label:'В работе', match:t => t.status !== 'closed'},
             {key:'new', label:'Новые', match:t => t.status === 'new'},
@@ -2224,12 +2224,12 @@
                     <textarea id="devBody" rows="6" placeholder="Подробно опишите доработку/недоработку (можно длинный текст, список пунктов)..." style="width:100%;padding:0.7rem 0.9rem;border:1.5px solid var(--a-input-border);border-radius:0.6rem;font-family:inherit;font-size:0.92rem;resize:vertical;background:var(--a-input-bg);color:var(--a-text);"></textarea>
                     <div id="devDrop" style="margin-top:0.7rem;border:2px dashed var(--a-drop-border);border-radius:0.7rem;padding:1.1rem;text-align:center;cursor:pointer;background:var(--a-drop-bg);transition:background .15s,border-color .15s;">
                         <div style="font-size:1.6rem;line-height:1;">📎</div>
-                        <div style="font-size:0.9rem;color:#6D28D9;margin-top:0.3rem;"><b>Перетащите фото или документы сюда</b> или нажмите, чтобы выбрать</div>
+                        <div style="font-size:0.9rem;color:#065F46;margin-top:0.3rem;"><b>Перетащите фото или документы сюда</b> или нажмите, чтобы выбрать</div>
                         <div class="muted" style="font-size:0.76rem;margin-top:0.2rem;">Изображения, PDF, DOC/DOCX, TXT — до 20 МБ. Можно вставить из буфера обмена (Ctrl+V).</div>
                         <input id="devFiles" type="file" accept="image/*,.pdf,.doc,.docx,.txt,.rtf" multiple style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0;padding:0;margin:-1px;">
                     </div>
                     <div id="devFilePrev" style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-top:0.6rem;"></div>
-                    <button class="btn-sm btn-purple" style="margin-top:0.7rem;padding:0.65rem 1.4rem;" onclick="devAdd(this)">Добавить задачу</button>
+                    <button class="btn-sm btn-brand" style="margin-top:0.7rem;padding:0.65rem 1.4rem;" onclick="devAdd(this)">Добавить задачу</button>
                     <span id="devMsg" style="font-size:0.85rem;margin-left:0.5rem;"></span>
                 </div></div>` +
                 (tokenConfigured ? '' :
@@ -2238,7 +2238,7 @@
                         <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
                           <input id="devToken" placeholder="секретный токен (мин. 16 символов)" style="flex:1;min-width:240px;padding:0.55rem 0.75rem;border:1.5px solid var(--a-input-border);border-radius:0.6rem;font-family:monospace;background:var(--a-input-bg);color:var(--a-text);">
                           <button class="btn-sm btn-outline" onclick="document.getElementById('devToken').value=[...crypto.getRandomValues(new Uint8Array(24))].map(b=>b.toString(16).padStart(2,'0')).join('')">🎲 Сгенерировать</button>
-                          <button class="btn-sm btn-purple" onclick="devSaveToken(this)">Сохранить токен</button>
+                          <button class="btn-sm btn-brand" onclick="devSaveToken(this)">Сохранить токен</button>
                         </div>
                         <span id="devTokMsg" style="font-size:0.85rem;"></span>
                     </div></div>`) +
@@ -2257,7 +2257,7 @@
             if (!zone || !input) return;
             zone.onclick = () => input.click();
             input.onchange = () => { devAddFiles([...input.files], kind); input.value = ''; };
-            ['dragenter','dragover'].forEach(ev => zone.addEventListener(ev, e => { e.preventDefault(); zone.style.background = 'var(--a-sidebar-active-bg)'; zone.style.borderColor = '#7C3AED'; }));
+            ['dragenter','dragover'].forEach(ev => zone.addEventListener(ev, e => { e.preventDefault(); zone.style.background = 'var(--a-sidebar-active-bg)'; zone.style.borderColor = '#047857'; }));
             ['dragleave','drop'].forEach(ev => zone.addEventListener(ev, e => { e.preventDefault(); zone.style.background = 'var(--a-drop-bg)'; zone.style.borderColor = 'var(--a-drop-border)'; }));
             zone.addEventListener('drop', e => { devAddFiles([...((e.dataTransfer && e.dataTransfer.files) || [])], kind); });
             const container = zone.closest('.panel') || zone.closest('[style*="background:var(--a-panel)"]') || zone.parentElement;
@@ -2363,7 +2363,7 @@
                 <textarea id="devRwText" rows="4" placeholder="Что доработать..." style="width:100%;padding:0.7rem 0.9rem;border:1.5px solid var(--a-input-border);border-radius:0.6rem;font-family:inherit;font-size:0.92rem;resize:vertical;background:var(--a-input-bg);color:var(--a-text);">${esc(existingComment)}</textarea>
                 <div id="devRwDrop" style="margin-top:0.7rem;border:2px dashed var(--a-drop-border);border-radius:0.7rem;padding:1rem;text-align:center;cursor:pointer;background:var(--a-drop-bg);transition:background .15s,border-color .15s;">
                     <div style="font-size:1.4rem;line-height:1;">📎</div>
-                    <div style="font-size:0.88rem;color:#6D28D9;margin-top:0.3rem;"><b>Перетащите фото сюда</b>, нажмите или вставьте из буфера (Ctrl+V)</div>
+                    <div style="font-size:0.88rem;color:#065F46;margin-top:0.3rem;"><b>Перетащите фото сюда</b>, нажмите или вставьте из буфера (Ctrl+V)</div>
                     <input id="devRwFiles" type="file" accept="image/*,.pdf,.doc,.docx,.txt,.rtf" multiple style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0;padding:0;margin:-1px;">
                 </div>
                 <div id="devRwPrev" style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-top:0.6rem;"></div>
@@ -2425,12 +2425,12 @@
             const testBotBlock = (channel, configured) => {
                 if (!configured) return '<div class="muted" style="font-size:0.8rem;margin-top:0.5rem;">Сохраните токен, чтобы протестировать бота.</div>';
                 const link = linkOf(channel);
-                return `<div style="margin-top:0.6rem;padding:0.7rem 0.85rem;background:var(--a-sidebar-active-bg,#F8F7FF);border-radius:0.6rem;">
+                return `<div style="margin-top:0.6rem;padding:0.7rem 0.85rem;background:var(--a-sidebar-active-bg,#ECFDF5);border-radius:0.6rem;">
                     <div style="font-size:0.8rem;font-weight:600;margin-bottom:0.4rem;">🧪 Тест отправки</div>
                     ${link
                         ? `<div style="font-size:0.82rem;margin-bottom:0.5rem;">✅ Привязан чат: <code>${esc(link.chat_id)}</code>${link.label ? ' — ' + esc(link.label) : ''}
                              <span onclick="notifUnlink('${channel}')" style="cursor:pointer;color:#DC2626;margin-left:0.4rem;" title="Отвязать">✕</span></div>
-                           <button class="btn-sm btn-purple" onclick="notifTestSend('${channel}')">📨 Отправить тестовое себе</button>`
+                           <button class="btn-sm btn-brand" onclick="notifTestSend('${channel}')">📨 Отправить тестовое себе</button>`
                         : `<div class="muted" style="font-size:0.78rem;margin-bottom:0.5rem;">Напишите боту «/start» в ${channel === 'telegram' ? 'Telegram' : 'MAX'}, затем нажмите — найдём ваш чат по недавним сообщениям.</div>
                            <button class="btn-sm btn-outline" onclick="notifFindChats('${channel}')">🔍 Найти мои чаты</button>`
                     }
@@ -2487,7 +2487,7 @@
                   <div style="font-weight:600;margin-bottom:0.2rem;">🔔 Push (браузер/телефон)</div>
                   <div class="muted" style="font-size:0.82rem;">Настроим на этапе PWA — отдельным шагом.</div>
                 </div>
-                <div><button class="btn-sm btn-purple" style="padding:0.6rem 1.4rem;" onclick="notifSaveChannels(this)">Сохранить каналы</button>
+                <div><button class="btn-sm btn-brand" style="padding:0.6rem 1.4rem;" onclick="notifSaveChannels(this)">Сохранить каналы</button>
                   <span id="nchMsg" style="font-size:0.85rem;margin-left:0.5rem;"></span></div>
               </div></div>`;
 
@@ -2506,7 +2506,7 @@
                 <div id="ndState" class="muted" style="font-size:0.84rem;margin-bottom:0.7rem;">Загрузка состояния…</div>
                 <div style="display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center;">
                   <button class="btn-sm btn-outline" onclick="notifDispatchRun(true)">🧪 Прогон без отправки</button>
-                  <button class="btn-sm btn-purple" onclick="notifDispatchRun(false)">📨 Отправить сейчас</button>
+                  <button class="btn-sm btn-brand" onclick="notifDispatchRun(false)">📨 Отправить сейчас</button>
                 </div>
                 <div id="ndMsg" style="font-size:0.84rem;margin-top:0.6rem;"></div>
                 <div style="margin-top:0.9rem;">
@@ -2556,8 +2556,8 @@
                     </div>
                   </div>
                   <label id="aiSearchWrap" style="display:flex;gap:0.55rem;align-items:flex-start;font-size:0.86rem;
-                         background:#F5F3FF;border:1px solid #E6E3F0;border-radius:0.7rem;padding:0.7rem 0.8rem;cursor:pointer;">
-                    <input type="checkbox" id="aiSearch" style="width:18px;height:18px;margin-top:1px;accent-color:#7C3AED;flex:0 0 auto;">
+                         background:#ECFDF5;border:1px solid #DCEBE4;border-radius:0.7rem;padding:0.7rem 0.8rem;cursor:pointer;">
+                    <input type="checkbox" id="aiSearch" style="width:18px;height:18px;margin-top:1px;accent-color:#047857;flex:0 0 auto;">
                     <span><b>Разрешить поиск в интернете</b><br>
                       <span style="color:#6B7280;">Ассистент сможет искать свежие сведения через Yandex Search API и
                       показывать ссылки на источники. Услугу нужно отдельно включить в Yandex Cloud и она тарифицируется
@@ -2565,7 +2565,7 @@
                       об этом и ответит без поиска. Переключатель у людей в чате появляется только когда галочка стоит.</span>
                     </span>
                   </label>
-                  <details id="aiSearchHow" style="border:1px solid #E6E3F0;border-radius:0.7rem;padding:0.6rem 0.8rem;font-size:0.84rem;">
+                  <details id="aiSearchHow" style="border:1px solid #DCEBE4;border-radius:0.7rem;padding:0.6rem 0.8rem;font-size:0.84rem;">
                     <summary style="cursor:pointer;font-weight:600;">Как включить поиск в интернете (4 шага)</summary>
                     <ol style="margin:0.6rem 0 0 1.1rem;display:grid;gap:0.35rem;color:#4B5563;">
                       <li>Откройте <a href="https://aistudio.yandex.ru/" target="_blank" rel="noopener">Yandex AI Studio</a> (или консоль Yandex Cloud) тем же аккаунтом, где заведён ключ ассистента, и зайдите в раздел <b>Yandex Search API</b>. Если его страница открывается и там есть «Текстовый поиск» — услуга уже подключена.</li>
@@ -2576,7 +2576,7 @@
                     <div style="margin-top:0.5rem;color:#6B7280;">Мы сначала пробуем <b>генеративный поиск</b> (готовая выжимка со ссылками), а если он у вас не открыт — сам переходим на <b>обычный текстовый поиск</b>, тот же, что в Playground. Отдельно включать ничего не нужно. Права в облаке применяются не мгновенно: при отказе подождите минуту и проверьте ещё раз. Все запросы к Search API тарифицируются.</div>
                   </details>
                   <div style="display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center;">
-                    <button class="btn-sm btn-purple" onclick="aiSaveConfig()">Сохранить</button>
+                    <button class="btn-sm btn-brand" onclick="aiSaveConfig()">Сохранить</button>
                     <button class="btn-sm btn-outline" onclick="aiTestConfig()">🧪 Проверить связь</button>
                     <button class="btn-sm btn-outline" onclick="aiTestSearch()">🌐 Проверить поиск</button>
                   </div>
@@ -2588,7 +2588,7 @@
             const phBox = `<div class="panel" style="margin-bottom:1rem;"><div class="panel-head"><h2>🔤 Динамические переменные</h2></div><div style="padding:1.1rem;">
                 <div class="muted" style="font-size:0.83rem;margin-bottom:0.6rem;">Вставляйте эти коды в тексты — при отправке они заменятся на реальные данные. Не все переменные применимы к каждому событию.</div>
                 <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(min(260px, 100%), 1fr));gap:0.4rem;">
-                  ${ph.map(p=>`<div style="font-size:0.82rem;"><code style="background:#F3E8FF;color:#6D28D9;padding:0.1rem 0.35rem;border-radius:0.3rem;">${esc(p[0])}</code> — ${esc(p[1])}</div>`).join('')}
+                  ${ph.map(p=>`<div style="font-size:0.82rem;"><code style="background:#D1FAE5;color:#065F46;padding:0.1rem 0.35rem;border-radius:0.3rem;">${esc(p[0])}</code> — ${esc(p[1])}</div>`).join('')}
                 </div></div></div>`;
 
             // — Шаблоны, сгруппированные —
@@ -2610,7 +2610,7 @@
                     <input id="${nid('title',t.code)}" value="${esc(t.title||'')}" placeholder="Заголовок" style="width:100%;padding:0.5rem 0.7rem;border:1.5px solid #E5E7EB;border-radius:0.5rem;font-family:inherit;font-weight:600;margin-bottom:0.4rem;">
                     <textarea id="${nid('body',t.code)}" rows="3" style="width:100%;padding:0.6rem 0.8rem;border:1.5px solid #E5E7EB;border-radius:0.5rem;font-family:inherit;font-size:0.9rem;resize:vertical;">${esc(t.body||'')}</textarea>
                     <div style="margin-top:0.5rem;display:flex;gap:0.4rem;align-items:center;flex-wrap:wrap;">
-                      <button class="btn-sm btn-purple" onclick="notifSaveTemplate('${t.code}',this)">Сохранить</button>
+                      <button class="btn-sm btn-brand" onclick="notifSaveTemplate('${t.code}',this)">Сохранить</button>
                       <button class="btn-sm btn-outline" onclick="notifResetTemplate('${t.code}')">Сбросить к стандартному</button>
                       <span id="${nid('msg',t.code)}" style="font-size:0.8rem;"></span>
                     </div>
@@ -2840,7 +2840,7 @@
                 if (!rows.length) { box.innerHTML = '<div class="muted" style="font-size:0.8rem;">Пока не нашли ни одного /start. Напишите боту и попробуйте снова.</div>'; return; }
                 box.innerHTML = rows.map(row => `<div style="display:flex;justify-content:space-between;align-items:center;gap:0.5rem;padding:0.35rem 0;border-top:1px solid var(--a-panel-border,#eee);font-size:0.82rem;">
                     <div><b>${esc(row.name)}</b> <span class="muted">(${esc(row.chat_id)})</span>${row.text ? '<div class="muted" style="font-size:0.76rem;">«' + esc(row.text.slice(0,60)) + '»</div>' : ''}</div>
-                    <button class="btn-sm btn-purple" onclick="notifLinkChat('${channel}','${esc(row.chat_id)}','${esc(row.name).replace(/'/g,"\\'")}')">Привязать</button>
+                    <button class="btn-sm btn-brand" onclick="notifLinkChat('${channel}','${esc(row.chat_id)}','${esc(row.name).replace(/'/g,"\\'")}')">Привязать</button>
                 </div>`).join('');
             } catch(e) { box.innerHTML = ''; msg.textContent = '⚠️ сбой запроса'; msg.style.color = '#DC2626'; }
         }
@@ -2953,8 +2953,8 @@
                     '<div style="font-weight:700;margin:0.6rem 0 0.4rem;">Боевые пароли</div>' +
                     fld('rkProd1','PROD Password #1','password','оставьте пустым — не менять') +
                     fld('rkProd2','PROD Password #2','password','оставьте пустым — не менять') +
-                    `<label style="display:flex;align-items:center;gap:0.5rem;margin:0.5rem 0 1rem;cursor:pointer;"><input type="checkbox" id="rkReceipt" ${diag.receipt_enabled?'checked':''} style="width:18px;height:18px;accent-color:#7C3AED;"> Фискализация чеков (Receipt, УСН доход)</label>` +
-                    '<button class="btn-sm btn-purple" style="padding:0.7rem 1.6rem;" onclick="saveRobokassa(this)">💾 Сохранить ключи</button> <span id="rkMsg" style="font-size:0.88rem;margin-left:0.5rem;"></span>' +
+                    `<label style="display:flex;align-items:center;gap:0.5rem;margin:0.5rem 0 1rem;cursor:pointer;"><input type="checkbox" id="rkReceipt" ${diag.receipt_enabled?'checked':''} style="width:18px;height:18px;accent-color:#047857;"> Фискализация чеков (Receipt, УСН доход)</label>` +
+                    '<button class="btn-sm btn-brand" style="padding:0.7rem 1.6rem;" onclick="saveRobokassa(this)">💾 Сохранить ключи</button> <span id="rkMsg" style="font-size:0.88rem;margin-left:0.5rem;"></span>' +
                 '</div></div>';
         }
         async function saveRobokassa(btn){
@@ -3004,7 +3004,7 @@
                     `<label style="display:block;margin-bottom:0.7rem;"><span style="display:block;font-size:0.82rem;color:var(--a-text-sec);margin-bottom:0.25rem;font-weight:600;">Режим</span>
                      <select id="ykIsTest" style="padding:0.55rem 0.7rem;border:1.5px solid var(--a-input-border);border-radius:0.6rem;font-family:inherit;background:var(--a-input-bg);color:var(--a-text);"><option value="1"${diag.is_test!==false?' selected':''}>ТЕСТ</option><option value="0"${diag.is_test===false?' selected':''}>БОЕВОЙ</option></select></label>` +
                     fld('ykReturnUrl','Return URL (после оплаты)','text',diag.return_url||'https://psytalk.pro/payment-success.html') +
-                    '<button class="btn-sm btn-purple" style="padding:0.7rem 1.6rem;" onclick="saveYookassa(this)">💾 Сохранить ключи</button> <span id="ykMsg" style="font-size:0.88rem;margin-left:0.5rem;"></span>' +
+                    '<button class="btn-sm btn-brand" style="padding:0.7rem 1.6rem;" onclick="saveYookassa(this)">💾 Сохранить ключи</button> <span id="ykMsg" style="font-size:0.88rem;margin-left:0.5rem;"></span>' +
                 '</div></div>';
         }
         async function saveYookassa(btn){
@@ -3037,7 +3037,7 @@
             const sTable = sessions.length ? `<table id="dataTable"><thead><tr><th>Тема</th><th>Супервизор</th><th>Когда</th><th>Длит.</th><th>Цена</th><th>Участники</th></tr></thead><tbody>` +
                 sessions.map(s=>`<tr><td><b>${esc(s.title)}</b></td><td>${esc(s.supervisor_name)}</td><td class="muted">${fmtDateTime(s.datetime)}</td><td>${durLbl(s.duration_min)}</td><td>${fmtMoney(s.price)} ₽</td><td>${esc(s.taken)} / ${esc(s.capacity)}</td></tr>`).join('') + '</tbody></table>'
                 : '<div class="empty">Групповых супервизий пока нет</div>';
-            const stMap = { new:['b-amber','новый'], priced:['b-purple','названа цена'], accepted:['b-green','принят'], declined:['b-gray','отклонён'] };
+            const stMap = { new:['b-amber','новый'], priced:['b-brand','названа цена'], accepted:['b-green','принят'], declined:['b-gray','отклонён'] };
             const rTable = requests.length ? `<table id="dataTable2"><thead><tr><th>Психолог</th><th>Супервизор</th><th>Тема</th><th>Цена</th><th>Статус</th></tr></thead><tbody>` +
                 requests.map(r=>{ const st=stMap[r.status]||['b-gray',r.status]; return `<tr><td>${esc(r.requester_name)}</td><td>${esc(r.supervisor_name||'—')}</td><td style="max-width:260px;white-space:normal;">${esc(r.topic||'')}</td><td>${r.price?fmtMoney(r.price)+' ₽':'—'}</td><td><span class="badge ${st[0]}">${st[1]}</span></td></tr>`; }).join('') + '</tbody></table>'
                 : '<div class="empty">Индивидуальных запросов пока нет</div>';
@@ -3054,13 +3054,13 @@
             const rows = res.data || [];
             if (!rows.length) return empty('Заявок на замену психолога пока нет');
             rows.sort((a,b)=> (a.status==='new'?0:1) - (b.status==='new'?0:1));
-            const stMap = { new:['b-amber','новая'], in_progress:['b-purple','в работе'], done:['b-green','закрыта'] };
+            const stMap = { new:['b-amber','новая'], in_progress:['b-brand','в работе'], done:['b-green','закрыта'] };
             const body = `<table id="dataTable"><thead><tr>
                 <th>Дата</th><th>Клиент</th><th>Текущий психолог</th><th>Причина</th><th>Статус</th><th>Действия</th></tr></thead><tbody>` +
                 rows.map(r => {
                     const s = stMap[r.status] || ['b-gray', r.status||'—'];
                     const acts = r.status!=='done'
-                        ? `${r.status==='new'?`<button class="btn-sm btn-purple" onclick="setReplStatus('${esc(r.id)}','in_progress')">Взять в работу</button> `:''}<button class="btn-sm btn-outline" onclick="setReplStatus('${esc(r.id)}','done')">Закрыть</button>`
+                        ? `${r.status==='new'?`<button class="btn-sm btn-brand" onclick="setReplStatus('${esc(r.id)}','in_progress')">Взять в работу</button> `:''}<button class="btn-sm btn-outline" onclick="setReplStatus('${esc(r.id)}','done')">Закрыть</button>`
                         : `<button class="btn-sm btn-outline" onclick="setReplStatus('${esc(r.id)}','new')">Вернуть</button>`;
                     const client = esc(r.client_name||'—') + (r.client_email?`<br><span class="muted" style="font-size:0.78rem;">${esc(r.client_email)}</span>`:'');
                     return `<tr><td class="muted">${fmtDateTime(r.created_at)}</td><td>${client}</td><td>${esc(r.psychologist_name||'—')}</td><td style="max-width:280px;white-space:normal;">${esc(r.reason||'—')}</td><td><span class="badge ${s[0]}">${esc(s[1])}</span></td><td style="white-space:nowrap;">${acts}</td></tr>`;
@@ -3102,7 +3102,7 @@
                             <label style="font-size:0.82rem;color:var(--a-text-sec);display:flex;align-items:center;gap:0.35rem;">Время:
                                 <input id="noteDueTime" type="time" style="padding:0.35rem 0.5rem;border:1.5px solid var(--a-input-border);border-radius:0.5rem;font-family:inherit;background:var(--a-input-bg);color:var(--a-text);">
                             </label>
-                            <button class="btn-sm btn-purple" onclick="addNote(this)">Добавить</button>
+                            <button class="btn-sm btn-brand" onclick="addNote(this)">Добавить</button>
                             <span id="noteMsg" style="font-size:0.85rem;"></span>
                         </div>
                     </div>
@@ -3133,8 +3133,8 @@
                         ${noteDueBadge(n)}
                     </div>
                     <div class="note-edit-${n.id}" style="display:none;margin-top:0.3rem;">
-                        <input id="noteEditTitle-${n.id}" value="${esc(n.title||'')}" placeholder="Заголовок" style="width:100%;padding:0.4rem 0.6rem;border:1.5px solid #7C3AED;border-radius:0.5rem;font-family:inherit;margin-bottom:0.4rem;background:var(--a-input-bg);color:var(--a-text);">
-                        <textarea id="noteEditBody-${n.id}" rows="3" placeholder="Текст" style="width:100%;padding:0.4rem 0.6rem;border:1.5px solid #7C3AED;border-radius:0.5rem;font-family:inherit;font-size:0.88rem;resize:vertical;background:var(--a-input-bg);color:var(--a-text);">${esc(n.body||'')}</textarea>
+                        <input id="noteEditTitle-${n.id}" value="${esc(n.title||'')}" placeholder="Заголовок" style="width:100%;padding:0.4rem 0.6rem;border:1.5px solid #047857;border-radius:0.5rem;font-family:inherit;margin-bottom:0.4rem;background:var(--a-input-bg);color:var(--a-text);">
+                        <textarea id="noteEditBody-${n.id}" rows="3" placeholder="Текст" style="width:100%;padding:0.4rem 0.6rem;border:1.5px solid #047857;border-radius:0.5rem;font-family:inherit;font-size:0.88rem;resize:vertical;background:var(--a-input-bg);color:var(--a-text);">${esc(n.body||'')}</textarea>
                         <div style="display:flex;gap:0.5rem;align-items:center;margin-top:0.4rem;flex-wrap:wrap;">
                             <label style="font-size:0.78rem;color:var(--a-text-sec);display:flex;align-items:center;gap:0.3rem;">Срок:
                                 <input id="noteEditDue-${n.id}" type="date" value="${esc(n.due_date||'')}" style="padding:0.3rem 0.45rem;border:1.5px solid var(--a-input-border);border-radius:0.4rem;font-family:inherit;background:var(--a-input-bg);color:var(--a-text);">
@@ -3142,7 +3142,7 @@
                             <label style="font-size:0.78rem;color:var(--a-text-sec);display:flex;align-items:center;gap:0.3rem;">Время:
                                 <input id="noteEditDueTime-${n.id}" type="time" value="${esc(n.due_time ? String(n.due_time).slice(0,5) : '')}" style="padding:0.3rem 0.45rem;border:1.5px solid var(--a-input-border);border-radius:0.4rem;font-family:inherit;background:var(--a-input-bg);color:var(--a-text);">
                             </label>
-                            <button class="btn-sm btn-purple" onclick="saveNoteEdit(${n.id})">Сохранить</button>
+                            <button class="btn-sm btn-brand" onclick="saveNoteEdit(${n.id})">Сохранить</button>
                             <button class="btn-sm btn-outline" onclick="cancelNoteEdit(${n.id})">Отмена</button>
                         </div>
                     </div>
@@ -3347,7 +3347,7 @@
                                     <input type="checkbox" data-perm-admin="${esc(a.id)}" data-perm-section="${s}" ${checked(s)?'checked':''} ${isSelf?'disabled':''}> ${SECTION_LABELS[s]||s}
                                 </label>`).join('')}
                             </div>
-                            ${isSelf ? '' : `<button class="btn-sm btn-purple" onclick="saveAdminPerms('${esc(a.id)}')">Сохранить</button>
+                            ${isSelf ? '' : `<button class="btn-sm btn-brand" onclick="saveAdminPerms('${esc(a.id)}')">Сохранить</button>
                             <button class="btn-sm btn-outline" onclick="grantFullAccess('${esc(a.id)}')">Дать полный доступ</button>
                             <span id="permMsg-${esc(a.id)}" style="font-size:0.85rem;margin-left:0.5rem;"></span>`}
                         </div></div>`;
@@ -3432,11 +3432,11 @@
             '<div id="pmCreds" class="pm-creds"><span class="pm-cred-empty">Загрузка...</span></div>' +
 
             '<div class="pm-actions">' +
-                '<button class="btn-sm btn-purple" onclick="savePsychModal(\''+esc(p.id)+'\')">Сохранить изменения</button>' +
+                '<button class="btn-sm btn-brand" onclick="savePsychModal(\''+esc(p.id)+'\')">Сохранить изменения</button>' +
                 '<span class="pm-save-ok" id="pmSaveOk">✓ Сохранено</span>' +
                 (approved
                     ? '<button class="btn-sm btn-outline" onclick="toggleApproved(\''+esc(p.id)+'\',0);closePsychModal()">Снять одобрение</button>'
-                    : '<button class="btn-sm btn-purple" onclick="toggleApproved(\''+esc(p.id)+'\',1);closePsychModal()">Одобрить</button>') +
+                    : '<button class="btn-sm btn-brand" onclick="toggleApproved(\''+esc(p.id)+'\',1);closePsychModal()">Одобрить</button>') +
             '</div>';
         document.getElementById('psychModalContent').innerHTML = html;
         document.getElementById('psychModal').classList.add('active');

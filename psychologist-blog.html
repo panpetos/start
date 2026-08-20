@@ -23,16 +23,16 @@
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
         *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
         :root {
-            --d-bg: #F4F0FF; --d-panel: #FFFFFF; --d-panel-alt: #FAFAFA;
-            --d-border: #F0ECF8; --d-border-accent: #EDE9FF;
+            --d-bg: #ECFDF5; --d-panel: #FFFFFF; --d-panel-alt: #FAFAFA;
+            --d-border: #EFF7F3; --d-border-accent: #D1FAE5;
             --d-text: #1A1A1A; --d-text-sec: #6B7280; --d-text-muted: #9CA3AF;
-            --d-accent: #7C3AED; --d-accent-bg: #F3E8FF; --d-accent-hover: #FAF5FF;
+            --d-accent: #047857; --d-accent-bg: #D1FAE5; --d-accent-hover: #ECFDF5;
         }
         body.dark {
             --d-bg: #191919; --d-panel: #252525; --d-panel-alt: #2A2A2A;
-            --d-border: #333; --d-border-accent: #37254A;
+            --d-border: #333; --d-border-accent: #10402F;
             --d-text: #E6E6E6; --d-text-sec: #A0A0A0; --d-text-muted: #707070;
-            --d-accent: #B794F4; --d-accent-bg: #2D1F4E; --d-accent-hover: #37254A;
+            --d-accent: #6EE7B7; --d-accent-bg: #0B3B2E; --d-accent-hover: #10402F;
         }
         body { font-family: 'Inter', -apple-system, sans-serif; background: var(--d-bg); color: var(--d-text); min-height: 100vh; padding-top: 84px; transition: background .2s, color .2s; }
         body.dark .nav { background: #1E1E1E !important; border-color: #333 !important; }
@@ -70,7 +70,7 @@
         .toolbar { display: flex; gap: .3rem; flex-wrap: wrap; margin-bottom: .35rem; }
         .tb { min-width: 2.1rem; height: 2.1rem; padding: 0 .5rem; border: 1.5px solid var(--d-border-accent); border-radius: .45rem; background: var(--d-panel-alt); color: var(--d-text); cursor: pointer; font-family: inherit; font-size: .85rem; }
         .tb:hover { background: var(--d-accent-bg); border-color: var(--d-accent); }
-        .btn { padding: .65rem 1.3rem; border: none; border-radius: .65rem; background: linear-gradient(135deg,#7C3AED,#9F67FA); color: #fff; font-weight: 700; cursor: pointer; font-family: inherit; }
+        .btn { padding: .65rem 1.3rem; border: none; border-radius: .65rem; background: linear-gradient(135deg,#047857,#059669); color: #fff; font-weight: 700; cursor: pointer; font-family: inherit; }
         .btn.sec { background: var(--d-panel-alt); color: var(--d-text); border: 1.5px solid var(--d-border-accent); }
         .btn.red { background: #DC2626; }
         .btn-row { display: flex; gap: .6rem; flex-wrap: wrap; align-items: center; }
@@ -109,7 +109,7 @@
         <div id="dashSidebarMount"></div>
         <div class="wrap">
             <h1>✍️ Мой блог</h1>
-            <div class="sub">Статьи публикуются сразу в общий <a href="/blog.html" style="color:#7C3AED;font-weight:600;">блог сайта</a> под вашим именем. Администратор может снять статью с публикации — тогда вы увидите причину и сможете доработать.</div>
+            <div class="sub">Статьи публикуются сразу в общий <a href="/blog.html" style="color:#047857;font-weight:600;">блог сайта</a> под вашим именем. Администратор может снять статью с публикации — тогда вы увидите причину и сможете доработать.</div>
 
             <div class="panel">
                 <div class="panel-title" id="editorTitle">Новая статья</div>

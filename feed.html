@@ -14,7 +14,7 @@
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
         *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Inter', -apple-system, sans-serif; background: var(--fd-bg); min-height: 100vh; display: flex; flex-direction: column; color: var(--fd-text); padding-top: 84px; transition: background 0.2s, color 0.2s; }
-        :root { --fd-bg:#FAFAFA; --fd-text:#1A1A1A; --fd-text-sec:#6B7280; --fd-card:#fff; --fd-card-border:#F0ECF8; --fd-border:#F0F0F0; }
+        :root { --fd-bg:#FAFAFA; --fd-text:#1A1A1A; --fd-text-sec:#6B7280; --fd-card:#fff; --fd-card-border:#EFF7F3; --fd-border:#F0F0F0; }
         body.dark { --fd-bg:#191919; --fd-text:#E6E6E6; --fd-text-sec:#A0A0A0; --fd-card:#252525; --fd-card-border:#333; --fd-border:#333; }
         main { flex: 1; }
         .wrap { max-width: 640px; margin: 0 auto; padding: 2rem 1.25rem 4rem; }
@@ -27,7 +27,7 @@
         .post-author { font-weight: 700; font-size: 0.95rem; }
         .post-author a { color: inherit; text-decoration: none; }
         .post-author a:hover { text-decoration: underline; }
-        .post-spec { color: #7C3AED; font-size: 0.8rem; }
+        .post-spec { color: #047857; font-size: 0.8rem; }
         .post-date { color: var(--fd-text-sec); font-size: 0.75rem; margin-left: auto; white-space: nowrap; }
         /* overflow-wrap: длинная ссылка без пробелов (её постят целиком) раньше распирала
            карточку и выезжала за экран на телефоне */
@@ -38,13 +38,13 @@
         .post-body { cursor: pointer; }
         .post-text.post-clamp { display: -webkit-box; -webkit-line-clamp: 7; -webkit-box-orient: vertical; overflow: hidden; }
         .post-more { display: none; margin-top: 0.35rem; background: none; border: none; padding: 0; cursor: pointer;
-                     color: #7C3AED; font-weight: 600; font-size: 0.85rem; font-family: inherit; }
+                     color: #047857; font-weight: 600; font-size: 0.85rem; font-family: inherit; }
         .post-more.show { display: inline-block; }
         .post-more:hover { text-decoration: underline; }
 
         /* Попап с полным постом */
         .pm-back { position: fixed; inset: 0; z-index: 4000; display: none; align-items: flex-start; justify-content: center;
-                   background: rgba(20,18,30,0.55); padding: 3rem 1rem; overflow-y: auto; }
+                   background: rgba(12,26,21,0.55); padding: 3rem 1rem; overflow-y: auto; }
         .pm-back.open { display: flex; }
         .pm-card { position: relative; width: 100%; max-width: 640px; background: var(--fd-card); color: var(--fd-text);
                    border: 1px solid var(--fd-card-border); border-radius: 1.1rem; padding: 1.25rem 1.35rem 1.1rem; }
@@ -55,7 +55,7 @@
         .pbtn { display: inline-flex; align-items: center; gap: 0.3rem; background: none; border: none; cursor: pointer; color: var(--fd-text-sec); font-size: 0.85rem; font-family: inherit; padding: 0.35rem 0.6rem; border-radius: 0.5rem; transition: background 0.15s, color 0.15s; }
         .pbtn:hover { background: var(--fd-border); }
         .pbtn.liked { color: #DC2626; font-weight: 700; }
-        .sub-btn { margin-left: auto; padding: 0.35rem 0.8rem; border-radius: 2rem; border: 1.5px solid #7C3AED; background: none; color: #7C3AED; font-weight: 700; font-size: 0.78rem; cursor: pointer; font-family: inherit; }
+        .sub-btn { margin-left: auto; padding: 0.35rem 0.8rem; border-radius: 2rem; border: 1.5px solid #047857; background: none; color: #047857; font-weight: 700; font-size: 0.78rem; cursor: pointer; font-family: inherit; }
         .sub-btn.subscribed { background: var(--fd-border); color: var(--fd-text-sec); border-color: var(--fd-border); }
         .load-more { display: block; width: 100%; padding: 0.8rem; margin-top: 0.5rem; border-radius: 0.8rem; border: 1.5px solid var(--fd-card-border); background: var(--fd-card); color: var(--fd-text); font-weight: 600; cursor: pointer; font-family: inherit; }
         .empty { text-align: center; color: var(--fd-text-sec); padding: 3rem 1rem; }
@@ -68,8 +68,8 @@
         .comment-text { font-size: 0.85rem; line-height: 1.4; white-space: pre-wrap; word-wrap: break-word; }
         .comment-form { display: flex; gap: 0.5rem; margin-top: 0.5rem; }
         .comment-form input { flex: 1; min-width: 0; padding: 0.5rem 0.8rem; border-radius: 1.2rem; border: 1.5px solid var(--fd-card-border); background: var(--fd-card); color: var(--fd-text); font-size: 0.85rem; font-family: inherit; outline: none; }
-        .comment-form input:focus { border-color: #7C3AED; }
-        .comment-form button { padding: 0.5rem 0.9rem; border-radius: 1.2rem; border: none; background: #7C3AED; color: #fff; font-weight: 600; font-size: 0.82rem; cursor: pointer; font-family: inherit; }
+        .comment-form input:focus { border-color: #047857; }
+        .comment-form button { padding: 0.5rem 0.9rem; border-radius: 1.2rem; border: none; background: #047857; color: #fff; font-weight: 600; font-size: 0.82rem; cursor: pointer; font-family: inherit; }
         .comments-empty { color: var(--fd-text-sec); font-size: 0.82rem; }
 
         @media (max-width: 480px) {
@@ -105,7 +105,7 @@
     </div>
     <script>psyWriteFooter();</script>
     <script>
-        const AV = ['#7C3AED','#2563EB','#059669','#D97706','#DB2777','#0891B2','#9F67FA'];
+        const AV = ['#047857','#2563EB','#059669','#D97706','#DB2777','#0891B2','#059669'];
         function colorFor(x){ let h=0,s=String(x); for(let i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))>>>0; return AV[h%AV.length]; }
         function esc(s){ const d=document.createElement('div'); d.textContent=(s==null?'':String(s)); return d.innerHTML; }
 

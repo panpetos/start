@@ -11,24 +11,24 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
         *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Inter', -apple-system, sans-serif; background: #F4F0FF; color: #1A1A1A;
+        body { font-family: 'Inter', -apple-system, sans-serif; background: #ECFDF5; color: #1A1A1A;
                min-height: 100vh; display: flex; flex-direction: column; }
         .page-wrap { flex: 1; display: flex; align-items: center; justify-content: center; padding: 2rem 1rem; }
         .card {
-            background: #fff; border: 1px solid #EDE9FF; border-radius: 1.5rem;
+            background: #fff; border: 1px solid #D1FAE5; border-radius: 1.5rem;
             padding: 2rem 1.75rem; max-width: 420px; width: 100%; text-align: center;
-            box-shadow: 0 8px 40px rgba(124,58,237,0.12);
+            box-shadow: 0 8px 40px rgba(4,120,87,0.12);
         }
         .icon { font-size: 2.75rem; line-height: 1; margin-bottom: 0.75rem; }
         h1 { font-size: 1.25rem; font-weight: 800; letter-spacing: -0.02em; margin-bottom: 0.4rem; }
         .sub { color: #6B7280; font-size: 0.9rem; line-height: 1.55; }
         .device {
-            margin: 1rem 0; padding: 0.7rem 0.85rem; background: #F5F3FF; border: 1px solid #E6E3F0;
+            margin: 1rem 0; padding: 0.7rem 0.85rem; background: #ECFDF5; border: 1px solid #DCEBE4;
             border-radius: 0.75rem; font-size: 0.82rem; color: #4B5563; line-height: 1.5; text-align: left;
             word-break: break-word;
         }
         .device b { display: block; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em;
-                    color: #7C3AED; margin-bottom: 0.2rem; }
+                    color: #047857; margin-bottom: 0.2rem; }
         .warn {
             margin-top: 0.9rem; font-size: 0.8rem; color: #8A6D1F; background: #FFF8EC;
             border: 1px solid #F0D9A8; border-radius: 0.75rem; padding: 0.65rem 0.8rem; line-height: 1.5; text-align: left;
@@ -39,8 +39,8 @@
             font-family: inherit; font-size: 0.97rem; font-weight: 700; cursor: pointer; transition: all 0.2s;
             text-decoration: none; display: block;
         }
-        .btn-yes { background: linear-gradient(135deg, #7C3AED, #9F67FA); color: #fff;
-                   box-shadow: 0 4px 14px rgba(124,58,237,0.35); }
+        .btn-yes { background: linear-gradient(135deg, #047857, #059669); color: #fff;
+                   box-shadow: 0 4px 14px rgba(4,120,87,0.35); }
         .btn-yes:hover:not(:disabled) { transform: translateY(-1px); }
         .btn-yes:disabled { opacity: 0.65; cursor: not-allowed; transform: none; }
         .btn-no { background: #fff; border: 2px solid #E5E7EB; color: #6B7280; }
@@ -49,10 +49,10 @@
         .state.ok { color: #16A34A; font-weight: 600; }
         .state.err { color: #DC2626; font-weight: 600; }
         body.dark { background: #191919; color: #E6E6E6; }
-        body.dark .card { background: #252525; border-color: #37254A; box-shadow: 0 8px 40px rgba(0,0,0,0.3); }
+        body.dark .card { background: #252525; border-color: #10402F; box-shadow: 0 8px 40px rgba(0,0,0,0.3); }
         body.dark .sub { color: #A0A0A0; }
-        body.dark .device { background: #2D1F4E; border-color: #5B3D8F; color: #C0C0C0; }
-        body.dark .device b { color: #B794F4; }
+        body.dark .device { background: #0B3B2E; border-color: #1F6B4F; color: #C0C0C0; }
+        body.dark .device b { color: #6EE7B7; }
         body.dark .warn { background: #2D2A1E; border-color: #5C4B1A; color: #D4A944; }
         body.dark .btn-no { background: #2A2A2A; border-color: #444; color: #C0C0C0; }
     </style>

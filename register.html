@@ -13,8 +13,8 @@
     body.dark .role-option { background: #252525 !important; border-color: #444 !important; }
     body.dark .role-option div[style*="color: #666"] { color: #999 !important; }
     body.dark .role-option i[style*="color: #999"] { color: #777 !important; }
-    body.dark .role-option.active { background: #2D1F4E !important; border-color: #7C3AED !important; }
-    body.dark .role-option.active div[style*="color: #7C3AED"] { color: #B794F4 !important; }
+    body.dark .role-option.active { background: #0B3B2E !important; border-color: #047857 !important; }
+    body.dark .role-option.active div[style*="color: #047857"] { color: #6EE7B7 !important; }
     body.dark h1[style*="color: #1A1A1A"] { color: #E6E6E6 !important; }
     body.dark h3[style*="color: #1A1A1A"] { color: #E6E6E6 !important; }
     body.dark p[style*="color: #666"],
@@ -24,7 +24,7 @@
     body.dark [style*="border:1px solid #F0F0F0"] { border-color: #333 !important; }
     body.dark p[style*="color: #999"] { color: #777 !important; }
     body.dark [style*="background:#EFF6FF"] { background: #1A2A3D !important; border-color: #2D4A6D !important; color: #7AAFDD !important; }
-    body.dark [style*="background:#F8F6FF"] { background: #2D1F4E !important; border-color: #3D2F5E !important; color: #CCCCCC !important; }
+    body.dark [style*="background:#ECFDF5"] { background: #0B3B2E !important; border-color: #14503B !important; color: #CCCCCC !important; }
     body.dark [style*="background:#FBF7EC"] { background: #3D3520 !important; border-color: #5A4E2D !important; }
     body.dark [style*="color: #6B5A2E"],
     body.dark [style*="color:#6B5A2E"] { color: #D4A844 !important; }
@@ -72,9 +72,9 @@
                   style="display: none;"
                   data-testid="radio-client"
                 />
-                <div class="role-option active" data-role="client" style="padding: 1rem; border: 2px solid #7C3AED; border-radius: 0.5rem; text-align: center; transition: all 0.2s; background: #F3E8FF;">
-                  <i data-lucide="user" style="width: 2rem; height: 2rem; margin: 0 auto 0.5rem; color: #7C3AED;"></i>
-                  <div style="font-weight: 600; color: #7C3AED;">Клиент</div>
+                <div class="role-option active" data-role="client" style="padding: 1rem; border: 2px solid #047857; border-radius: 0.5rem; text-align: center; transition: all 0.2s; background: #D1FAE5;">
+                  <i data-lucide="user" style="width: 2rem; height: 2rem; margin: 0 auto 0.5rem; color: #047857;"></i>
+                  <div style="font-weight: 600; color: #047857;">Клиент</div>
                 </div>
               </label>
               <label class="flex-1" style="cursor: pointer;">
@@ -235,7 +235,7 @@
               <label class="form-label" for="inn">ИНН (самозанятость или ИП)</label>
               <div style="display:flex;gap:0.5rem;align-items:stretch;">
                 <input type="text" id="inn" name="inn" class="form-input" inputmode="numeric" maxlength="12" placeholder="10 или 12 цифр" style="flex:1;" />
-                <button type="button" id="innCheckBtn" onclick="checkInn()" style="background:#7C3AED;color:#fff;border:none;white-space:nowrap;padding:0 1.1rem;border-radius:0.5rem;font-weight:600;cursor:pointer;font-family:inherit;">Проверить</button>
+                <button type="button" id="innCheckBtn" onclick="checkInn()" style="background:#047857;color:#fff;border:none;white-space:nowrap;padding:0 1.1rem;border-radius:0.5rem;font-weight:600;cursor:pointer;font-family:inherit;">Проверить</button>
               </div>
               <div id="innResult" style="display:none;margin-top:0.5rem;font-size:0.85rem;border-radius:0.5rem;padding:0.55rem 0.75rem;line-height:1.45;"></div>
               <span style="font-size: 0.75rem; color: #999;">Проверим корректность ИНН и статус самозанятого через ФНС. Виден только администратору.</span>
@@ -282,7 +282,7 @@
                 placeholder="Напр.: 3000"
                 data-testid="input-desiredPrice"
               />
-              <div style="background:#F8F6FF;border:1px solid #EDE9FF;border-radius:0.75rem;padding:0.75rem 1rem;color:#6B7280;font-size:0.8125rem;line-height:1.5;margin-top:0.5rem;">
+              <div style="background:#ECFDF5;border:1px solid #D1FAE5;border-radius:0.75rem;padding:0.75rem 1rem;color:#6B7280;font-size:0.8125rem;line-height:1.5;margin-top:0.5rem;">
                 💡 Укажите желаемую стоимость одной сессии. Финальную цену устанавливает администрация при одобрении профиля.
               </div>
             </div>
@@ -389,7 +389,7 @@
           <div class="text-center mt-4">
             <span style="color: #666; font-size: 0.875rem;">
               Уже есть аккаунт? 
-              <a href="/login.html" style="color: #7C3AED; font-weight: 600; text-decoration: none;" data-testid="link-login">
+              <a href="/login.html" style="color: #047857; font-weight: 600; text-decoration: none;" data-testid="link-login">
                 Войти
               </a>
             </span>
@@ -405,7 +405,7 @@
   </div>
 
   <!-- Foreign email modal -->
-  <div id="foreignEmailModal" style="display:none; position:fixed; inset:0; background:rgba(26,26,46,0.6); z-index:1000; align-items:center; justify-content:center; padding:1rem;">
+  <div id="foreignEmailModal" style="display:none; position:fixed; inset:0; background:rgba(18,42,34,0.6); z-index:1000; align-items:center; justify-content:center; padding:1rem;">
     <div style="background:#fff; border-radius:1rem; max-width:420px; width:100%; padding:2rem; text-align:center; box-shadow:0 20px 60px rgba(0,0,0,0.25);">
       <div style="width:4rem; height:4rem; margin:0 auto 1rem; border-radius:50%; background:#FEF2F2; display:flex; align-items:center; justify-content:center;">
         <i data-lucide="shield-alert" style="width:2rem; height:2rem; color:#DC2626;"></i>
@@ -424,13 +424,13 @@
   </div>
 
   <!-- Registration error popup -->
-  <div id="regErrorModal" style="display:none; position:fixed; inset:0; background:rgba(26,26,46,0.6); z-index:1100; align-items:center; justify-content:center; padding:1rem;">
+  <div id="regErrorModal" style="display:none; position:fixed; inset:0; background:rgba(18,42,34,0.6); z-index:1100; align-items:center; justify-content:center; padding:1rem;">
     <div style="background:#fff; border-radius:1rem; max-width:420px; width:100%; padding:2rem; text-align:center; box-shadow:0 20px 60px rgba(0,0,0,0.25);">
       <div style="width:4rem; height:4rem; margin:0 auto 1rem; border-radius:50%; background:#FEF2F2; display:flex; align-items:center; justify-content:center; font-size:2rem;">⚠️</div>
       <h3 style="font-size:1.25rem; font-weight:700; color:#1A1A1A; margin-bottom:0.75rem;">Не удалось зарегистрироваться</h3>
       <p id="regErrorText" style="color:#4B5563; font-size:0.95rem; line-height:1.6; margin-bottom:1.5rem;"></p>
       <button type="button" onclick="document.getElementById('regErrorModal').style.display='none'"
-        style="background:#7C3AED; color:#fff; border:none; font-weight:600; padding:0.75rem 2rem; border-radius:0.5rem; cursor:pointer; width:100%;">
+        style="background:#047857; color:#fff; border:none; font-weight:600; padding:0.75rem 2rem; border-radius:0.5rem; cursor:pointer; width:100%;">
         Понятно
       </button>
     </div>
@@ -484,12 +484,12 @@
         });
         
         this.classList.add('active');
-        this.style.borderColor = '#7C3AED';
-        this.style.background = '#F3E8FF';
+        this.style.borderColor = '#047857';
+        this.style.background = '#D1FAE5';
         const icon = this.querySelector('i');
         const text = this.querySelector('div');
-        if (icon) icon.style.color = '#7C3AED';
-        if (text) text.style.color = '#7C3AED';
+        if (icon) icon.style.color = '#047857';
+        if (text) text.style.color = '#047857';
       });
     });
 
@@ -682,7 +682,7 @@
       const list = document.getElementById('diplomaList');
       if (!diplomaFiles.length) { list.innerHTML = ''; return; }
       list.innerHTML = diplomaFiles.map((f, i) =>
-        `<div style="display:flex;align-items:center;justify-content:space-between;gap:0.5rem;background:#F8F6FF;border:1px solid #EDE9FF;border-radius:0.5rem;padding:0.4rem 0.6rem;font-size:0.82rem;color:#374151;">
+        `<div style="display:flex;align-items:center;justify-content:space-between;gap:0.5rem;background:#ECFDF5;border:1px solid #D1FAE5;border-radius:0.5rem;padding:0.4rem 0.6rem;font-size:0.82rem;color:#374151;">
           <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">📄 ${f.name} <span style="color:#9CA3AF;">(${Math.round(f.size/1024)} КБ)</span></span>
           <button type="button" onclick="removeDiploma(${i})" style="background:none;border:none;color:#EF4444;cursor:pointer;font-size:0.8rem;flex-shrink:0;">✕</button>
         </div>`).join('');

@@ -13,23 +13,23 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
         *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Inter', -apple-system, sans-serif; background: #F4F0FF; min-height: 100vh; display: flex; flex-direction: column; }
+        body { font-family: 'Inter', -apple-system, sans-serif; background: #ECFDF5; min-height: 100vh; display: flex; flex-direction: column; }
         .page-wrap { flex: 1; display: flex; align-items: center; justify-content: center; padding: 2rem 1rem; }
         .auth-card {
             background: white; border-radius: 1.5rem; padding: 2.5rem 2rem;
             max-width: 440px; width: 100%;
-            box-shadow: 0 8px 40px rgba(124,58,237,0.12); border: 1px solid #EDE9FF;
+            box-shadow: 0 8px 40px rgba(4,120,87,0.12); border: 1px solid #D1FAE5;
         }
         .logo { text-align: center; margin-bottom: 1.75rem; }
         .logo a { text-decoration: none; font-size: 1.5rem; font-weight: 700; }
         .logo .psy { color: #1A1A1A; }
-        .logo .talk { color: #7C3AED; font-style: italic; }
-        .tabs { display: flex; background: #F4F0FF; border-radius: 0.75rem; padding: 4px; margin-bottom: 1.75rem; }
+        .logo .talk { color: #047857; font-style: italic; }
+        .tabs { display: flex; background: #ECFDF5; border-radius: 0.75rem; padding: 4px; margin-bottom: 1.75rem; }
         .tab-btn {
             flex: 1; padding: 0.625rem; border: none; background: transparent; border-radius: 0.625rem;
             font-family: inherit; font-size: 0.9375rem; font-weight: 600; cursor: pointer; color: #6B7280; transition: all 0.2s;
         }
-        .tab-btn.active { background: white; color: #7C3AED; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+        .tab-btn.active { background: white; color: #047857; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
         .form-group { margin-bottom: 1rem; }
         label { display: block; font-size: 0.875rem; font-weight: 600; color: #374151; margin-bottom: 0.375rem; }
         input[type="email"], input[type="password"], input[type="text"] {
@@ -37,7 +37,7 @@
             font-family: inherit; font-size: 0.9375rem; color: #1A1A1A; background: #fff;
             outline: none; transition: border-color 0.2s;
         }
-        input:focus { border-color: #7C3AED; }
+        input:focus { border-color: #047857; }
         input.error { border-color: #EF4444; }
         .inline-error {
             display: none; background: #FEF2F2; border: 1px solid #FECACA; color: #DC2626;
@@ -47,12 +47,12 @@
         .inline-error.visible { display: block; }
         .btn-submit {
             width: 100%; padding: 0.875rem; margin-top: 0.5rem;
-            background: linear-gradient(135deg, #7C3AED, #9F67FA);
+            background: linear-gradient(135deg, #047857, #059669);
             color: white; border: none; border-radius: 0.75rem;
             font-family: inherit; font-size: 1rem; font-weight: 700; cursor: pointer;
-            box-shadow: 0 4px 14px rgba(124,58,237,0.35); transition: all 0.2s;
+            box-shadow: 0 4px 14px rgba(4,120,87,0.35); transition: all 0.2s;
         }
-        .btn-submit:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(124,58,237,0.45); }
+        .btn-submit:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(4,120,87,0.45); }
         .btn-submit:disabled { opacity: 0.65; cursor: not-allowed; transform: none; }
         .divider { text-align: center; color: #9CA3AF; font-size: 0.875rem; margin: 1.25rem 0; position: relative; }
         .divider::before, .divider::after {
@@ -65,13 +65,13 @@
             background: white; color: #374151; font-family: inherit; font-size: 0.9375rem;
             font-weight: 600; cursor: pointer; transition: all 0.2s; text-align: center; text-decoration: none; display: block;
         }
-        .btn-demo:hover { border-color: #7C3AED; color: #7C3AED; background: #FAF5FF; }
+        .btn-demo:hover { border-color: #047857; color: #047857; background: #ECFDF5; }
         .tab-panel { display: none; }
         .tab-panel.active { display: block; }
-        .forgot-link { display: block; text-align: right; font-size: 0.8125rem; color: #7C3AED; margin-top: 0.25rem; text-decoration: none; }
+        .forgot-link { display: block; text-align: right; font-size: 0.8125rem; color: #047857; margin-top: 0.25rem; text-decoration: none; }
         .forgot-link:hover { text-decoration: underline; }
         .psy-register-note { font-size: 0.8125rem; color: #6B7280; margin-top: 1rem; text-align: center; }
-        .psy-register-note a { color: #7C3AED; font-weight: 600; }
+        .psy-register-note a { color: #047857; font-weight: 600; }
         .success-msg {
             background: #F0FDF4; border: 1px solid #BBF7D0; color: #16A34A;
             border-radius: 0.625rem; padding: 0.625rem 0.875rem; font-size: 0.875rem;
@@ -85,41 +85,41 @@
             padding: 0.25rem; color: #9CA3AF; opacity: 0.85;
         }
         .pw-eye:hover { opacity: 1; }
-        .consent { display: flex; gap: 10px; align-items: flex-start; padding: 11px 12px; margin-bottom: 9px; background: #F5F3FF; border: 1px solid #E6E3F0; border-radius: 10px; font-size: 0.82rem; color: #4B5563; cursor: pointer; line-height: 1.45; }
+        .consent { display: flex; gap: 10px; align-items: flex-start; padding: 11px 12px; margin-bottom: 9px; background: #ECFDF5; border: 1px solid #DCEBE4; border-radius: 10px; font-size: 0.82rem; color: #4B5563; cursor: pointer; line-height: 1.45; }
         .consent.special { background: #FFF8EC; border-color: #F0D9A8; color: #8A6D1F; }
-        .consent input[type=checkbox] { flex: 0 0 auto; width: 18px; height: 18px; margin-top: 1px; accent-color: #7C3AED; cursor: pointer; }
+        .consent input[type=checkbox] { flex: 0 0 auto; width: 18px; height: 18px; margin-top: 1px; accent-color: #047857; cursor: pointer; }
         .consent.special input[type=checkbox] { accent-color: #8A6D1F; }
-        .consent a { color: #6D28D9; font-weight: 600; text-decoration: underline; }
+        .consent a { color: #065F46; font-weight: 600; text-decoration: underline; }
         .consent.special a { color: #8A6D1F; }
         .consent .tag { display: inline-block; font-size: 0.62rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; background: #8A6D1F; color: #fff; padding: 1px 5px; border-radius: 4px; margin-right: 4px; }
         .reg-note { font-size: 0.75rem; color: #9CA3AF; margin: 2px 2px 12px; }
 
         /* ── вход по QR: код показывается на компьютере, подтверждается с телефона ── */
         .qr-box { display: none; margin-top: 0.9rem; padding: 1rem; background: #FAF8FF;
-                  border: 1px solid #EDE9FF; border-radius: 0.9rem; text-align: center; }
+                  border: 1px solid #D1FAE5; border-radius: 0.9rem; text-align: center; }
         .qr-box.open { display: block; }
         .qr-img { display: flex; justify-content: center; min-height: 200px; align-items: center; }
         .qr-img svg { width: 200px; height: 200px; border-radius: 0.5rem; }
         .qr-steps { font-size: 0.8rem; color: #6B7280; line-height: 1.7; margin-top: 0.7rem; text-align: left;
                     display: inline-block; }
-        .qr-status { font-size: 0.82rem; color: #7C3AED; font-weight: 600; margin-top: 0.7rem; line-height: 1.5; }
+        .qr-status { font-size: 0.82rem; color: #047857; font-weight: 600; margin-top: 0.7rem; line-height: 1.5; }
         .qr-status.err { color: #DC2626; }
         .qr-status.ok { color: #16A34A; }
         .qr-alt { font-size: 0.75rem; color: #9CA3AF; margin-top: 0.5rem; line-height: 1.5; }
-        .qr-alt a { color: #7C3AED; font-weight: 600; }
+        .qr-alt a { color: #047857; font-weight: 600; }
         .qr-hide { margin-top: 0.7rem; background: none; border: none; font-family: inherit;
                    font-size: 0.8rem; color: #9CA3AF; cursor: pointer; text-decoration: underline; }
         body.dark .qr-box { background: #2A2A2A; border-color: #444; }
         body.dark .qr-steps { color: #A0A0A0; }
-        body.dark .qr-status { color: #B794F4; }
-        body.dark .qr-alt a { color: #B794F4; }
+        body.dark .qr-status { color: #6EE7B7; }
+        body.dark .qr-alt a { color: #6EE7B7; }
 
         body.dark { background: #191919 !important; }
-        body.dark .auth-card { background: #252525; border-color: #37254A; box-shadow: 0 8px 40px rgba(0,0,0,0.3); }
+        body.dark .auth-card { background: #252525; border-color: #10402F; box-shadow: 0 8px 40px rgba(0,0,0,0.3); }
         body.dark .logo .psy { color: #E6E6E6 !important; }
         body.dark .tabs { background: #2A2A2A; }
         body.dark .tab-btn { color: #888; }
-        body.dark .tab-btn.active { background: #333; color: #B794F4; box-shadow: none; }
+        body.dark .tab-btn.active { background: #333; color: #6EE7B7; box-shadow: none; }
         body.dark label { color: #C0C0C0; }
         body.dark input[type="email"], body.dark input[type="password"], body.dark input[type="text"] { background: #2A2A2A; color: #E6E6E6; border-color: #444; }
         body.dark input::placeholder { color: #888 !important; }
@@ -127,14 +127,14 @@
         body.dark .divider { color: #777; }
         body.dark .divider::before, body.dark .divider::after { background: #444; }
         body.dark .btn-demo { background: #2A2A2A; border-color: #444; color: #C0C0C0; }
-        body.dark .btn-demo:hover { border-color: #7C3AED; color: #B794F4; background: #37254A; }
-        body.dark .forgot-link { color: #B794F4; }
+        body.dark .btn-demo:hover { border-color: #047857; color: #6EE7B7; background: #10402F; }
+        body.dark .forgot-link { color: #6EE7B7; }
         body.dark .psy-register-note { color: #999; }
-        body.dark .psy-register-note a { color: #B794F4; }
+        body.dark .psy-register-note a { color: #6EE7B7; }
         body.dark .success-msg { background: #1a2e1a; border-color: #16a34a55; color: #86efac; }
-        body.dark .consent { background: #2D1F4E; border-color: #5B3D8F; color: #C0C0C0; }
+        body.dark .consent { background: #0B3B2E; border-color: #1F6B4F; color: #C0C0C0; }
         body.dark .consent.special { background: #2D2A1E; border-color: #5C4B1A; color: #D4A944; }
-        body.dark .consent a { color: #B794F4; }
+        body.dark .consent a { color: #6EE7B7; }
         body.dark .consent.special a { color: #D4A944; }
         body.dark .reg-note { color: #777; }
         body.dark .pw-eye { color: #888; }

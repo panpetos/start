@@ -33,7 +33,7 @@
     '<a href="/" class="nav-brand" aria-label="psytalk.pro — на главную">' +
       '<img class="nav-logo" src="/assets/favicon.svg" alt="" width="30" height="30">' +
       '<span class="nav-brand-text">' +
-        '<span style="color:#1A1A1A;">psy</span><span style="color:#7C3AED;font-style:italic;">talk.pro</span>' +
+        '<span style="color:#1A1A1A;">psy</span><span style="color:#047857;font-style:italic;">talk.pro</span>' +
       '</span>' +
     '</a>';
 
@@ -136,10 +136,10 @@
       // К самому низу шторки прижимать нельзя: внизу висит плашка про cookie, она
       // выше по слоям и просто накрывала бы кружки.
       '#navMenu #psyNavActions{width:100%;margin:1rem 0 0 0!important;padding-top:0.9rem!important;' +
-        'border-top:1px solid #F0EDF7!important;border-bottom:none!important;justify-content:flex-start;gap:0.6rem}' +
+        'border-top:1px solid #EFF7F3!important;border-bottom:none!important;justify-content:flex-start;gap:0.6rem}' +
       'body.dark #navMenu #psyNavActions{border-top-color:#34313D!important}' +
     '}' +
-    'body.dark .nav-link:hover{color:#A78BFA!important}' +
+    'body.dark .nav-link:hover{color:#34D399!important}' +
     // Панель шторки чуть светлее страницы, иначе в тёмной теме её границы не видно
     // и меню выглядит «наплывом» без формы. Значение то же, что в css/styles.css;
     // держим и здесь, потому что layout.js подключается позже и перебивает.
@@ -259,7 +259,7 @@
 
   // ── Страховка читаемости текста в тёмной теме ──────────────────────────────────
   // В тёмной теме часть правил задаёт светлый цвет текста в паре с тёмным фоном
-  // (например .badge-secondary: color #B794F4 + background #2D1F4E). Но если фон этого
+  // (например .badge-secondary: color #6EE7B7 + background #0B3B2E). Но если фон этого
   // же элемента задан ИНЛАЙНОВО светлым, инлайн побеждает класс — остаётся светлый текст
   // на светлой подложке, который не читается. Обратный случай тоже встречается.
   // CSS такое не выразит (нужно знать фактический фон), поэтому считаем реальный контраст
@@ -273,17 +273,17 @@
   fixCss.textContent =
     'body.dark .psy-fg-dark.psy-fg-dark{color:#1A1A1A!important}' +
     'body.dark .psy-fg-light.psy-fg-light{color:#E6E6E6!important}' +
-    'body.dark .psy-fg-plum.psy-fg-plum{color:#4C1D95!important}' +
-    'body.dark .psy-fg-lilac.psy-fg-lilac{color:#B794F4!important}' +
+    'body.dark .psy-fg-brand-dark.psy-fg-brand-dark{color:#064E3B!important}' +
+    'body.dark .psy-fg-brand-light.psy-fg-brand-light{color:#6EE7B7!important}' +
     'body.dark .psy-fg-mgrey.psy-fg-mgrey{color:#565656!important}' +
     'body.dark .psy-fg-lgrey.psy-fg-lgrey{color:#A8A8A8!important}';
   document.head.appendChild(fixCss);
   var FG_CLASSES = {
     '#1A1A1A': 'psy-fg-dark', '#E6E6E6': 'psy-fg-light',
-    '#4C1D95': 'psy-fg-plum', '#B794F4': 'psy-fg-lilac',
+    '#064E3B': 'psy-fg-brand-dark', '#6EE7B7': 'psy-fg-brand-light',
     '#565656': 'psy-fg-mgrey', '#A8A8A8': 'psy-fg-lgrey'
   };
-  var FG_ALL = ['psy-fg-dark', 'psy-fg-light', 'psy-fg-plum', 'psy-fg-lilac', 'psy-fg-mgrey', 'psy-fg-lgrey'];
+  var FG_ALL = ['psy-fg-dark', 'psy-fg-light', 'psy-fg-brand-dark', 'psy-fg-brand-light', 'psy-fg-mgrey', 'psy-fg-lgrey'];
 
   function psyFixAccentContrast() {
     try {
@@ -325,15 +325,16 @@
         var fs = parseFloat(cs.fontSize) || 16;
         var big = fs >= 24 || (fs >= 18.66 && parseInt(cs.fontWeight, 10) >= 600);
         if (ratio(fg, bg) >= (big ? 3 : 4.5)) return;
-        // сиреневый/фиолетовый оттенок сохраняем, просто берём подходящую по светлоте версию
-        var purple = fg.b > fg.r && fg.b > fg.g && fg.r > 60;
+        // фирменный оттенок сохраняем, просто берём подходящую по светлоте версию.
+        // Бренд стал зелёным, поэтому доминирует зелёный канал (раньше искали синий).
+        var brand = fg.g > fg.r && fg.g > fg.b && fg.g > 60;
         var onLight = lum(bg) > 0.4;
         // приглушённый серый не выводим в максимальный контраст — иначе теряется иерархия:
         // вторичный текст должен оставаться вторичным, просто читаемым
         var muted = Math.max(fg.r, fg.g, fg.b) - Math.min(fg.r, fg.g, fg.b) < 24;
         var target = onLight
-          ? (purple ? '#4C1D95' : (muted ? '#565656' : '#1A1A1A'))
-          : (purple ? '#B794F4' : (muted ? '#A8A8A8' : '#E6E6E6'));
+          ? (brand ? '#064E3B' : (muted ? '#565656' : '#1A1A1A'))
+          : (brand ? '#6EE7B7' : (muted ? '#A8A8A8' : '#E6E6E6'));
         var tc = parse('rgb(' + [
           parseInt(target.slice(1, 3), 16), parseInt(target.slice(3, 5), 16), parseInt(target.slice(5, 7), 16)
         ].join(', ') + ')');
@@ -443,7 +444,7 @@
     try { if (sessionStorage.getItem('psy_dev_notice') === '1') return; } catch (e) {}
     var ov = document.createElement('div');
     ov.id = 'psyDevNotice';
-    ov.style.cssText = 'position:fixed;inset:0;background:rgba(26,26,46,0.55);z-index:2000;display:flex;align-items:center;justify-content:center;padding:1rem;';
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(18,42,34,0.55);z-index:2000;display:flex;align-items:center;justify-content:center;padding:1rem;';
     ov.innerHTML =
       '<div style="background:#fff;border-radius:1rem;max-width:420px;width:100%;padding:2rem;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.25);">' +
         '<div style="font-size:2.5rem;margin-bottom:0.5rem;">🚧</div>' +
@@ -470,7 +471,7 @@
     if (!circle || !user) return;
     circle.href = dashUrlFor(user);
     circle.title = (user.first_name || 'Кабинет');
-    circle.style.background = 'linear-gradient(135deg,#7C3AED,#9F67FA)';
+    circle.style.background = 'linear-gradient(135deg,#047857,#059669)';
     circle.style.overflow = 'hidden';
     var avatar = user.avatar || user.avatar_url || user.photo || '';
     if (avatar) {
@@ -552,11 +553,11 @@
     try { if (localStorage.getItem('psy_privacy_consent') === '1') return; } catch (e) {}
     var bar = document.createElement('div');
     bar.id = 'psyConsent';
-    bar.style.cssText = 'position:fixed;left:0;right:0;bottom:0;z-index:1900;background:#1A1A2E;color:#fff;padding:0.9rem 1.25rem;display:flex;align-items:center;justify-content:center;gap:1rem;flex-wrap:wrap;box-shadow:0 -4px 20px rgba(0,0,0,0.25);font-size:0.875rem;';
+    bar.style.cssText = 'position:fixed;left:0;right:0;bottom:0;z-index:1900;background:#122A22;color:#fff;padding:0.9rem 1.25rem;display:flex;align-items:center;justify-content:center;gap:1rem;flex-wrap:wrap;box-shadow:0 -4px 20px rgba(0,0,0,0.25);font-size:0.875rem;';
     bar.innerHTML =
       '<span style="max-width:760px;line-height:1.5;">🍪 Мы используем файлы cookie и обрабатываем данные для работы сайта. Продолжая пользоваться сайтом, вы соглашаетесь с ' +
-      '<a href="/privacy.html" style="color:#9F67FA;font-weight:600;">политикой конфиденциальности</a> и ' +
-      '<a href="/consent.html" style="color:#9F67FA;font-weight:600;">обработкой ПД</a>.</span>' +
+      '<a href="/privacy.html" style="color:#059669;font-weight:600;">политикой конфиденциальности</a> и ' +
+      '<a href="/consent.html" style="color:#059669;font-weight:600;">обработкой ПД</a>.</span>' +
       '<button id="psyConsentOk" style="background:#34C759;color:#fff;border:none;font-weight:700;padding:0.6rem 1.5rem;border-radius:0.5rem;cursor:pointer;white-space:nowrap;">Принять</button>';
     document.body.appendChild(bar);
     document.getElementById('psyConsentOk').addEventListener('click', function () {
@@ -618,10 +619,10 @@
     var el = document.createElement('div');
     el.id = 'psySupport';
     el.innerHTML =
-      '<button id="psySupBubble" aria-label="Чат поддержки" style="position:fixed;right:20px;bottom:20px;z-index:1700;width:60px;height:60px;border-radius:50%;border:none;cursor:pointer;background:linear-gradient(135deg,#7C3AED,#9F67FA);color:#fff;font-size:1.6rem;box-shadow:0 8px 24px rgba(124,58,237,0.4);display:flex;align-items:center;justify-content:center;transition:transform .2s;">💬<span id="psySupBadge" style="display:none;position:absolute;top:-2px;right:-2px;background:#DC2626;color:#fff;font-size:0.65rem;font-weight:700;min-width:18px;height:18px;border-radius:9px;display:flex;align-items:center;justify-content:center;padding:0 4px;border:2px solid #fff;"></span></button>' +
-      '<div id="psySupToast" style="display:none;position:fixed;right:20px;bottom:88px;z-index:1699;background:' + '#fff' + ';border-radius:0.8rem;padding:0.65rem 1rem;box-shadow:0 8px 30px rgba(0,0,0,0.18);max-width:280px;font-size:0.85rem;cursor:pointer;border-left:3px solid #7C3AED;animation:psyToastIn 0.3s ease;"></div>' +
+      '<button id="psySupBubble" aria-label="Чат поддержки" style="position:fixed;right:20px;bottom:20px;z-index:1700;width:60px;height:60px;border-radius:50%;border:none;cursor:pointer;background:linear-gradient(135deg,#047857,#059669);color:#fff;font-size:1.6rem;box-shadow:0 8px 24px rgba(4,120,87,0.4);display:flex;align-items:center;justify-content:center;transition:transform .2s;">💬<span id="psySupBadge" style="display:none;position:absolute;top:-2px;right:-2px;background:#DC2626;color:#fff;font-size:0.65rem;font-weight:700;min-width:18px;height:18px;border-radius:9px;display:flex;align-items:center;justify-content:center;padding:0 4px;border:2px solid #fff;"></span></button>' +
+      '<div id="psySupToast" style="display:none;position:fixed;right:20px;bottom:88px;z-index:1699;background:' + '#fff' + ';border-radius:0.8rem;padding:0.65rem 1rem;box-shadow:0 8px 30px rgba(0,0,0,0.18);max-width:280px;font-size:0.85rem;cursor:pointer;border-left:3px solid #047857;animation:psyToastIn 0.3s ease;"></div>' +
       '<div id="psySupPanel" style="display:none;position:fixed;right:20px;bottom:90px;z-index:1701;width:350px;max-width:calc(100vw - 32px);height:480px;max-height:calc(100vh - 120px);background:#fff;border-radius:1.1rem;box-shadow:0 20px 60px rgba(0,0,0,0.28);overflow:hidden;flex-direction:column;">' +
-        '<div style="background:linear-gradient(135deg,#7C3AED,#9F67FA);color:#fff;padding:0.9rem 1.1rem;display:flex;align-items:center;justify-content:space-between;">' +
+        '<div style="background:linear-gradient(135deg,#047857,#059669);color:#fff;padding:0.9rem 1.1rem;display:flex;align-items:center;justify-content:space-between;">' +
           '<div><div style="font-weight:700;">Чат поддержки</div><div style="font-size:0.75rem;opacity:0.9;">Обычно отвечаем в течение дня</div></div>' +
           '<button id="psySupClose" aria-label="Закрыть" style="background:rgba(255,255,255,0.2);border:none;color:#fff;width:30px;height:30px;border-radius:50%;cursor:pointer;font-size:1.05rem;">✕</button>' +
         '</div>' +
@@ -631,23 +632,23 @@
           '<input id="psySupEmail" type="email" placeholder="Email для ответа" style="width:100%;padding:0.6rem 0.75rem;border:1.5px solid #E5E7EB;border-radius:0.6rem;font-family:inherit;font-size:0.9rem;outline:none;margin-bottom:0.5rem;">' +
           '<select id="psySupRole" style="width:100%;padding:0.6rem 0.75rem;border:1.5px solid #E5E7EB;border-radius:0.6rem;font-family:inherit;font-size:0.9rem;outline:none;margin-bottom:0.5rem;background:#fff;">' + roleOpts + '</select>' +
           '<textarea id="psySupFirstMsg" placeholder="Ваш вопрос..." style="width:100%;height:72px;padding:0.6rem 0.75rem;border:1.5px solid #E5E7EB;border-radius:0.6rem;font-family:inherit;font-size:0.9rem;outline:none;resize:vertical;margin-bottom:0.5rem;"></textarea>' +
-          '<div id="psySupFormAttachPreview" style="display:none;padding:0 0 0.5rem;font-size:0.78rem;color:#7C3AED;word-break:break-word;"></div>' +
+          '<div id="psySupFormAttachPreview" style="display:none;padding:0 0 0.5rem;font-size:0.78rem;color:#047857;word-break:break-word;"></div>' +
           '<div id="psySupFormErr" style="display:none;color:#DC2626;font-size:0.8rem;margin-bottom:0.5rem;"></div>' +
           '<div style="display:flex;gap:0.5rem;align-items:center;">' +
             '<button type="button" id="psySupFormAttachBtn" title="Прикрепить файл" style="width:38px;height:38px;flex-shrink:0;border-radius:50%;border:1.5px solid #E5E7EB;background:none;cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center;color:#6B7280;">📎</button>' +
             '<input type="file" id="psySupFormFileInput" accept="image/*,.pdf,.txt,.doc,.docx" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0;padding:0;margin:-1px;">' +
-            '<button id="psySupStart" style="flex:1;padding:0.7rem;background:linear-gradient(135deg,#7C3AED,#9F67FA);color:#fff;border:none;border-radius:0.6rem;font-weight:700;cursor:pointer;font-family:inherit;">Начать чат</button>' +
+            '<button id="psySupStart" style="flex:1;padding:0.7rem;background:linear-gradient(135deg,#047857,#059669);color:#fff;border:none;border-radius:0.6rem;font-weight:700;cursor:pointer;font-family:inherit;">Начать чат</button>' +
           '</div>' +
         '</div>' +
         '<div id="psySupChat" style="display:none;flex:1;flex-direction:column;min-height:0;">' +
           '<div id="psySupMsgs" style="flex:1;overflow-y:auto;padding:0.85rem;display:flex;flex-direction:column;gap:0.5rem;background:#F7F8FA;"></div>' +
-          '<div id="psySupAttachPreview" style="display:none;padding:0.3rem 0.6rem;border-top:1px solid #eee;font-size:0.78rem;color:#7C3AED;word-break:break-word;"></div>' +
+          '<div id="psySupAttachPreview" style="display:none;padding:0.3rem 0.6rem;border-top:1px solid #eee;font-size:0.78rem;color:#047857;word-break:break-word;"></div>' +
           '<div style="display:flex;gap:0.5rem;padding:0.6rem;border-top:1px solid #eee;align-items:center;">' +
             '<button id="psySupAttachBtn" title="Прикрепить файл" style="width:36px;height:36px;border-radius:50%;border:1px solid #E5E7EB;background:none;cursor:pointer;font-size:1rem;flex-shrink:0;display:flex;align-items:center;justify-content:center;color:#6B7280;">📎</button>' +
             '<input type="file" id="psySupFileInput" accept="image/*,.pdf,.txt,.doc,.docx" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0;padding:0;margin:-1px;">' +
             '<button id="psySupVoiceBtn" title="Голосовое сообщение" style="width:36px;height:36px;border-radius:50%;border:1px solid #E5E7EB;background:none;cursor:pointer;font-size:1rem;flex-shrink:0;display:flex;align-items:center;justify-content:center;color:#6B7280;">🎤</button>' +
             '<input id="psySupInput" placeholder="Сообщение..." style="flex:1;min-width:0;padding:0.6rem 0.8rem;border:1.5px solid #E5E7EB;border-radius:1.2rem;font-family:inherit;font-size:0.9rem;outline:none;">' +
-            '<button id="psySupSend" style="width:42px;height:42px;border-radius:50%;border:none;background:linear-gradient(135deg,#7C3AED,#9F67FA);color:#fff;cursor:pointer;font-size:1.05rem;flex-shrink:0;">➤</button>' +
+            '<button id="psySupSend" style="width:42px;height:42px;border-radius:50%;border:none;background:linear-gradient(135deg,#047857,#059669);color:#fff;cursor:pointer;font-size:1.05rem;flex-shrink:0;">➤</button>' +
           '</div>' +
         '</div>' +
       '</div>';
@@ -693,7 +694,7 @@
       if (!toast) return;
       toast.style.background = isDark() ? '#2A2A2A' : '#fff';
       toast.style.color = isDark() ? '#E6E6E6' : '#1A1A1A';
-      toast.innerHTML = '<div style="font-weight:600;font-size:0.78rem;color:#7C3AED;margin-bottom:0.15rem;">Поддержка</div>' + escSup(text.length > 80 ? text.slice(0,80) + '...' : text);
+      toast.innerHTML = '<div style="font-weight:600;font-size:0.78rem;color:#047857;margin-bottom:0.15rem;">Поддержка</div>' + escSup(text.length > 80 ? text.slice(0,80) + '...' : text);
       toast.style.display = 'block';
       toast.onclick = function() { toast.style.display = 'none'; bubble.click(); };
       setTimeout(function() { toast.style.display = 'none'; }, 6000);
@@ -744,8 +745,8 @@
 
       box.innerHTML = rows.map(function (m) {
         var mine = m.sender === 'user';
-        return '<div style="align-self:' + (mine ? 'flex-end' : 'flex-start') + ';max-width:80%;background:' + (mine ? 'linear-gradient(135deg,#7C3AED,#9F67FA)' : (isDark() ? '#2A2A2A' : '#fff')) + ';color:' + (mine ? '#fff' : (isDark() ? '#E6E6E6' : '#1A1A1A')) + ';border:' + (mine ? 'none' : ('1px solid ' + (isDark() ? '#444' : '#ECECEC'))) + ';border-radius:0.9rem;padding:0.5rem 0.75rem;font-size:0.875rem;line-height:1.4;">' +
-          (mine ? '' : '<div style="font-size:0.7rem;color:#7C3AED;font-weight:700;margin-bottom:0.15rem;">Поддержка</div>') +
+        return '<div style="align-self:' + (mine ? 'flex-end' : 'flex-start') + ';max-width:80%;background:' + (mine ? 'linear-gradient(135deg,#047857,#059669)' : (isDark() ? '#2A2A2A' : '#fff')) + ';color:' + (mine ? '#fff' : (isDark() ? '#E6E6E6' : '#1A1A1A')) + ';border:' + (mine ? 'none' : ('1px solid ' + (isDark() ? '#444' : '#ECECEC'))) + ';border-radius:0.9rem;padding:0.5rem 0.75rem;font-size:0.875rem;line-height:1.4;">' +
+          (mine ? '' : '<div style="font-size:0.7rem;color:#047857;font-weight:700;margin-bottom:0.15rem;">Поддержка</div>') +
           escSup(m.body) + renderAttachment(m) + '</div>';
       }).join('');
       box.scrollTop = box.scrollHeight;

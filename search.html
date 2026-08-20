@@ -13,7 +13,7 @@
   <script src="/js/auth.js"></script>
   <style>
     .search-hero {
-      background: linear-gradient(135deg, #6D28D9 0%, #7C3AED 40%, #9F67FA 100%);
+      background: linear-gradient(135deg, #065F46 0%, #047857 40%, #059669 100%);
       padding: 2.5rem 0 3rem;
       position: relative;
       overflow: hidden;
@@ -64,7 +64,7 @@
     }
     .search-bar-hero input::placeholder { color: #9CA3AF; }
     .search-bar-hero button {
-      background: linear-gradient(135deg, #7C3AED 0%, #9F67FA 100%);
+      background: linear-gradient(135deg, #047857 0%, #059669 100%);
       color: white;
       border: none;
       border-radius: 0.75rem;
@@ -80,7 +80,7 @@
       gap: 0.5rem;
     }
     .search-bar-hero button:hover {
-      box-shadow: 0 4px 16px rgba(124,58,237,0.5);
+      box-shadow: 0 4px 16px rgba(4,120,87,0.5);
       transform: translateY(-1px);
     }
 
@@ -200,7 +200,7 @@
       font-family: inherit;
       transition: all 0.2s;
     }
-    .mobile-filter-btn:hover { border-color: #7C3AED; color: #7C3AED; }
+    .mobile-filter-btn:hover { border-color: #047857; color: #047857; }
 
     @media (max-width: 768px) {
       .mobile-filter-btn { display: flex; }
@@ -213,13 +213,13 @@
     }
     .empty-state-icon {
       width: 72px; height: 72px;
-      background: #F3E8FF;
+      background: #D1FAE5;
       border-radius: 50%;
       display: flex;
       align-items: center;
       justify-content: center;
       margin: 0 auto 1.25rem;
-      color: #7C3AED;
+      color: #047857;
     }
     .empty-state h3 { color: #1A1A1A; margin-bottom: 0.5rem; }
 
@@ -274,15 +274,15 @@
     /* ── Filter chips row ── */
     .filter-chips-row { display:flex; gap:0.5rem; flex-wrap:wrap; padding:0.25rem 0; }
     .filter-chip-item { display:inline-flex; align-items:center; gap:0.375rem; padding:0.4375rem 1rem; border-radius:2rem; border:1.5px solid #E2E8F0; background:white; font-size:0.875rem; cursor:pointer; transition:all 0.2s; color:#374151; font-weight:500; font-family:inherit; white-space:nowrap; box-shadow:0 1px 3px rgba(0,0,0,0.04); }
-    .filter-chip-item:hover { border-color:#7C3AED; color:#7C3AED; background:#FAF5FF; }
-    .filter-chip-item.active { background:#7C3AED; border-color:#7C3AED; color:white; box-shadow:0 2px 8px rgba(124,58,237,0.3); }
+    .filter-chip-item:hover { border-color:#047857; color:#047857; background:#ECFDF5; }
+    .filter-chip-item.active { background:#047857; border-color:#047857; color:white; box-shadow:0 2px 8px rgba(4,120,87,0.3); }
 
     /* ── Sort bar ── */
     .sort-bar { display:flex; align-items:center; justify-content:space-between; padding:0.875rem 1.25rem; background:white; border-radius:0.875rem; border:1px solid #F0F0F0; margin-bottom:1rem; box-shadow:0 1px 4px rgba(0,0,0,0.04); }
     .sort-bar-count { font-size:0.9375rem; color:#374151; font-weight:500; }
-    .sort-bar-count span { font-weight:700; color:#7C3AED; }
+    .sort-bar-count span { font-weight:700; color:#047857; }
     .sort-select { font-size:0.875rem; border:1.5px solid #E2E8F0; border-radius:0.625rem; padding:0.375rem 2.25rem 0.375rem 0.875rem; color:#374151; font-family:inherit; font-weight:500; cursor:pointer; background-color:white; appearance:none; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%237C3AED' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 0.625rem center; outline:none; transition:border-color 0.2s; }
-    .sort-select:focus { border-color:#7C3AED; }
+    .sort-select:focus { border-color:#047857; }
 
     /* ── Filter sidebar ── */
     .filters-sidebar-modern { background:white; border-radius:1.25rem; border:1px solid #F0F0F0; padding:1.5rem; position:sticky; top:5.5rem; box-shadow:0 4px 20px rgba(0,0,0,0.06); }
@@ -291,26 +291,26 @@
     .filter-group-modern:last-of-type { border-bottom:none; margin-bottom:0; padding-bottom:0; }
     .filter-group-label { font-size:0.8125rem; font-weight:700; color:#374151; margin-bottom:0.875rem; display:flex; align-items:center; gap:0.375rem; text-transform:uppercase; letter-spacing:0.05em; }
     .filter-select-modern { width:100%; padding:0.625rem 2.25rem 0.625rem 0.875rem; border:1.5px solid #E2E8F0; border-radius:0.625rem; font-size:0.9375rem; color:#1A1A1A; background:white; cursor:pointer; font-family:inherit; appearance:none; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%237C3AED' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 0.75rem center; outline:none; transition:border-color 0.2s,box-shadow 0.2s; }
-    .filter-select-modern:focus { border-color:#7C3AED; box-shadow:0 0 0 3px rgba(124,58,237,0.1); }
+    .filter-select-modern:focus { border-color:#047857; box-shadow:0 0 0 3px rgba(4,120,87,0.1); }
     .filter-checkbox-modern { display:flex; align-items:center; gap:0.625rem; cursor:pointer; padding:0.375rem 0; font-size:0.9375rem; color:#374151; transition:color 0.15s; }
-    .filter-checkbox-modern:hover { color:#7C3AED; }
-    .filter-checkbox-modern input[type="checkbox"] { width:1.125rem; height:1.125rem; border:1.5px solid #D1D5DB; border-radius:0.3rem; appearance:none; cursor:pointer; position:relative; flex-shrink:0; transition:all 0.15s; accent-color:#7C3AED; background:white; }
-    .filter-checkbox-modern input[type="checkbox"]:checked { background-color:#7C3AED; border-color:#7C3AED; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='20 6 9 17 4 12'%3E%3C/polyline%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:center; }
+    .filter-checkbox-modern:hover { color:#047857; }
+    .filter-checkbox-modern input[type="checkbox"] { width:1.125rem; height:1.125rem; border:1.5px solid #D1D5DB; border-radius:0.3rem; appearance:none; cursor:pointer; position:relative; flex-shrink:0; transition:all 0.15s; accent-color:#047857; background:white; }
+    .filter-checkbox-modern input[type="checkbox"]:checked { background-color:#047857; border-color:#047857; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='20 6 9 17 4 12'%3E%3C/polyline%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:center; }
     .filter-price-row-modern { display:flex; gap:0.5rem; align-items:center; }
     .filter-price-modern { flex:1; padding:0.625rem 0.75rem; border:1.5px solid #E2E8F0; border-radius:0.625rem; font-size:0.9375rem; color:#1A1A1A; font-family:inherit; outline:none; transition:border-color 0.2s; min-width:0; }
-    .filter-price-modern:focus { border-color:#7C3AED; }
+    .filter-price-modern:focus { border-color:#047857; }
     .filter-price-modern::placeholder { color:#9CA3AF; }
     .filter-price-sep { color:#9CA3AF; font-size:0.875rem; flex-shrink:0; }
-    .btn-apply-modern { width:100%; padding:0.75rem; background:linear-gradient(135deg,#7C3AED 0%,#9F67FA 100%); color:white; border:none; border-radius:0.75rem; font-weight:700; font-size:0.9375rem; cursor:pointer; font-family:inherit; transition:all 0.2s; box-shadow:0 4px 12px rgba(124,58,237,0.3); margin-top:1.25rem; }
-    .btn-apply-modern:hover { background:linear-gradient(135deg,#6D28D9 0%,#8B5CF6 100%); box-shadow:0 6px 18px rgba(124,58,237,0.4); transform:translateY(-1px); }
-    .btn-reset-modern { width:100%; padding:0.625rem; background:transparent; color:#7C3AED; border:1.5px solid #E2E8F0; border-radius:0.75rem; font-weight:600; font-size:0.875rem; cursor:pointer; font-family:inherit; transition:all 0.2s; margin-top:0.625rem; text-align:center; }
-    .btn-reset-modern:hover { border-color:#7C3AED; background:#FAF5FF; }
+    .btn-apply-modern { width:100%; padding:0.75rem; background:linear-gradient(135deg,#047857 0%,#059669 100%); color:white; border:none; border-radius:0.75rem; font-weight:700; font-size:0.9375rem; cursor:pointer; font-family:inherit; transition:all 0.2s; box-shadow:0 4px 12px rgba(4,120,87,0.3); margin-top:1.25rem; }
+    .btn-apply-modern:hover { background:linear-gradient(135deg,#065F46 0%,#059669 100%); box-shadow:0 6px 18px rgba(4,120,87,0.4); transform:translateY(-1px); }
+    .btn-reset-modern { width:100%; padding:0.625rem; background:transparent; color:#047857; border:1.5px solid #E2E8F0; border-radius:0.75rem; font-weight:600; font-size:0.875rem; cursor:pointer; font-family:inherit; transition:all 0.2s; margin-top:0.625rem; text-align:center; }
+    .btn-reset-modern:hover { border-color:#047857; background:#ECFDF5; }
 
     /* ── Dark theme ── */
     body.dark .filter-chips-wrap { background: #252525; border-color: #333; }
     body.dark .filter-chip-item { background: #252525; border-color: #444; color: #CCC; }
-    body.dark .filter-chip-item:hover { border-color: #7C3AED; color: #B794F4; background: #2D1F4E; }
-    body.dark .filter-chip-item.active { background: #7C3AED; border-color: #7C3AED; color: white; }
+    body.dark .filter-chip-item:hover { border-color: #047857; color: #6EE7B7; background: #0B3B2E; }
+    body.dark .filter-chip-item.active { background: #047857; border-color: #047857; color: white; }
     body.dark .sort-bar { background: #252525; border-color: #333; }
     body.dark .sort-bar-count { color: #CCC; }
     body.dark .sort-select { background-color: #1E1E1E; border-color: #444; color: #CCC; }
@@ -323,17 +323,17 @@
     body.dark .filter-checkbox-modern input[type="checkbox"] { background: #1E1E1E; border-color: #555; }
     body.dark .filter-price-modern { background: #1E1E1E; border-color: #444; color: #E6E6E6; }
     body.dark .filter-price-modern::placeholder { color: #777; }
-    body.dark .btn-reset-modern { border-color: #444; color: #B794F4; }
-    body.dark .btn-reset-modern:hover { border-color: #7C3AED; background: #2D1F4E; }
+    body.dark .btn-reset-modern { border-color: #444; color: #6EE7B7; }
+    body.dark .btn-reset-modern:hover { border-color: #047857; background: #0B3B2E; }
     body.dark .empty-state { color: #999; }
-    body.dark .empty-state-icon { background: #2D1F4E; }
+    body.dark .empty-state-icon { background: #0B3B2E; }
     body.dark .empty-state h3 { color: #E6E6E6; }
     body.dark .skeleton-card { background: linear-gradient(90deg, #252525 25%, #2D2D2D 50%, #252525 75%); border-color: #333; }
     body.dark .search-bar-hero { background: #252525; box-shadow: 0 16px 48px rgba(0,0,0,0.4); }
     body.dark .search-bar-hero input { color: #E6E6E6; }
     body.dark .search-bar-hero input::placeholder { color: #777; }
     body.dark .mobile-filter-btn { background: #252525; border-color: #444; color: #CCC; }
-    body.dark .mobile-filter-btn:hover { border-color: #7C3AED; color: #B794F4; }
+    body.dark .mobile-filter-btn:hover { border-color: #047857; color: #6EE7B7; }
     body.dark .psych-desc-text { color: #999; }
     /* JS-generated card overrides (inline styles) */
     body.dark [style*="background:white"],
@@ -346,8 +346,8 @@
     body.dark [style*="color: #6B7280"] { color: #999 !important; }
     body.dark [style*="color:#374151"],
     body.dark [style*="color: #374151"] { color: #CCC !important; }
-    body.dark [style*="background:#F8F6FF"],
-    body.dark [style*="background: #F8F6FF"] { background: #2D1F4E !important; }
+    body.dark [style*="background:#ECFDF5"],
+    body.dark [style*="background: #ECFDF5"] { background: #0B3B2E !important; }
   </style>
 </head>
 <body>
@@ -451,7 +451,7 @@
         <!-- ── Sidebar ── -->
         <aside class="filters-sidebar-modern anim-fade-up anim-delay-1" id="filterSidebar">
           <div class="filters-sidebar-title">
-            <i data-lucide="sliders-horizontal" style="width:1.125rem;height:1.125rem;color:#7C3AED;"></i>
+            <i data-lucide="sliders-horizontal" style="width:1.125rem;height:1.125rem;color:#047857;"></i>
             Фильтры
           </div>
 
@@ -588,7 +588,7 @@
     let activeChipSpecialty = '';
 
     /* ─── Палитра для аватаров (реальный API не отдаёт цвет) ─── */
-    const AVATAR_COLORS = ['#7C3AED','#2563EB','#059669','#D97706','#DB2777','#0891B2','#9F67FA','#7C3AED'];
+    const AVATAR_COLORS = ['#047857','#2563EB','#059669','#D97706','#DB2777','#0891B2','#059669','#047857'];
     function colorForId(id) {
       const s = String(id);
       let h = 0;
@@ -663,7 +663,7 @@
             '<div class="empty-state">' +
               '<div class="empty-state-icon"><i data-lucide="wifi-off" style="width:2rem;height:2rem;"></i></div>' +
               '<h3>Не удалось загрузить каталог</h3>' +
-              '<p>Проверьте подключение к интернету и <button onclick="loadPsychologists()" style="background:none;border:none;color:#7C3AED;font-weight:600;cursor:pointer;font-size:inherit;padding:0;">попробуйте снова</button></p>' +
+              '<p>Проверьте подключение к интернету и <button onclick="loadPsychologists()" style="background:none;border:none;color:#047857;font-weight:600;cursor:pointer;font-size:inherit;padding:0;">попробуйте снова</button></p>' +
             '</div>';
           if (window.lucide) { try { lucide.createIcons(); } catch(e) {} }
         }
@@ -887,14 +887,14 @@
       const countEl   = document.getElementById('countDisplay');
       const sortCount = document.getElementById('sortBarCount');
       if (countEl) countEl.textContent = list.length;
-      if (sortCount) sortCount.innerHTML = '<span style="font-weight:700;color:#7C3AED;">' + list.length + '</span>';
+      if (sortCount) sortCount.innerHTML = '<span style="font-weight:700;color:#047857;">' + list.length + '</span>';
 
       if (list.length === 0) {
         container.innerHTML =
           '<div class="empty-state">' +
             '<div class="empty-state-icon"><i data-lucide="search-x" style="width:2rem;height:2rem;"></i></div>' +
             '<h3>Специалисты не найдены</h3>' +
-            '<p>Попробуйте изменить параметры поиска или <button onclick="resetFilters()" style="background:none;border:none;color:#7C3AED;font-weight:600;cursor:pointer;font-size:inherit;padding:0;">сбросить фильтры</button></p>' +
+            '<p>Попробуйте изменить параметры поиска или <button onclick="resetFilters()" style="background:none;border:none;color:#047857;font-weight:600;cursor:pointer;font-size:inherit;padding:0;">сбросить фильтры</button></p>' +
           '</div>';
         if (window.lucide) lucide.createIcons();
         return;
@@ -910,10 +910,10 @@
         const fmtIcons = {video: 'video', chat: 'message-square', audio: 'phone', phone: 'phone'};
         const fmtLabels = {video: 'Видео', chat: 'Чат', audio: 'Аудио', phone: 'Звонок'};
         const formats = (p.formats || ['video']).map(f =>
-          '<span style="display:inline-flex;align-items:center;gap:0.25rem;background:#F3E8FF;color:#7C3AED;border-radius:2rem;padding:0.2rem 0.75rem;font-size:0.8125rem;font-weight:500;"><i data-lucide="' + (fmtIcons[f]||'video') + '" style="width:0.75rem;height:0.75rem;"></i>' + (fmtLabels[f]||f) + '</span>'
+          '<span style="display:inline-flex;align-items:center;gap:0.25rem;background:#D1FAE5;color:#047857;border-radius:2rem;padding:0.2rem 0.75rem;font-size:0.8125rem;font-weight:500;"><i data-lucide="' + (fmtIcons[f]||'video') + '" style="width:0.75rem;height:0.75rem;"></i>' + (fmtLabels[f]||f) + '</span>'
         ).join('');
         const specs = (p.specialties || []).slice(0,2).map(s =>
-          '<span style="display:inline-block;background:#F3E8FF;color:#7C3AED;border-radius:2rem;padding:0.175rem 0.625rem;font-size:0.75rem;font-weight:500;margin-right:0.375rem;">' + s + '</span>'
+          '<span style="display:inline-block;background:#D1FAE5;color:#047857;border-radius:2rem;padding:0.175rem 0.625rem;font-size:0.75rem;font-weight:500;margin-right:0.375rem;">' + s + '</span>'
         ).join('');
         const verified = p.verified
           ? '<span style="display:inline-flex;align-items:center;gap:0.25rem;background:#F0FDF4;color:#16A34A;border-radius:2rem;padding:0.2rem 0.625rem;font-size:0.75rem;font-weight:600;border:1px solid #BBF7D0;"><i data-lucide="badge-check" style="width:0.75rem;height:0.75rem;"></i> Верификация</span>'
@@ -925,14 +925,14 @@
           ? '/book.html?id=' + p.id + '&pkg=' + pkgParam
           : '/psychologist-profile.html?id=' + p.id;
         return (
-          '<a href="' + cardHref + '" data-psych-id="' + p.id + '" style="display:grid;grid-template-columns:auto 1fr auto;gap:1.5rem;align-items:start;background:white;border-radius:1.25rem;padding:1.75rem;border:1px solid #F0F0F0;box-shadow:0 2px 8px rgba(0,0,0,0.04);text-decoration:none;color:inherit;transition:box-shadow 0.2s,transform 0.2s;cursor:pointer;" class="anim-fade-up' + delay + '" onmouseover="this.style.boxShadow=\'0 8px 32px rgba(124,58,237,0.12)\';this.style.transform=\'translateY(-2px)\'" onmouseout="this.style.boxShadow=\'0 2px 8px rgba(0,0,0,0.04)\';this.style.transform=\'\'">' +
-            '<div style="width:88px;height:88px;min-width:88px;max-width:88px;border-radius:50%;background:' + (p.color||'#7C3AED') + ';display:flex;align-items:center;justify-content:center;color:white;font-size:1.75rem;font-weight:700;border:3px solid #F3E8FF;overflow:hidden;flex-shrink:0;">' + avatarHtml + '</div>' +
+          '<a href="' + cardHref + '" data-psych-id="' + p.id + '" style="display:grid;grid-template-columns:auto 1fr auto;gap:1.5rem;align-items:start;background:white;border-radius:1.25rem;padding:1.75rem;border:1px solid #F0F0F0;box-shadow:0 2px 8px rgba(0,0,0,0.04);text-decoration:none;color:inherit;transition:box-shadow 0.2s,transform 0.2s;cursor:pointer;" class="anim-fade-up' + delay + '" onmouseover="this.style.boxShadow=\'0 8px 32px rgba(4,120,87,0.12)\';this.style.transform=\'translateY(-2px)\'" onmouseout="this.style.boxShadow=\'0 2px 8px rgba(0,0,0,0.04)\';this.style.transform=\'\'">' +
+            '<div style="width:88px;height:88px;min-width:88px;max-width:88px;border-radius:50%;background:' + (p.color||'#047857') + ';display:flex;align-items:center;justify-content:center;color:white;font-size:1.75rem;font-weight:700;border:3px solid #D1FAE5;overflow:hidden;flex-shrink:0;">' + avatarHtml + '</div>' +
             '<div style="min-width:0;">' +
               '<div style="display:flex;align-items:center;gap:0.625rem;flex-wrap:wrap;margin-bottom:0.25rem;">' +
                 '<span style="font-size:1.25rem;font-weight:700;color:#1A1A1A;letter-spacing:-0.02em;">' + p.name + '</span>' +
                 verified +
               '</div>' +
-              '<div style="font-size:0.875rem;color:#7C3AED;font-weight:500;margin-bottom:0.5rem;">' + (p.specialties||[]).slice(0,1).join(', ') + '</div>' +
+              '<div style="font-size:0.875rem;color:#047857;font-weight:500;margin-bottom:0.5rem;">' + (p.specialties||[]).slice(0,1).join(', ') + '</div>' +
               '<div style="display:flex;flex-wrap:wrap;gap:1rem;font-size:0.8125rem;color:#6B7280;margin-bottom:0.625rem;align-items:center;">' +
                 '<span>' + stars + '<span style="font-weight:600;color:#1A1A1A;margin-left:0.25rem;">' + (p.rating||0).toFixed(1) + '</span></span>' +
                 '<span>' + plural(p.reviews||0, 'отзыв', 'отзыва', 'отзывов') + '</span>' +
@@ -948,7 +948,7 @@
                   ? '<div style="font-size:1.375rem;font-weight:800;color:#1A1A1A;letter-spacing:-0.02em;">' + p.price.toLocaleString('ru-RU') + ' ₽</div><div style="font-size:0.8125rem;color:#6B7280;">за сессию</div>'
                   : '<div style="font-size:1rem;font-weight:700;color:#9CA3AF;">Цена уточняется</div>') +
               '</div>' +
-              '<span style="display:inline-flex;align-items:center;justify-content:center;padding:0.625rem 1.25rem;background:linear-gradient(135deg,#7C3AED,#9F67FA);color:white;border-radius:0.75rem;font-size:0.9375rem;font-weight:600;text-decoration:none;white-space:nowrap;box-shadow:0 3px 10px rgba(124,58,237,0.3);">' + (pkgParam ? '🔄 Записаться по абонементу' : 'Профиль и запись →') + '</span>' +
+              '<span style="display:inline-flex;align-items:center;justify-content:center;padding:0.625rem 1.25rem;background:linear-gradient(135deg,#047857,#059669);color:white;border-radius:0.75rem;font-size:0.9375rem;font-weight:600;text-decoration:none;white-space:nowrap;box-shadow:0 3px 10px rgba(4,120,87,0.3);">' + (pkgParam ? '🔄 Записаться по абонементу' : 'Профиль и запись →') + '</span>' +
             '</div>' +
           '</a>'
         );
@@ -1003,7 +1003,7 @@
       const pkgReassign = up.get('pkg');
       if (pkgReassign) {
         const banner = document.createElement('div');
-        banner.style.cssText = 'background:linear-gradient(135deg,#7C3AED 0%,#9F67FA 100%);color:white;padding:1rem 1.5rem;border-radius:1rem;margin:0 auto 1.5rem;max-width:900px;font-size:.95rem;display:flex;align-items:center;gap:.75rem;';
+        banner.style.cssText = 'background:linear-gradient(135deg,#047857 0%,#059669 100%);color:white;padding:1rem 1.5rem;border-radius:1rem;margin:0 auto 1.5rem;max-width:900px;font-size:.95rem;display:flex;align-items:center;gap:.75rem;';
         banner.innerHTML = '<span style="font-size:1.5rem;">🔄</span><span>Выберите нового психолога для вашего абонемента. Нажмите на карточку специалиста, чтобы перейти к записи.</span>';
         const heroSection = document.querySelector('.search-hero');
         if (heroSection) heroSection.parentNode.insertBefore(banner, heroSection.nextSibling);

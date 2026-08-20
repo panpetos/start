@@ -15,24 +15,24 @@
   --card-foreground: 0 0% 10%;
   --popover: 0 0% 100%;
   --popover-foreground: 0 0% 10%;
-  --primary: 258 80% 57%;
+  --primary: 163 94% 24%;
   --primary-foreground: 0 0% 100%;
-  --secondary: 270 95% 95%;
-  --secondary-foreground: 258 80% 57%;
-  --muted: 270 30% 96%;
+  --secondary: 149 80% 90%;
+  --secondary-foreground: 163 94% 24%;
+  --muted: 152 30% 96%;
   --muted-foreground: 0 0% 45%;
-  --accent: 258 80% 57%;
+  --accent: 163 94% 24%;
   --accent-foreground: 0 0% 100%;
   --destructive: 0 84% 60%;
   --destructive-foreground: 0 0% 100%;
-  --border: 270 20% 90%;
-  --input: 270 20% 95%;
-  --ring: 258 80% 57%;
+  --border: 152 20% 90%;
+  --input: 152 20% 95%;
+  --ring: 163 94% 24%;
   --radius: 0.75rem;
 
-  --primary-custom: #7C3AED;
-  --secondary-custom: #F3E8FF;
-  --accent-custom: #8B5CF6;
+  --primary-custom: #047857;
+  --secondary-custom: #D1FAE5;
+  --accent-custom: #059669;
   --text-custom: #1A1A1A;
   --green: #34C759;
   --green-dark: #28A745;
@@ -49,8 +49,8 @@
   --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
   --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
   --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
-  --shadow-purple: 0 8px 30px rgba(124, 58, 237, 0.2);
-  --shadow-purple-lg: 0 16px 48px rgba(124, 58, 237, 0.25);
+  --shadow-brand: 0 8px 30px rgba(4,120,87, 0.2);
+  --shadow-brand-lg: 0 16px 48px rgba(4,120,87, 0.25);
 }
 
 /* ============================================
@@ -138,7 +138,7 @@ p { margin-bottom: var(--spacing-md); }
    Gradient Text
    ============================================ */
 .gradient-text {
-  background: linear-gradient(135deg, #7C3AED 0%, #A78BFA 100%);
+  background: linear-gradient(135deg, #047857 0%, #34D399 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -170,10 +170,10 @@ p { margin-bottom: var(--spacing-md); }
   animation: blobFloat 10s ease-in-out infinite;
 }
 
-.hero-blob-purple {
+.hero-blob-brand {
   width: 600px;
   height: 600px;
-  background: radial-gradient(circle, #7C3AED, #A78BFA);
+  background: radial-gradient(circle, #047857, #34D399);
   top: -200px;
   right: -100px;
 }
@@ -216,9 +216,9 @@ p { margin-bottom: var(--spacing-md); }
 }
 
 .card:hover {
-  box-shadow: var(--shadow-purple);
+  box-shadow: var(--shadow-brand);
   transform: translateY(-2px);
-  border-color: rgba(124, 58, 237, 0.15);
+  border-color: rgba(4,120,87, 0.15);
 }
 
 .card-header {
@@ -280,15 +280,15 @@ p { margin-bottom: var(--spacing-md); }
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, #7C3AED 0%, #9F67FA 100%);
+  background: linear-gradient(135deg, #047857 0%, #059669 100%);
   color: white;
-  box-shadow: 0 4px 14px rgba(124, 58, 237, 0.35);
+  box-shadow: 0 4px 14px rgba(4,120,87, 0.35);
 }
 
 .btn-primary:hover {
-  background: linear-gradient(135deg, #6D28D9 0%, #8B5CF6 100%);
+  background: linear-gradient(135deg, #065F46 0%, #059669 100%);
   color: white;
-  box-shadow: 0 6px 20px rgba(124, 58, 237, 0.45);
+  box-shadow: 0 6px 20px rgba(4,120,87, 0.45);
   transform: translateY(-1px);
 }
 
@@ -323,7 +323,7 @@ p { margin-bottom: var(--spacing-md); }
 
 .btn-outline:hover {
   background-color: hsl(var(--muted));
-  border-color: rgba(124, 58, 237, 0.3);
+  border-color: rgba(4,120,87, 0.3);
 }
 
 .btn-ghost {
@@ -389,8 +389,8 @@ p { margin-bottom: var(--spacing-md); }
 
 .form-input:focus, .form-select:focus, .form-textarea:focus {
   outline: none;
-  border-color: #7C3AED;
-  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.12);
+  border-color: #047857;
+  box-shadow: 0 0 0 3px rgba(4,120,87, 0.12);
 }
 
 .form-input:disabled, .form-select:disabled, .form-textarea:disabled {
@@ -427,7 +427,7 @@ p { margin-bottom: var(--spacing-md); }
   border: 1.5px solid hsl(var(--primary));
   border-radius: calc(var(--radius) - 4px);
   cursor: pointer;
-  accent-color: #7C3AED;
+  accent-color: #047857;
 }
 
 /* ============================================
@@ -714,8 +714,8 @@ p { margin-bottom: var(--spacing-md); }
    3D Icon
    ============================================ */
 .icon-3d {
-  background: linear-gradient(135deg, #7C3AED 0%, #A78BFA 100%);
-  box-shadow: 0 8px 24px rgba(124, 58, 237, 0.25), inset 0 -2px 8px rgba(0,0,0,0.08);
+  background: linear-gradient(135deg, #047857 0%, #34D399 100%);
+  box-shadow: 0 8px 24px rgba(4,120,87, 0.25), inset 0 -2px 8px rgba(0,0,0,0.08);
   position: relative;
   overflow: hidden;
   flex-shrink: 0;
@@ -769,7 +769,7 @@ p { margin-bottom: var(--spacing-md); }
   left: calc(16.7% + 1.5rem + 0.5rem);
   right: calc(16.7% + 1.5rem + 0.5rem);
   height: 2px;
-  background: linear-gradient(90deg, #34C759, #7C3AED);
+  background: linear-gradient(90deg, #34C759, #047857);
   z-index: 0;
   opacity: 0.4;
 }
@@ -786,7 +786,7 @@ p { margin-bottom: var(--spacing-md); }
 }
 
 .step-card:hover {
-  box-shadow: var(--shadow-purple);
+  box-shadow: var(--shadow-brand);
   transform: translateY(-3px);
 }
 
@@ -841,7 +841,7 @@ details summary::after {
   content: "+";
   font-size: 1.25rem;
   font-weight: 300;
-  color: #7C3AED;
+  color: #047857;
   transition: transform 0.3s ease, content 0.3s;
   flex-shrink: 0;
   width: 1.5rem;
@@ -881,9 +881,9 @@ details p {
 }
 
 .psych-card-modern:hover {
-  box-shadow: 0 8px 32px rgba(124, 58, 237, 0.12);
+  box-shadow: 0 8px 32px rgba(4,120,87, 0.12);
   transform: translateY(-2px);
-  border-color: rgba(124, 58, 237, 0.15);
+  border-color: rgba(4,120,87, 0.15);
 }
 
 .psych-avatar-modern {
@@ -892,7 +892,7 @@ details p {
   border-radius: 50%;
   object-fit: cover;
   flex-shrink: 0;
-  border: 3px solid #F3E8FF;
+  border: 3px solid #D1FAE5;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -919,7 +919,7 @@ details p {
 
 .psych-spec-tag {
   display: inline-flex;
-  color: #7C3AED;
+  color: #047857;
   font-size: 0.875rem;
   font-weight: 500;
   margin-bottom: 0.625rem;
@@ -963,8 +963,8 @@ details p {
 }
 
 .format-chip {
-  background: #F3E8FF;
-  color: #7C3AED;
+  background: #D1FAE5;
+  color: #047857;
   padding: 0.2rem 0.625rem;
   border-radius: 2rem;
   font-size: 0.75rem;
@@ -1053,8 +1053,8 @@ details p {
 }
 
 .search-bar-wrap:focus-within {
-  border-color: #7C3AED;
-  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.1);
+  border-color: #047857;
+  box-shadow: 0 0 0 3px rgba(4,120,87, 0.1);
 }
 
 .search-bar-input {
@@ -1100,16 +1100,16 @@ details p {
 }
 
 .filter-chip-item:hover {
-  border-color: #7C3AED;
-  color: #7C3AED;
-  background: #FAF5FF;
+  border-color: #047857;
+  color: #047857;
+  background: #ECFDF5;
 }
 
 .filter-chip-item.active {
-  background: #7C3AED;
-  border-color: #7C3AED;
+  background: #047857;
+  border-color: #047857;
   color: white;
-  box-shadow: 0 2px 8px rgba(124, 58, 237, 0.3);
+  box-shadow: 0 2px 8px rgba(4,120,87, 0.3);
 }
 
 /* ============================================
@@ -1135,7 +1135,7 @@ details p {
 
 .sort-bar-count span {
   font-weight: 700;
-  color: #7C3AED;
+  color: #047857;
 }
 
 .sort-select {
@@ -1156,7 +1156,7 @@ details p {
   transition: border-color 0.2s;
 }
 
-.sort-select:focus { border-color: #7C3AED; }
+.sort-select:focus { border-color: #047857; }
 
 /* ============================================
    Filter Sidebar (Search Page) - Modern
@@ -1224,8 +1224,8 @@ details p {
 }
 
 .filter-select-modern:focus {
-  border-color: #7C3AED;
-  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.1);
+  border-color: #047857;
+  box-shadow: 0 0 0 3px rgba(4,120,87, 0.1);
 }
 
 .filter-checkbox-modern {
@@ -1239,7 +1239,7 @@ details p {
   transition: color 0.15s;
 }
 
-.filter-checkbox-modern:hover { color: #7C3AED; }
+.filter-checkbox-modern:hover { color: #047857; }
 
 .filter-checkbox-modern input[type="checkbox"] {
   width: 1.125rem;
@@ -1251,13 +1251,13 @@ details p {
   position: relative;
   flex-shrink: 0;
   transition: all 0.15s;
-  accent-color: #7C3AED;
+  accent-color: #047857;
   background: white;
 }
 
 .filter-checkbox-modern input[type="checkbox"]:checked {
-  background-color: #7C3AED;
-  border-color: #7C3AED;
+  background-color: #047857;
+  border-color: #047857;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='20 6 9 17 4 12'%3E%3C/polyline%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: center;
@@ -1282,7 +1282,7 @@ details p {
   min-width: 0;
 }
 
-.filter-price-modern:focus { border-color: #7C3AED; }
+.filter-price-modern:focus { border-color: #047857; }
 .filter-price-modern::placeholder { color: #9CA3AF; }
 
 .filter-price-sep {
@@ -1294,7 +1294,7 @@ details p {
 .btn-apply-modern {
   width: 100%;
   padding: 0.75rem;
-  background: linear-gradient(135deg, #7C3AED 0%, #9F67FA 100%);
+  background: linear-gradient(135deg, #047857 0%, #059669 100%);
   color: white;
   border: none;
   border-radius: 0.75rem;
@@ -1303,13 +1303,13 @@ details p {
   cursor: pointer;
   font-family: inherit;
   transition: all 0.2s;
-  box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3);
+  box-shadow: 0 4px 12px rgba(4,120,87, 0.3);
   margin-top: 1.25rem;
 }
 
 .btn-apply-modern:hover {
-  background: linear-gradient(135deg, #6D28D9 0%, #8B5CF6 100%);
-  box-shadow: 0 6px 18px rgba(124, 58, 237, 0.4);
+  background: linear-gradient(135deg, #065F46 0%, #059669 100%);
+  box-shadow: 0 6px 18px rgba(4,120,87, 0.4);
   transform: translateY(-1px);
 }
 
@@ -1317,7 +1317,7 @@ details p {
   width: 100%;
   padding: 0.625rem;
   background: transparent;
-  color: #7C3AED;
+  color: #047857;
   border: 1.5px solid #E2E8F0;
   border-radius: 0.75rem;
   font-weight: 600;
@@ -1330,15 +1330,15 @@ details p {
 }
 
 .btn-reset-modern:hover {
-  border-color: #7C3AED;
-  background: #FAF5FF;
+  border-color: #047857;
+  background: #ECFDF5;
 }
 
 /* ============================================
    Gradient Backgrounds
    ============================================ */
 .bg-gradient-hero { background: linear-gradient(to right, #f0f8ff, #f0fff0); }
-.bg-gradient-purple { background: linear-gradient(135deg, #7C3AED 0%, #A78BFA 100%); }
+.bg-gradient-brand { background: linear-gradient(135deg, #047857 0%, #34D399 100%); }
 .bg-gradient-green { background: linear-gradient(135deg, #34C759 0%, #28A745 100%); }
 
 /* ============================================
@@ -1365,7 +1365,7 @@ details p {
    ============================================ */
 .spinner {
   border: 3px solid #F1F5F9;
-  border-top-color: #7C3AED;
+  border-top-color: #047857;
   border-radius: 50%;
   width: 2.5rem;
   height: 2.5rem;
@@ -1520,7 +1520,7 @@ details p {
   display: block;
   width: 25px;
   height: 2.5px;
-  background-color: #7C3AED;
+  background-color: #047857;
   border-radius: 3px;
   transition: all 0.3s ease;
 }
@@ -1579,7 +1579,7 @@ details p {
 
 /* ── Контраст в тёмной теме ─────────────────────────────────────────────────────
    Приглушённый текст (#707070/#777/#999) на панелях #252525 давал контраст 3.1–3.4
-   при норме 4.5 — читалось тяжело. Фиолетовый #7C3AED на тёмном фоне давал 2.6–3.1.
+   при норме 4.5 — читалось тяжело. Фиолетовый #047857 на тёмном фоне давал 2.6–3.1.
    Поднимаем оба до нормы: серый светлее, акцент — светлый вариант палитры. ── */
 body.dark {
   --d-text-muted: #9A9A9A;
@@ -1591,10 +1591,10 @@ body.dark .empty-state,
 body.dark .conversation-time,
 body.dark .conversation-preview,
 body.dark .dash-sidebar-group-label { color: #9A9A9A !important; }
-/* Осознанно НЕ перекрашиваем все ссылки с инлайновым #7C3AED: такое широкое правило
+/* Осознанно НЕ перекрашиваем все ссылки с инлайновым #047857: такое широкое правило
    задевает и ссылки-кнопки на светлой подложке — там светло-фиолетовый на белом давал
    контраст 2.45. Для точечных случаев есть класс .accent-link. */
-body.dark .accent-link { color: #B794F4 !important; }
+body.dark .accent-link { color: #6EE7B7 !important; }
 /* Кнопка согласия на cookie: белый на #34C759 давал 2.22 — берём более тёмный зелёный */
 #psyConsentOk { background: #15803D !important; }
 
@@ -1630,8 +1630,8 @@ body.dark .accent-link { color: #B794F4 !important; }
     background: #FFFFFF;
     flex-direction: column;
     padding: calc(70px + 0.75rem) 0.6rem 1.25rem;
-    box-shadow: -18px 0 44px rgba(16, 12, 32, 0.16);
-    border-left: 1px solid #EFECF6;
+    box-shadow: -18px 0 44px rgba(10, 24, 19, 0.16);
+    border-left: 1px solid #EFF7F3;
     transform: translateX(100%);
     transition: transform 0.26s cubic-bezier(0.32, 0.72, 0, 1);
     z-index: 1001;
@@ -1664,7 +1664,7 @@ body.dark .accent-link { color: #B794F4 !important; }
     transition: background 0.14s;
   }
   .nav-menu li > a.nav-link:active,
-  .nav-menu li > a.nav-link:hover { background: #F1EFF7; }
+  .nav-menu li > a.nav-link:hover { background: #EFF7F3; }
 
   /* Кружки действий — ряд внизу, отделённый воздухом и одной тонкой чертой.
      ВАЖНО: правило выше не должно их растягивать — от width:100% круглая
@@ -1672,7 +1672,7 @@ body.dark .accent-link { color: #B794F4 !important; }
   #navMenu #psyNavActions {
     margin-top: 1rem !important;
     padding-top: 0.9rem !important;
-    border-top: 1px solid #F0EDF7 !important;
+    border-top: 1px solid #EFF7F3 !important;
     display: flex;
     gap: 0.6rem;
     justify-content: flex-start;
@@ -1697,14 +1697,14 @@ body.dark .accent-link { color: #B794F4 !important; }
   /* Затемнение под шторкой: без него меню висит поверх страницы без границы,
      и непонятно, что оно перекрывает. */
   .nav-scrim {
-    position: fixed; inset: 0; z-index: 998; background: rgba(20, 16, 32, 0.42);
+    position: fixed; inset: 0; z-index: 998; background: rgba(12, 26, 21, 0.42);
     opacity: 0; pointer-events: none; transition: opacity 0.26s ease;
     -webkit-backdrop-filter: blur(1.5px); backdrop-filter: blur(1.5px);
   }
   .nav-scrim.active { opacity: 1; pointer-events: auto; }
 
   body.dark .nav-menu { background: #242229 !important; border-left-color: #34313D !important; }
-  body.dark .nav-menu li > a.nav-link { color: #E4E2E9 !important; }
+  body.dark .nav-menu li > a.nav-link { color: #DCEBE4 !important; }
   body.dark .nav-menu li > a.nav-link:active,
   body.dark .nav-menu li > a.nav-link:hover { background: #2A2831 !important; }
   body.dark #navMenu #psyNavActions { border-top-color: #2E2C36 !important; }
@@ -1759,10 +1759,10 @@ body.dark .accent-link { color: #B794F4 !important; }
     width: 3.5rem;
     height: 3.5rem;
     border-radius: 50%;
-    background: linear-gradient(135deg, #7C3AED 0%, #A78BFA 100%);
+    background: linear-gradient(135deg, #047857 0%, #34D399 100%);
     color: white;
     border: none;
-    box-shadow: 0 8px 24px rgba(124, 58, 237, 0.35);
+    box-shadow: 0 8px 24px rgba(4,120,87, 0.35);
     z-index: 999;
     cursor: pointer;
     align-items: center;
@@ -1858,7 +1858,7 @@ body.dark .card-content {
   background-color: var(--d-panel, #252525);
 }
 body.dark .card:hover {
-  border-color: rgba(183,148,244,0.3);
+  border-color: rgba(110,231,183,0.3);
 }
 
 body.dark :root,
@@ -1913,8 +1913,8 @@ body.dark .nav-link {
 }
 body.dark .nav-link:hover,
 body.dark .nav-link.active {
-  color: #B794F4;
-  background-color: rgba(124, 58, 237, 0.12);
+  color: #6EE7B7;
+  background-color: rgba(4,120,87, 0.12);
 }
 body.dark .modal-content {
   background-color: #252525;
@@ -1950,8 +1950,8 @@ body.dark .stars-rating {
   color: #C0C0C0;
 }
 body.dark .format-chip {
-  background: #2D1F4E;
-  color: #B794F4;
+  background: #0B3B2E;
+  color: #6EE7B7;
 }
 body.dark .verified-badge {
   background: #1a2e1a;
@@ -1973,9 +1973,9 @@ body.dark .filter-chip-item {
   color: #C0C0C0;
 }
 body.dark .filter-chip-item:hover {
-  background: #2D1F4E;
-  color: #B794F4;
-  border-color: #7C3AED;
+  background: #0B3B2E;
+  color: #6EE7B7;
+  border-color: #047857;
 }
 body.dark .sort-bar {
   background: #252525;
@@ -2024,7 +2024,7 @@ body.dark .filter-price-modern::placeholder {
 }
 body.dark .btn-reset-modern {
   border-color: #444;
-  color: #B794F4;
+  color: #6EE7B7;
 }
 body.dark .dropdown-item {
   color: #E6E6E6;
@@ -2036,7 +2036,7 @@ body.dark .trust-badge {
   color: #999;
 }
 body.dark .psych-avatar-modern {
-  border-color: #2D1F4E;
+  border-color: #0B3B2E;
 }
 body.dark .psych-price-sub {
   color: #888;
@@ -2088,9 +2088,9 @@ body.dark [style*="background-color: #ffffff"],
 body.dark [style*="background-color:#ffffff"] {
   background-color: #252525 !important;
 }
-body.dark [style*="background: #F3E8FF"],
-body.dark [style*="background:#F3E8FF"] {
-  background: #2D1F4E !important;
+body.dark [style*="background: #D1FAE5"],
+body.dark [style*="background:#D1FAE5"] {
+  background: #0B3B2E !important;
 }
 body.dark [style*="background: #F3F4F6"],
 body.dark [style*="background:#F3F4F6"] {
@@ -2132,8 +2132,8 @@ body.dark [style*="color:#999"] {
 body.dark [style*="border: 1px solid #F0F0F0"] {
   border-color: #333 !important;
 }
-body.dark [style*="border: 1px solid #F0ECF8"],
-body.dark [style*="border:1px solid #F0ECF8"] {
+body.dark [style*="border: 1px solid #EFF7F3"],
+body.dark [style*="border:1px solid #EFF7F3"] {
   border-color: #333 !important;
 }
 body.dark [style*="border: 1px solid #E5E7EB"],
@@ -2147,18 +2147,18 @@ body.dark [style*="border: 2px solid #E5E5E5"],
 body.dark [style*="border: 2px solid #e5e5e5"] {
   border-color: #444 !important;
 }
-body.dark [style*="border: 2px solid #C4B5FD"] {
-  border-color: #5B3D8F !important;
+body.dark [style*="border: 2px solid #6EE7B7"] {
+  border-color: #1F6B4F !important;
 }
-body.dark [style*="border: 1px solid #E9D5FF"] {
-  border-color: #5B3D8F !important;
+body.dark [style*="border: 1px solid #A7F3D0"] {
+  border-color: #1F6B4F !important;
 }
-body.dark [style*="border: 1px solid #EDE9FF"],
-body.dark [style*="border:1px solid #EDE9FF"] {
-  border-color: #37254A !important;
+body.dark [style*="border: 1px solid #D1FAE5"],
+body.dark [style*="border:1px solid #D1FAE5"] {
+  border-color: #10402F !important;
 }
-body.dark [style*="border: 1px solid rgba(124,58,237,0.15)"] {
-  border-color: rgba(124,58,237,0.3) !important;
+body.dark [style*="border: 1px solid rgba(4,120,87,0.15)"] {
+  border-color: rgba(4,120,87,0.3) !important;
 }
 body.dark [style*="border-bottom: 1px solid #F5F5F5"] {
   border-bottom-color: #333 !important;
@@ -2201,8 +2201,8 @@ body.dark .badge-danger {
   color: #f87171;
 }
 body.dark .badge-secondary {
-  background-color: #2D1F4E;
-  color: #B794F4;
+  background-color: #0B3B2E;
+  color: #6EE7B7;
 }
 body.dark .badge-outline {
   border-color: #444;
@@ -2214,7 +2214,7 @@ body.dark .skeleton {
 }
 body.dark .spinner {
   border-color: #333;
-  border-top-color: #B794F4;
+  border-top-color: #6EE7B7;
 }
 body.dark .btn-outline {
   border-color: #444;
@@ -2222,7 +2222,7 @@ body.dark .btn-outline {
 }
 body.dark .btn-outline:hover {
   background-color: #333;
-  border-color: rgba(124, 58, 237, 0.4);
+  border-color: rgba(4,120,87, 0.4);
 }
 body.dark .btn-ghost {
   color: #C0C0C0;
@@ -2231,11 +2231,11 @@ body.dark .btn-ghost:hover {
   background-color: #333;
 }
 body.dark .btn-secondary {
-  background-color: #2D1F4E;
-  color: #B794F4;
+  background-color: #0B3B2E;
+  color: #6EE7B7;
 }
 body.dark .btn-secondary:hover {
-  background-color: #37254A;
+  background-color: #10402F;
 }
 body.dark .divider::before,
 body.dark .divider::after {
@@ -2260,8 +2260,8 @@ body.dark .psychologist-booking {
   border-top-color: #333;
 }
 body.dark .article-tag {
-  background: #2D1F4E;
-  color: #B794F4;
+  background: #0B3B2E;
+  color: #6EE7B7;
 }
 body.dark [style*="background-color: #FAFAFA"],
 body.dark [style*="background-color:#FAFAFA"] {
@@ -2372,8 +2372,8 @@ body.dark [style*="border: 1px solid #EEF2F7"] {
 }
 
 .filter-checkbox:checked {
-  background-color: #7C3AED !important;
-  border-color: #7C3AED !important;
+  background-color: #047857 !important;
+  border-color: #047857 !important;
 }
 
 .filter-checkbox:checked::after {
@@ -2409,14 +2409,14 @@ body.dark [style*="border: 1px solid #EEF2F7"] {
 /* Блок «Не знаете, кого выбрать»: сиреневый фон задан градиентом прямо в разметке,
    а правила выше ловят только одиночные цвета. В тёмной теме плашка оставалась
    светлой, текст на ней перекрашивался в белый — и заголовок пропадал. */
-body.dark [style*="linear-gradient(135deg,#F3E8FF"],
-body.dark [style*="linear-gradient(135deg, #F3E8FF"] {
-  background: linear-gradient(135deg, #2D1F4E 0%, #241E38 100%) !important;
-  border-color: #3B3350 !important;
+body.dark [style*="linear-gradient(135deg,#D1FAE5"],
+body.dark [style*="linear-gradient(135deg, #D1FAE5"] {
+  background: linear-gradient(135deg, #0B3B2E 0%, #0A2E23 100%) !important;
+  border-color: #164235 !important;
 }
 /* Секция «Психологическая поддержка для удалённых команд»: светлый фон секции
    оставался вокруг тёмной карточки и читался как белая рамка. */
-body.dark section[style*="background: #F4F0FF"],
-body.dark section[style*="background:#F4F0FF"] {
+body.dark section[style*="background: #ECFDF5"],
+body.dark section[style*="background:#ECFDF5"] {
   background: #191919 !important;
 }

@@ -18,7 +18,7 @@
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
         :root {
-            --ep-bg: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --ep-bg: linear-gradient(135deg, #667eea 0%, #0f766e 100%);
             --ep-card: #fff; --ep-text: #333; --ep-text-sec: #555; --ep-text-muted: #999;
             --ep-border: #e0e0e0; --ep-focus: #667eea; --ep-disabled: #f5f5f5;
             --ep-link: white;
@@ -26,8 +26,8 @@
         body.dark {
             --ep-bg: #191919;
             --ep-card: #252525; --ep-text: #E6E6E6; --ep-text-sec: #A0A0A0; --ep-text-muted: #707070;
-            --ep-border: #444; --ep-focus: #B794F4; --ep-disabled: #2A2A2A;
-            --ep-link: #B794F4;
+            --ep-border: #444; --ep-focus: #6EE7B7; --ep-disabled: #2A2A2A;
+            --ep-link: #6EE7B7;
         }
 
         * {
@@ -48,8 +48,8 @@
         body.dark .nav-brand span:first-child { color: #E6E6E6 !important; }
         body.dark .nav a.nav-link { color: #A0A0A0 !important; }
         body.dark .nav a.nav-link:hover { color: #E6E6E6 !important; }
-        .ep-info-box { background:#F8F6FF; border:1px solid #EDE9FF; color:#6B7280; }
-        body.dark .ep-info-box { background:#2A2535; border-color:#3D3555; color:#A0A0A0; }
+        .ep-info-box { background:#ECFDF5; border:1px solid #D1FAE5; color:#6B7280; }
+        body.dark .ep-info-box { background:#0D3025; border-color:#17453A; color:#A0A0A0; }
         body.dark input, body.dark textarea, body.dark select { background: var(--ep-disabled) !important; border-color: var(--ep-border) !important; color: var(--ep-text) !important; }
         body.dark input::placeholder, body.dark textarea::placeholder { color: var(--ep-text-muted) !important; }
         body.dark .card { background: var(--ep-card) !important; }
@@ -151,7 +151,7 @@
             width: 100px;
             height: 100px;
             border-radius: 50%;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #667eea 0%, #0f766e 100%);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -184,7 +184,7 @@
         }
 
         .btn-primary {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #667eea 0%, #0f766e 100%);
             color: white;
             width: 100%;
             padding: 1rem;
@@ -278,7 +278,7 @@
         .role-badge {
             display: inline-block;
             padding: 0.25rem 0.75rem;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #667eea 0%, #0f766e 100%);
             color: white;
             border-radius: 12px;
             font-size: 0.85rem;
@@ -765,7 +765,7 @@
                 try { const r = await fetch('/api/credentials.php?action=mine', { credentials:'include' }); const d = await r.json(); rows = (d && d.data || []).filter(c => c.type === 'diploma' || c.type === 'cert'); } catch(e){}
                 if (!rows.length) { listEl.innerHTML = '<div style="color:#9CA3AF;font-size:0.85rem;">Документы пока не загружены.</div>'; return; }
                 listEl.innerHTML = rows.map(c => `<div class="ep-info-box" style="display:flex;align-items:center;justify-content:space-between;gap:0.5rem;border-radius:0.5rem;padding:0.4rem 0.6rem;">
-                    <a href="${esc(c.url)}" target="_blank" rel="noopener" style="color:#7C3AED;text-decoration:none;font-size:0.85rem;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">📄 ${esc(c.name||'Документ')}</a>
+                    <a href="${esc(c.url)}" target="_blank" rel="noopener" style="color:#047857;text-decoration:none;font-size:0.85rem;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">📄 ${esc(c.name||'Документ')}</a>
                     <button type="button" data-id="${esc(c.id)}" style="background:none;border:none;color:#EF4444;cursor:pointer;font-size:0.8rem;">Удалить</button>
                 </div>`).join('');
                 listEl.querySelectorAll('button[data-id]').forEach(b => b.addEventListener('click', async () => {

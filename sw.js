@@ -81,7 +81,7 @@ self.addEventListener('fetch', (e) => {
                     '<h1 style="font-size:1.15rem;margin:.6rem 0">Нет связи</h1>' +
                     '<p style="color:#6B7280;line-height:1.6;font-size:.95rem">Проверьте интернет — сообщения отправятся, как только связь вернётся.</p>' +
                     '<button onclick="location.reload()" style="margin-top:1rem;padding:.7rem 1.4rem;border:none;border-radius:.7rem;' +
-                    'background:#7C3AED;color:#fff;font:inherit;font-weight:700">Повторить</button></div>',
+                    'background:#047857;color:#fff;font:inherit;font-weight:700">Повторить</button></div>',
                     { headers: { 'Content-Type': 'text/html; charset=utf-8' }, status: 503 }
                 );
             }

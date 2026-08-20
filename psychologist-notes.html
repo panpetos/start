@@ -18,16 +18,16 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
         :root {
-            --d-bg: #F4F0FF; --d-panel: #FFFFFF; --d-panel-alt: #FAFAFA;
-            --d-border: #F0ECF8; --d-border-light: #F0F0F0; --d-border-accent: #EDE9FF;
+            --d-bg: #ECFDF5; --d-panel: #FFFFFF; --d-panel-alt: #FAFAFA;
+            --d-border: #EFF7F3; --d-border-light: #F0F0F0; --d-border-accent: #D1FAE5;
             --d-text: #1A1A1A; --d-text-sec: #6B7280; --d-text-muted: #9CA3AF; --d-text-dark: #374151;
-            --d-accent: #7C3AED; --d-accent-bg: #F3E8FF; --d-accent-hover: #FAF5FF;
+            --d-accent: #047857; --d-accent-bg: #D1FAE5; --d-accent-hover: #ECFDF5;
         }
         body.dark {
             --d-bg: #191919; --d-panel: #252525; --d-panel-alt: #2A2A2A;
-            --d-border: #333; --d-border-light: #333; --d-border-accent: #37254A;
+            --d-border: #333; --d-border-light: #333; --d-border-accent: #10402F;
             --d-text: #E6E6E6; --d-text-sec: #A0A0A0; --d-text-muted: #707070; --d-text-dark: #C0C0C0;
-            --d-accent: #B794F4; --d-accent-bg: #2D1F4E; --d-accent-hover: #37254A;
+            --d-accent: #6EE7B7; --d-accent-bg: #0B3B2E; --d-accent-hover: #10402F;
         }
         *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--d-bg); color: var(--d-text); min-height: 100vh; padding-top: 84px; transition: background 0.2s, color 0.2s; }
@@ -68,7 +68,7 @@
         .np-panel-body input, .np-panel-body textarea { width: 100%; padding: 0.55rem 0.8rem; border: 1.5px solid var(--d-border); border-radius: 0.6rem; font-family: inherit; background: var(--d-panel-alt); color: var(--d-text); margin-bottom: 0.5rem; }
         .np-panel-body textarea { resize: vertical; font-size: 0.9rem; }
         .btn-sm { display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.4rem 0.9rem; border-radius: 0.5rem; font-size: 0.82rem; font-weight: 600; border: none; cursor: pointer; font-family: inherit; }
-        .btn-purple { background: #7C3AED; color: #fff; }
+        .btn-brand { background: #047857; color: #fff; }
         .btn-outline { background: var(--d-panel); border: 1.5px solid var(--d-border); color: var(--d-text-dark); }
 
         .note-card { display: flex; gap: 0.75rem; padding: 0.85rem 1rem; background: var(--d-panel); border: 1px solid var(--d-border); border-radius: 0.7rem; margin-bottom: 0.5rem; align-items: flex-start; transition: all 0.15s; }
@@ -78,7 +78,7 @@
         .note-card.is-overdue { border-color: #FCA5A5; background: #FEF2F2; }
         body.dark .note-card.is-overdue { border-color: #7F1D1D; background: #2E1A1A; }
         .note-card-check { flex-shrink: 0; padding-top: 0.15rem; }
-        .note-card-check input[type="checkbox"] { width: 18px; height: 18px; accent-color: #7C3AED; cursor: pointer; }
+        .note-card-check input[type="checkbox"] { width: 18px; height: 18px; accent-color: #047857; cursor: pointer; }
         .note-card-content { flex: 1; min-width: 0; }
         .note-card-title { font-weight: 600; font-size: 0.93rem; margin-bottom: 0.15rem; word-break: break-word; }
         .note-card-text { font-size: 0.84rem; color: var(--d-text-sec); white-space: pre-wrap; word-break: break-word; }
@@ -91,7 +91,7 @@
         .note-card:hover .note-card-delete, .note-card:hover .note-card-edit-btn { opacity: 1; }
         .note-card-delete:hover { background: #FEF2F2; color: #DC2626; }
         body.dark .note-card-delete:hover { background: #3A2020; color: #F87171; }
-        .note-card-edit-btn:hover { background: var(--d-accent-hover); color: #7C3AED; }
+        .note-card-edit-btn:hover { background: var(--d-accent-hover); color: #047857; }
         .empty { text-align: center; color: var(--d-text-muted); padding: 1.5rem; }
     </style>
     <script>(function(){ if (localStorage.getItem('psy-theme') === 'dark' || (!localStorage.getItem('psy-theme') && window.matchMedia('(prefers-color-scheme:dark)').matches)) document.documentElement.style.colorScheme = 'dark'; })();</script>
@@ -169,7 +169,7 @@
                         <label style="font-size:0.82rem;color:var(--d-text-sec);display:flex;align-items:center;gap:0.35rem;">Время:
                             <input id="noteDueTime" type="time" style="width:auto;margin-bottom:0;">
                         </label>
-                        <button class="btn-sm btn-purple" onclick="addNote(this)">Добавить</button>
+                        <button class="btn-sm btn-brand" onclick="addNote(this)">Добавить</button>
                         <span id="noteMsg" style="font-size:0.85rem;"></span>
                     </div>
                 </div>
@@ -247,8 +247,8 @@
                         ${noteDueBadge(n)}
                     </div>
                     <div class="note-edit-${n.id}" style="display:none;margin-top:0.3rem;">
-                        <input id="noteEditTitle-${n.id}" value="${esc(n.title||'')}" placeholder="Заголовок" style="width:100%;padding:0.4rem 0.6rem;border:1.5px solid #7C3AED;border-radius:0.5rem;font-family:inherit;margin-bottom:0.4rem;background:var(--d-panel-alt);color:var(--d-text);">
-                        <textarea id="noteEditBody-${n.id}" rows="3" placeholder="Текст" style="width:100%;padding:0.4rem 0.6rem;border:1.5px solid #7C3AED;border-radius:0.5rem;font-family:inherit;font-size:0.88rem;resize:vertical;background:var(--d-panel-alt);color:var(--d-text);">${esc(n.body||'')}</textarea>
+                        <input id="noteEditTitle-${n.id}" value="${esc(n.title||'')}" placeholder="Заголовок" style="width:100%;padding:0.4rem 0.6rem;border:1.5px solid #047857;border-radius:0.5rem;font-family:inherit;margin-bottom:0.4rem;background:var(--d-panel-alt);color:var(--d-text);">
+                        <textarea id="noteEditBody-${n.id}" rows="3" placeholder="Текст" style="width:100%;padding:0.4rem 0.6rem;border:1.5px solid #047857;border-radius:0.5rem;font-family:inherit;font-size:0.88rem;resize:vertical;background:var(--d-panel-alt);color:var(--d-text);">${esc(n.body||'')}</textarea>
                         <div style="display:flex;gap:0.5rem;align-items:center;margin-top:0.4rem;flex-wrap:wrap;">
                             <label style="font-size:0.78rem;color:var(--d-text-sec);display:flex;align-items:center;gap:0.3rem;">Срок:
                                 <input id="noteEditDue-${n.id}" type="date" value="${esc(n.due_date||'')}" style="padding:0.3rem 0.45rem;border:1.5px solid var(--d-border);border-radius:0.4rem;font-family:inherit;background:var(--d-panel-alt);color:var(--d-text);">
@@ -256,7 +256,7 @@
                             <label style="font-size:0.78rem;color:var(--d-text-sec);display:flex;align-items:center;gap:0.3rem;">Время:
                                 <input id="noteEditDueTime-${n.id}" type="time" value="${esc(n.due_time ? String(n.due_time).slice(0,5) : '')}" style="padding:0.3rem 0.45rem;border:1.5px solid var(--d-border);border-radius:0.4rem;font-family:inherit;background:var(--d-panel-alt);color:var(--d-text);">
                             </label>
-                            <button class="btn-sm btn-purple" onclick="saveNoteEdit(${n.id})">Сохранить</button>
+                            <button class="btn-sm btn-brand" onclick="saveNoteEdit(${n.id})">Сохранить</button>
                             <button class="btn-sm btn-outline" onclick="cancelNoteEdit(${n.id})">Отмена</button>
                         </div>
                     </div>

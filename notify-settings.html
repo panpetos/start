@@ -23,16 +23,16 @@
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
         *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
         :root {
-            --d-bg: #F4F0FF; --d-panel: #FFFFFF; --d-panel-alt: #FAFAFA;
-            --d-border: #F0ECF8; --d-border-light: #F0F0F0; --d-border-accent: #EDE9FF;
+            --d-bg: #ECFDF5; --d-panel: #FFFFFF; --d-panel-alt: #FAFAFA;
+            --d-border: #EFF7F3; --d-border-light: #F0F0F0; --d-border-accent: #D1FAE5;
             --d-text: #1A1A1A; --d-text-sec: #6B7280; --d-text-muted: #9CA3AF; --d-text-dark: #374151;
-            --d-accent: #7C3AED; --d-accent-bg: #F3E8FF; --d-accent-hover: #FAF5FF;
+            --d-accent: #047857; --d-accent-bg: #D1FAE5; --d-accent-hover: #ECFDF5;
         }
         body.dark {
             --d-bg: #191919; --d-panel: #252525; --d-panel-alt: #2A2A2A;
-            --d-border: #333; --d-border-light: #333; --d-border-accent: #37254A;
+            --d-border: #333; --d-border-light: #333; --d-border-accent: #10402F;
             --d-text: #E6E6E6; --d-text-sec: #A0A0A0; --d-text-muted: #8A8A8A; --d-text-dark: #C4C4C4;
-            --d-accent: #B794F4; --d-accent-bg: #37254A; --d-accent-hover: #2D2D2D;
+            --d-accent: #6EE7B7; --d-accent-bg: #10402F; --d-accent-hover: #2D2D2D;
         }
         body { font-family: 'Inter', -apple-system, sans-serif; background: var(--d-bg); color: var(--d-text);
                min-height: 100vh; padding-top: 84px; transition: background 0.2s, color 0.2s; }
@@ -68,14 +68,14 @@
         .card .hint { color: var(--d-text-sec); font-size: 0.84rem; line-height: 1.5; margin-bottom: 0.8rem; }
         .row { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; margin-top: 0.6rem; }
         .sw { display: flex; align-items: center; gap: 0.55rem; cursor: pointer; font-size: 0.92rem; font-weight: 600; }
-        .sw input { width: 18px; height: 18px; accent-color: #7C3AED; cursor: pointer; }
+        .sw input { width: 18px; height: 18px; accent-color: #047857; cursor: pointer; }
         input[type="email"], input[type="text"] {
             padding: 0.55rem 0.75rem; border: 1.5px solid var(--d-border-accent); border-radius: 0.55rem;
             font-family: inherit; font-size: 0.9rem; outline: none; background: var(--d-panel); color: var(--d-text);
             min-width: 0; flex: 1;
         }
-        input:focus { border-color: #7C3AED; }
-        .btn { padding: 0.5rem 0.9rem; border-radius: 0.55rem; border: none; background: #7C3AED; color: #fff;
+        input:focus { border-color: #047857; }
+        .btn { padding: 0.5rem 0.9rem; border-radius: 0.55rem; border: none; background: #047857; color: #fff;
                font-family: inherit; font-size: 0.86rem; font-weight: 600; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 0.35rem; }
         .btn:disabled { opacity: 0.55; cursor: default; }
         .btn-ghost { background: var(--d-panel-alt); color: var(--d-text); border: 1.5px solid var(--d-border); }

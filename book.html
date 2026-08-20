@@ -9,12 +9,12 @@
   <script src="/js/layout.js"></script>
   <script src="https://unpkg.com/lucide@latest"></script>
   <style>
-    :root { --bk-bg:#FAFAFA; --bk-text:#1A1A1A; --bk-text-sec:#6B7280; --bk-card:#fff; --bk-border:#F0F0F0; --bk-input-border:#E5E7EB; --bk-slot-bg:#fff; --bk-slot-hover:#FAF5FF; --bk-disabled-text:#D1D5DB; }
-    body.dark { --bk-bg:#191919; --bk-text:#E6E6E6; --bk-text-sec:#A0A0A0; --bk-card:#252525; --bk-border:#333; --bk-input-border:#444; --bk-slot-bg:#2A2A2A; --bk-slot-hover:#2D1F4E; --bk-disabled-text:#555; }
+    :root { --bk-bg:#FAFAFA; --bk-text:#1A1A1A; --bk-text-sec:#6B7280; --bk-card:#fff; --bk-border:#F0F0F0; --bk-input-border:#E5E7EB; --bk-slot-bg:#fff; --bk-slot-hover:#ECFDF5; --bk-disabled-text:#D1D5DB; }
+    body.dark { --bk-bg:#191919; --bk-text:#E6E6E6; --bk-text-sec:#A0A0A0; --bk-card:#252525; --bk-border:#333; --bk-input-border:#444; --bk-slot-bg:#2A2A2A; --bk-slot-hover:#0B3B2E; --bk-disabled-text:#555; }
     body { background: var(--bk-bg); display: flex; flex-direction: column; min-height: 100vh; transition: background 0.2s, color 0.2s; color: var(--bk-text); }
     main { flex: 1; padding: 2.5rem 1rem 4rem; }
     .page-wrap { max-width: 840px; margin: 0 auto; }
-    .back-link { display: inline-flex; align-items: center; gap: 0.5rem; color: #7C3AED; text-decoration: none; font-weight: 500; font-size: 0.9375rem; margin-bottom: 1.75rem; }
+    .back-link { display: inline-flex; align-items: center; gap: 0.5rem; color: #047857; text-decoration: none; font-weight: 500; font-size: 0.9375rem; margin-bottom: 1.75rem; }
     .back-link:hover { text-decoration: underline; }
     .section-title { font-size: 1.625rem; font-weight: 800; color: var(--bk-text); letter-spacing: -0.03em; margin-bottom: 0.375rem; }
     .section-sub  { color: var(--bk-text-sec); font-size: 0.9375rem; margin-bottom: 2rem; }
@@ -23,7 +23,7 @@
     .psych-card { background: var(--bk-card); border-radius: 1.25rem; padding: 1.5rem; border: 1px solid var(--bk-border); box-shadow: 0 2px 8px rgba(0,0,0,0.04); display: flex; gap: 1.25rem; align-items: center; margin-bottom: 2.25rem; }
     .psych-avatar { width: 72px; height: 72px; min-width: 72px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 1.625rem; font-weight: 700; overflow: hidden; flex-shrink: 0; }
     .psych-info-name { font-size: 1.25rem; font-weight: 700; color: var(--bk-text); margin-bottom: 0.25rem; }
-    .psych-info-spec { font-size: 0.875rem; color: #7C3AED; font-weight: 500; margin-bottom: 0.5rem; }
+    .psych-info-spec { font-size: 0.875rem; color: #047857; font-weight: 500; margin-bottom: 0.5rem; }
     .psych-info-meta { display: flex; gap: 1rem; flex-wrap: wrap; font-size: 0.8125rem; color: var(--bk-text-sec); }
     .psych-price { margin-left: auto; text-align: right; flex-shrink: 0; }
     .psych-price-val { font-size: 1.5rem; font-weight: 800; color: var(--bk-text); letter-spacing: -0.03em; }
@@ -34,19 +34,19 @@
     .calendar-header { display: flex; align-items: center; justify-content: space-between; padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--bk-border); }
     .calendar-month { font-weight: 700; color: var(--bk-text); font-size: 1.0625rem; }
     .cal-nav-btn { width: 2rem; height: 2rem; border: 1px solid var(--bk-input-border); border-radius: 0.5rem; background: var(--bk-card); cursor: pointer; display: flex; align-items: center; justify-content: center; color: var(--bk-text-sec); transition: background 0.15s, border-color 0.15s; }
-    .cal-nav-btn:hover { background: #F3E8FF; border-color: #C4B5FD; color: #7C3AED; }
+    .cal-nav-btn:hover { background: #D1FAE5; border-color: #6EE7B7; color: #047857; }
     .cal-days-header { display: grid; grid-template-columns: repeat(7, 1fr); gap: 0; padding: 0.75rem 1rem 0; }
     .cal-day-name { text-align: center; font-size: 0.75rem; color: #9CA3AF; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; padding-bottom: 0.5rem; }
     .cal-days { display: grid; grid-template-columns: repeat(7, 1fr); gap: 0; padding: 0 1rem 1rem; }
     .cal-day { text-align: center; padding: 0.375rem; }
     .cal-day-btn { width: 2.25rem; height: 2.25rem; border-radius: 50%; border: none; background: none; cursor: pointer; font-size: 0.9375rem; color: var(--bk-text); margin: 0 auto; display: flex; align-items: center; justify-content: center; transition: background 0.15s; }
-    .cal-day-btn:hover:not(:disabled) { background: #F3E8FF; color: #7C3AED; }
-    .cal-day-btn.selected { background: #7C3AED; color: white; font-weight: 700; }
-    .cal-day-btn.today { border: 2px solid #7C3AED; color: #7C3AED; font-weight: 600; }
+    .cal-day-btn:hover:not(:disabled) { background: #D1FAE5; color: #047857; }
+    .cal-day-btn.selected { background: #047857; color: white; font-weight: 700; }
+    .cal-day-btn.today { border: 2px solid #047857; color: #047857; font-weight: 600; }
     .cal-day-btn.today.selected { color: white; }
     .cal-day-btn:disabled { color: var(--bk-disabled-text); cursor: default; pointer-events: none; }
     .cal-day-btn.other-month { color: var(--bk-disabled-text); }
-    .cal-day-btn.has-slots::after { content: ''; display: block; width: 4px; height: 4px; background: #7C3AED; border-radius: 50%; margin: 2px auto 0; }
+    .cal-day-btn.has-slots::after { content: ''; display: block; width: 4px; height: 4px; background: #047857; border-radius: 50%; margin: 2px auto 0; }
     .cal-day-btn.selected::after { background: white; }
 
     /* Time slots */
@@ -54,8 +54,8 @@
     .slots-title { font-size: 0.875rem; font-weight: 600; color: var(--bk-text-sec); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 1rem; }
     .slots-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.625rem; }
     .slot-btn { padding: 0.625rem 0.5rem; border: 1px solid var(--bk-input-border); border-radius: 0.625rem; background: var(--bk-slot-bg); cursor: pointer; font-size: 0.9375rem; font-weight: 500; color: var(--bk-text); text-align: center; transition: all 0.15s; }
-    .slot-btn:hover { border-color: #7C3AED; color: #7C3AED; background: var(--bk-slot-hover); }
-    .slot-btn.selected { background: #7C3AED; color: white; border-color: #7C3AED; font-weight: 700; }
+    .slot-btn:hover { border-color: #047857; color: #047857; background: var(--bk-slot-hover); }
+    .slot-btn.selected { background: #047857; color: white; border-color: #047857; font-weight: 700; }
     .slot-btn.busy { background: #F9FAFB; color: #D1D5DB; cursor: default; border-color: #F3F4F6; pointer-events: none; }
     .slots-empty { color: #9CA3AF; font-size: 0.9375rem; text-align: center; padding: 1.5rem 0; }
 
@@ -64,9 +64,9 @@
     .confirm-bar-info { flex: 1; min-width: 200px; }
     .confirm-bar-label { font-size: 0.8125rem; color: var(--bk-text-sec); margin-bottom: 0.25rem; }
     .confirm-bar-val { font-weight: 700; color: var(--bk-text); font-size: 1.0625rem; }
-    .confirm-bar-val span { color: #7C3AED; }
-    #confirmBtn { padding: 0.875rem 2.5rem; background: linear-gradient(135deg, #7C3AED 0%, #9F67FA 100%); color: white; border: none; border-radius: 0.875rem; font-size: 1.0625rem; font-weight: 700; cursor: pointer; white-space: nowrap; transition: all 0.2s; box-shadow: 0 4px 14px rgba(124,58,237,0.35); }
-    #confirmBtn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(124,58,237,0.45); }
+    .confirm-bar-val span { color: #047857; }
+    #confirmBtn { padding: 0.875rem 2.5rem; background: linear-gradient(135deg, #047857 0%, #059669 100%); color: white; border: none; border-radius: 0.875rem; font-size: 1.0625rem; font-weight: 700; cursor: pointer; white-space: nowrap; transition: all 0.2s; box-shadow: 0 4px 14px rgba(4,120,87,0.35); }
+    #confirmBtn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(4,120,87,0.45); }
     #confirmBtn:disabled { background: #E5E7EB; color: #9CA3AF; box-shadow: none; cursor: default; transform: none; }
 
     @media (max-width: 600px) {
@@ -113,7 +113,7 @@
     var id = params.get('id');
     var pkg = params.get('pkg'); // id абонемента — запись без повторной оплаты
 
-    var AVATAR_COLORS = ['#7C3AED','#2563EB','#059669','#D97706','#DB2777','#0891B2','#9F67FA'];
+    var AVATAR_COLORS = ['#047857','#2563EB','#059669','#D97706','#DB2777','#0891B2','#059669'];
     function colorForId(x) {
       var s = String(x), h = 0;
       for (var i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
@@ -206,7 +206,7 @@
         (pkg ? '<div style="background:#F0FDF4;border:1.5px solid #BBF7D0;border-radius:1rem;padding:0.9rem 1.25rem;margin-bottom:1.5rem;color:#16A34A;font-weight:600;font-size:0.9375rem;">🎟 Запись по абонементу — без повторной оплаты, спишется одна сессия.</div>' : '') +
 
         '<div class="psych-card">' +
-          '<div class="psych-avatar" style="background:' + (p.color || '#7C3AED') + ';">' + initials(p.name) + '</div>' +
+          '<div class="psych-avatar" style="background:' + (p.color || '#047857') + ';">' + initials(p.name) + '</div>' +
           '<div style="flex:1;min-width:0;">' +
             '<div class="psych-info-name">' + p.name + ' ' + verifiedBadge + '</div>' +
             '<div class="psych-info-spec">' + (p.specialties || []).join(' · ') + '</div>' +
@@ -383,7 +383,7 @@
             '<div style="font-size:2.5rem;margin-bottom:0.75rem;">😕</div>' +
             '<h2 style="font-size:1.25rem;color:var(--d-text,#1A1A1A);margin-bottom:0.5rem;">Специалист больше недоступен</h2>' +
             '<p style="color:var(--d-muted,#6B7280);margin-bottom:1.5rem;">Ваш абонемент по-прежнему действует. Выберите другого психолога, чтобы продолжить использовать оставшиеся сессии.</p>' +
-            '<a href="/search.html?pkg=' + encodeURIComponent(pkg) + '" style="display:inline-block;padding:0.75rem 1.5rem;background:linear-gradient(135deg,#7C3AED,#9F67FA);color:white;text-decoration:none;border-radius:0.75rem;font-weight:600;">🔄 Выбрать другого психолога</a>' +
+            '<a href="/search.html?pkg=' + encodeURIComponent(pkg) + '" style="display:inline-block;padding:0.75rem 1.5rem;background:linear-gradient(135deg,#047857,#059669);color:white;text-decoration:none;border-radius:0.75rem;font-weight:600;">🔄 Выбрать другого психолога</a>' +
           '</div>';
       } else {
         html =
@@ -391,7 +391,7 @@
             '<div style="font-size:2.5rem;margin-bottom:0.75rem;">😕</div>' +
             '<h2 style="font-size:1.25rem;color:var(--d-text,#1A1A1A);margin-bottom:0.5rem;">Специалист не найден</h2>' +
             '<p style="color:var(--d-muted,#6B7280);margin-bottom:1.5rem;">Возможно, профиль был удалён или ссылка устарела.</p>' +
-            '<a href="/search.html" style="display:inline-block;padding:0.75rem 1.5rem;background:linear-gradient(135deg,#7C3AED,#9F67FA);color:white;text-decoration:none;border-radius:0.75rem;font-weight:600;">← Вернуться в каталог</a>' +
+            '<a href="/search.html" style="display:inline-block;padding:0.75rem 1.5rem;background:linear-gradient(135deg,#047857,#059669);color:white;text-decoration:none;border-radius:0.75rem;font-weight:600;">← Вернуться в каталог</a>' +
           '</div>';
       }
       document.getElementById('bookContent').innerHTML = html;

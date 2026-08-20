@@ -230,7 +230,7 @@
                 prevWasBlock = true;
             } else if (q) {
                 closeList();
-                html += '<blockquote style="margin:0.5rem 0;padding:0.4rem 0.9rem;border-left:3px solid #7C3AED;opacity:0.9;">' + inlineFmt(q[1]) + '</blockquote>';
+                html += '<blockquote style="margin:0.5rem 0;padding:0.4rem 0.9rem;border-left:3px solid #047857;opacity:0.9;">' + inlineFmt(q[1]) + '</blockquote>';
                 prevWasBlock = true;
             } else if (ul) {
                 openList('ul');

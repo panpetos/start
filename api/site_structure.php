@@ -53,7 +53,7 @@ $body = ($_SERVER['REQUEST_METHOD'] === 'POST') ? (json_decode(file_get_contents
 function defaultSitemap() {
     return [
         'nodes' => [
-            ['id' => 'n1', 'x' => 60,  'y' => 60,  'label' => 'Сайт psytalk.pro', 'color' => '#7C3AED'],
+            ['id' => 'n1', 'x' => 60,  'y' => 60,  'label' => 'Сайт psytalk.pro', 'color' => '#047857'],
             ['id' => 'n2', 'x' => 340, 'y' => 60,  'label' => 'Клиенты',          'color' => '#2563EB'],
             ['id' => 'n3', 'x' => 620, 'y' => 60,  'label' => 'Психологи',        'color' => '#059669'],
             ['id' => 'n4', 'x' => 340, 'y' => 220, 'label' => 'Оплаты (ЮKassa)',  'color' => '#D97706'],

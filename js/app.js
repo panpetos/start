@@ -43,7 +43,7 @@
     // Запасная растровая — для браузеров, которые не берут SVG во вкладку
     addOnce('link[rel="alternate icon"]', 'link', { rel: 'alternate icon', type: 'image/png', href: '/assets/icon-192.png' });
     addOnce('link[rel="apple-touch-icon"]', 'link', { rel: 'apple-touch-icon', href: '/assets/icon-192.png' });
-    addOnce('meta[name="theme-color"]', 'meta', { name: 'theme-color', content: '#7C3AED' });
+    addOnce('meta[name="theme-color"]', 'meta', { name: 'theme-color', content: '#047857' });
     // Без этих строк приложение с домашнего экрана открывается как обычная вкладка Safari
     addOnce('meta[name="apple-mobile-web-app-capable"]', 'meta', { name: 'apple-mobile-web-app-capable', content: 'yes' });
     addOnce('meta[name="apple-mobile-web-app-status-bar-style"]', 'meta', { name: 'apple-mobile-web-app-status-bar-style', content: 'default' });
@@ -358,22 +358,22 @@
     var bar = document.createElement('div');
     bar.id = 'psyInstallBar';
     bar.style.cssText = 'position:fixed;left:0.75rem;right:0.75rem;bottom:0.75rem;z-index:2200;' +
-      'background:#1A1A2E;color:#fff;border-radius:0.9rem;padding:0.8rem 0.9rem;display:flex;gap:0.7rem;' +
+      'background:#122A22;color:#fff;border-radius:0.9rem;padding:0.8rem 0.9rem;display:flex;gap:0.7rem;' +
       'align-items:center;box-shadow:0 8px 28px rgba(0,0,0,0.32);font-size:0.86rem;line-height:1.45;' +
       'max-width:520px;margin:0 auto;';
     bar.innerHTML =
       '<span style="font-size:1.5rem;flex:0 0 auto">📲</span>' +
       '<span style="flex:1;min-width:0">' +
         (kind === 'ios'
-          ? iosSteps().replace('<b>', '<b style="display:block">').replace('<span>', '<span style="display:block;color:#C9C6D6;font-size:0.8rem;margin-top:2px">')
+          ? iosSteps().replace('<b>', '<b style="display:block">').replace('<span>', '<span style="display:block;color:#B7D3C6;font-size:0.8rem;margin-top:2px">')
           : '<b style="display:block">Установить приложение</b>' +
-            '<span style="display:block;color:#C9C6D6;font-size:0.8rem;margin-top:2px">Чат и записи в одно касание, с экрана телефона.</span>') +
+            '<span style="display:block;color:#B7D3C6;font-size:0.8rem;margin-top:2px">Чат и записи в одно касание, с экрана телефона.</span>') +
       '</span>' +
       (kind === 'android'
         ? '<button id="psyInstallGo" style="flex:0 0 auto;background:#34C759;color:#fff;border:none;border-radius:0.6rem;' +
           'padding:0.55rem 0.9rem;font:inherit;font-weight:700;cursor:pointer">Установить</button>'
         : '') +
-      '<button id="psyInstallNo" aria-label="Скрыть" style="flex:0 0 auto;background:none;border:none;color:#9C9AAB;' +
+      '<button id="psyInstallNo" aria-label="Скрыть" style="flex:0 0 auto;background:none;border:none;color:#8FAFA0;' +
       'font-size:1.1rem;cursor:pointer;padding:0 0.2rem">✕</button>';
     document.body.appendChild(bar);
     var no = document.getElementById('psyInstallNo');

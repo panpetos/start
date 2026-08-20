@@ -29,8 +29,8 @@ echo json_encode([
     'scope' => '/',
     'display' => 'standalone',
     'orientation' => 'portrait-primary',
-    'background_color' => '#F4F0FF',
-    'theme_color' => '#7C3AED',
+    'background_color' => '#ECFDF5',
+    'theme_color' => '#047857',
     'icons' => [$icon(192, 'any'), $icon(512, 'any'), $icon(512, 'maskable')],
     // Долгое нажатие на иконку приложения: сервис — это не только переписка,
     // поэтому здесь и записи, и подбор специалиста, и лента.

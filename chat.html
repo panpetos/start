@@ -21,7 +21,7 @@
         }
 
         .header {
-            background: linear-gradient(135deg, #7C3AED 0%, #9F67FA 100%);
+            background: linear-gradient(135deg, #047857 0%, #059669 100%);
             padding: 1rem 2rem;
             color: white;
             display: flex;
@@ -83,7 +83,7 @@
             content: ''; position: absolute; top: 0; bottom: 0; left: 3px; width: 1px;
             background: transparent; transition: background 0.15s;
         }
-        .pane-resizer:hover::after, .pane-resizer.dragging::after { background: #7C3AED; }
+        .pane-resizer:hover::after, .pane-resizer.dragging::after { background: #047857; }
         body.pane-resizing { cursor: col-resize; user-select: none; }
         body.dark .conversations-pane { background: #252525; border-right-color: #333; }
 
@@ -135,10 +135,10 @@
             background: #D1D5DB; /* просмотрено или нет своих историй */
             display: flex; align-items: center; justify-content: center;
         }
-        .story-ring.unseen { background: linear-gradient(135deg,#7C3AED,#F59E0B,#EC4899); }
+        .story-ring.unseen { background: linear-gradient(135deg,#047857,#F59E0B,#EC4899); }
         .story-ring.mine-empty { background: none; border: 1.5px dashed #9CA3AF; }
         .story-avatar {
-            width: 100%; height: 100%; border-radius: 50%; background: linear-gradient(135deg,#7C3AED,#9F67FA);
+            width: 100%; height: 100%; border-radius: 50%; background: linear-gradient(135deg,#047857,#059669);
             color: #fff; display: flex; align-items: center; justify-content: center;
             font-weight: 700; font-size: 0.8rem; line-height: 1; overflow: hidden; border: 2px solid #fff;
         }
@@ -147,10 +147,10 @@
         /* Тот же размер, что у кружков историй: 34px рядом с 38px выглядели как ступенька */
         .story-add {
             flex-shrink: 0; width: 38px; height: 38px; border-radius: 50%; border: 1.5px dashed #9CA3AF;
-            background: none; color: #7C3AED; font-size: 1.05rem; line-height: 1; cursor: pointer;
+            background: none; color: #047857; font-size: 1.05rem; line-height: 1; cursor: pointer;
             display: flex; align-items: center; justify-content: center; font-family: inherit;
         }
-        .story-add:hover { border-color: #7C3AED; background: rgba(124,58,237,0.08); }
+        .story-add:hover { border-color: #047857; background: rgba(4,120,87,0.08); }
         .stories-label { font-size: 0.72rem; color: #9CA3AF; flex-shrink: 0; margin-right: 0.1rem; white-space: nowrap; }
         body.dark .stories-label { color: #7A7A7A; }
         body.dark .story-ring { background: #444; }
@@ -166,7 +166,7 @@
         .story-progress-track { flex: 1; height: 3px; background: rgba(255,255,255,0.3); border-radius: 3px; overflow: hidden; }
         .story-progress-fill { height: 100%; width: 0; background: #fff; transition: width linear; }
         .story-viewer-head { position: absolute; top: 1.1rem; left: 0.6rem; right: 0.6rem; display: flex; align-items: center; gap: 0.5rem; z-index: 2; color: #fff; }
-        .story-viewer-head .sv-ava { width: 30px; height: 30px; border-radius: 50%; background: linear-gradient(135deg,#7C3AED,#9F67FA); display: flex; align-items: center; justify-content: center; font-size: 0.85rem; font-weight: 700; overflow: hidden; }
+        .story-viewer-head .sv-ava { width: 30px; height: 30px; border-radius: 50%; background: linear-gradient(135deg,#047857,#059669); display: flex; align-items: center; justify-content: center; font-size: 0.85rem; font-weight: 700; overflow: hidden; }
         .story-viewer-head .sv-ava img { width: 100%; height: 100%; object-fit: cover; }
         .story-viewer-head .sv-name { font-size: 0.85rem; font-weight: 600; flex: 1; text-shadow: 0 1px 3px rgba(0,0,0,0.5); }
         .story-viewer-head .sv-close { background: none; border: none; color: #fff; font-size: 1.3rem; cursor: pointer; line-height: 1; padding: 0.2rem 0.4rem; }
@@ -231,18 +231,18 @@
             display: block; max-width: 100%; overflow: hidden;
             text-overflow: ellipsis; white-space: nowrap;
         }
-        .folder-tab:hover { background: #F1EDFB; color: #6D28D9; }
-        .folder-tab.active { background: #EDE4FD; color: #6D28D9; }
+        .folder-tab:hover { background: #D1FAE5; color: #065F46; }
+        .folder-tab.active { background: #D1FAE5; color: #065F46; }
         .folder-tab.active::before {
             content: ''; position: absolute; left: 0; top: 18%; bottom: 18%;
-            width: 3px; border-radius: 0 3px 3px 0; background: #7C3AED;
+            width: 3px; border-radius: 0 3px 3px 0; background: #047857;
         }
         .folder-tab .fcount {
             position: absolute; top: 2px; right: 6px;
-            background: #7C3AED; color: #fff; font-size: 0.58rem; font-weight: 700;
+            background: #047857; color: #fff; font-size: 0.58rem; font-weight: 700;
             min-width: 15px; padding: 0 3px; border-radius: 8px; line-height: 15px;
         }
-        .folder-tab-add { color: #7C3AED; }
+        .folder-tab-add { color: #047857; }
         .folder-tab-add .ftab-ico { font-size: 1rem; }
         /* На широком экране действия видны кнопками, на узком — собраны в ⋮.
            Класс продублирован, чтобы перебить display у .chat-hdr-btn ниже по файлу. */
@@ -278,16 +278,16 @@
             font-family: inherit; font-size: 0.8rem; color: #6B7280; padding: 0.7rem 0.75rem;
             text-align: left; border-top: 1px solid #ECECF2;
         }
-        .hidden-chats-btn:hover { background: #F6F3FF; color: #7C3AED; }
+        .hidden-chats-btn:hover { background: #ECFDF5; color: #047857; }
         body.dark .hidden-chats-btn { color: #A0A0A0; border-top-color: #333; }
-        body.dark .hidden-chats-btn:hover { background: #2D2D2D; color: #B794F4; }
-        .folder-pick-btn.in-folder { opacity: 1; color: #7C3AED; }
+        body.dark .hidden-chats-btn:hover { background: #2D2D2D; color: #6EE7B7; }
+        .folder-pick-btn.in-folder { opacity: 1; color: #047857; }
 
         /* Аватарка группы/канала с кнопкой замены */
         .chat-ava-edit { position: relative; width: 72px; height: 72px; }
         .chat-ava-btn {
             position: absolute; right: -4px; bottom: -4px; width: 28px; height: 28px;
-            border-radius: 50%; background: #7C3AED; color: #fff; border: 2px solid #fff;
+            border-radius: 50%; background: #047857; color: #fff; border: 2px solid #fff;
             display: flex; align-items: center; justify-content: center;
             font-size: 0.78rem; cursor: pointer;
         }
@@ -336,39 +336,39 @@
            остановить всю очередь. Голосовые и кружки играют подряд сверху вниз. */
         .sticky-player {
             display: flex; align-items: center; gap: 0.6rem; flex-shrink: 0;
-            padding: 0.5rem 0.9rem; background: #F6F2FE;
-            border-bottom: 1px solid #E4DAF9;
+            padding: 0.5rem 0.9rem; background: #ECFDF5;
+            border-bottom: 1px solid #A7F3D0;
         }
         .sp-btn {
             width: 32px; height: 32px; flex-shrink: 0; border: none; cursor: pointer;
-            border-radius: 50%; background: #7C3AED; color: #fff;
+            border-radius: 50%; background: #047857; color: #fff;
             display: flex; align-items: center; justify-content: center; padding: 0;
         }
         .sp-btn svg { width: 16px; height: 16px; }
-        .sp-btn.sp-close { background: transparent; color: #7C3AED; }
-        .sp-btn.sp-close:hover { background: #EADCFB; }
+        .sp-btn.sp-close { background: transparent; color: #047857; }
+        .sp-btn.sp-close:hover { background: #A7F3D0; }
         .sp-info { flex: 1; min-width: 0; cursor: pointer; }
         .sp-title {
-            font-size: 0.8rem; font-weight: 600; color: #4C1D95;
+            font-size: 0.8rem; font-weight: 600; color: #064E3B;
             white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
         }
-        .sp-line { height: 3px; border-radius: 2px; background: #DCCDF8; margin-top: 0.28rem; overflow: hidden; }
-        .sp-fill { height: 100%; width: 0; background: #7C3AED; border-radius: 2px; }
-        .sp-time { font-size: 0.74rem; color: #6D28D9; font-variant-numeric: tabular-nums; flex-shrink: 0; }
+        .sp-line { height: 3px; border-radius: 2px; background: #A7F3D0; margin-top: 0.28rem; overflow: hidden; }
+        .sp-fill { height: 100%; width: 0; background: #047857; border-radius: 2px; }
+        .sp-time { font-size: 0.74rem; color: #065F46; font-variant-numeric: tabular-nums; flex-shrink: 0; }
         .sp-speed {
-            border: none; background: #EADCFB; color: #6D28D9; cursor: pointer;
+            border: none; background: #A7F3D0; color: #065F46; cursor: pointer;
             font-family: inherit; font-size: 0.7rem; font-weight: 700;
             padding: 3px 6px; border-radius: 7px; flex-shrink: 0;
         }
-        .sp-speed:hover { background: #DCCDF8; }
-        body.dark .sticky-player { background: #2A2140; border-bottom-color: #3D2F5C; }
-        body.dark .sp-title { color: #D3BEFA; }
-        body.dark .sp-line { background: #3D2F5C; }
-        body.dark .sp-time { color: #C9AEFB; }
-        body.dark .sp-speed { background: #3D2F5C; color: #D3BEFA; }
-        body.dark .sp-speed:hover { background: #4A3970; }
-        body.dark .sp-btn.sp-close { color: #C9AEFB; }
-        body.dark .sp-btn.sp-close:hover { background: #3D2F5C; }
+        .sp-speed:hover { background: #A7F3D0; }
+        body.dark .sticky-player { background: #0C3527; border-bottom-color: #14503B; }
+        body.dark .sp-title { color: #A7F3D0; }
+        body.dark .sp-line { background: #14503B; }
+        body.dark .sp-time { color: #6EE7B7; }
+        body.dark .sp-speed { background: #14503B; color: #A7F3D0; }
+        body.dark .sp-speed:hover { background: #1B5C44; }
+        body.dark .sp-btn.sp-close { color: #6EE7B7; }
+        body.dark .sp-btn.sp-close:hover { background: #14503B; }
 
         /* ── Плашка закреплённого сообщения ── */
         .pinned-bar {
@@ -424,9 +424,9 @@
             display: flex; align-items: center; justify-content: center;
             box-shadow: 0 1px 5px rgba(0,0,0,0.14);
         }
-        .msg-hover button:hover { color: #7C3AED; }
+        .msg-hover button:hover { color: #047857; }
         body.dark .msg-hover button { background: #333; color: #C4C4C4; box-shadow: 0 1px 5px rgba(0,0,0,0.4); }
-        body.dark .msg-hover button:hover { color: #C9AEFB; }
+        body.dark .msg-hover button:hover { color: #6EE7B7; }
         /* Подвал сообщения: время + галочки прочтения, а рядом — кнопки действий.
            На ПК кнопки абсолютные (появляются при наведении снаружи пузыря), поэтому в flex-
            строке подвала фактически только время. На телефоне кнопки встают в эту же строку. */
@@ -460,60 +460,60 @@
 
         /* ── Цитата ответа внутри пузыря ── */
         .msg-quote {
-            border-left: 3px solid #7C3AED; padding: 0.15rem 0 0.15rem 0.5rem;
+            border-left: 3px solid #047857; padding: 0.15rem 0 0.15rem 0.5rem;
             margin-bottom: 0.35rem; cursor: pointer; max-width: 100%;
         }
-        .msg-quote-name { font-size: 0.74rem; font-weight: 700; color: #7C3AED; }
+        .msg-quote-name { font-size: 0.74rem; font-weight: 700; color: #047857; }
         .msg-quote-text {
             font-size: 0.8rem; opacity: 0.85;
             overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
         }
         .message.mine .msg-quote { border-left-color: rgba(255,255,255,0.75); }
         .message.mine .msg-quote-name { color: #fff; }
-        body.dark .msg-quote-name { color: #C9AEFB; }
+        body.dark .msg-quote-name { color: #6EE7B7; }
 
         /* ── Полоска ответа над полем ввода ── */
         .reply-bar {
             display: flex; align-items: center; gap: 0.5rem; flex-shrink: 0;
-            padding: 0.45rem 0.9rem; background: #F6F2FE; border-top: 1px solid #E4DAF9;
+            padding: 0.45rem 0.9rem; background: #ECFDF5; border-top: 1px solid #A7F3D0;
         }
-        .reply-bar .rb-ico { width: 16px; height: 16px; color: #7C3AED; flex-shrink: 0; }
+        .reply-bar .rb-ico { width: 16px; height: 16px; color: #047857; flex-shrink: 0; }
         .reply-bar .rb-text { flex: 1; min-width: 0; }
-        .reply-bar .rb-name { font-size: 0.72rem; font-weight: 700; color: #6D28D9; }
+        .reply-bar .rb-name { font-size: 0.72rem; font-weight: 700; color: #065F46; }
         .reply-bar .rb-body {
             font-size: 0.8rem; color: #4B5563;
             overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
         }
         .reply-bar .rb-x {
-            border: none; background: transparent; color: #6D28D9; cursor: pointer;
+            border: none; background: transparent; color: #065F46; cursor: pointer;
             font-size: 1rem; line-height: 1; padding: 0.25rem 0.35rem; border-radius: 0.4rem;
         }
-        .reply-bar .rb-x:hover { background: #EADCFB; }
-        body.dark .reply-bar { background: #2A2140; border-top-color: #3D2F5C; }
-        body.dark .reply-bar .rb-name { color: #D3BEFA; }
+        .reply-bar .rb-x:hover { background: #A7F3D0; }
+        body.dark .reply-bar { background: #0C3527; border-top-color: #14503B; }
+        body.dark .reply-bar .rb-name { color: #A7F3D0; }
         body.dark .reply-bar .rb-body { color: #B4B4B4; }
-        body.dark .reply-bar .rb-x { color: #C9AEFB; }
-        body.dark .reply-bar .rb-x:hover { background: #3D2F5C; }
+        body.dark .reply-bar .rb-x { color: #6EE7B7; }
+        body.dark .reply-bar .rb-x:hover { background: #14503B; }
 
         /* ── Режим выделения сообщений ── */
         .sel-bar {
             display: flex; align-items: center; gap: 0.5rem; flex-shrink: 0;
-            padding: 0.5rem 0.9rem; background: #EDE4FD; border-bottom: 1px solid #DCCDF8;
+            padding: 0.5rem 0.9rem; background: #D1FAE5; border-bottom: 1px solid #A7F3D0;
         }
-        .sel-bar .sb-count { flex: 1; font-size: 0.85rem; font-weight: 700; color: #4C1D95; }
+        .sel-bar .sb-count { flex: 1; font-size: 0.85rem; font-weight: 700; color: #064E3B; }
         .sel-bar button {
-            border: none; background: #7C3AED; color: #fff; cursor: pointer;
+            border: none; background: #047857; color: #fff; cursor: pointer;
             font-family: inherit; font-size: 0.8rem; font-weight: 600;
             padding: 0.4rem 0.7rem; border-radius: 0.5rem;
         }
-        .sel-bar button.ghost { background: transparent; color: #6D28D9; }
+        .sel-bar button.ghost { background: transparent; color: #065F46; }
         .sel-bar button.danger { background: #DC2626; }
         .sel-bar button:disabled { opacity: 0.45; cursor: default; }
-        body.dark .sel-bar { background: #37254A; border-bottom-color: #4A3970; }
-        body.dark .sel-bar .sb-count { color: #D3BEFA; }
-        body.dark .sel-bar button.ghost { color: #C9AEFB; }
+        body.dark .sel-bar { background: #10402F; border-bottom-color: #1B5C44; }
+        body.dark .sel-bar .sb-count { color: #A7F3D0; }
+        body.dark .sel-bar button.ghost { color: #6EE7B7; }
         body.selecting .message { cursor: pointer; }
-        .message.selected { outline: 2px solid #7C3AED; outline-offset: 2px; }
+        .message.selected { outline: 2px solid #047857; outline-offset: 2px; }
         body.selecting .msg-hover { display: none; }
         /* Долгое нажатие по сообщению — жест выделения, поэтому системное «выделить текст»
            и контекстное меню на пузыре не мешают (текст по-прежнему копируется из меню). */
@@ -524,7 +524,7 @@
         .message.flash { animation: msgFlash 1.4s ease; }
         @keyframes msgFlash {
             0%, 100% { box-shadow: none; }
-            25% { box-shadow: 0 0 0 3px rgba(124,58,237,0.55); }
+            25% { box-shadow: 0 0 0 3px rgba(4,120,87,0.55); }
         }
 
         /* Сообщение, в котором только кружок: пузырь вокруг него не нужен */
@@ -568,15 +568,15 @@
             font-family: inherit; font-size: 0.85rem; color: #374151;
             padding: 0.45rem 0.5rem; border-radius: 0.5rem;
         }
-        .folder-picker-row:hover { background: #F3E8FF; color: #6D28D9; }
-        .folder-picker-row.on { color: #6D28D9; font-weight: 600; }
-        .folder-picker-row .fp-mark { width: 14px; flex-shrink: 0; color: #7C3AED; }
-        .folder-picker-row.fp-new { border-top: 1px solid #F0F0F0; margin-top: 0.2rem; color: #7C3AED; }
+        .folder-picker-row:hover { background: #D1FAE5; color: #065F46; }
+        .folder-picker-row.on { color: #065F46; font-weight: 600; }
+        .folder-picker-row .fp-mark { width: 14px; flex-shrink: 0; color: #047857; }
+        .folder-picker-row.fp-new { border-top: 1px solid #F0F0F0; margin-top: 0.2rem; color: #047857; }
         body.dark .folder-picker { background: #2A2A2A; border-color: #444; }
         body.dark .folder-picker-row { color: #DADADA; }
-        body.dark .folder-picker-row:hover { background: #37254A; color: #C9AEFB; }
-        body.dark .folder-picker-row.on { color: #C9AEFB; }
-        body.dark .folder-picker-row.fp-new { border-top-color: #3A3A3A; color: #C9AEFB; }
+        body.dark .folder-picker-row:hover { background: #10402F; color: #6EE7B7; }
+        body.dark .folder-picker-row.on { color: #6EE7B7; }
+        body.dark .folder-picker-row.fp-new { border-top-color: #3A3A3A; color: #6EE7B7; }
         .folder-picker-sep {
             font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
             color: #9CA3AF; padding: 0.45rem 0.5rem 0.2rem;
@@ -616,14 +616,14 @@
 
         /* Разделитель после «Избранного»: инлайновый светлый цвет в тёмной теме выглядел
            белой щелью, режущей список. Цвет теперь зависит от темы. */
-        .conversation-item.conv-sep { border-bottom: 2px solid #F3E8FF; }
+        .conversation-item.conv-sep { border-bottom: 2px solid #D1FAE5; }
         body.dark .conversation-item.conv-sep { border-bottom-color: #3A3A3A; }
         .conversation-item:hover {
             background: #f8f9fa;
         }
 
         .conversation-item.active {
-            background: #F3E8FF;
+            background: #D1FAE5;
         }
 
         /* Пропорции как в Telegram: аватарка крупнее, строка выше, имя и превью
@@ -633,7 +633,7 @@
             width: 56px;
             height: 56px;
             border-radius: 50%;
-            background: linear-gradient(135deg, #7C3AED 0%, #6D28D9 100%);
+            background: linear-gradient(135deg, #047857 0%, #065F46 100%);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -702,7 +702,7 @@
         }
 
         .unread-badge {
-            background: #7C3AED;
+            background: #047857;
             color: white;
             font-size: 0.75rem;
             padding: 0.2rem 0.5rem;
@@ -742,7 +742,7 @@
             height: 45px;
             flex-shrink: 0;
             border-radius: 50%;
-            background: linear-gradient(135deg, #7C3AED 0%, #6D28D9 100%);
+            background: linear-gradient(135deg, #047857 0%, #065F46 100%);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -789,19 +789,19 @@
             border: none; border-radius: 0.6rem; background: #F3F4F6; color: #6B7280;
             cursor: pointer; padding: 0; text-decoration: none;
         }
-        .hdr-icon-btn:hover { background: #EDE9FE; color: #7C3AED; }
+        .hdr-icon-btn:hover { background: #D1FAE5; color: #047857; }
         /* Иконка внутри цветного круга-аватарки и значок канала на её углу */
         .ava-ico { display: inline-flex; align-items: center; justify-content: center; color: #fff; }
         .ava-ico svg { width: 22px; height: 22px; }
         .ava-badge {
             position: absolute; bottom: -2px; right: -2px; width: 20px; height: 20px;
-            background: #7C3AED; color: #fff; border-radius: 50%; border: 2px solid #fff;
+            background: #047857; color: #fff; border-radius: 50%; border: 2px solid #fff;
             display: inline-flex; align-items: center; justify-content: center;
         }
         .ava-badge svg { width: 12px; height: 12px; stroke-width: 2.6; }
         body.dark .ava-badge { border-color: #252525; }
         body.dark .hdr-icon-btn { background: #2F2F2F; color: #B5B5B5; }
-        body.dark .hdr-icon-btn:hover { background: #37254A; color: #C9AEFB; }
+        body.dark .hdr-icon-btn:hover { background: #10402F; color: #6EE7B7; }
 
         /* ── Канал как раздел чата (задача #29, рефок): read-only лента постов вместо диалога ── */
         /* Пост канала: раньше растягивался на всю ширину области сообщений, а картинка шла
@@ -822,33 +822,33 @@
         }
         .ch-post-more {
             background: none; border: none; padding: 0.2rem 0; cursor: pointer; font-family: inherit;
-            font-size: 0.82rem; font-weight: 600; color: #7C3AED;
+            font-size: 0.82rem; font-weight: 600; color: #047857;
         }
         .ch-post-more:hover { text-decoration: underline; }
-        body.dark .ch-post-more { color: #B794F4; }
+        body.dark .ch-post-more { color: #6EE7B7; }
 
         /* В ленте над постом стоит имя канала — по нему уходят в сам канал */
         .ch-post-author { margin-bottom: 0.15rem; }
         .ch-post-author button {
             background: none; border: none; padding: 0; cursor: pointer; font-family: inherit;
-            font-size: 0.9rem; font-weight: 700; color: #7C3AED; text-align: left;
+            font-size: 0.9rem; font-weight: 700; color: #047857; text-align: left;
         }
         .ch-post-author button:hover { text-decoration: underline; }
-        body.dark .ch-post-author button { color: #B794F4; }
+        body.dark .ch-post-author button { color: #6EE7B7; }
         .ch-post-actions { display: flex; align-items: center; gap: 0.3rem; margin-top: 0.7rem; padding-top: 0.6rem; border-top: 1px solid #eee; }
         .ch-pbtn { display: inline-flex; align-items: center; gap: 0.3rem; background: none; border: none; cursor: pointer; color: #666; font-size: 0.85rem; font-family: inherit; padding: 0.3rem 0.55rem; border-radius: 0.5rem; }
         .ch-pbtn:hover { background: #f0f0f0; }
         .ch-pbtn.liked { color: #DC2626; font-weight: 700; }
         .ch-comments-box { margin-top: 0.6rem; padding-top: 0.6rem; border-top: 1px solid #eee; }
         .ch-comment-item { display: flex; gap: 0.5rem; margin-bottom: 0.5rem; }
-        .ch-comment-ava { width: 26px; height: 26px; border-radius: 50%; background: linear-gradient(135deg,#7C3AED,#6D28D9); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; font-weight: 700; overflow: hidden; flex-shrink: 0; }
+        .ch-comment-ava { width: 26px; height: 26px; border-radius: 50%; background: linear-gradient(135deg,#047857,#065F46); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; font-weight: 700; overflow: hidden; flex-shrink: 0; }
         .ch-comment-ava img { width: 100%; height: 100%; object-fit: cover; }
         .ch-comment-body { flex: 1; min-width: 0; background: #f5f5f5; border-radius: 0.65rem; padding: 0.4rem 0.65rem; }
         .ch-comment-author { font-weight: 700; font-size: 0.78rem; }
         .ch-comment-text { font-size: 0.83rem; line-height: 1.4; white-space: pre-wrap; word-wrap: break-word; }
         .ch-comment-form { display: flex; gap: 0.4rem; margin-top: 0.4rem; }
         .ch-comment-form input { flex: 1; min-width: 0; padding: 0.45rem 0.75rem; border-radius: 1.1rem; border: 1.5px solid #e0e0e0; font-size: 0.83rem; font-family: inherit; outline: none; }
-        .ch-comment-form button { padding: 0.45rem 0.8rem; border-radius: 1.1rem; border: none; background: #7C3AED; color: #fff; font-weight: 600; font-size: 0.8rem; cursor: pointer; font-family: inherit; }
+        .ch-comment-form button { padding: 0.45rem 0.8rem; border-radius: 1.1rem; border: none; background: #047857; color: #fff; font-weight: 600; font-size: 0.8rem; cursor: pointer; font-family: inherit; }
         body.dark .ch-post { background: #252525; box-shadow: 0 2px 8px rgba(0,0,0,0.25); }
         body.dark .ch-post-text { color: #E6E6E6; }
         body.dark .ch-post-actions { border-top-color: #333; }
@@ -872,7 +872,7 @@
             padding: 0 0.5rem; border-radius: 0.5rem; display: inline-flex;
             align-items: center; justify-content: center; gap: 0.25rem;
         }
-        .cmp-tool:hover { background: #F1EDFB; color: #6D28D9; }
+        .cmp-tool:hover { background: #D1FAE5; color: #065F46; }
         .cmp-tool.b { font-weight: 800; }
         .cmp-tool.i { font-style: italic; }
         .cmp-tool.u { text-decoration: underline; }
@@ -885,7 +885,7 @@
             font-family: inherit; font-size: 0.95rem; line-height: 1.45; outline: none;
             margin: 0.9rem 0 0; box-sizing: border-box;
         }
-        .cmp-text:focus { border-color: #7C3AED; }
+        .cmp-text:focus { border-color: #047857; }
         .cmp-preview-label {
             font-size: 0.7rem; font-weight: 700; text-transform: uppercase;
             letter-spacing: 0.04em; color: #9CA3AF; margin: 0.8rem 0 0.3rem;
@@ -903,15 +903,15 @@
             font-family: inherit; font-size: 0.88rem; font-weight: 600;
         }
         .cmp-btn-send {
-            border: none; background: #7C3AED; color: #fff;
+            border: none; background: #047857; color: #fff;
             border-radius: 0.6rem; padding: 0.5rem 1.1rem; cursor: pointer;
             font-family: inherit; font-size: 0.88rem; font-weight: 700;
         }
-        .cmp-btn-send:hover { background: #6D28D9; }
+        .cmp-btn-send:hover { background: #065F46; }
         body.dark #composerModal > div { background: #252525 !important; color: #E6E6E6 !important; }
         body.dark .cmp-toolbar { border-bottom-color: #333; }
         body.dark .cmp-tool { color: #C4C4C4; }
-        body.dark .cmp-tool:hover { background: #34274D; color: #C9AEFB; }
+        body.dark .cmp-tool:hover { background: #0F3A2C; color: #6EE7B7; }
         body.dark .cmp-sep { background: #3A3A3A; }
         body.dark .cmp-text { background: #1E1E1E; border-color: #444; color: #E6E6E6; }
         body.dark .cmp-text::placeholder { color: #9A9A9A; }
@@ -931,7 +931,7 @@
             background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18"><circle cx="2" cy="2" r="1.3" fill="%23C9BCF0"/></svg>');
         }
         body[data-wall="lilac"] .messages-container {
-            background: linear-gradient(160deg, #F3EDFF 0%, #FBF7FF 45%, #F1F4FF 100%);
+            background: linear-gradient(160deg, #D1FAE5 0%, #ECFDF5 45%, #F1F4FF 100%);
         }
         body[data-wall="mint"] .messages-container {
             background: linear-gradient(160deg, #EAF7F1 0%, #F6FBF8 50%, #EAF3F8 100%);
@@ -952,7 +952,7 @@
             background-color: #1C1A22;
             background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18"><circle cx="2" cy="2" r="1.3" fill="%233A3350"/></svg>');
         }
-        body.dark[data-wall="lilac"] .messages-container { background: linear-gradient(160deg, #221B31 0%, #1B1725 50%, #1A1B2A 100%); }
+        body.dark[data-wall="lilac"] .messages-container { background: linear-gradient(160deg, #0A2C21 0%, #0A241C 50%, #1A1B2A 100%); }
         body.dark[data-wall="mint"] .messages-container { background: linear-gradient(160deg, #16241F 0%, #171E1C 50%, #161F26 100%); }
         body.dark[data-wall="sand"] .messages-container { background: linear-gradient(160deg, #262018 0%, #1F1B16 50%, #241E15 100%); }
         body.dark[data-wall="paper"] .messages-container {
@@ -1000,7 +1000,7 @@
             border: 2px solid #E5E7EB; border-radius: 0.7rem; cursor: pointer;
             padding: 0; overflow: hidden; background: none; font-family: inherit;
         }
-        .wall-item.on { border-color: #7C3AED; }
+        .wall-item.on { border-color: #047857; }
         .wall-swatch { height: 62px; display: block; }
         .wall-label {
             display: block; font-size: 0.72rem; color: #6B7280; padding: 0.25rem 0.2rem;
@@ -1008,7 +1008,7 @@
         }
         .wall-tune { margin-top: 1rem; }
         .wall-tune > label { display: block; font-size: 0.82rem; font-weight: 600; margin-bottom: 0.35rem; }
-        .wall-tune input[type=range] { width: 100%; accent-color: #7C3AED; }
+        .wall-tune input[type=range] { width: 100%; accent-color: #047857; }
         .wall-note { color: #9CA3AF; font-size: 0.75rem; line-height: 1.45; margin-top: 0.3rem; }
         /* Готовые сочетания: кружок с самим градиентом — видно, что получится, до нажатия */
         .theme-row { display: flex; gap: 0.7rem; flex-wrap: wrap; }
@@ -1020,14 +1020,14 @@
             width: 38px; height: 38px; border-radius: 50%; display: block;
             box-shadow: 0 0 0 2px transparent, 0 2px 6px rgba(0,0,0,0.16); transition: box-shadow 0.15s;
         }
-        .theme-dot.on > span { box-shadow: 0 0 0 2px #fff, 0 0 0 4px #7C3AED; }
+        .theme-dot.on > span { box-shadow: 0 0 0 2px #fff, 0 0 0 4px #047857; }
         .theme-dot i {
             font-style: normal; font-size: 0.68rem; color: #6B7280; line-height: 1.2; text-align: center;
         }
         body.dark .theme-dot i { color: #A0A0A0; }
-        body.dark .theme-dot.on > span { box-shadow: 0 0 0 2px #1E1E1E, 0 0 0 4px #A78BFA; }
+        body.dark .theme-dot.on > span { box-shadow: 0 0 0 2px #1E1E1E, 0 0 0 4px #34D399; }
         body.dark .wall-item { border-color: #3A3A3A; }
-        body.dark .wall-item.on { border-color: #7C3AED; }
+        body.dark .wall-item.on { border-color: #047857; }
         body.dark .wall-label { background: #2A2A2A; color: #B4B4B4; }
 
         /* Полосы прокрутки: системные выглядели резко, особенно в тёмной теме.
@@ -1037,7 +1037,7 @@
         .folder-picker,
         #groupInfoBody {
             scrollbar-width: thin;
-            scrollbar-color: rgba(124, 58, 237, 0.28) transparent;
+            scrollbar-color: rgba(4,120,87, 0.28) transparent;
         }
         .messages-container::-webkit-scrollbar,
         #conversationsList::-webkit-scrollbar,
@@ -1051,27 +1051,27 @@
         #conversationsList::-webkit-scrollbar-thumb,
         .folder-picker::-webkit-scrollbar-thumb,
         #groupInfoBody::-webkit-scrollbar-thumb {
-            background: rgba(124, 58, 237, 0.22);
+            background: rgba(4,120,87, 0.22);
             border-radius: 4px;
             border: 2px solid transparent;
             background-clip: content-box;
         }
         .messages-container:hover::-webkit-scrollbar-thumb,
-        #conversationsList:hover::-webkit-scrollbar-thumb { background: rgba(124, 58, 237, 0.42); background-clip: content-box; }
+        #conversationsList:hover::-webkit-scrollbar-thumb { background: rgba(4,120,87, 0.42); background-clip: content-box; }
         .messages-container::-webkit-scrollbar-thumb:hover,
-        #conversationsList::-webkit-scrollbar-thumb:hover { background: rgba(124, 58, 237, 0.6); background-clip: content-box; }
+        #conversationsList::-webkit-scrollbar-thumb:hover { background: rgba(4,120,87, 0.6); background-clip: content-box; }
         body.dark .messages-container,
         body.dark #conversationsList,
         body.dark .folder-picker,
-        body.dark #groupInfoBody { scrollbar-color: rgba(183, 148, 244, 0.3) transparent; }
+        body.dark #groupInfoBody { scrollbar-color: rgba(110,231,183, 0.3) transparent; }
         body.dark .messages-container::-webkit-scrollbar-thumb,
         body.dark #conversationsList::-webkit-scrollbar-thumb,
         body.dark .folder-picker::-webkit-scrollbar-thumb,
         body.dark #groupInfoBody::-webkit-scrollbar-thumb {
-            background: rgba(183, 148, 244, 0.24); background-clip: content-box;
+            background: rgba(110,231,183, 0.24); background-clip: content-box;
         }
         body.dark .messages-container:hover::-webkit-scrollbar-thumb,
-        body.dark #conversationsList:hover::-webkit-scrollbar-thumb { background: rgba(183, 148, 244, 0.44); background-clip: content-box; }
+        body.dark #conversationsList:hover::-webkit-scrollbar-thumb { background: rgba(110,231,183, 0.44); background-clip: content-box; }
 
         .messages-container {
             flex: 1;
@@ -1090,7 +1090,7 @@
         }
 
         .message.mine {
-            background: linear-gradient(135deg, #7C3AED 0%, #6D28D9 100%);
+            background: linear-gradient(135deg, #047857 0%, #065F46 100%);
             color: white;
             align-self: flex-end;
             border-bottom-right-radius: 4px;
@@ -1113,21 +1113,21 @@
             cursor: pointer; font-size: 1rem; display: flex; align-items: center; justify-content: center;
             transition: background 0.15s, border-color 0.15s, color 0.15s;
         }
-        .chat-hdr-btn:hover { background: #F3E8FF; border-color: #C4B5FD; color: #7C3AED; }
+        .chat-hdr-btn:hover { background: #D1FAE5; border-color: #6EE7B7; color: #047857; }
         body.dark .chat-hdr-btn { background: #2A2A2A; border-color: #444; color: #C9C9C9; }
-        body.dark .chat-hdr-btn:hover { background: #37254A; border-color: #7C3AED; color: #B794F4; }
+        body.dark .chat-hdr-btn:hover { background: #10402F; border-color: #047857; color: #6EE7B7; }
 
         /* Пузырь сжимается по содержимому, поэтому width:100% у textarea упирался в её
            min-width и поле для правки получалось узкой полоской (220px в переписке шириной
            под тысячу). Задаём редактируемому пузырю нормальную ширину явно. */
         /* Правится не пузырь, а поле ввода — пузырь только подсвечиваем, чтобы было
            видно, какое именно сообщение сейчас меняется. */
-        .message.editing { outline: 2px solid #7C3AED; outline-offset: 2px; }
+        .message.editing { outline: 2px solid #047857; outline-offset: 2px; }
         .reply-bar.rb-edit .rb-ico { opacity: 0.9; }
         /* Группа: аватар автора рядом с чужим сообщением (как в Телеграме) */
         .g-msg-row { display: flex; align-items: flex-end; gap: 0.45rem; align-self: flex-start; max-width: 85%; }
         .g-msg-row .message { max-width: 100%; }
-        .g-msg-ava { width: 30px; height: 30px; border-radius: 50%; flex-shrink: 0; background: linear-gradient(135deg,#7C3AED,#9F67FA); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 0.78rem; font-weight: 700; overflow: hidden; cursor: pointer; margin-bottom: 2px; }
+        .g-msg-ava { width: 30px; height: 30px; border-radius: 50%; flex-shrink: 0; background: linear-gradient(135deg,#047857,#059669); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 0.78rem; font-weight: 700; overflow: hidden; cursor: pointer; margin-bottom: 2px; }
         .g-msg-ava img { width: 100%; height: 100%; object-fit: cover; }
         .msg-edit-textarea { width: 100%; min-width: 220px; font-size: 0.92rem; }
 
@@ -1160,7 +1160,7 @@
         .cmpl-body textarea { width: 100%; border: 1.5px solid #E5E7EB; border-radius: 0.6rem; padding: 0.6rem;
                               font-family: inherit; font-size: 0.9rem; resize: vertical; outline: none;
                               background: #fff; color: #1A1A1A; }
-        .cmpl-body textarea:focus { border-color: #7C3AED; }
+        .cmpl-body textarea:focus { border-color: #047857; }
         .cmpl-check { display: flex; gap: 0.5rem; align-items: flex-start; margin-top: 0.8rem;
                       font-size: 0.78rem; line-height: 1.45; color: #4B5563; cursor: pointer; }
         .cmpl-check input { margin-top: 0.15rem; flex-shrink: 0; }
@@ -1183,9 +1183,9 @@
         .ai-ideas { display: flex; flex-wrap: wrap; gap: .4rem; justify-content: center; margin-top: .9rem; }
         .ai-idea { font-family: inherit; font-size: .84rem; cursor: pointer; padding: .45rem .8rem;
                    border-radius: 999px; border: 1px solid #E5E7EB; background: #fff; color: #4B5563; }
-        .ai-idea:hover { border-color: #C4B5FD; color: #6D28D9; background: #F9F5FF; }
+        .ai-idea:hover { border-color: #6EE7B7; color: #065F46; background: #ECFDF5; }
         body.dark .ai-idea { background: #2A2A2A; border-color: #444; color: #C9C9C9; }
-        body.dark .ai-idea:hover { border-color: #6D28D9; color: #C4B5FD; background: #2D1F4E; }
+        body.dark .ai-idea:hover { border-color: #065F46; color: #6EE7B7; background: #0B3B2E; }
         /* Кнопка «Стоп»: ответ бывает длинным, и ждать его до конца незачем */
         .ai-stop { display: none; align-items: center; gap: .3rem; font-family: inherit; font-size: .8rem;
                    font-weight: 600; cursor: pointer; padding: .35rem .7rem; border-radius: 999px;
@@ -1193,9 +1193,9 @@
         body.ai-answering .ai-stop { display: inline-flex; }
         body.dark .ai-stop { background: #3B1D1D; border-color: #7F1D1D; color: #FCA5A5; }
         /* Ход поиска в интернете — строкой над ответом, пока он набирается */
-        .ai-status { font-size: 0.82rem; color: #6D28D9; background: #F5F3FF; border-radius: 0.5rem;
+        .ai-status { font-size: 0.82rem; color: #065F46; background: #ECFDF5; border-radius: 0.5rem;
                      padding: 0.3rem 0.55rem; display: inline-block; margin-bottom: 0.35rem; }
-        body.dark .ai-status { color: #C4B5FD; background: #2D1F4E; }
+        body.dark .ai-status { color: #6EE7B7; background: #0B3B2E; }
         /* Источники — под спойлером: они нужны для проверки, но не должны занимать
            пол-экрана под каждым ответом. */
         /* Осторожно с этим блоком: в styles.css живёт оформление аккордеона FAQ
@@ -1205,7 +1205,7 @@
         .ai-src { margin-top: .5rem; font-size: .82rem; border-radius: 0 !important; }
         .ai-src[open] { background-color: transparent !important; }
         .ai-src > summary { display: list-item; list-style: none; cursor: pointer;
-                            color: #6D28D9; font-weight: 600; padding: 0; }
+                            color: #065F46; font-weight: 600; padding: 0; }
         .ai-src > summary::-webkit-details-marker { display: none; }
         .ai-src > summary::after { content: none !important; }
         .ai-src > summary::before { content: '▸'; display: inline-block; margin-right: .3rem; }
@@ -1216,8 +1216,8 @@
         .ai-src li + li { margin-top: .25rem; }
         .ai-src a { color: #4B5563; text-decoration: none; border-bottom: 1px solid #E5E7EB;
                     overflow-wrap: anywhere; }
-        .ai-src a:hover { color: #6D28D9; }
-        body.dark .ai-src > summary { color: #C4B5FD; }
+        .ai-src a:hover { color: #065F46; }
+        body.dark .ai-src > summary { color: #6EE7B7; }
         body.dark .ai-src a { color: #B5B5B5; border-color: #444; }
         /* Приложенный к вопросу файл — строкой в самом сообщении */
         .ai-file { display: inline-flex; align-items: center; gap: .35rem; font-size: .82rem;
@@ -1266,17 +1266,17 @@
                    padding: 0.35rem 0.6rem; border-radius: 999px; border: 1px solid #E5E7EB;
                    background: #F9FAFB; color: #4B5563; max-width: 100%; flex-shrink: 0; }
         .ai-chip:hover { background: #F3F4F6; }
-        .ai-chip.on { border-color: #C4B5FD; background: #F5F3FF; color: #6D28D9; }
+        .ai-chip.on { border-color: #6EE7B7; background: #ECFDF5; color: #065F46; }
         .ai-chip.off { color: #6B7280; }
         /* Круглые кнопки-действия: «＋» и «🗑» рядом со списком диалогов */
         .ai-icon-btn { width: 30px; flex-shrink: 0; display: inline-flex; align-items: center;
                        justify-content: center; padding: 0; border-radius: 999px;
                        border: 1px solid #E5E7EB; background: #F9FAFB; color: #4B5563;
                        font-family: inherit; font-size: 0.95rem; line-height: 1; cursor: pointer; }
-        .ai-icon-btn:hover { border-color: #C4B5FD; background: #F5F3FF; color: #6D28D9; }
+        .ai-icon-btn:hover { border-color: #6EE7B7; background: #ECFDF5; color: #065F46; }
         .ai-icon-btn.danger:hover { border-color: #FCA5A5; background: #FEF2F2; color: #B91C1C; }
         body.dark .ai-icon-btn { background: #2A2A2A; border-color: #444; color: #C9C9C9; }
-        body.dark .ai-icon-btn:hover { border-color: #6D28D9; background: #2D1F4E; color: #C4B5FD; }
+        body.dark .ai-icon-btn:hover { border-color: #065F46; background: #0B3B2E; color: #6EE7B7; }
         body.dark .ai-icon-btn.danger:hover { border-color: #7F1D1D; background: #3B1D1D; color: #FCA5A5; }
         /* Подсказка занимает свободное место между блоками и обрезается многоточием,
            а не переносит строку. Полный текст — в title. */
@@ -1310,7 +1310,7 @@
            Модель остаётся в меню «⋮» → «Выбрать модель». */
         @media (max-width: 320px) { body.ai-answering #aiModelSel { display: none; } }
         body.dark .ai-chip { background: #2A2A2A; border-color: #444; color: #C9C9C9; }
-        body.dark .ai-chip.on { background: #2D1F4E; border-color: #6D28D9; color: #C4B5FD; }
+        body.dark .ai-chip.on { background: #0B3B2E; border-color: #065F46; color: #6EE7B7; }
         body.dark .ai-bar-hint { color: #8A8A8A; }
         body.ai-chat .cin-voice,
         body.ai-chat .cin-video,
@@ -1347,7 +1347,7 @@
         }
 
         .chat-input textarea:focus {
-            border-color: #7C3AED;
+            border-color: #047857;
         }
 
         /* Только кнопка отправки: раньше правило было по тегу (.chat-input button) и красило
@@ -1357,7 +1357,7 @@
             height: 44px;
             flex-shrink: 0;
             border-radius: 50%;
-            background: linear-gradient(135deg, #7C3AED 0%, #6D28D9 100%);
+            background: linear-gradient(135deg, #047857 0%, #065F46 100%);
             color: white;
             border: none;
             cursor: pointer;
@@ -1365,12 +1365,12 @@
             align-items: center;
             justify-content: center;
             transition: transform 0.2s, box-shadow 0.2s;
-            box-shadow: 0 2px 10px rgba(124,58,237,0.35);
+            box-shadow: 0 2px 10px rgba(4,120,87,0.35);
         }
 
         .chat-input .send-btn:hover {
             transform: scale(1.05);
-            box-shadow: 0 4px 14px rgba(124,58,237,0.45);
+            box-shadow: 0 4px 14px rgba(4,120,87,0.45);
         }
 
         /* Кнопки панели ввода. Раньше это были эмодзи (😊 📎 🎤 🎥) в серых кружках: у каждой
@@ -1393,12 +1393,12 @@
             transition: background 0.15s, color 0.15s;
         }
         .icon-btn svg { width: 21px; height: 21px; display: block; }
-        .icon-btn:hover { background: #F1EDFB; color: #7C3AED; }
-        .icon-btn:active { background: #E7DEFA; }
+        .icon-btn:hover { background: #D1FAE5; color: #047857; }
+        .icon-btn:active { background: #A7F3D0; }
         .icon-btn.recording { color: #E11D48; background: #FEE9EE; }
         body.dark .icon-btn { color: #9AA0A8; }
-        body.dark .icon-btn:hover { background: #34274D; color: #C9AEFB; }
-        body.dark .icon-btn:active { background: #3E2E5B; }
+        body.dark .icon-btn:hover { background: #0F3A2C; color: #6EE7B7; }
+        body.dark .icon-btn:active { background: #14503B; }
         body.dark .icon-btn.recording { color: #FB7185; background: #3A1E27; }
 
         .emoji-picker {
@@ -1429,17 +1429,17 @@
             padding: 4px 2px;
             scrollbar-width: thin;
         }
-        .emoji-grid { scrollbar-color: rgba(124,58,237,0.45) transparent; }
+        .emoji-grid { scrollbar-color: rgba(4,120,87,0.45) transparent; }
         .emoji-grid::-webkit-scrollbar { width: 8px; }
         .emoji-grid::-webkit-scrollbar-thumb {
-            background: rgba(124,58,237,0.40); border-radius: 999px;
+            background: rgba(4,120,87,0.40); border-radius: 999px;
             border: 2px solid transparent; background-clip: content-box;
         }
-        .emoji-grid::-webkit-scrollbar-thumb:hover { background: rgba(124,58,237,0.65); background-clip: content-box; }
+        .emoji-grid::-webkit-scrollbar-thumb:hover { background: rgba(4,120,87,0.65); background-clip: content-box; }
         .emoji-grid::-webkit-scrollbar-track { background: transparent; }
         .emoji-grid::-webkit-scrollbar-corner { background: transparent; }
-        body.dark .emoji-grid { scrollbar-color: rgba(196,181,253,0.45) transparent; }
-        body.dark .emoji-grid::-webkit-scrollbar-thumb { background: rgba(196,181,253,0.35); background-clip: content-box; }
+        body.dark .emoji-grid { scrollbar-color: rgba(110,231,183,0.45) transparent; }
+        body.dark .emoji-grid::-webkit-scrollbar-thumb { background: rgba(110,231,183,0.35); background-clip: content-box; }
         .emoji-tabs {
             display: flex; gap: 2px; justify-content: center; flex-shrink: 0; flex-wrap: wrap;
             padding-bottom: 6px; margin-bottom: 4px; border-bottom: 1px solid rgba(128,128,128,0.25);
@@ -1448,8 +1448,8 @@
             border: none; background: none; cursor: pointer; font-size: 1.15rem;
             padding: 4px 7px; border-radius: 8px; line-height: 1;
         }
-        .emoji-tab:hover { background: rgba(124,58,237,0.12); }
-        .emoji-tab.active { background: rgba(124,58,237,0.22); }
+        .emoji-tab:hover { background: rgba(4,120,87,0.12); }
+        .emoji-tab.active { background: rgba(4,120,87,0.22); }
         .emoji-empty { grid-column: 1 / -1; font-size: 0.82rem; color: #6B7280; padding: 0.75rem; text-align: center; }
 
         .emoji-grid span {
@@ -1505,7 +1505,7 @@
             display: flex;
             align-items: center;
             gap: 8px;
-            color: #7C3AED;
+            color: #047857;
             text-decoration: none;
         }
 
@@ -1550,8 +1550,8 @@
         /* Озвучка ответа: пока читает — кнопка подсвечена и мягко пульсирует,
            чтобы было видно, какой именно ответ сейчас звучит.
            Сами кнопки под ответом теперь общие с перепиской — см. .msg-hover. */
-        .msg-hover button.ai-speak.on { background: #7C3AED; color: #fff; animation: aiSpeakPulse 1.4s ease-in-out infinite; }
-        body.dark .msg-hover button.ai-speak.on { background: #7C3AED; color: #fff; }
+        .msg-hover button.ai-speak.on { background: #047857; color: #fff; animation: aiSpeakPulse 1.4s ease-in-out infinite; }
+        body.dark .msg-hover button.ai-speak.on { background: #047857; color: #fff; }
         @keyframes aiSpeakPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.55; } }
         @media (prefers-reduced-motion: reduce) { .msg-hover button.ai-speak.on { animation: none; } }
 
@@ -1562,10 +1562,10 @@
             background: #fff; color: #4B5563; cursor: pointer; box-shadow: 0 4px 14px rgba(0,0,0,0.18);
             display: flex; align-items: center; justify-content: center; font-size: 1.15rem;
         }
-        .scroll-down-btn:hover { background: #F3E8FF; color: #7C3AED; }
+        .scroll-down-btn:hover { background: #D1FAE5; color: #047857; }
         .sd-count {
             position: absolute; top: -6px; right: -4px; min-width: 20px; height: 20px; padding: 0 5px;
-            border-radius: 10px; background: #7C3AED; color: #fff;
+            border-radius: 10px; background: #047857; color: #fff;
             font-size: 0.72rem; font-weight: 700; display: flex; align-items: center; justify-content: center;
         }
         body.dark .scroll-down-btn { background: #2A2A2A; color: #D0D0D0; border-color: #3A3A3A; }
@@ -1573,20 +1573,20 @@
         /* Окно «кому показать историю» и список просмотров */
         .sa-row { display: flex; gap: 0.55rem; align-items: flex-start; padding: 0.6rem 0.7rem; margin: 0 0.6rem 0.3rem;
                   border: 1.5px solid rgba(128,128,128,0.25); border-radius: 0.7rem; cursor: pointer; }
-        .sa-row:hover { border-color: #7C3AED; }
-        .sa-row input { width: 18px; height: 18px; margin-top: 2px; accent-color: #7C3AED; flex: 0 0 auto; cursor: pointer; }
+        .sa-row:hover { border-color: #047857; }
+        .sa-row input { width: 18px; height: 18px; margin-top: 2px; accent-color: #047857; flex: 0 0 auto; cursor: pointer; }
         .sa-row b { display: block; font-size: 0.9rem; }
         .sa-row i { display: block; font-style: normal; font-size: 0.75rem; color: #9CA3AF; margin-top: 1px; line-height: 1.35; }
         .sa-people { max-height: 220px; overflow-y: auto; margin: 0.2rem 0.6rem 0.4rem; border: 1px solid rgba(128,128,128,0.2);
                      border-radius: 0.6rem; padding: 0.3rem; }
         .sa-person { display: flex; gap: 0.5rem; align-items: center; padding: 0.35rem 0.4rem; font-size: 0.88rem; cursor: pointer; }
-        .sa-person:hover { background: rgba(124,58,237,0.08); border-radius: 0.4rem; }
-        .sa-person input { width: 17px; height: 17px; accent-color: #7C3AED; flex: 0 0 auto; cursor: pointer; }
+        .sa-person:hover { background: rgba(4,120,87,0.08); border-radius: 0.4rem; }
+        .sa-person input { width: 17px; height: 17px; accent-color: #047857; flex: 0 0 auto; cursor: pointer; }
         .sa-sub { font-style: normal; font-size: 0.72rem; color: #9CA3AF; }
         /* Кружок с фото того, кто посмотрел историю: по одному имени человека часто не узнать */
         .sa-ava {
             width: 30px; height: 30px; flex: 0 0 auto; border-radius: 50%; overflow: hidden;
-            background: linear-gradient(135deg,#7C3AED,#9F67FA); color: #fff; font-size: 0.78rem;
+            background: linear-gradient(135deg,#047857,#059669); color: #fff; font-size: 0.78rem;
             font-weight: 700; display: flex; align-items: center; justify-content: center;
         }
         .sa-ava img { width: 100%; height: 100%; object-fit: cover; display: block; }
@@ -1609,15 +1609,15 @@
         /* Кто лайкнул — сердечко в списке просмотревших */
         .sa-liked { color: #DC2626; margin-left: .35rem; }
         .sa-write {
-            flex: 0 0 auto; border: 1.5px solid #E5E7EB; background: none; color: #7C3AED;
+            flex: 0 0 auto; border: 1.5px solid #E5E7EB; background: none; color: #047857;
             border-radius: 0.5rem; padding: 0.25rem 0.6rem; font: inherit; font-size: 0.78rem;
             font-weight: 600; cursor: pointer;
         }
-        .sa-write:hover { background: rgba(124,58,237,0.1); }
-        body.dark .sa-write { border-color: #444; color: #C4B5FD; }
+        .sa-write:hover { background: rgba(4,120,87,0.1); }
+        body.dark .sa-write { border-color: #444; color: #6EE7B7; }
         .sa-empty { padding: 0.7rem; font-size: 0.84rem; color: #9CA3AF; }
         .sa-go { margin: 0.5rem 0.6rem 0.2rem; width: calc(100% - 1.2rem); padding: 0.7rem;
-                 background: linear-gradient(135deg,#7C3AED,#9F67FA); color: #fff; border: none;
+                 background: linear-gradient(135deg,#047857,#059669); color: #fff; border: none;
                  border-radius: 0.7rem; font-family: inherit; font-weight: 700; cursor: pointer; }
         .sa-note { margin: 0.2rem 0.6rem 0.7rem; font-size: 0.75rem; color: #9CA3AF; line-height: 1.45; }
 
@@ -1626,12 +1626,12 @@
         .chat-area.drop-hint::after {
             content: '📎 Отпустите — прикрепим к сообщению';
             position: absolute; inset: 12px; z-index: 60; pointer-events: none;
-            border: 2px dashed #7C3AED; border-radius: 1rem;
-            background: rgba(124,58,237,0.10); color: #7C3AED;
+            border: 2px dashed #047857; border-radius: 1rem;
+            background: rgba(4,120,87,0.10); color: #047857;
             display: flex; align-items: center; justify-content: center;
             font-weight: 700; font-size: 1rem;
         }
-        body.dark .chat-area.drop-hint::after { background: rgba(124,58,237,0.18); color: #C4B5FD; }
+        body.dark .chat-area.drop-hint::after { background: rgba(4,120,87,0.18); color: #6EE7B7; }
 
         /* Плашка с датой между сообщениями */
         .day-sep { display: flex; align-items: center; justify-content: center; margin: 0.8rem 0 0.5rem; }
@@ -1646,18 +1646,18 @@
         .chat-sb-new {
             position: absolute; right: 16px; bottom: 62px; z-index: 40;
             width: 46px; height: 46px; border-radius: 50%; border: none;
-            background: linear-gradient(135deg, #7C3AED, #9F67FA); color: #fff;
+            background: linear-gradient(135deg, #047857, #059669); color: #fff;
             font-size: 1.5rem; line-height: 1; cursor: pointer; font-family: inherit;
-            box-shadow: 0 6px 18px rgba(124,58,237,0.42);
+            box-shadow: 0 6px 18px rgba(4,120,87,0.42);
             display: flex; align-items: center; justify-content: center;
             transition: transform 0.15s, box-shadow 0.15s;
         }
-        .chat-sb-new:hover { transform: scale(1.06); box-shadow: 0 8px 22px rgba(124,58,237,0.5); }
+        .chat-sb-new:hover { transform: scale(1.06); box-shadow: 0 8px 22px rgba(4,120,87,0.5); }
         .chat-sb-new.open { transform: rotate(45deg); }
         .chat-new-menu {
             display: none; position: absolute; right: 16px; bottom: 116px; z-index: 41;
             width: 260px; max-width: calc(100% - 32px);
-            background: #fff; border: 1px solid #EDE9FF; border-radius: 0.9rem;
+            background: #fff; border: 1px solid #D1FAE5; border-radius: 0.9rem;
             box-shadow: 0 12px 34px rgba(0,0,0,0.18); overflow: hidden;
         }
         .chat-new-menu.open { display: block; }
@@ -1668,7 +1668,7 @@
             border-bottom: 1px solid rgba(128,128,128,0.14);
         }
         .chat-new-menu button:last-child { border-bottom: none; }
-        .chat-new-menu button:hover { background: rgba(124,58,237,0.10); }
+        .chat-new-menu button:hover { background: rgba(4,120,87,0.10); }
         .chat-new-menu span { font-size: 1.2rem; line-height: 1.3; }
         .chat-new-menu b { display: block; font-size: 0.9rem; }
         .chat-new-menu i { display: block; font-style: normal; font-size: 0.75rem; color: #9CA3AF; line-height: 1.35; margin-top: 1px; }
@@ -1682,13 +1682,13 @@
         /* ── Отложенная отправка ────────────────────────────────────────────────── */
         .sched-bar {
             display: flex; align-items: center; gap: 0.4rem; cursor: pointer;
-            padding: 0.4rem 0.9rem; font-size: 0.8rem; color: #6D28D9;
-            background: rgba(124,58,237,0.08); border-top: 1px solid rgba(124,58,237,0.18);
+            padding: 0.4rem 0.9rem; font-size: 0.8rem; color: #065F46;
+            background: rgba(4,120,87,0.08); border-top: 1px solid rgba(4,120,87,0.18);
         }
-        .sched-bar:hover { background: rgba(124,58,237,0.15); }
+        .sched-bar:hover { background: rgba(4,120,87,0.15); }
         .sched-bar.warn { color: #B91C1C; background: rgba(220,38,38,0.08); border-top-color: rgba(220,38,38,0.2); }
         .sched-bar-txt { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        body.dark .sched-bar { color: #C4B5FD; background: rgba(124,58,237,0.18); }
+        body.dark .sched-bar { color: #6EE7B7; background: rgba(4,120,87,0.18); }
         body.dark .sched-bar.warn { color: #FCA5A5; background: rgba(220,38,38,0.16); }
         .sched-row {
             display: flex; align-items: center; gap: 0.5rem;
@@ -1701,10 +1701,10 @@
                             overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .sched-row-main u { display: block; text-decoration: none; font-size: 0.76rem; color: #B91C1C; margin-top: 0.15rem; }
         .sched-row button {
-            flex-shrink: 0; border: none; background: rgba(124,58,237,0.12); color: inherit;
+            flex-shrink: 0; border: none; background: rgba(4,120,87,0.12); color: inherit;
             cursor: pointer; border-radius: 0.5rem; width: 30px; height: 30px; font-size: 0.9rem;
         }
-        .sched-row button:hover { background: rgba(124,58,237,0.26); }
+        .sched-row button:hover { background: rgba(4,120,87,0.26); }
         body.dark .sched-row-main i { color: #9CA3AF; }
         body.dark .sched-row button { background: rgba(255,255,255,0.10); }
         .sched-preview {
@@ -1718,7 +1718,7 @@
             border: 1px solid #E5E7EB; background: #F9FAFB; color: #4B5563; cursor: pointer;
             border-radius: 999px; padding: 0.35rem 0.7rem; font-family: inherit; font-size: 0.8rem;
         }
-        .sched-quick button:hover { border-color: #C4B5FD; background: #F5F3FF; color: #6D28D9; }
+        .sched-quick button:hover { border-color: #6EE7B7; background: #ECFDF5; color: #065F46; }
         body.dark .sched-quick button { background: #2A2A2A; border-color: #444; color: #C9C9C9; }
         .sched-when { display: flex; align-items: center; gap: 0.5rem; }
         .sched-when input {
@@ -1726,7 +1726,7 @@
             padding: 0.5rem 0.6rem; border: 1.5px solid #E5E7EB; border-radius: 0.6rem;
             background: #fff; color: #1A1A1A;
         }
-        .sched-when input:focus { border-color: #7C3AED; outline: none; }
+        .sched-when input:focus { border-color: #047857; outline: none; }
         body.dark .sched-when input { background: #1E1E1E; border-color: #444; color: #E6E6E6; }
 
         /* Окно настроек чатов */
@@ -1749,7 +1749,7 @@
             padding: 0.6rem 0.5rem; border: none; background: none; border-radius: 0.6rem;
             cursor: pointer; font-family: inherit; font-size: 0.92rem; color: inherit; text-decoration: none;
         }
-        .cs-row:hover { background: rgba(124,58,237,0.10); }
+        .cs-row:hover { background: rgba(4,120,87,0.10); }
         .cs-row > span { font-size: 1.2rem; width: 1.6rem; text-align: center; flex-shrink: 0; }
         .cs-row b { display: block; font-weight: 600; }
         .cs-row i { display: block; font-style: normal; font-size: 0.78rem; color: #6B7280; }
@@ -1759,33 +1759,33 @@
         /* Поиск по переписке */
         .chat-search {
             display: flex; align-items: center; gap: 0.4rem; padding: 0.5rem 0.9rem;
-            border-bottom: 1px solid rgba(128,128,128,0.2); background: rgba(124,58,237,0.06);
+            border-bottom: 1px solid rgba(128,128,128,0.2); background: rgba(4,120,87,0.06);
         }
         .chat-search input {
             flex: 1; min-width: 0; padding: 0.4rem 0.7rem; border-radius: 0.5rem;
-            border: 1.5px solid rgba(124,58,237,0.35); background: transparent; color: inherit;
+            border: 1.5px solid rgba(4,120,87,0.35); background: transparent; color: inherit;
             font-family: inherit; font-size: 0.9rem; outline: none;
         }
         .chat-search button {
-            border: none; background: rgba(124,58,237,0.14); color: inherit; cursor: pointer;
+            border: none; background: rgba(4,120,87,0.14); color: inherit; cursor: pointer;
             border-radius: 0.45rem; padding: 0.25rem 0.5rem; font-size: 0.9rem;
         }
-        .chat-search button:hover { background: rgba(124,58,237,0.28); }
+        .chat-search button:hover { background: rgba(4,120,87,0.28); }
         .cs-count { font-size: 0.78rem; color: #6B7280; white-space: nowrap; }
         body.dark .cs-count { color: #9CA3AF; }
-        .message.search-hit { outline: 2px solid rgba(124,58,237,0.45); }
-        .message.search-current { outline: 3px solid #7C3AED; }
+        .message.search-hit { outline: 2px solid rgba(4,120,87,0.45); }
+        .message.search-current { outline: 3px solid #047857; }
 
         /* Реакции под сообщением */
         .msg-reacts { display: flex; gap: 0.25rem; flex-wrap: wrap; margin-top: 0.3rem; }
         .react-chip {
             display: inline-flex; align-items: center; gap: 0.2rem;
-            border: 1px solid rgba(124,58,237,0.35); background: rgba(124,58,237,0.10);
+            border: 1px solid rgba(4,120,87,0.35); background: rgba(4,120,87,0.10);
             color: inherit; border-radius: 1rem; padding: 0.1rem 0.45rem;
             font-size: 0.82rem; cursor: pointer; font-family: inherit; line-height: 1.4;
         }
         .react-chip span { font-size: 0.75rem; font-weight: 700; opacity: 0.85; }
-        .react-chip.mine { background: rgba(124,58,237,0.32); border-color: #7C3AED; }
+        .react-chip.mine { background: rgba(4,120,87,0.32); border-color: #047857; }
         .message.mine .react-chip { background: rgba(255,255,255,0.18); border-color: rgba(255,255,255,0.35); }
         .message.mine .react-chip.mine { background: rgba(255,255,255,0.34); }
         .react-picker { display: flex; gap: 2px; padding: 4px; }
@@ -1793,12 +1793,12 @@
             border: none; background: none; cursor: pointer; font-size: 1.25rem;
             padding: 4px 6px; border-radius: 8px; line-height: 1;
         }
-        .react-pick:hover { background: rgba(124,58,237,0.18); }
+        .react-pick:hover { background: rgba(4,120,87,0.18); }
 
         /* Что прикреплено и ждёт отправки */
         .attach-bar {
             padding: 0.5rem 0.9rem; border-top: 1px solid rgba(128,128,128,0.2);
-            background: rgba(124,58,237,0.06); display: flex; flex-direction: column; gap: 0.35rem;
+            background: rgba(4,120,87,0.06); display: flex; flex-direction: column; gap: 0.35rem;
         }
         .ab-items { display: flex; gap: 0.45rem; flex-wrap: wrap; }
         .ab-item { position: relative; width: 56px; height: 56px; border-radius: 0.5rem; overflow: hidden; }
@@ -1825,18 +1825,18 @@
 
         .ab-opts { display: flex; gap: 0.9rem; flex-wrap: wrap; font-size: 0.8rem; }
         .ab-opts label { display: inline-flex; align-items: center; gap: 0.3rem; cursor: pointer; }
-        .ab-opts input { accent-color: #7C3AED; cursor: pointer; }
+        .ab-opts input { accent-color: #047857; cursor: pointer; }
         .ab-hint { font-size: 0.76rem; color: #6B7280; }
         body.dark .ab-hint { color: #9CA3AF; }
 
         /* Расшифровка голосового или кружка */
         .stt-box { margin-top: 0.35rem; }
         .stt-btn {
-            border: 1px solid rgba(124,58,237,0.45); background: rgba(124,58,237,0.10);
+            border: 1px solid rgba(4,120,87,0.45); background: rgba(4,120,87,0.10);
             color: inherit; cursor: pointer; border-radius: 0.5rem;
             padding: 0.2rem 0.55rem; font-size: 0.78rem; font-family: inherit; font-weight: 600;
         }
-        .stt-btn:hover { background: rgba(124,58,237,0.22); }
+        .stt-btn:hover { background: rgba(4,120,87,0.22); }
         .stt-wait { font-size: 0.8rem; opacity: 0.8; }
         .stt-err { font-size: 0.8rem; color: #DC2626; }
         .stt-text {
@@ -1860,17 +1860,17 @@
         /* ── Упоминания @ ── */
         /* На своём (фиолетовом) пузыре фиолетовые ссылки и упоминания сливались с фоном.
            Внутри своих сообщений красим их светлым и подчёркиваем, чужие оставляем как были. */
-        .mention { color: #7C3AED; font-weight: 600; }
-        .mention-me { background: rgba(124,58,237,0.18); border-radius: 0.3rem; padding: 0 0.2rem; }
+        .mention { color: #047857; font-weight: 600; }
+        .mention-me { background: rgba(4,120,87,0.18); border-radius: 0.3rem; padding: 0 0.2rem; }
         .message.mine .mention { color: #FFF3B0; }
         .message.mine .mention-me { background: rgba(255,255,255,0.26); color: #fff; }
-        .message a { color: #6D28D9; text-decoration: underline; text-underline-offset: 2px; }
+        .message a { color: #065F46; text-decoration: underline; text-underline-offset: 2px; }
         .message.mine a { color: #FFFFFF; text-decoration-color: rgba(255,255,255,0.7); }
-        body.dark .message a { color: #C4B5FD; }
+        body.dark .message a { color: #6EE7B7; }
         body.dark .message.mine a { color: #FFFFFF; }
         /* В группах имя автора и подсветка своего упоминания тоже должны читаться */
-        body.dark .mention { color: #C4B5FD; }
-        body.dark .mention-me { background: rgba(196,181,253,0.22); color: #EDE9FE; }
+        body.dark .mention { color: #6EE7B7; }
+        body.dark .mention-me { background: rgba(110,231,183,0.22); color: #D1FAE5; }
         .mention-box {
             position: absolute; bottom: 100%; left: 0.75rem; z-index: 40;
             background: #fff; border: 1px solid #E5E7EB; border-radius: 0.75rem;
@@ -1881,18 +1881,18 @@
             padding: 0.5rem 0.7rem; border: none; background: none; cursor: pointer;
             font-family: inherit; font-size: 0.9rem; text-align: left; color: inherit;
         }
-        .mention-row:hover { background: #F3E8FF; }
+        .mention-row:hover { background: #D1FAE5; }
         .mention-ava {
             width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0;
-            background: linear-gradient(135deg,#7C3AED,#9F67FA); color: #fff;
+            background: linear-gradient(135deg,#047857,#059669); color: #fff;
             display: flex; align-items: center; justify-content: center; font-size: 0.78rem; font-weight: 700;
         }
         body.dark .mention-box { background: #2A2A2A; border-color: #3A3A3A; }
-        body.dark .mention-row:hover { background: #3A2A55; }
+        body.dark .mention-row:hover { background: #134735; }
 
         /* ── «В сети», «печатает…» и галочки доставки ── */
         .online-txt { color: #16A34A; font-weight: 600; }
-        .typing-now { color: #7C3AED; font-weight: 600; }
+        .typing-now { color: #047857; font-weight: 600; }
         .typing-now .td { animation: typingDot 1.2s infinite; }
         .typing-now .td:nth-child(2) { animation-delay: 0.2s; }
         .typing-now .td:nth-child(3) { animation-delay: 0.4s; }
@@ -1934,16 +1934,16 @@
             margin-left: 0.4rem; letter-spacing: -0.16em; font-size: 0.95rem;
             font-weight: 800; opacity: 1; vertical-align: -1px;
         }
-        .message.mine .msg-ticks.sent { color: #EDE9FE; }
+        .message.mine .msg-ticks.sent { color: #D1FAE5; }
         .msg-ticks.read { color: #38BDF8; text-shadow: 0 0 1px rgba(56,189,248,0.6); }
-        body.dark .message.mine .msg-ticks.sent { color: #D6D3E4; }
+        body.dark .message.mine .msg-ticks.sent { color: #CADFD5; }
 
         .vr-hint { font-size: 0.8rem; color: #6B7280; }
         /* Плашка стоит на месте строки ввода, поэтому повторяет её отступы и фон —
            иначе при переключении «ввод ↔ запись» дёргалась высота. */
         .voice-recording { margin: 0; padding: 0.6rem 0.75rem; border-radius: 0; gap: 8px; }
         .voice-recording .recording-indicator { gap: 10px; }
-        .vr-redo { background: #7C3AED; font-size: 1rem; }
+        .vr-redo { background: #047857; font-size: 1rem; }
         body.dark .voice-recording { background: #252525; }
         @media (max-width: 768px) {
             /* На телефоне места мало: подсказку убираем, кнопки оставляем крупными */
@@ -1954,10 +1954,10 @@
         .vr-preview { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; }
         .vr-play {
             width: 34px; height: 34px; flex-shrink: 0; border-radius: 50%; border: none;
-            background: #7C3AED; color: #fff; cursor: pointer; font-size: 0.85rem; line-height: 1;
+            background: #047857; color: #fff; cursor: pointer; font-size: 0.85rem; line-height: 1;
         }
-        .vr-bar { flex: 1; min-width: 40px; height: 6px; border-radius: 3px; background: #D8D3E4; cursor: pointer; }
-        .vr-fill { height: 100%; width: 0; border-radius: 3px; background: #7C3AED; }
+        .vr-bar { flex: 1; min-width: 40px; height: 6px; border-radius: 3px; background: #CADFD5; cursor: pointer; }
+        .vr-fill { height: 100%; width: 0; border-radius: 3px; background: #047857; }
         body.dark .vr-hint { color: #9CA3AF; }
         body.dark .vr-bar { background: #4B4B55; }
 
@@ -1976,7 +1976,7 @@
             padding: 8px 16px;
             border-radius: 20px;
             border: none;
-            background: linear-gradient(135deg, #7C3AED 0%, #6D28D9 100%);
+            background: linear-gradient(135deg, #047857 0%, #065F46 100%);
             color: white;
             cursor: pointer;
             font-weight: 500;
@@ -1988,7 +1988,7 @@
             align-items: center;
             gap: 10px;
             padding: 8px 12px;
-            background: rgba(124, 58, 237, 0.1);
+            background: rgba(4,120,87, 0.1);
             border-radius: 16px;
             min-width: 200px;
         }
@@ -1997,7 +1997,7 @@
             width: 40px;
             height: 40px;
             border-radius: 50%;
-            background: linear-gradient(135deg, #7C3AED 0%, #6D28D9 100%);
+            background: linear-gradient(135deg, #047857 0%, #065F46 100%);
             color: white;
             border: none;
             cursor: pointer;
@@ -2026,7 +2026,7 @@
             flex: 1 1 0;
             min-width: 2px;
             max-width: 4px;
-            background: #7C3AED;
+            background: #047857;
             border-radius: 2px;
             opacity: 0.32;
         }
@@ -2051,8 +2051,8 @@
 
         .voice-speed {
             border: none;
-            background: rgba(124, 58, 237, 0.16);
-            color: #6D28D9;
+            background: rgba(4,120,87, 0.16);
+            color: #065F46;
             font-size: 10px;
             font-weight: 700;
             line-height: 1;
@@ -2061,11 +2061,11 @@
             cursor: pointer;
             font-family: inherit;
         }
-        .voice-speed:hover { background: rgba(124, 58, 237, 0.28); }
+        .voice-speed:hover { background: rgba(4,120,87, 0.28); }
 
         /* В своём (фиолетовом) пузыре фиолетовая волна и подписи сливались с фоном — там всё белое */
         .message.mine .voice-message { background: rgba(255, 255, 255, 0.18); }
-        .message.mine .voice-play-btn { background: #fff; color: #6D28D9; }
+        .message.mine .voice-play-btn { background: #fff; color: #065F46; }
         .message.mine .voice-waveform span { background: #fff; }
         .message.mine .voice-info { color: rgba(255, 255, 255, 0.85); }
         .message.mine .voice-duration { color: #fff; }
@@ -2077,21 +2077,21 @@
             width: 44px;
             height: 44px;
             border-radius: 50%;
-            background: linear-gradient(135deg, #7C3AED 0%, #6D28D9 100%);
+            background: linear-gradient(135deg, #047857 0%, #065F46 100%);
             border: none;
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
             transition: all 0.3s;
-            box-shadow: 0 2px 8px rgba(124, 58, 237, 0.3);
+            box-shadow: 0 2px 8px rgba(4,120,87, 0.3);
             color: white;
             text-decoration: none;
         }
 
         .dashboard-btn:hover {
             transform: scale(1.1);
-            box-shadow: 0 4px 12px rgba(124, 58, 237, 0.4);
+            box-shadow: 0 4px 12px rgba(4,120,87, 0.4);
         }
 
         /* Video Call Button */
@@ -2143,7 +2143,7 @@
             justify-content: space-between;
             align-items: center;
             padding: 16px 24px;
-            background: #1a1a2e;
+            background: #122a22;
             color: white;
         }
 
@@ -2230,18 +2230,18 @@
                 background: #F3F4F6;
             }
             .folder-tab .ftab-ico { font-size: 0.95rem; }
-            .folder-tab.active { background: #7C3AED; color: #fff; }
+            .folder-tab.active { background: #047857; color: #fff; }
             .folder-tab.active::before { display: none; }
             .folder-tab .fcount {
                 position: static; background: rgba(0,0,0,0.14); color: inherit;
                 min-width: 0; padding: 0 0.3rem; line-height: 1.35;
             }
             .folder-tab.active .fcount { background: rgba(255,255,255,0.28); }
-            .folder-tab-add { background: transparent; border: 1px dashed #C4B5FD; }
+            .folder-tab-add { background: transparent; border: 1px dashed #6EE7B7; }
             body.dark .chat-folders { border-bottom-color: #333; }
             body.dark .folder-tab { background: #2F2F2F; }
-            body.dark .folder-tab.active { background: #7C3AED; color: #fff; }
-            body.dark .folder-tab-add { background: transparent; border-color: #5B3E8E; }
+            body.dark .folder-tab.active { background: #047857; color: #fff; }
+            body.dark .folder-tab-add { background: transparent; border-color: #1F6B4F; }
             /* Кнопка «⋮» была мелкой для пальца — зона нажатия 34×34 */
             .folder-pick-btn { width: 34px; height: 34px; }
             .conversations-pane.collapsed .chat-folders { display: flex; }
@@ -2352,7 +2352,7 @@
             .mic-hint {
                 position: absolute; left: 50%; transform: translateX(-50%);
                 bottom: 100%; margin-bottom: 0.4rem; white-space: nowrap;
-                background: rgba(20,18,30,0.92); color: #fff; font-size: 0.78rem;
+                background: rgba(12,26,21,0.92); color: #fff; font-size: 0.78rem;
                 padding: 0.35rem 0.7rem; border-radius: 1rem; pointer-events: none; z-index: 40;
             }
             .chat-input { position: relative; }
@@ -2400,16 +2400,16 @@
             color: #1A1A1A; padding: 0.55rem 0.7rem; border-radius: 0.6rem;
             cursor: pointer; text-align: left; line-height: 1.2;
         }
-        .cin-menu-row:hover { background: #F3E8FF; color: #6D28D9; }
+        .cin-menu-row:hover { background: #D1FAE5; color: #065F46; }
         .cin-menu-ico {
-            width: 22px; flex-shrink: 0; color: #7C3AED;
+            width: 22px; flex-shrink: 0; color: #047857;
             display: inline-flex; align-items: center; justify-content: center;
             font-size: 1.05rem; font-weight: 700; line-height: 1;
         }
         body.dark .cin-menu { background: #252525; border-color: #3A3A3A; box-shadow: 0 8px 30px rgba(0,0,0,0.5); }
         body.dark .cin-menu-row { color: #E6E6E6; }
-        body.dark .cin-menu-row:hover { background: #37254A; color: #C9AEFB; }
-        body.dark .cin-menu-ico { color: #C9AEFB; }
+        body.dark .cin-menu-row:hover { background: #10402F; color: #6EE7B7; }
+        body.dark .cin-menu-ico { color: #6EE7B7; }
 
         /* ── Dark theme ── */
         body.dark { background: #191919 !important; color: #E6E6E6 !important; }
@@ -2418,9 +2418,9 @@
         body.dark .chat-sb-search { background: #1E1E1E; border-color: #444; color: #E6E6E6; }
         body.dark .chat-folders { background: #202020; border-right-color: #333; }
         body.dark .folder-tab { background: transparent; color: #A8A8A8; }
-        body.dark .folder-tab:hover { background: #34274D; color: #C9AEFB; }
-        body.dark .folder-tab.active { background: #37254A; color: #D3BEFA; }
-        body.dark .folder-tab-add { color: #C9AEFB; }
+        body.dark .folder-tab:hover { background: #0F3A2C; color: #6EE7B7; }
+        body.dark .folder-tab.active { background: #10402F; color: #A7F3D0; }
+        body.dark .folder-tab-add { color: #6EE7B7; }
         /* Переключатель «Чаты | Сообщения» — виден только когда поиск раскрыт */
         /* Показывается из JS, когда в поиске что-то набрано: пустая строка — нечего
            и выбирать. Своего display здесь нет намеренно, иначе перебивал бы. */
@@ -2428,15 +2428,15 @@
         .sbm-btn { font-family: inherit; font-size: .78rem; font-weight: 600; cursor: pointer;
                    padding: .3rem .7rem; border-radius: 999px; border: 1px solid #E5E7EB;
                    background: #F9FAFB; color: #6B7280; }
-        .sbm-btn.active { background: #F3E8FF; border-color: #C4B5FD; color: #6D28D9; }
+        .sbm-btn.active { background: #D1FAE5; border-color: #6EE7B7; color: #065F46; }
         body.dark .sbm-btn { background: #2A2A2A; border-color: #444; color: #B5B5B5; }
-        body.dark .sbm-btn.active { background: #2D1F4E; border-color: #6D28D9; color: #C4B5FD; }
+        body.dark .sbm-btn.active { background: #0B3B2E; border-color: #065F46; color: #6EE7B7; }
         /* Найденное сообщение: с кем, когда и сам кусок текста */
         .msg-hit { display: flex; gap: .6rem; align-items: flex-start; padding: .6rem .85rem;
                    cursor: pointer; border-bottom: 1px solid #F3F4F6; }
         .msg-hit:hover { background: #FAF8FF; }
         .msg-hit .mh-ava { width: 40px; height: 40px; flex: 0 0 40px; border-radius: 50%;
-                           background: #EDE9FE; color: #6D28D9; display: flex; align-items: center;
+                           background: #D1FAE5; color: #065F46; display: flex; align-items: center;
                            justify-content: center; font-weight: 700; overflow: hidden; }
         .msg-hit .mh-ava img { width: 100%; height: 100%; object-fit: cover; }
         .msg-hit .mh-body { min-width: 0; flex: 1; }
@@ -2445,17 +2445,17 @@
                             overflow: hidden; text-overflow: ellipsis; }
         .msg-hit .mh-date { font-size: .75rem; color: #9CA3AF; flex: 0 0 auto; }
         .msg-hit .mh-text { font-size: .85rem; color: #6B7280; overflow-wrap: anywhere; }
-        .msg-hit .mh-text b { color: #6D28D9; background: #F3E8FF; border-radius: .2rem; }
+        .msg-hit .mh-text b { color: #065F46; background: #D1FAE5; border-radius: .2rem; }
         .msg-hit .mh-me { color: #9CA3AF; }
         body.dark .msg-hit { border-color: #333; }
         body.dark .msg-hit:hover { background: #2A2A2A; }
         body.dark .msg-hit .mh-text { color: #A0A0A0; }
-        body.dark .msg-hit .mh-text b { color: #C4B5FD; background: #2D1F4E; }
+        body.dark .msg-hit .mh-text b { color: #6EE7B7; background: #0B3B2E; }
         body.dark #chatSearchInput { background: #1E1E1E; border-color: #444; color: #E6E6E6; }
         body.dark #chatSearchInput::placeholder { color: #777; }
         body.dark .conversation-item { border-bottom-color: #333; }
         body.dark .conversation-item:hover { background: #2D2D2D; }
-        body.dark .conversation-item.active { background: #2D1F4E; }
+        body.dark .conversation-item.active { background: #0B3B2E; }
         body.dark .conversation-name { color: #E6E6E6; }
         body.dark .conversation-preview { color: #999; }
         body.dark .conversation-time { color: #9A9A9A; }
@@ -2475,11 +2475,11 @@
         body.dark .file-preview { background: #2D2D2D; }
         body.dark .voice-recording { background: #333; }
         body.dark .voice-duration { color: #E6E6E6; }
-        body.dark .voice-speed { background: #37254A; color: #C9AEFB; }
-        body.dark .voice-speed:hover { background: #45305C; }
+        body.dark .voice-speed { background: #10402F; color: #6EE7B7; }
+        body.dark .voice-speed:hover { background: #175E45; }
         body.dark .voice-info { color: #999; }
         body.dark .empty-state { color: #9A9A9A; }
-        body.dark .empty-back-link { color: #B794F4 !important; }
+        body.dark .empty-back-link { color: #6EE7B7 !important; }
         body.dark .empty-back-link2 { color: #A8A8A8 !important; }
         body.dark .chat-back-btn { background: #333; color: #E6E6E6; }
         body.dark .btn-cancel { background: #555; }
@@ -2511,7 +2511,7 @@
         body.dark textarea[style*="solid #e0e0e0"]::placeholder { color: #8A8A8A !important; }
         /* Кнопка «⋮» у строки чата: в тёмной теме она была чёрной на чёрном */
         body.dark .folder-pick-btn { color: #C9C9C9; }
-        body.dark .folder-pick-btn.in-folder { color: #B794F4; }
+        body.dark .folder-pick-btn.in-folder { color: #6EE7B7; }
 
         /* Modal overrides (inline styles) */
         body.dark #videoModal > div,
@@ -2533,7 +2533,7 @@
         body.dark #userCardModal [style*="color:#9CA3AF"],
         body.dark #userCardModal [style*="color: #9CA3AF"] { color: #9A9A9A !important; }
         body.dark #userCardModal [style*="border-bottom:1px solid #eee"] { border-bottom-color: #333 !important; }
-        body.dark #userCardModal [style*="background:#F3E8FF"] { background: #37254A !important; color: #C9AEFB !important; }
+        body.dark #userCardModal [style*="background:#D1FAE5"] { background: #10402F !important; color: #6EE7B7 !important; }
         body.dark #notesDrawer { background: #252525 !important; }
         body.dark #forwardModal [style*="border-bottom:1px solid #eee"] { border-bottom-color: #333 !important; }
         body.dark #forwardSearchInput { background: #1E1E1E !important; border-color: #444 !important; color: #E6E6E6 !important; }
@@ -2581,7 +2581,7 @@
         body.dark #noteText { background: #1E1E1E !important; border-color: #444 !important; color: #E6E6E6 !important; }
         body.dark #notesList [style*="background:#F8FAFC"] { background: #2D2D2D !important; border-color: #444 !important; }
         body.dark #notesList [style*="color:#1A1A1A"] { color: #E6E6E6 !important; }
-        body.dark .note-text-edit { background: #1E1E1E !important; border-color: #7C3AED !important; color: #E6E6E6 !important; }
+        body.dark .note-text-edit { background: #1E1E1E !important; border-color: #047857 !important; color: #E6E6E6 !important; }
         body.dark #chatThemeToggle { background: #2A2A2A; border-color: #444; color: #E6E6E6; }
     </style>
     <!-- Приложение: манифест, сервис-воркер, уведомления (в т.ч. на iOS) -->
@@ -2655,7 +2655,7 @@
                     <i data-lucide="message-square" style="width: 64px; height: 64px; opacity: 0.3;"></i>
                     <p style="margin-top: 1rem;">Выберите диалог для начала общения</p>
                     <div style="display:flex;gap:0.5rem;justify-content:center;flex-wrap:wrap;margin-top:1rem;">
-                        <a href="#" onclick="goBackToList();return false;" class="empty-back-link" style="display:inline-flex;align-items:center;gap:0.3rem;color:#7C3AED;text-decoration:none;font-size:0.875rem;font-weight:600;" title="К списку чатов">← К списку чатов</a>
+                        <a href="#" onclick="goBackToList();return false;" class="empty-back-link" style="display:inline-flex;align-items:center;gap:0.3rem;color:#047857;text-decoration:none;font-size:0.875rem;font-weight:600;" title="К списку чатов">← К списку чатов</a>
                         <a href="#" id="emptyStateBackLink" class="empty-back-link2" style="display:inline-flex;align-items:center;gap:0.3rem;color:#6B7280;text-decoration:none;font-size:0.875rem;" title="Вернуться в личный кабинет">В кабинет →</a>
                     </div>
                 </div>
@@ -2798,7 +2798,7 @@
     </div>
 
     <!-- Telemost Video Call Modal -->
-    <div id="videoModal" style="display:none;position:fixed;inset:0;background:rgba(26,26,46,0.6);z-index:1000;align-items:center;justify-content:center;padding:1rem;">
+    <div id="videoModal" style="display:none;position:fixed;inset:0;background:rgba(18,42,34,0.6);z-index:1000;align-items:center;justify-content:center;padding:1rem;">
         <div style="background:#fff;border-radius:1.25rem;max-width:440px;width:100%;padding:2rem;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
             <div style="text-align:center;margin-bottom:1.25rem;">
                 <div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#FF0000,#CC0000);display:flex;align-items:center;justify-content:center;margin:0 auto 0.75rem;font-size:2rem;">📹</div>
@@ -2814,7 +2814,7 @@
             <input type="text" id="telemostLinkInput" placeholder="Вставьте сюда: https://telemost.yandex.ru/j/0123456789"
                 style="width:100%;padding:0.75rem 1rem;border:2px solid #E5E7EB;border-radius:0.75rem;font-size:0.9rem;outline:none;margin-bottom:0.5rem;font-family:inherit;">
             <div id="telemostError" style="display:none;color:#DC2626;font-size:0.8125rem;margin-bottom:0.5rem;"></div>
-            <button onclick="sendTelemostLink()" style="width:100%;padding:0.875rem;background:linear-gradient(135deg,#7C3AED,#9F67FA);color:#fff;border:none;border-radius:0.75rem;font-weight:700;font-size:0.9375rem;cursor:pointer;font-family:inherit;margin-bottom:0.5rem;">Отправить ссылку клиенту</button>
+            <button onclick="sendTelemostLink()" style="width:100%;padding:0.875rem;background:linear-gradient(135deg,#047857,#059669);color:#fff;border:none;border-radius:0.75rem;font-weight:700;font-size:0.9375rem;cursor:pointer;font-family:inherit;margin-bottom:0.5rem;">Отправить ссылку клиенту</button>
             <div style="background:#FFF8E7;border:1px solid #FCD34D;border-radius:0.625rem;padding:0.5rem 0.75rem;font-size:0.78rem;color:#92400E;line-height:1.45;margin-bottom:0.625rem;">
                 ✏️ Вставили не ту ссылку? Создайте встречу заново и отправьте новую — у клиента действует <b>последняя</b> отправленная ссылка.
             </div>
@@ -2826,10 +2826,10 @@
     </div>
 
     <!-- Order / invoice modal (psychologist only) -->
-    <div id="orderModal" style="display:none;position:fixed;inset:0;background:rgba(26,26,46,0.6);z-index:1000;align-items:center;justify-content:center;padding:1rem;">
+    <div id="orderModal" style="display:none;position:fixed;inset:0;background:rgba(18,42,34,0.6);z-index:1000;align-items:center;justify-content:center;padding:1rem;">
         <div style="background:#fff;border-radius:1.25rem;max-width:440px;width:100%;padding:2rem;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
             <div style="text-align:center;margin-bottom:1.25rem;">
-                <div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#7C3AED,#9F67FA);display:flex;align-items:center;justify-content:center;margin:0 auto 0.75rem;font-size:2rem;">💳</div>
+                <div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#047857,#059669);display:flex;align-items:center;justify-content:center;margin:0 auto 0.75rem;font-size:2rem;">💳</div>
                 <h3 style="font-size:1.25rem;color:#1A1A1A;margin-bottom:0.25rem;">Выставить счёт клиенту</h3>
                 <p style="font-size:0.875rem;color:#6B7280;line-height:1.5;">Укажите формат и цену сами — видео, аудио или текстом (15 минут, день, неделя). Клиент увидит итоговую цену и сможет принять или отклонить.</p>
             </div>
@@ -2852,13 +2852,13 @@
             <textarea id="orderNote" placeholder="Детали договорённости..." style="width:100%;height:60px;padding:0.7rem 0.9rem;border:2px solid #E5E7EB;border-radius:0.7rem;font-size:0.9rem;outline:none;font-family:inherit;resize:vertical;margin-bottom:0.6rem;"></textarea>
             <div id="orderPayout" style="display:none;background:#F0FDF4;border:1px solid #BBF7D0;border-radius:0.625rem;padding:0.5rem 0.75rem;font-size:0.82rem;color:#15803D;margin-bottom:0.6rem;"></div>
             <div id="orderError" style="display:none;color:#DC2626;font-size:0.8125rem;margin-bottom:0.5rem;"></div>
-            <button onclick="sendOrder()" style="width:100%;padding:0.875rem;background:linear-gradient(135deg,#7C3AED,#9F67FA);color:#fff;border:none;border-radius:0.75rem;font-weight:700;font-size:0.9375rem;cursor:pointer;font-family:inherit;margin-bottom:0.5rem;">Отправить счёт клиенту</button>
+            <button onclick="sendOrder()" style="width:100%;padding:0.875rem;background:linear-gradient(135deg,#047857,#059669);color:#fff;border:none;border-radius:0.75rem;font-weight:700;font-size:0.9375rem;cursor:pointer;font-family:inherit;margin-bottom:0.5rem;">Отправить счёт клиенту</button>
             <button onclick="closeOrderModal()" style="width:100%;padding:0.625rem;background:#F3F4F6;border:none;border-radius:0.75rem;color:#374151;font-weight:600;font-size:0.875rem;cursor:pointer;font-family:inherit;">Отмена</button>
         </div>
     </div>
 
     <!-- Forward message modal (any role) -->
-    <div id="forwardModal" style="display:none;position:fixed;inset:0;background:rgba(26,26,46,0.6);z-index:1300;align-items:center;justify-content:center;padding:1rem;">
+    <div id="forwardModal" style="display:none;position:fixed;inset:0;background:rgba(18,42,34,0.6);z-index:1300;align-items:center;justify-content:center;padding:1rem;">
         <div style="background:#fff;border-radius:1rem;max-width:400px;width:100%;max-height:80vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
             <div style="padding:1rem 1.25rem;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;">
                 <div style="font-weight:700;" id="forwardTitle">↪ Переслать сообщение</div>
@@ -2872,7 +2872,7 @@
     </div>
 
     <!-- Экран группы: участники, переименование, выход -->
-    <div id="groupInfoModal" style="display:none;position:fixed;inset:0;background:rgba(26,26,46,0.6);z-index:1310;align-items:center;justify-content:center;padding:1rem;">
+    <div id="groupInfoModal" style="display:none;position:fixed;inset:0;background:rgba(18,42,34,0.6);z-index:1310;align-items:center;justify-content:center;padding:1rem;">
         <div style="background:#fff;border-radius:1rem;max-width:420px;width:100%;max-height:85vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
             <div style="padding:1rem 1.25rem;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;">
                 <div style="font-weight:700;">Группа</div>
@@ -2883,7 +2883,7 @@
     </div>
 
     <!-- Режим форматирования: отдельное окно с панелью и предпросмотром -->
-    <div id="composerModal" style="display:none;position:fixed;inset:0;background:rgba(26,26,46,0.6);z-index:1340;align-items:center;justify-content:center;padding:1rem;">
+    <div id="composerModal" style="display:none;position:fixed;inset:0;background:rgba(18,42,34,0.6);z-index:1340;align-items:center;justify-content:center;padding:1rem;">
         <div style="background:#fff;border-radius:1rem;max-width:560px;width:100%;max-height:88vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
             <div style="padding:0.9rem 1.1rem;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;">
                 <div style="font-weight:700;">Форматирование текста</div>
@@ -2903,7 +2903,7 @@
     </div>
 
     <!-- Обои переписки -->
-    <div id="wallpaperModal" style="display:none;position:fixed;inset:0;background:rgba(26,26,46,0.6);z-index:1320;align-items:center;justify-content:center;padding:1rem;">
+    <div id="wallpaperModal" style="display:none;position:fixed;inset:0;background:rgba(18,42,34,0.6);z-index:1320;align-items:center;justify-content:center;padding:1rem;">
         <div style="background:#fff;border-radius:1rem;max-width:420px;width:100%;max-height:85vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
             <div style="padding:1rem 1.25rem;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;">
                 <div style="font-weight:700;">Обои переписки</div>
@@ -2916,7 +2916,7 @@
     <!-- Видеосообщение-кружок: запись с камеры, круглое превью, максимум 60 секунд -->
     <!-- Жалоба на собеседника: админ подключается, только если человек сам разрешил
          посмотреть переписку, и доступ живёт ограниченное время. -->
-    <div id="complaintModal" style="display:none;position:fixed;inset:0;background:rgba(26,26,46,0.6);z-index:1450;align-items:center;justify-content:center;padding:1rem;">
+    <div id="complaintModal" style="display:none;position:fixed;inset:0;background:rgba(18,42,34,0.6);z-index:1450;align-items:center;justify-content:center;padding:1rem;">
         <div class="cmpl-card">
             <div class="cmpl-head">
                 <div style="font-weight:700;">🚩 Жалоба на собеседника</div>
@@ -2962,7 +2962,7 @@
     </div>
 
     <!-- Оформление своего канала: аватарка, название, описание (только психолог-владелец) -->
-    <div id="channelSettingsModal" style="display:none;position:fixed;inset:0;background:rgba(26,26,46,0.6);z-index:1310;align-items:center;justify-content:center;padding:1rem;">
+    <div id="channelSettingsModal" style="display:none;position:fixed;inset:0;background:rgba(18,42,34,0.6);z-index:1310;align-items:center;justify-content:center;padding:1rem;">
         <div style="background:#fff;border-radius:1rem;max-width:420px;width:100%;max-height:85vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
             <div style="padding:1rem 1.25rem;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;">
                 <div style="font-weight:700;">Оформление канала</div>
@@ -2973,7 +2973,7 @@
     </div>
 
     <!-- Создание группового чата / добавление участников (любая роль) -->
-    <div id="createGroupModal" style="display:none;position:fixed;inset:0;background:rgba(26,26,46,0.6);z-index:1300;align-items:center;justify-content:center;padding:1rem;">
+    <div id="createGroupModal" style="display:none;position:fixed;inset:0;background:rgba(18,42,34,0.6);z-index:1300;align-items:center;justify-content:center;padding:1rem;">
         <div style="background:#fff;border-radius:1rem;max-width:420px;width:100%;max-height:85vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
             <div style="padding:1rem 1.25rem;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;">
                 <div style="font-weight:700;" id="createGroupModalTitle">Новая группа</div>
@@ -2990,13 +2990,13 @@
                 <div id="groupSelectedMembers"></div>
             </div>
             <div style="padding:0.9rem 1.25rem;border-top:1px solid #eee;flex-shrink:0;">
-                <button id="createGroupSubmitBtn" onclick="submitCreateGroup()" style="width:100%;padding:0.65rem;background:linear-gradient(135deg,#7C3AED,#9F67FA);color:#fff;border:none;border-radius:0.625rem;font-weight:700;cursor:pointer;font-family:inherit;">Создать</button>
+                <button id="createGroupSubmitBtn" onclick="submitCreateGroup()" style="width:100%;padding:0.65rem;background:linear-gradient(135deg,#047857,#059669);color:#fff;border:none;border-radius:0.625rem;font-weight:700;cursor:pointer;font-family:inherit;">Создать</button>
             </div>
         </div>
     </div>
 
     <!-- Мини-карточка собеседника (клик по аватару в шапке чата) -->
-    <div id="userCardModal" style="display:none;position:fixed;inset:0;background:rgba(26,26,46,0.6);z-index:1300;align-items:center;justify-content:center;padding:1rem;">
+    <div id="userCardModal" style="display:none;position:fixed;inset:0;background:rgba(18,42,34,0.6);z-index:1300;align-items:center;justify-content:center;padding:1rem;">
         <div style="background:#fff;border-radius:1rem;max-width:420px;width:100%;max-height:85vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
             <div style="padding:1rem 1.25rem;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center;">
                 <div style="font-weight:700;">Карточка собеседника</div>
@@ -3017,24 +3017,24 @@
         </div>
         <div id="notesAddForm" style="padding:0.875rem 1rem;border-bottom:1px solid #eee;">
             <textarea id="noteText" placeholder="Заметка по сессии, наблюдения, план работы... (видите только вы)" style="width:100%;height:90px;border:1.5px solid #E5E7EB;border-radius:0.625rem;padding:0.625rem;font-family:inherit;font-size:0.875rem;resize:vertical;outline:none;"></textarea>
-            <button onclick="addNote()" style="margin-top:0.5rem;width:100%;padding:0.625rem;background:linear-gradient(135deg,#7C3AED,#9F67FA);color:#fff;border:none;border-radius:0.625rem;font-weight:700;cursor:pointer;font-family:inherit;">Сохранить заметку</button>
+            <button onclick="addNote()" style="margin-top:0.5rem;width:100%;padding:0.625rem;background:linear-gradient(135deg,#047857,#059669);color:#fff;border:none;border-radius:0.625rem;font-weight:700;cursor:pointer;font-family:inherit;">Сохранить заметку</button>
         </div>
         <div id="notesList" style="flex:1;overflow-y:auto;padding:0.5rem 1rem 2rem;"></div>
         <div style="padding:0.5rem 1rem;font-size:0.72rem;color:#9CA3AF;border-top:1px solid #eee;">🔒 Заметки приватны — клиент их не видит.</div>
     </div>
 
     <!-- Health-data (special category) consent gate for clients -->
-    <div id="healthConsentModal" style="display:none;position:fixed;inset:0;background:rgba(26,26,46,0.6);z-index:1200;align-items:center;justify-content:center;padding:1rem;">
+    <div id="healthConsentModal" style="display:none;position:fixed;inset:0;background:rgba(18,42,34,0.6);z-index:1200;align-items:center;justify-content:center;padding:1rem;">
         <div style="background:#fff;border-radius:1rem;max-width:460px;width:100%;padding:2rem;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
-            <div style="width:60px;height:60px;border-radius:50%;background:#F3E8FF;display:flex;align-items:center;justify-content:center;margin:0 auto 0.9rem;font-size:1.8rem;">🔐</div>
+            <div style="width:60px;height:60px;border-radius:50%;background:#D1FAE5;display:flex;align-items:center;justify-content:center;margin:0 auto 0.9rem;font-size:1.8rem;">🔐</div>
             <h3 style="text-align:center;font-size:1.2rem;margin-bottom:0.6rem;color:#1A1A1A;">Перед началом переписки</h3>
             <p style="color:#4B5563;font-size:0.9rem;line-height:1.6;margin-bottom:1rem;">В чате вы можете сообщать психологу сведения о своём состоянии — это специальная категория персональных данных (данные о здоровье). Для их обработки нужно ваше отдельное согласие.</p>
             <label style="display:flex;gap:0.6rem;align-items:flex-start;cursor:pointer;margin-bottom:1rem;font-size:0.9rem;color:#374151;">
-                <input type="checkbox" id="healthConsentCheck" style="margin-top:0.2rem;width:18px;height:18px;accent-color:#7C3AED;flex-shrink:0;">
-                <span>Я даю <a href="/consent-health.html" target="_blank" style="color:#7C3AED;font-weight:600;">согласие на обработку данных о состоянии здоровья</a> и подтверждаю его добровольность и информированность.</span>
+                <input type="checkbox" id="healthConsentCheck" style="margin-top:0.2rem;width:18px;height:18px;accent-color:#047857;flex-shrink:0;">
+                <span>Я даю <a href="/consent-health.html" target="_blank" style="color:#047857;font-weight:600;">согласие на обработку данных о состоянии здоровья</a> и подтверждаю его добровольность и информированность.</span>
             </label>
             <div id="healthConsentErr" style="display:none;color:#DC2626;font-size:0.82rem;margin-bottom:0.6rem;"></div>
-            <button onclick="acceptHealthConsent()" style="width:100%;padding:0.8rem;background:linear-gradient(135deg,#7C3AED,#9F67FA);color:#fff;border:none;border-radius:0.7rem;font-weight:700;cursor:pointer;font-family:inherit;">Продолжить</button>
+            <button onclick="acceptHealthConsent()" style="width:100%;padding:0.8rem;background:linear-gradient(135deg,#047857,#059669);color:#fff;border:none;border-radius:0.7rem;font-weight:700;cursor:pointer;font-family:inherit;">Продолжить</button>
         </div>
     </div>
 
@@ -3281,7 +3281,7 @@
                 if (!chatVisible('group', activeId, g.last_message_at)) return;
                 out.push({ key: activeId, name: g.name, html: `
                     <div class="conversation-item ${activeId === selectedUserId ? 'active' : ''}" onclick="openGroupChat(${g.id})" title="${escapeHtml(g.name)}">
-                        <div class="conversation-avatar" style="background:linear-gradient(135deg,#059669,#10B981);">${g.avatar_url ? `<img src="${escapeHtml(g.avatar_url)}" alt="">` : `<span class="ava-ico">${ICO_GROUP}</span>`}</div>
+                        <div class="conversation-avatar" style="background:linear-gradient(135deg,#059669,#059669);">${g.avatar_url ? `<img src="${escapeHtml(g.avatar_url)}" alt="">` : `<span class="ava-ico">${ICO_GROUP}</span>`}</div>
                         <div class="conversation-info">
                             <div class="conversation-name"><span class="cn-text">${escapeHtml(g.name)}</span><span style="color:#9CA3AF;font-weight:400;font-size:0.78rem;flex-shrink:0;">· ${g.members_count}</span>${pinMarkHtml(activeId)}</div>
                             <div class="conversation-preview">${escapeHtml(lastMsg)}</div>
@@ -3346,7 +3346,7 @@
                 : `${g.members_count} участников · нажмите, чтобы открыть группу`;
             document.getElementById('chatHeader').innerHTML = `
                 <button class="chat-back-btn" onclick="goBackToList()" title="Назад к диалогам">←</button>
-                <div class="avatar" style="background:linear-gradient(135deg,#059669,#10B981);cursor:pointer;" onclick="openGroupInfo(${groupId})">${g.avatar_url ? `<img src="${escapeHtml(g.avatar_url)}" alt="">` : `<span class="ava-ico">${ICO_GROUP}</span>`}</div>
+                <div class="avatar" style="background:linear-gradient(135deg,#059669,#059669);cursor:pointer;" onclick="openGroupInfo(${groupId})">${g.avatar_url ? `<img src="${escapeHtml(g.avatar_url)}" alt="">` : `<span class="ava-ico">${ICO_GROUP}</span>`}</div>
                 <div style="flex:1;min-width:0;cursor:pointer;" onclick="openGroupInfo(${groupId})">
                     <div class="name">${escapeHtml(g.name)}</div>
                     <div class="role">${sub}</div>
@@ -3392,7 +3392,7 @@
                 ? `<div>${highlightMentions(msgText(grp.body))}</div>` : '';
             const bubble = `
                 <div class="message ${isMine ? 'mine' : 'theirs'}${(isVideoNote(m) && !textHtml) ? ' vn-only' : ''}" data-msg-id="${m.id}">
-                    ${!isMine ? `<div style="font-size:0.75rem;font-weight:700;opacity:0.8;margin-bottom:0.15rem;color:#7C3AED;">${escapeHtml(name)}</div>` : ''}
+                    ${!isMine ? `<div style="font-size:0.75rem;font-weight:700;opacity:0.8;margin-bottom:0.15rem;color:#047857;">${escapeHtml(name)}</div>` : ''}
                     ${quoteHtml(grp.replyId)}
                     <div id="gmsg-body-${m.id}">${textHtml}</div>
                     ${attachmentHtml}
@@ -3483,7 +3483,7 @@
                         const already = pendingGroupMembers.some(m => String(m.id) === String(u.id));
                         return `<div style="display:flex;justify-content:space-between;align-items:center;padding:0.4rem 0.2rem;border-bottom:1px solid var(--d-border,#eee);font-size:0.85rem;">
                             <span>${escapeHtml(name)} <span style="color:#9CA3AF;font-size:0.75rem;">(${u.role === 'psychologist' ? 'психолог' : 'клиент'})</span></span>
-                            <button type="button" onclick='addPendingGroupMember(${JSON.stringify(u).replace(/'/g, "&#39;")})' ${already ? 'disabled' : ''} style="border:none;background:${already ? '#D1D5DB' : '#7C3AED'};color:#fff;border-radius:0.4rem;padding:0.25rem 0.6rem;font-size:0.78rem;cursor:pointer;">${already ? '✓' : '+'}</button>
+                            <button type="button" onclick='addPendingGroupMember(${JSON.stringify(u).replace(/'/g, "&#39;")})' ${already ? 'disabled' : ''} style="border:none;background:${already ? '#D1D5DB' : '#047857'};color:#fff;border-radius:0.4rem;padding:0.25rem 0.6rem;font-size:0.78rem;cursor:pointer;">${already ? '✓' : '+'}</button>
                         </div>`;
                     }).join('') || '<div style="color:#9CA3AF;font-size:0.82rem;padding:0.3rem 0;">Никого не найдено</div>';
                 } catch (e) {}
@@ -3503,7 +3503,7 @@
             const box = document.getElementById('groupSelectedMembers');
             box.innerHTML = pendingGroupMembers.map(u => {
                 const name = `${u.first_name || ''} ${u.last_name || ''}`.trim() || 'Пользователь';
-                return `<span style="display:inline-flex;align-items:center;gap:0.3rem;background:#F3E8FF;color:#6D28D9;border-radius:1rem;padding:0.25rem 0.6rem 0.25rem 0.75rem;font-size:0.8rem;margin:0.2rem 0.3rem 0.2rem 0;">${escapeHtml(name)} <span onclick="removePendingGroupMember('${u.id}')" style="cursor:pointer;font-weight:700;">✕</span></span>`;
+                return `<span style="display:inline-flex;align-items:center;gap:0.3rem;background:#D1FAE5;color:#065F46;border-radius:1rem;padding:0.25rem 0.6rem 0.25rem 0.75rem;font-size:0.8rem;margin:0.2rem 0.3rem 0.2rem 0;">${escapeHtml(name)} <span onclick="removePendingGroupMember('${u.id}')" style="cursor:pointer;font-weight:700;">✕</span></span>`;
             }).join('');
         }
         async function submitCreateGroup() {
@@ -3583,7 +3583,7 @@
                              title="${me ? 'Это вы' : 'Открыть карточку'}">
                     <div class="conversation-avatar" style="width:42px;height:42px;font-size:0.95rem;">${m.avatar ? `<img src="${escapeHtml(m.avatar)}" alt="">` : escapeHtml(nm.charAt(0).toUpperCase())}</div>
                     <div style="flex:1;min-width:0;">
-                        <div style="font-weight:600;font-size:0.88rem;">${escapeHtml(nm)}${m.role === 'owner' ? ' <span style="color:#7C3AED;font-size:0.72rem;font-weight:700;">владелец</span>' : ''}${me ? ' <span style="color:#9CA3AF;font-size:0.72rem;">— вы</span>' : ''}</div>
+                        <div style="font-weight:600;font-size:0.88rem;">${escapeHtml(nm)}${m.role === 'owner' ? ' <span style="color:#047857;font-size:0.72rem;font-weight:700;">владелец</span>' : ''}${me ? ' <span style="color:#9CA3AF;font-size:0.72rem;">— вы</span>' : ''}</div>
                         <div style="color:#9CA3AF;font-size:0.75rem;">${roleLabel}</div>
                     </div>
                     ${kick}
@@ -3593,7 +3593,7 @@
             box.innerHTML = `
                 <div style="text-align:center;margin-bottom:0.9rem;">
                     <div class="chat-ava-edit" style="margin:0 auto 0.5rem;">
-                        <div class="conversation-avatar" id="giAvatar" style="width:88px;height:88px;background:linear-gradient(135deg,#059669,#10B981);font-size:2rem;">${g.avatar_url ? `<img src="${escapeHtml(g.avatar_url)}" alt="">` : '👥'}</div>
+                        <div class="conversation-avatar" id="giAvatar" style="width:88px;height:88px;background:linear-gradient(135deg,#059669,#059669);font-size:2rem;">${g.avatar_url ? `<img src="${escapeHtml(g.avatar_url)}" alt="">` : '👥'}</div>
                         ${isOwner ? `<label class="chat-ava-btn" title="Сменить аватарку группы">📷
                             <input type="file" accept="image/*" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0;padding:0;margin:-1px;" onchange="uploadGroupAvatar(event)">
                         </label>` : ''}
@@ -3607,7 +3607,7 @@
                     <input id="giRename" value="${escapeHtml(g.name || '')}" placeholder="Название группы" style="width:100%;padding:0.5rem 0.7rem;border:1.5px solid #e0e0e0;border-radius:0.5rem;font-family:inherit;font-size:0.88rem;margin-bottom:0.55rem;">
                     <label style="display:block;font-size:0.78rem;font-weight:700;color:#6B7280;margin-bottom:0.25rem;">Описание</label>
                     <textarea id="giDescr" rows="2" maxlength="500" placeholder="О чём группа, для кого" style="width:100%;padding:0.5rem 0.7rem;border:1.5px solid #e0e0e0;border-radius:0.5rem;font-family:inherit;font-size:0.88rem;resize:vertical;">${escapeHtml(g.description || '')}</textarea>
-                    <button onclick="saveGroupInfo()" id="giSaveBtn" style="width:100%;border:none;background:#7C3AED;color:#fff;border-radius:0.5rem;padding:0.55rem;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;margin-top:0.45rem;">Сохранить название и описание</button>
+                    <button onclick="saveGroupInfo()" id="giSaveBtn" style="width:100%;border:none;background:#047857;color:#fff;border-radius:0.5rem;padding:0.55rem;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;margin-top:0.45rem;">Сохранить название и описание</button>
                 </div>` : ''}
                 <button onclick="openAddGroupMembers(${gid})" style="width:100%;border:none;background:#15803D;color:#fff;border-radius:0.6rem;padding:0.6rem;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:0.8rem;">➕ Добавить участников</button>
                 <div style="font-weight:700;font-size:0.82rem;color:#6B7280;margin-bottom:0.3rem;">Участники</div>
@@ -3760,7 +3760,7 @@
 
             const writeBtn = (!isOwn && c.user_id)
                 ? `<a href="/chat.html?user=${encodeURIComponent(c.user_id)}" class="session-btn" style="background:#15803D;text-decoration:none;" title="Написать психологу лично">✉️<span class="btn-label"> Написать</span></a>`
-                : (isOwn ? `<a href="/psychologist-dashboard.html" class="session-btn" style="background:#7C3AED;text-decoration:none;" title="Мой канал в кабинете">✍️<span class="btn-label"> Мой канал</span></a>` : '');
+                : (isOwn ? `<a href="/psychologist-dashboard.html" class="session-btn" style="background:#047857;text-decoration:none;" title="Мой канал в кабинете">✍️<span class="btn-label"> Мой канал</span></a>` : '');
             const editBtn = isOwn
                 ? `<button class="session-btn" style="background:#0EA5E9;" onclick="openChannelSettings('${psychId}')" title="Аватарка, название и описание канала">🎨<span class="btn-label"> Оформление</span></button>`
                 : '';
@@ -3808,7 +3808,7 @@
                 <label style="display:block;font-size:0.78rem;font-weight:700;color:#6B7280;margin-bottom:0.25rem;">Описание</label>
                 <textarea id="csDescr" rows="3" maxlength="500" placeholder="О чём канал, для кого, как часто выходят посты"
                           style="width:100%;padding:0.55rem 0.7rem;border:1.5px solid #e0e0e0;border-radius:0.5rem;font-family:inherit;font-size:0.9rem;resize:vertical;">${escapeHtml(info.description || '')}</textarea>
-                <button id="csSaveBtn" onclick="saveChannelSettings()" style="width:100%;border:none;background:#7C3AED;color:#fff;border-radius:0.6rem;padding:0.6rem;font-weight:700;cursor:pointer;font-family:inherit;margin-top:0.8rem;">Сохранить</button>
+                <button id="csSaveBtn" onclick="saveChannelSettings()" style="width:100%;border:none;background:#047857;color:#fff;border-radius:0.6rem;padding:0.6rem;font-weight:700;cursor:pointer;font-family:inherit;margin-top:0.8rem;">Сохранить</button>
                 <div style="color:#9CA3AF;font-size:0.75rem;margin-top:0.5rem;line-height:1.45;">Пустое название и описание — значит канал показывается под вашим именем из профиля.</div>`;
             document.getElementById('channelSettingsModal').style.display = 'flex';
         }
@@ -3946,7 +3946,7 @@
                 box.innerHTML = `<div class="empty-state"><div>
                     <p style="color:#9CA3AF;">📰 Пока пусто. Подпишитесь на каналы психологов —
                     их публикации будут появляться здесь.</p>
-                    <p style="margin-top:0.6rem;"><a href="/search.html" style="color:#7C3AED;font-weight:600;">Найти психолога →</a></p>
+                    <p style="margin-top:0.6rem;"><a href="/search.html" style="color:#047857;font-weight:600;">Найти психолога →</a></p>
                 </div></div>`;
                 dropRenderCache();
                 return;
@@ -4251,7 +4251,7 @@
                     const rating = c.rating ? `⭐ ${c.rating} (${c.reviews_count || 0})` : 'Пока нет отзывов';
                     body.innerHTML = `
                         <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1rem;">
-                            <div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#7C3AED,#6D28D9);color:#fff;display:flex;align-items:center;justify-content:center;font-size:1.5rem;font-weight:700;overflow:hidden;flex-shrink:0;">${avatarHtml}</div>
+                            <div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#047857,#065F46);color:#fff;display:flex;align-items:center;justify-content:center;font-size:1.5rem;font-weight:700;overflow:hidden;flex-shrink:0;">${avatarHtml}</div>
                             <div style="min-width:0;">
                                 <div style="font-weight:700;font-size:1.1rem;">${escapeHtml(name)}</div>
                                 <div style="color:#6B7280;font-size:0.85rem;">${escapeHtml(c.specialization || 'Психолог')}</div>
@@ -4261,8 +4261,8 @@
                         </div>
                         ${c.description ? `<div style="font-size:0.9rem;color:#374151;margin-bottom:1rem;line-height:1.5;">${escapeHtml(c.description)}</div>` : ''}
                         <div style="display:flex;gap:0.6rem;flex-wrap:wrap;">
-                            ${c.price ? `<span style="background:#F3E8FF;color:#7C3AED;padding:0.35rem 0.7rem;border-radius:0.6rem;font-size:0.82rem;font-weight:600;">от ${c.price} ₽/сессия</span>` : ''}
-                            ${c.experience ? `<span style="background:#F3E8FF;color:#7C3AED;padding:0.35rem 0.7rem;border-radius:0.6rem;font-size:0.82rem;font-weight:600;">Опыт: ${escapeHtml(String(c.experience))}</span>` : ''}
+                            ${c.price ? `<span style="background:#D1FAE5;color:#047857;padding:0.35rem 0.7rem;border-radius:0.6rem;font-size:0.82rem;font-weight:600;">от ${c.price} ₽/сессия</span>` : ''}
+                            ${c.experience ? `<span style="background:#D1FAE5;color:#047857;padding:0.35rem 0.7rem;border-radius:0.6rem;font-size:0.82rem;font-weight:600;">Опыт: ${escapeHtml(String(c.experience))}</span>` : ''}
                         </div>
                         <!-- flex-wrap и короткая подпись: на телефоне «Открыть профиль и канал»
                              + «Записаться» не влезали в ряд и карточку приходилось скроллить -->
@@ -4276,7 +4276,7 @@
                 } else {
                     body.innerHTML = `
                         <div style="display:flex;align-items:center;gap:1rem;">
-                            <div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#7C3AED,#6D28D9);color:#fff;display:flex;align-items:center;justify-content:center;font-size:1.5rem;font-weight:700;overflow:hidden;flex-shrink:0;">${avatarHtml}</div>
+                            <div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#047857,#065F46);color:#fff;display:flex;align-items:center;justify-content:center;font-size:1.5rem;font-weight:700;overflow:hidden;flex-shrink:0;">${avatarHtml}</div>
                             <div style="min-width:0;">
                                 <div style="font-weight:700;font-size:1.1rem;">${escapeHtml(name)}</div>
                                 <div style="color:#6B7280;font-size:0.85rem;">Клиент${since ? ' · на платформе с ' + since : ''}</div>
@@ -4312,7 +4312,7 @@
                     ? d.channels
                     : [{ id: psyId, name: (d.name || ('Канал · ' + name)), subscribers_count: d.subscribers_count || 0 }];
                 box.insertAdjacentHTML('beforeend', list.map(ch => `
-                    <button type="button" class="session-btn" style="background:#7C3AED;"
+                    <button type="button" class="session-btn" style="background:#047857;"
                         onclick="closeUserCard();openChannel('${escapeHtml(String(ch.id))}')"
                         title="Открыть канал в чате">📢 ${escapeHtml(ch.name || 'Канал')}${
                         ch.subscribers_count ? ' · ' + ch.subscribers_count : ''}</button>`).join(''));
@@ -4376,7 +4376,7 @@
                 <div style="background:#F8FAFC;border:1px solid #EEF2F7;border-radius:0.625rem;padding:0.7rem 0.8rem;margin-bottom:0.6rem;">
                     ${clientLine}
                     <div class="note-text-view" id="noteView-${n.id}" style="white-space:pre-wrap;font-size:0.875rem;color:#1A1A1A;line-height:1.5;cursor:text;" onclick="startEditNote(${n.id})">${escNote(n.text)}</div>
-                    <textarea class="note-text-edit" id="noteEdit-${n.id}" style="display:none;width:100%;min-height:70px;border:1.5px solid #7C3AED;border-radius:0.5rem;padding:0.5rem;font-family:inherit;font-size:0.875rem;resize:vertical;outline:none;margin-top:0.2rem;">${escNote(n.text)}</textarea>
+                    <textarea class="note-text-edit" id="noteEdit-${n.id}" style="display:none;width:100%;min-height:70px;border:1.5px solid #047857;border-radius:0.5rem;padding:0.5rem;font-family:inherit;font-size:0.875rem;resize:vertical;outline:none;margin-top:0.2rem;">${escNote(n.text)}</textarea>
                     <div style="display:flex;justify-content:space-between;align-items:center;margin-top:0.4rem;gap:0.4rem;">
                         <span style="font-size:0.72rem;color:#9CA3AF;">${formatTime(n.created_at)}</span>
                         <span style="display:flex;gap:0.5rem;align-items:center;">
@@ -4684,7 +4684,7 @@
             if (!el) {
                 el = document.createElement('div');
                 el.id = 'chatNewMsgToast';
-                el.style.cssText = 'position:fixed;top:14px;right:14px;z-index:3000;background:#fff;border:1px solid #E5E7EB;border-left:3px solid #7C3AED;border-radius:0.6rem;padding:0.6rem 1rem;box-shadow:0 8px 24px rgba(0,0,0,0.15);max-width:300px;font-size:0.85rem;cursor:pointer;color:#333;';
+                el.style.cssText = 'position:fixed;top:14px;right:14px;z-index:3000;background:#fff;border:1px solid #E5E7EB;border-left:3px solid #047857;border-radius:0.6rem;padding:0.6rem 1rem;box-shadow:0 8px 24px rgba(0,0,0,0.15);max-width:300px;font-size:0.85rem;cursor:pointer;color:#333;';
                 document.body.appendChild(el);
             }
             el.onclick = () => {
@@ -4692,7 +4692,7 @@
                 if (chatKey) openChatByKey(chatKey);
             };
             el.title = chatKey ? 'Открыть диалог' : '';
-            el.innerHTML = '<div style="font-weight:700;font-size:0.75rem;color:#7C3AED;margin-bottom:0.15rem;">💬 Новое сообщение</div>' + escapeHtml(text.length > 90 ? text.slice(0, 90) + '…' : text);
+            el.innerHTML = '<div style="font-weight:700;font-size:0.75rem;color:#047857;margin-bottom:0.15rem;">💬 Новое сообщение</div>' + escapeHtml(text.length > 90 ? text.slice(0, 90) + '…' : text);
             el.style.display = 'block';
             setTimeout(() => { if (el) el.style.display = 'none'; }, 5000);
         }
@@ -5138,8 +5138,8 @@
             { url: '/uploads/messages/0c3ea41b55ee0f30e168dcd4a8903844.jpeg', label: 'Звёздная ночь' },
         ];
         const WALL_DIM_DEFAULT = 45;          // проценты затемнения поверх фото
-        const OWN_COLOR_DEFAULT = '#7C3AED';  // фирменные цвета своих пузырей
-        const OWN_COLOR2_DEFAULT = '#6D28D9';
+        const OWN_COLOR_DEFAULT = '#047857';  // фирменные цвета своих пузырей
+        const OWN_COLOR2_DEFAULT = '#065F46';
 
         /**
          * Готовые сочетания для своих сообщений.
@@ -5153,11 +5153,11 @@
          * светлое пятно.
          */
         const CHAT_THEMES = [
-            { id: 'brand',  label: 'Фирменный', a: '#7C3AED', b: '#6D28D9' },
+            { id: 'brand',  label: 'Фирменный', a: '#047857', b: '#065F46' },
             { id: 'indigo', label: 'Индиго',    a: '#4F46E5', b: '#4338CA' },
             { id: 'ocean',  label: 'Океан',     a: '#0284C7', b: '#0369A1' },
             { id: 'teal',   label: 'Бирюза',    a: '#0D9488', b: '#0F766E' },
-            { id: 'forest', label: 'Хвоя',      a: '#059669', b: '#047857' },
+            { id: 'forest', label: 'Хвоя',      a: '#15803D', b: '#166534' },
             { id: 'sunset', label: 'Закат',     a: '#EA580C', b: '#C2410C' },
             { id: 'rose',   label: 'Роза',      a: '#DB2777', b: '#BE185D' },
             { id: 'cherry', label: 'Вишня',     a: '#E11D48', b: '#9F1239' },
@@ -5297,7 +5297,7 @@
                         </button>`).join('')}
                     <button class="wall-item ${cur === 'photo' && curUrl && !PHOTO_WALLS.some(w => w.url === curUrl) ? 'on' : ''}"
                             onclick="pickOwnWallpaper()" title="Своё фото на фон">
-                        <span class="wall-swatch" style="${cur === 'photo' && curUrl ? `background-image:url('${escapeHtml(curUrl)}');background-size:cover;background-position:center;` : 'background:linear-gradient(135deg,#7C3AED,#9F67FA);'}
+                        <span class="wall-swatch" style="${cur === 'photo' && curUrl ? `background-image:url('${escapeHtml(curUrl)}');background-size:cover;background-position:center;` : 'background:linear-gradient(135deg,#047857,#059669);'}
                                      display:flex;align-items:center;justify-content:center;color:#fff;font-size:1.4rem;">＋</span>
                         <span class="wall-label">Своё фото</span>
                     </button>
@@ -7534,7 +7534,7 @@
             if (!chatVisible('ai', AI_ID, null)) return [];
             return [{ key: AI_ID, name: 'ИИ-ассистент', html: `
                 <div class="conversation-item ${selectedUserId === AI_ID ? 'active' : ''}" onclick="openAiBot()" title="ИИ-ассистент">
-                    <div class="conversation-avatar" style="background:linear-gradient(135deg,#0EA5E9,#7C3AED);"><span class="ava-ico">${ICO_BOT}</span></div>
+                    <div class="conversation-avatar" style="background:linear-gradient(135deg,#0EA5E9,#047857);"><span class="ava-ico">${ICO_BOT}</span></div>
                     <div class="conversation-info">
                         <div class="conversation-name"><span class="cn-text">ИИ-ассистент</span>${pinMarkHtml(AI_ID)}</div>
                         <div class="conversation-preview">Спросить совет, формулировку, план сессии</div>
@@ -7607,7 +7607,7 @@
                 const isSupport = !!c._support;
                 const lastMsg = previewText((c.last_message || '').replace(/^\[ORDER#\d+\]\s*/, ''));
                 const preview = isNew
-                    ? `<span style="color:#7C3AED;">${c.role === 'psychologist' ? 'Психолог' : 'Клиент'} · начать переписку</span>`
+                    ? `<span style="color:#047857;">${c.role === 'psychologist' ? 'Психолог' : 'Клиент'} · начать переписку</span>`
                     : (isSupport ? c.last_message : (c.is_mine ? `Вы: ${lastMsg}` : lastMsg));
                 const time = isNew ? '' : formatTime(c.last_message_time);
                 const clickHandler = isSupport ? `openSupportThread('${c._threadId}')` : (isNew ? `startNewChat('${c.id}')` : `openChat('${c.user_id}')`);
@@ -8104,7 +8104,7 @@
                       : mode === 'auto' ? ' · интернет по необходимости' : '';
             head.innerHTML = `
                 <button class="chat-back-btn" onclick="goBackToList()" title="Назад к диалогам">←</button>
-                <div class="avatar" style="background:linear-gradient(135deg,#0EA5E9,#7C3AED);"><span class="ava-ico">${ICO_BOT}</span></div>
+                <div class="avatar" style="background:linear-gradient(135deg,#0EA5E9,#047857);"><span class="ava-ico">${ICO_BOT}</span></div>
                 <div style="flex:1;min-width:0;">
                     <div class="name">ИИ-ассистент</div>
                     <div class="role">${cur ? escapeHtml(cur.name) : 'бот платформы'}${sub}</div>
@@ -9023,12 +9023,12 @@
             // Переслать боту: открывает ИИ-ассистента и кладёт текст в поле цитатой,
             // чтобы можно было дописать вопрос и спросить у бота по пересланному.
             const aiRow = `<div class="conversation-item" onclick="forwardToAi()">
-                <div class="conversation-avatar" style="background:linear-gradient(135deg,#0EA5E9,#7C3AED);"><span class="ava-ico">${ICO_BOT}</span></div>
+                <div class="conversation-avatar" style="background:linear-gradient(135deg,#0EA5E9,#047857);"><span class="ava-ico">${ICO_BOT}</span></div>
                 <div class="conversation-info"><div class="conversation-name">ИИ-ассистент</div><div class="conversation-preview">Переслать и дописать вопрос боту</div></div>
             </div>`;
             const groupRows = (groups || myGroups || []).map(g => `
                 <div class="conversation-item" onclick="forwardToGroup(${g.id})" title="${escapeHtml(g.name)}">
-                    <div class="conversation-avatar" style="background:linear-gradient(135deg,#059669,#10B981);">${g.avatar_url ? `<img src="${escapeHtml(g.avatar_url)}" alt="">` : `<span class="ava-ico">${ICO_GROUP}</span>`}</div>
+                    <div class="conversation-avatar" style="background:linear-gradient(135deg,#059669,#059669);">${g.avatar_url ? `<img src="${escapeHtml(g.avatar_url)}" alt="">` : `<span class="ava-ico">${ICO_GROUP}</span>`}</div>
                     <div class="conversation-info">
                         <div class="conversation-name">${escapeHtml(g.name)}</div>
                         <div class="conversation-preview">Группа · ${g.members_count} ${plural(g.members_count || 0, 'участник', 'участника', 'участников')}</div>
@@ -9254,7 +9254,7 @@
                         content = '';
                         callBtn = `<div style="font-weight:600;margin-bottom:0.35rem;">📹 Видеовстреча в Телемост</div>
                             <a href="${tmMatch[0]}" target="_blank" rel="noopener"
-                            style="display:inline-flex;align-items:center;gap:0.5rem;background:#fff;color:#7C3AED;border:1.5px solid #7C3AED;border-radius:0.75rem;padding:0.55rem 1rem;text-decoration:none;font-weight:700;font-size:0.9rem;">
+                            style="display:inline-flex;align-items:center;gap:0.5rem;background:#fff;color:#047857;border:1.5px solid #047857;border-radius:0.75rem;padding:0.55rem 1rem;text-decoration:none;font-weight:700;font-size:0.9rem;">
                             Присоединиться →</a>`;
                     }
 

@@ -9,21 +9,21 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
         *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Inter', -apple-system, sans-serif; background: #F4F0FF; min-height: 100vh; display: flex; flex-direction: column; color: #1A1A1A; padding-top: 84px; }
+        body { font-family: 'Inter', -apple-system, sans-serif; background: #ECFDF5; min-height: 100vh; display: flex; flex-direction: column; color: #1A1A1A; padding-top: 84px; }
         main { flex: 1; display: flex; align-items: flex-start; justify-content: center; padding: 2.5rem 1rem 4rem; }
-        .quiz { background: #fff; border-radius: 1.5rem; max-width: 560px; width: 100%; padding: 2.5rem; box-shadow: 0 8px 40px rgba(124,58,237,0.12); border: 1px solid #EDE9FF; }
-        .progress { height: 6px; background: #EDE9FF; border-radius: 3px; overflow: hidden; margin-bottom: 1.75rem; }
-        .progress > div { height: 100%; background: linear-gradient(90deg,#7C3AED,#9F67FA); transition: width 0.3s; }
+        .quiz { background: #fff; border-radius: 1.5rem; max-width: 560px; width: 100%; padding: 2.5rem; box-shadow: 0 8px 40px rgba(4,120,87,0.12); border: 1px solid #D1FAE5; }
+        .progress { height: 6px; background: #D1FAE5; border-radius: 3px; overflow: hidden; margin-bottom: 1.75rem; }
+        .progress > div { height: 100%; background: linear-gradient(90deg,#047857,#059669); transition: width 0.3s; }
         .step-num { color: #9CA3AF; font-size: 0.85rem; font-weight: 600; margin-bottom: 0.5rem; }
         h2 { font-size: 1.5rem; letter-spacing: -0.02em; margin-bottom: 1.5rem; }
         .opts { display: grid; gap: 0.625rem; }
         .opt { display: flex; align-items: center; gap: 0.75rem; padding: 1rem 1.125rem; border: 2px solid #E5E7EB; border-radius: 0.875rem; cursor: pointer; font-size: 1rem; font-weight: 500; transition: all 0.15s; }
-        .opt:hover { border-color: #C4B5FD; background: #FAF5FF; }
-        .opt.sel { border-color: #7C3AED; background: #F3E8FF; color: #7C3AED; font-weight: 600; }
+        .opt:hover { border-color: #6EE7B7; background: #ECFDF5; }
+        .opt.sel { border-color: #047857; background: #D1FAE5; color: #047857; font-weight: 600; }
         .opt .em { font-size: 1.25rem; }
         .nav-row { display: flex; justify-content: space-between; margin-top: 1.75rem; gap: 1rem; }
         .btn-p { padding: 0.875rem 2rem; border-radius: 0.875rem; border: none; font-weight: 700; font-size: 1rem; cursor: pointer; font-family: inherit; }
-        .btn-next { background: linear-gradient(135deg,#7C3AED,#9F67FA); color: #fff; box-shadow: 0 4px 14px rgba(124,58,237,0.35); flex: 1; }
+        .btn-next { background: linear-gradient(135deg,#047857,#059669); color: #fff; box-shadow: 0 4px 14px rgba(4,120,87,0.35); flex: 1; }
         .btn-next:disabled { opacity: 0.5; cursor: not-allowed; }
         .btn-back { background: #F3F4F6; color: #374151; }
 
@@ -33,8 +33,8 @@
         body.dark .step-num { color: #777; }
         body.dark h2 { color: #E6E6E6; }
         body.dark .opt { border-color: #444; color: #E6E6E6; }
-        body.dark .opt:hover { border-color: #7C3AED; background: #2D1F4E; }
-        body.dark .opt.sel { border-color: #7C3AED; background: #2D1F4E; color: #B794F4; }
+        body.dark .opt:hover { border-color: #047857; background: #0B3B2E; }
+        body.dark .opt.sel { border-color: #047857; background: #0B3B2E; color: #6EE7B7; }
         body.dark .btn-back { background: #333; color: #CCC; }
     </style>
 </head>

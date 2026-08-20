@@ -20,18 +20,18 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
         :root {
-            --d-bg: #F4F0FF; --d-panel: #FFFFFF; --d-panel-alt: #FAFAFA;
-            --d-border: #F0ECF8; --d-border-light: #F0F0F0; --d-border-accent: #EDE9FF;
+            --d-bg: #ECFDF5; --d-panel: #FFFFFF; --d-panel-alt: #FAFAFA;
+            --d-border: #EFF7F3; --d-border-light: #F0F0F0; --d-border-accent: #D1FAE5;
             --d-text: #1A1A1A; --d-text-sec: #6B7280; --d-text-muted: #9CA3AF; --d-text-dark: #374151;
-            --d-accent: #7C3AED; --d-accent-bg: #F3E8FF; --d-accent-hover: #FAF5FF;
+            --d-accent: #047857; --d-accent-bg: #D1FAE5; --d-accent-hover: #ECFDF5;
             --d-green-bg: #F0FDF4; --d-green: #16A34A; --d-red-bg: #FFF1F2; --d-red: #BE123C;
-            --d-shadow: rgba(124,58,237,0.1); --d-shadow-hover: rgba(124,58,237,0.12);
+            --d-shadow: rgba(4,120,87,0.1); --d-shadow-hover: rgba(4,120,87,0.12);
         }
         body.dark {
             --d-bg: #191919; --d-panel: #252525; --d-panel-alt: #2A2A2A;
-            --d-border: #333; --d-border-light: #333; --d-border-accent: #37254A;
+            --d-border: #333; --d-border-light: #333; --d-border-accent: #10402F;
             --d-text: #E6E6E6; --d-text-sec: #A0A0A0; --d-text-muted: #707070; --d-text-dark: #C0C0C0;
-            --d-accent: #B794F4; --d-accent-bg: #2D1F4E; --d-accent-hover: #37254A;
+            --d-accent: #6EE7B7; --d-accent-bg: #0B3B2E; --d-accent-hover: #10402F;
             --d-green-bg: #1A2E1A; --d-green: #4ADE80; --d-red-bg: #2E1A1A; --d-red: #F87171;
             --d-shadow: rgba(0,0,0,0.2); --d-shadow-hover: rgba(0,0,0,0.3);
         }
@@ -64,10 +64,10 @@
         .user-info { display: flex; align-items: center; gap: 0.875rem; }
         .user-avatar {
             width: 48px; height: 48px; border-radius: 50%;
-            background: linear-gradient(135deg, #7C3AED 0%, #9F67FA 100%);
+            background: linear-gradient(135deg, #047857 0%, #059669 100%);
             display: flex; align-items: center; justify-content: center;
             color: white; font-weight: 700; font-size: 1.125rem; overflow: hidden;
-            box-shadow: 0 4px 12px rgba(124,58,237,0.3);
+            box-shadow: 0 4px 12px rgba(4,120,87,0.3);
         }
         .user-avatar img { width: 100%; height: 100%; object-fit: cover; }
 
@@ -89,13 +89,13 @@
         .btn {
             display: inline-flex; align-items: center; gap: 0.5rem;
             padding: 0.625rem 1.375rem;
-            background: linear-gradient(135deg, #7C3AED 0%, #9F67FA 100%);
+            background: linear-gradient(135deg, #047857 0%, #059669 100%);
             color: white; text-decoration: none; border-radius: 0.625rem;
             font-weight: 600; font-size: 0.9375rem; transition: all 0.2s;
             border: none; cursor: pointer; font-family: inherit;
-            box-shadow: 0 3px 10px rgba(124,58,237,0.3);
+            box-shadow: 0 3px 10px rgba(4,120,87,0.3);
         }
-        .btn:hover { transform: translateY(-1px); box-shadow: 0 5px 16px rgba(124,58,237,0.4); color: white; }
+        .btn:hover { transform: translateY(-1px); box-shadow: 0 5px 16px rgba(4,120,87,0.4); color: white; }
 
         .appointments-list { margin-top: 1rem; }
         .appointment-item {
@@ -280,7 +280,7 @@
         </div>
 
         <!-- Frozen account modal -->
-        <div id="frozenModal" style="display:none;position:fixed;inset:0;background:rgba(26,26,46,0.55);z-index:3000;align-items:center;justify-content:center;padding:1rem;">
+        <div id="frozenModal" style="display:none;position:fixed;inset:0;background:rgba(18,42,34,0.55);z-index:3000;align-items:center;justify-content:center;padding:1rem;">
             <div style="background:var(--d-panel);border-radius:1.25rem;max-width:440px;width:100%;padding:2rem;box-shadow:0 20px 60px rgba(0,0,0,0.3);color:var(--d-text);text-align:center;">
                 <div style="width:60px;height:60px;border-radius:50%;background:linear-gradient(135deg,#ff6b6b,#ee5a24);display:flex;align-items:center;justify-content:center;margin:0 auto 1rem;font-size:1.8rem;">🔒</div>
                 <h3 style="font-size:1.2rem;margin-bottom:0.5rem;">Аккаунт заморожен</h3>
@@ -298,15 +298,15 @@
                         💬 Чат поддержки на сайте (кнопка внизу справа)
                     </div>
                 </div>
-                <button onclick="document.getElementById('frozenModal').style.display='none'" style="background:linear-gradient(135deg,#7C3AED,#9F67FA);color:#fff;border:none;padding:0.7rem 2rem;border-radius:0.6rem;font-weight:600;cursor:pointer;font-family:inherit;font-size:0.95rem;width:100%;">Понятно</button>
+                <button onclick="document.getElementById('frozenModal').style.display='none'" style="background:linear-gradient(135deg,#047857,#059669);color:#fff;border:none;padding:0.7rem 2rem;border-radius:0.6rem;font-weight:600;cursor:pointer;font-family:inherit;font-size:0.95rem;width:100%;">Понятно</button>
             </div>
         </div>
 
         <!-- Replacement request modal -->
-        <div id="replaceModal" style="display:none;position:fixed;inset:0;background:rgba(26,26,46,0.55);z-index:2000;align-items:center;justify-content:center;padding:1rem;">
+        <div id="replaceModal" style="display:none;position:fixed;inset:0;background:rgba(18,42,34,0.55);z-index:2000;align-items:center;justify-content:center;padding:1rem;">
             <div style="background:var(--d-panel);border-radius:1.25rem;max-width:440px;width:100%;padding:2rem;box-shadow:0 20px 60px rgba(0,0,0,0.3);color:var(--d-text);">
                 <div style="text-align:center;margin-bottom:1.1rem;">
-                    <div style="width:60px;height:60px;border-radius:50%;background:linear-gradient(135deg,#7C3AED,#9F67FA);display:flex;align-items:center;justify-content:center;margin:0 auto 0.7rem;font-size:1.8rem;">🔄</div>
+                    <div style="width:60px;height:60px;border-radius:50%;background:linear-gradient(135deg,#047857,#059669);display:flex;align-items:center;justify-content:center;margin:0 auto 0.7rem;font-size:1.8rem;">🔄</div>
                     <h3 style="font-size:1.2rem;color:var(--d-text);margin-bottom:0.25rem;">Заменить психолога</h3>
                     <p style="font-size:0.875rem;color:var(--d-text-sec);line-height:1.5;">Если специалист не подошёл — поможем подобрать другого бесплатно. Расскажите, что было не так (по желанию) — учтём при подборе.</p>
                 </div>
@@ -314,7 +314,7 @@
                 <label style="display:block;font-size:0.8125rem;font-weight:600;color:var(--d-text-dark);margin-bottom:0.3rem;">Что не подошло? (необязательно)</label>
                 <textarea id="replaceReason" placeholder="Напр.: не сошлись по подходу, неудобное время, хочу другого специалиста..." style="width:100%;height:80px;padding:0.7rem 0.9rem;border:2px solid var(--d-border);border-radius:0.7rem;font-size:0.9rem;outline:none;font-family:inherit;resize:vertical;margin-bottom:0.7rem;background:var(--d-panel-alt);color:var(--d-text);"></textarea>
                 <div id="replaceMsg" style="display:none;font-size:0.85rem;margin-bottom:0.6rem;"></div>
-                <button onclick="submitReplace()" id="replaceSubmit" style="width:100%;padding:0.85rem;background:linear-gradient(135deg,#7C3AED,#9F67FA);color:#fff;border:none;border-radius:0.75rem;font-weight:700;font-size:0.9375rem;cursor:pointer;font-family:inherit;margin-bottom:0.5rem;">Отправить заявку и подобрать</button>
+                <button onclick="submitReplace()" id="replaceSubmit" style="width:100%;padding:0.85rem;background:linear-gradient(135deg,#047857,#059669);color:#fff;border:none;border-radius:0.75rem;font-weight:700;font-size:0.9375rem;cursor:pointer;font-family:inherit;margin-bottom:0.5rem;">Отправить заявку и подобрать</button>
                 <button onclick="closeReplace()" style="width:100%;padding:0.6rem;background:var(--d-panel-alt);border:1px solid var(--d-border);border-radius:0.75rem;color:var(--d-text-dark);font-weight:600;font-size:0.875rem;cursor:pointer;font-family:inherit;">Отмена</button>
             </div>
         </div>
@@ -377,12 +377,12 @@
                     // с быстрым переходом в кабинет специалиста.
                     if (user.role === 'psychologist') {
                         const switchBanner = document.createElement('div');
-                        switchBanner.style.cssText = 'background:var(--d-accent-bg,#F3E8FF);border:1.5px solid var(--d-border-accent,#C4B5FD);border-radius:1rem;padding:0.875rem 1.25rem;margin-bottom:1.25rem;display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;';
+                        switchBanner.style.cssText = 'background:var(--d-accent-bg,#D1FAE5);border:1.5px solid var(--d-border-accent,#6EE7B7);border-radius:1rem;padding:0.875rem 1.25rem;margin-bottom:1.25rem;display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;';
                         switchBanner.innerHTML = `
-                            <span style="display:flex;align-items:center;gap:0.5rem;color:var(--d-accent,#5B21B6);font-weight:600;font-size:0.9375rem;">
+                            <span style="display:flex;align-items:center;gap:0.5rem;color:var(--d-accent,#065F46);font-weight:600;font-size:0.9375rem;">
                                 👤 Вы просматриваете записи как клиент
                             </span>
-                            <a href="/psychologist-dashboard.html" style="display:inline-flex;align-items:center;gap:0.375rem;padding:0.5rem 1rem;background:linear-gradient(135deg,#7C3AED,#9F67FA);color:white;text-decoration:none;border-radius:0.625rem;font-size:0.875rem;font-weight:600;">
+                            <a href="/psychologist-dashboard.html" style="display:inline-flex;align-items:center;gap:0.375rem;padding:0.5rem 1rem;background:linear-gradient(135deg,#047857,#059669);color:white;text-decoration:none;border-radius:0.625rem;font-size:0.875rem;font-weight:600;">
                                 Перейти в кабинет психолога →
                             </a>`;
                         document.querySelector('.cards').parentNode.insertBefore(switchBanner, document.querySelector('.cards'));
@@ -478,14 +478,14 @@
                                 <div class="warn-box" style="border-radius:8px;padding:10px 14px;margin-bottom:8px;font-size:.9rem;">
                                     ⚠️ Ваш специалист больше недоступен. Вы можете выбрать другого психолога для использования абонемента.
                                 </div>
-                                <a href="/search.html?pkg=${p.id}" class="btn btn-small" style="background:#7C3AED;">🔄 Выбрать другого психолога</a>
+                                <a href="/search.html?pkg=${p.id}" class="btn btn-small" style="background:#047857;">🔄 Выбрать другого психолога</a>
                             </div>`;
                         }
                         return `
                         <div class="appointment-item">
                             <div class="appointment-info">
                                 <div class="appointment-psychologist">🎟 Абонемент · ${psychEsc(p.psychologist_name || 'Психолог')}${unavailable ? ' <span style="color:#EF4444;font-size:.85em;">(недоступен)</span>' : ''}</div>
-                                <div class="appointment-datetime">Осталось <b style="color:#7C3AED;">${remaining}</b> из ${total} сессий ${expires ? '· ' + expires : ''}</div>
+                                <div class="appointment-datetime">Осталось <b style="color:#047857;">${remaining}</b> из ${total} сессий ${expires ? '· ' + expires : ''}</div>
                             </div>
                             ${stLabel}
                             <div class="appointment-actions">

@@ -13,14 +13,14 @@
     <script src="/js/app.js" defer></script>
     <style>
         :root {
-            --i-bg: #F4F0FF; --i-card: #FFFFFF; --i-border: #EDE9FF; --i-text: #1A1A1A;
-            --i-sec: #6B7280; --i-accent: #7C3AED; --i-ok: #15803D; --i-warn: #B45309; --i-err: #DC2626;
-            --i-step: #F8F6FF;
+            --i-bg: #ECFDF5; --i-card: #FFFFFF; --i-border: #D1FAE5; --i-text: #1A1A1A;
+            --i-sec: #6B7280; --i-accent: #047857; --i-ok: #15803D; --i-warn: #B45309; --i-err: #DC2626;
+            --i-step: #ECFDF5;
         }
         body.dark {
             --i-bg: #141414; --i-card: #1E1E1E; --i-border: #333; --i-text: #E6E6E6;
-            --i-sec: #A0A0A0; --i-accent: #A78BFA; --i-ok: #4ADE80; --i-warn: #FBBF24; --i-err: #F87171;
-            --i-step: #262032;
+            --i-sec: #A0A0A0; --i-accent: #34D399; --i-ok: #4ADE80; --i-warn: #FBBF24; --i-err: #F87171;
+            --i-step: #0b2c22;
         }
         body { background: var(--i-bg); color: var(--i-text); font-family: 'Inter', -apple-system, sans-serif; padding-top: 84px; }
         .wrap { max-width: 720px; margin: 0 auto; padding: 1.25rem 1rem 3rem; }
@@ -56,7 +56,7 @@
         .state { display: grid; grid-template-columns: auto 1fr; gap: 0.35rem 0.7rem; font-size: 0.9rem; }
         .state dt { color: var(--i-sec); }
         .state dd { margin: 0; font-weight: 600; word-break: break-word; }
-        .mine { border-color: var(--i-accent); box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.12); }
+        .mine { border-color: var(--i-accent); box-shadow: 0 0 0 3px rgba(4,120,87, 0.12); }
         .mine h2::after { content: 'ваше устройство'; font-size: 0.68rem; font-weight: 700; color: var(--i-accent);
                           border: 1px solid var(--i-accent); border-radius: 0.6rem; padding: 0.1rem 0.45rem; }
         .ico { display: inline-block; vertical-align: -3px; }
