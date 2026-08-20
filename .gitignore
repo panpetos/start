@@ -10,6 +10,9 @@ api/notifications_config.php
 # Конфиг ИИ-чата (OpenRouter API key) — только на сервере, НЕ в git
 api/ai_chat_config.php
 
+# Доступ к TURN-серверу для звонков — только на сервере, НЕ в git
+api/calls_config.php
+
 # Прочие локальные секреты/конфиги вне репозитория
 api/config.php
 api/db.php

@@ -1679,6 +1679,81 @@
         .conversations-pane.collapsed .chat-new-menu { right: 8px; }
 
 
+        /* ── Свои звонки (WebRTC) ────────────────────────────────────────────────
+           Разговор идёт напрямую между браузерами, сайт только знакомит собеседников. */
+        .rtc-screen {
+            position: fixed; inset: 0; z-index: 5000; display: none;
+            background: #06231B; color: #fff; flex-direction: column;
+        }
+        .rtc-screen.open { display: flex; }
+        .rtc-stage { flex: 1; position: relative; min-height: 0; background: #04170F; overflow: hidden; }
+        .rtc-remote { width: 100%; height: 100%; object-fit: contain; background: #04170F; display: block; }
+        .rtc-screen.audio-only .rtc-remote { display: none; }
+        /* Своя картинка — в углу, зеркально: так привычнее, как в зеркале */
+        .rtc-local {
+            position: absolute; right: 14px; bottom: 14px; width: 168px; max-width: 34vw;
+            border-radius: 0.9rem; border: 2px solid rgba(255,255,255,0.35);
+            object-fit: cover; transform: scaleX(-1); background: #04170F; z-index: 2;
+        }
+        .rtc-screen.audio-only .rtc-local { display: none; }
+        /* Заглушка для аудиозвонка и пока нет картинки: аватар и имя */
+        .rtc-poster {
+            position: absolute; inset: 0; display: flex; flex-direction: column;
+            align-items: center; justify-content: center; gap: 0.9rem; text-align: center; padding: 1rem;
+        }
+        .rtc-screen.has-video:not(.audio-only) .rtc-poster { display: none; }
+        .rtc-ava {
+            width: 108px; height: 108px; border-radius: 50%; overflow: hidden;
+            background: linear-gradient(135deg,#047857,#059669); display: flex;
+            align-items: center; justify-content: center; font-size: 2.4rem; font-weight: 700; color: #fff;
+        }
+        .rtc-ava img { width: 100%; height: 100%; object-fit: cover; }
+        .rtc-name { font-size: 1.25rem; font-weight: 700; }
+        .rtc-state { font-size: 0.9rem; color: #A7F3D0; min-height: 1.2em; }
+        .rtc-secure { font-size: 0.78rem; color: #6EE7B7; display: flex; align-items: center; gap: 0.3rem; }
+        .rtc-bar {
+            flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+            gap: 0.7rem; padding: 1rem; padding-bottom: max(1rem, env(safe-area-inset-bottom));
+            background: rgba(0,0,0,0.25);
+        }
+        .rtc-btn {
+            width: 56px; height: 56px; border-radius: 50%; border: none; cursor: pointer;
+            background: rgba(255,255,255,0.16); color: #fff; font-size: 1.3rem;
+            display: flex; align-items: center; justify-content: center; font-family: inherit;
+            transition: background 0.15s;
+        }
+        .rtc-btn:hover { background: rgba(255,255,255,0.28); }
+        .rtc-btn.off { background: #fff; color: #06231B; }
+        .rtc-btn.hang { background: #DC2626; }
+        .rtc-btn.hang:hover { background: #B91C1C; }
+        .rtc-fallback {
+            position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%);
+            background: rgba(0,0,0,0.55); border: 1px solid rgba(255,255,255,0.25);
+            color: #fff; border-radius: 0.7rem; padding: 0.55rem 0.9rem; font-size: 0.82rem;
+            display: none; align-items: center; gap: 0.6rem; z-index: 3; max-width: 92%;
+        }
+        .rtc-fallback button {
+            border: none; background: #fff; color: #06231B; border-radius: 0.5rem;
+            padding: 0.35rem 0.6rem; font-family: inherit; font-size: 0.8rem; font-weight: 700; cursor: pointer;
+        }
+        /* Входящий вызов — поверх всего, чтобы не потерялся за другими окнами */
+        .rtc-incoming {
+            position: fixed; inset: 0; z-index: 5100; display: none;
+            align-items: center; justify-content: center; background: rgba(0,0,0,0.55); padding: 1rem;
+        }
+        .rtc-incoming.open { display: flex; }
+        .rtc-in-card {
+            background: #fff; color: #1A1A1A; border-radius: 1.2rem; padding: 1.6rem 1.4rem;
+            width: min(340px, 100%); text-align: center; box-shadow: 0 20px 60px rgba(0,0,0,0.35);
+        }
+        body.dark .rtc-in-card { background: #252525; color: #E6E6E6; }
+        .rtc-in-card .rtc-ava { margin: 0 auto 0.9rem; width: 84px; height: 84px; font-size: 1.9rem; }
+        .rtc-in-actions { display: flex; gap: 0.8rem; justify-content: center; margin-top: 1.2rem; }
+        @media (max-width: 560px) {
+            .rtc-btn { width: 52px; height: 52px; font-size: 1.2rem; }
+            .rtc-local { width: 120px; }
+        }
+
         /* ── Отложенная отправка ────────────────────────────────────────────────── */
         .sched-bar {
             display: flex; align-items: center; gap: 0.4rem; cursor: pointer;
@@ -2713,6 +2788,43 @@
                     <button class="rb-x" onclick="editingMessageId ? cancelEditMessage() : cancelReply()"
                             title="Отменить" aria-label="Отменить">✕</button>
                 </div>
+                <!-- Экран разговора. Звук и видео идут напрямую между браузерами (WebRTC),
+                     сайт переносит только «знакомство» — несколько строк с параметрами связи. -->
+                <div class="rtc-screen" id="rtcScreen">
+                    <div class="rtc-stage">
+                        <video class="rtc-remote" id="rtcRemote" autoplay playsinline></video>
+                        <video class="rtc-local" id="rtcLocal" autoplay playsinline muted></video>
+                        <div class="rtc-poster">
+                            <div class="rtc-ava" id="rtcAva"></div>
+                            <div class="rtc-name" id="rtcName">Собеседник</div>
+                            <div class="rtc-state" id="rtcState">Соединяем…</div>
+                            <div class="rtc-secure"><span aria-hidden="true">🔒</span> Разговор зашифрован, сервер его не слышит</div>
+                        </div>
+                        <div class="rtc-fallback" id="rtcFallback">
+                            <span id="rtcFallbackText">Не удалось соединиться напрямую.</span>
+                            <button type="button" onclick="rtcUseTelemost()">Через Телемост</button>
+                        </div>
+                    </div>
+                    <div class="rtc-bar">
+                        <button type="button" class="rtc-btn" id="rtcMicBtn" onclick="rtcToggleMic()" title="Микрофон" aria-label="Микрофон">🎤</button>
+                        <button type="button" class="rtc-btn" id="rtcCamBtn" onclick="rtcToggleCam()" title="Камера" aria-label="Камера">🎥</button>
+                        <button type="button" class="rtc-btn hang" onclick="rtcHangUp('hangup')" title="Завершить" aria-label="Завершить">📵</button>
+                    </div>
+                </div>
+
+                <!-- Входящий вызов -->
+                <div class="rtc-incoming" id="rtcIncoming">
+                    <div class="rtc-in-card">
+                        <div class="rtc-ava" id="rtcInAva"></div>
+                        <div style="font-size:1.15rem;font-weight:700;" id="rtcInName">Вам звонят</div>
+                        <div style="font-size:0.88rem;color:#6B7280;margin-top:0.2rem;" id="rtcInKind">Аудиозвонок</div>
+                        <div class="rtc-in-actions">
+                            <button type="button" class="rtc-btn hang" onclick="rtcDecline()" title="Отклонить" aria-label="Отклонить">📵</button>
+                            <button type="button" class="rtc-btn" style="background:#047857;" onclick="rtcAccept()" title="Ответить" aria-label="Ответить">📞</button>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="chat-input" id="chatInputBar">
                     <!-- «⋮» слева: смайлы, файлы, голосовое и прочее убраны внутрь, чтобы
                          строка ввода не была заставлена иконками. Список пунктов зависит от
@@ -4210,9 +4322,13 @@
                 : '';
             // Кнопка сессии остаётся на виду: в ней бежит время консультации, в меню его не видно
             const actions = [
+                // Свои звонки: звук и видео идут напрямую между браузерами, минуя сайт.
+                // Доступны обеим сторонам — раньше встречу мог начать только психолог.
+                { icon: '📞', label: 'Аудиозвонок', run: () => startRtcCall('audio') },
+                { icon: '🎥', label: 'Видеозвонок', run: () => startRtcCall('video') },
                 isPsy && { icon: '💳', label: 'Выставить счёт', run: () => openOrderModal() },
                 isPsy && { icon: '📝', label: 'Заметки по клиенту', run: () => openNotes() },
-                isPsy && { icon: '📹', label: 'Видеовстреча', run: () => startVideoCall() },
+                isPsy && { icon: '📹', label: 'Встреча в Телемосте (запасной путь)', run: () => startVideoCall() },
                 { icon: '🚩', label: 'Пожаловаться на собеседника', run: () => openComplaint(selectedUserId, name) },
                 (!isPsy && other.role === 'psychologist') && {
                     icon: '📅', label: 'Записаться на приём',
@@ -4619,6 +4735,8 @@
             loadStoriesRow();   // не await — истории не должны задерживать открытие чатов
             if (storiesPollTimer) clearInterval(storiesPollTimer);
             storiesPollTimer = setInterval(loadStoriesRow, 60000);
+
+            rtcStartPolling();  // слушаем входящие звонки
 
             // Автоматически открыть чат если есть user в URL
             if (openFromUrl) {
@@ -12303,7 +12421,434 @@
             return items.length;
         }
 
-        // === ВИДЕОЗВОНКИ ЧЕРЕЗ ЯНДЕКС ТЕЛЕМОСТ ===
+        // ══════════════════════════════════════════════════════════════════════════════
+        //  СВОИ ЗВОНКИ (WebRTC) — api/calls.php
+        //
+        //  Звук и видео идут НАПРЯМУЮ между браузерами и через наш сервер не проходят:
+        //  хостинг переносит только «знакомство» — параметры соединения (SDP) и сетевые
+        //  кандидаты (ICE), это несколько небольших строк на звонок. Поэтому свои звонки
+        //  почти ничего не стоят серверу, в отличие от ретрансляции медиа.
+        //
+        //  Шифрование включено всегда: WebRTC обязывает шифровать поток (DTLS-SRTP),
+        //  ключи вырабатывают сами браузеры, серверу они неизвестны.
+        //
+        //  Чего эта схема не умеет: если ОБА собеседника за «строгим» NAT, прямое
+        //  соединение не встаёт — нужен ретранслятор TURN, а его на shared-хостинге
+        //  не поднять. В этом случае честно говорим об этом и предлагаем Телемост.
+        // ══════════════════════════════════════════════════════════════════════════════
+        let rtcPc = null;              // RTCPeerConnection текущего звонка
+        let rtcLocalStream = null;
+        let rtcCallId = null;
+        let rtcRole = null;            // 'caller' | 'callee'
+        let rtcKind = 'video';
+        let rtcPeer = null;            // {id, name, avatar}
+        let rtcAfter = 0;              // id последнего разобранного сигнала
+        let rtcPendingIce = [];        // кандидаты, пришедшие до setRemoteDescription
+        let rtcIncomingCall = null;
+        let rtcTimer = null, rtcStartedAt = 0;
+        let rtcPollTimer = null;
+        let rtcRing = null;            // источник звука вызова
+        let rtcIceServers = [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] }];
+
+        function rtcSupported() {
+            return !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.RTCPeerConnection);
+        }
+
+        async function callsApi(action, payload) {
+            const url = '/api/calls.php?action=' + action;
+            const res = payload
+                ? await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                                     credentials: 'include', body: JSON.stringify(payload) })
+                : await fetch(url, { credentials: 'include' });
+            const d = await res.json().catch(() => ({}));
+            if (!res.ok || d.ok === false) throw new Error(d.error || ('HTTP ' + res.status));
+            return d;
+        }
+
+        /** Короткий сигнал вызова — генерируем звуком, чтобы не тащить файл на сервер. */
+        function rtcRingtone(on) {
+            try {
+                if (!on) {
+                    if (rtcRing) { try { rtcRing.stop(); } catch (e) {} rtcRing = null; }
+                    return;
+                }
+                if (rtcRing) return;
+                const Ctx = window.AudioContext || window.webkitAudioContext;
+                if (!Ctx) return;
+                const ctx = new Ctx();
+                const gain = ctx.createGain();
+                gain.gain.value = 0.0001;
+                gain.connect(ctx.destination);
+                const osc = ctx.createOscillator();
+                osc.type = 'sine';
+                osc.frequency.value = 480;
+                osc.connect(gain);
+                osc.start();
+                // «бип-бип — пауза», как в телефоне
+                let t = ctx.currentTime;
+                for (let i = 0; i < 60; i++) {
+                    gain.gain.setValueAtTime(0.06, t);
+                    gain.gain.setValueAtTime(0.0001, t + 0.4);
+                    gain.gain.setValueAtTime(0.06, t + 0.6);
+                    gain.gain.setValueAtTime(0.0001, t + 1.0);
+                    t += 3;
+                }
+                rtcRing = { stop: () => { try { osc.stop(); ctx.close(); } catch (e) {} } };
+            } catch (e) {}
+        }
+
+        function rtcSetState(text) {
+            const el = document.getElementById('rtcState');
+            if (el) el.textContent = text;
+        }
+
+        function rtcAvatarHtml(peer) {
+            const initial = ((peer && peer.name) || '?').trim().charAt(0).toUpperCase();
+            return peer && peer.avatar
+                ? `<img src="${escapeAttr(peer.avatar)}" alt="">`
+                : escapeHtml(initial || '?');
+        }
+
+        function rtcOpenScreen() {
+            const s = document.getElementById('rtcScreen');
+            s.classList.add('open');
+            s.classList.toggle('audio-only', rtcKind === 'audio');
+            s.classList.remove('has-video');
+            document.getElementById('rtcAva').innerHTML = rtcAvatarHtml(rtcPeer);
+            document.getElementById('rtcName').textContent = (rtcPeer && rtcPeer.name) || 'Собеседник';
+            document.getElementById('rtcFallback').style.display = 'none';
+            document.getElementById('rtcCamBtn').style.display = rtcKind === 'audio' ? 'none' : 'flex';
+        }
+
+        function rtcCloseScreen() {
+            const s = document.getElementById('rtcScreen');
+            if (s) { s.classList.remove('open', 'has-video', 'audio-only'); }
+            const inc = document.getElementById('rtcIncoming');
+            if (inc) inc.classList.remove('open');
+            rtcRingtone(false);
+            if (rtcTimer) { clearInterval(rtcTimer); rtcTimer = null; }
+        }
+
+        /** Освободить камеру и микрофон — иначе индикатор записи останется гореть. */
+        function rtcTeardown() {
+            try { if (rtcPc) { rtcPc.onicecandidate = null; rtcPc.ontrack = null; rtcPc.close(); } } catch (e) {}
+            rtcPc = null;
+            try { if (rtcLocalStream) rtcLocalStream.getTracks().forEach(t => t.stop()); } catch (e) {}
+            rtcLocalStream = null;
+            const r = document.getElementById('rtcRemote'), l = document.getElementById('rtcLocal');
+            if (r) r.srcObject = null;
+            if (l) l.srcObject = null;
+            rtcCallId = null; rtcRole = null; rtcPeer = null;
+            rtcAfter = 0; rtcPendingIce = []; rtcStartedAt = 0;
+        }
+
+        async function rtcGetMedia(kind) {
+            const want = kind === 'audio' ? { audio: true, video: false }
+                                          : { audio: true, video: { width: { ideal: 640 }, height: { ideal: 480 } } };
+            try {
+                return await navigator.mediaDevices.getUserMedia(want);
+            } catch (e) {
+                // Нет камеры — пробуем хотя бы звук, звонок не должен падать целиком
+                if (kind !== 'audio') {
+                    try { return await navigator.mediaDevices.getUserMedia({ audio: true, video: false }); }
+                    catch (e2) { throw e2; }
+                }
+                throw e;
+            }
+        }
+
+        function rtcBuildPc() {
+            const pc = new RTCPeerConnection({ iceServers: rtcIceServers });
+            pc.onicecandidate = ev => {
+                if (!ev.candidate || !rtcCallId) return;
+                callsApi('signal', { call_id: rtcCallId, kind: 'ice', payload: JSON.stringify(ev.candidate) })
+                    .catch(() => {});
+            };
+            pc.ontrack = ev => {
+                const remote = document.getElementById('rtcRemote');
+                if (remote && ev.streams && ev.streams[0]) {
+                    remote.srcObject = ev.streams[0];
+                    if (ev.track.kind === 'video') document.getElementById('rtcScreen').classList.add('has-video');
+                }
+            };
+            pc.onconnectionstatechange = () => {
+                if (!rtcPc) return;
+                const st = rtcPc.connectionState;
+                if (st === 'connected') {
+                    rtcSetState('Соединено');
+                    document.getElementById('rtcFallback').style.display = 'none';
+                    if (!rtcStartedAt) {
+                        rtcStartedAt = Date.now();
+                        rtcTimer = setInterval(() => {
+                            const s = Math.floor((Date.now() - rtcStartedAt) / 1000);
+                            rtcSetState(String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0'));
+                        }, 1000);
+                    }
+                } else if (st === 'failed') {
+                    // Ровно тот случай, когда нужен TURN: прямой путь не нашёлся
+                    rtcSetState('Не удалось соединиться');
+                    rtcShowFallback('Прямое соединение не установилось — так бывает, когда оба в мобильной или рабочей сети.');
+                } else if (st === 'disconnected') {
+                    rtcSetState('Связь прервалась, восстанавливаем…');
+                }
+            };
+            return pc;
+        }
+
+        function rtcShowFallback(text) {
+            const box = document.getElementById('rtcFallback');
+            const t = document.getElementById('rtcFallbackText');
+            if (t) t.textContent = text;
+            if (box) box.style.display = 'flex';
+        }
+
+        function rtcUseTelemost() {
+            rtcHangUp('fallback');
+            if (typeof startVideoCall === 'function') startVideoCall();
+        }
+        window.rtcUseTelemost = rtcUseTelemost;
+
+        async function rtcLoadIce() {
+            try {
+                const d = await callsApi('ice');
+                if (d.ice_servers && d.ice_servers.length) rtcIceServers = d.ice_servers;
+            } catch (e) {}
+        }
+
+        /** Позвонить собеседнику из открытой переписки. */
+        async function startRtcCall(kind) {
+            if (!selectedUserId || selectedUserId === AI_ID || selectedUserId === FAVORITES_ID) {
+                toast('Позвонить можно только человеку'); return;
+            }
+            if (!rtcSupported()) { toast('Браузер не поддерживает звонки'); return; }
+            if (rtcCallId) { toast('Звонок уже идёт'); return; }
+            if (!window.isSecureContext) { toast('Звонки работают только по https'); return; }
+            rtcKind = kind === 'audio' ? 'audio' : 'video';
+            rtcRole = 'caller';
+            const other = (typeof chatPeer === 'object' && chatPeer) ? chatPeer : null;
+            rtcPeer = { id: selectedUserId,
+                        name: (document.querySelector('#chatHeader .name') || {}).textContent || 'Собеседник',
+                        avatar: (other && other.avatar) || '' };
+            rtcOpenScreen();
+            rtcSetState('Звоним…');
+            try {
+                rtcLocalStream = await rtcGetMedia(rtcKind);
+            } catch (e) {
+                rtcCloseScreen(); rtcTeardown();
+                alert('Не удалось получить доступ к микрофону или камере. Разрешите доступ в настройках браузера.');
+                return;
+            }
+            const l = document.getElementById('rtcLocal');
+            if (l) l.srcObject = rtcLocalStream;
+            try {
+                await rtcLoadIce();
+                const d = await callsApi('start', { to: String(selectedUserId), kind: rtcKind });
+                rtcCallId = d.call_id;
+                rtcPc = rtcBuildPc();
+                rtcLocalStream.getTracks().forEach(t => rtcPc.addTrack(t, rtcLocalStream));
+                const offer = await rtcPc.createOffer();
+                await rtcPc.setLocalDescription(offer);
+                await callsApi('signal', { call_id: rtcCallId, kind: 'offer', payload: JSON.stringify(offer) });
+                rtcPollSoon(700);
+            } catch (e) {
+                rtcCloseScreen(); rtcTeardown();
+                alert('Не удалось начать звонок: ' + e.message);
+            }
+        }
+        window.startRtcCall = startRtcCall;
+
+        /** Принять входящий. */
+        async function rtcAccept() {
+            const call = rtcIncomingCall;
+            if (!call) return;
+            document.getElementById('rtcIncoming').classList.remove('open');
+            rtcRingtone(false);
+            if (!rtcSupported()) { toast('Браузер не поддерживает звонки'); return; }
+            rtcKind = call.kind === 'audio' ? 'audio' : 'video';
+            rtcRole = 'callee';
+            rtcCallId = call.id;
+            rtcPeer = { id: call.from_id,
+                        name: ((call.first_name || '') + ' ' + (call.last_name || '')).trim() || 'Собеседник',
+                        avatar: call.avatar || '' };
+            rtcIncomingCall = null;
+            rtcOpenScreen();
+            rtcSetState('Соединяем…');
+            try {
+                rtcLocalStream = await rtcGetMedia(rtcKind);
+            } catch (e) {
+                await callsApi('decline', { call_id: rtcCallId }).catch(() => {});
+                rtcCloseScreen(); rtcTeardown();
+                alert('Не удалось получить доступ к микрофону или камере.');
+                return;
+            }
+            const l = document.getElementById('rtcLocal');
+            if (l) l.srcObject = rtcLocalStream;
+            try {
+                await rtcLoadIce();
+                // Соединение готовим ДО «принять»: offer уже лежит на сервере, и опрос,
+                // случившийся раньше создания rtcPc, забрал бы его в пустоту.
+                rtcPc = rtcBuildPc();
+                rtcLocalStream.getTracks().forEach(t => rtcPc.addTrack(t, rtcLocalStream));
+                await callsApi('accept', { call_id: rtcCallId });
+                rtcPollSoon(300);        // offer уже ждёт нас на сервере
+            } catch (e) {
+                rtcCloseScreen(); rtcTeardown();
+                alert('Не удалось принять звонок: ' + e.message);
+            }
+        }
+        window.rtcAccept = rtcAccept;
+
+        async function rtcDecline() {
+            const call = rtcIncomingCall;
+            rtcIncomingCall = null;
+            document.getElementById('rtcIncoming').classList.remove('open');
+            rtcRingtone(false);
+            if (call) await callsApi('decline', { call_id: call.id }).catch(() => {});
+        }
+        window.rtcDecline = rtcDecline;
+
+        async function rtcHangUp(reason) {
+            const id = rtcCallId;
+            rtcCloseScreen();
+            rtcTeardown();
+            if (id) await callsApi('end', { call_id: id, reason: reason || 'hangup' }).catch(() => {});
+        }
+        window.rtcHangUp = rtcHangUp;
+
+        function rtcToggleMic() {
+            if (!rtcLocalStream) return;
+            const tr = rtcLocalStream.getAudioTracks()[0];
+            if (!tr) return;
+            tr.enabled = !tr.enabled;
+            const b = document.getElementById('rtcMicBtn');
+            b.classList.toggle('off', !tr.enabled);
+            b.textContent = tr.enabled ? '🎤' : '🔇';
+            b.title = tr.enabled ? 'Выключить микрофон' : 'Включить микрофон';
+        }
+        window.rtcToggleMic = rtcToggleMic;
+
+        function rtcToggleCam() {
+            if (!rtcLocalStream) return;
+            const tr = rtcLocalStream.getVideoTracks()[0];
+            if (!tr) return;
+            tr.enabled = !tr.enabled;
+            const b = document.getElementById('rtcCamBtn');
+            b.classList.toggle('off', !tr.enabled);
+            b.textContent = tr.enabled ? '🎥' : '🚫';
+            b.title = tr.enabled ? 'Выключить камеру' : 'Включить камеру';
+        }
+        window.rtcToggleCam = rtcToggleCam;
+
+        /** Разобрать сигналы, пришедшие от собеседника. */
+        async function rtcHandleSignals(signals) {
+            for (const s of signals) {
+                // Пока соединение не создано, сигналы НЕ помечаем разобранными: между
+                // «принять» и созданием RTCPeerConnection успевает пройти опрос, и offer,
+                // отмеченный как прочитанный, потерялся бы — звонок висел бы вечно.
+                if (!rtcPc) return;
+                let data = null;
+                try { data = JSON.parse(s.payload || 'null'); } catch (e) {
+                    rtcAfter = Math.max(rtcAfter, Number(s.id) || 0);   // битый сигнал не повторяем
+                    continue;
+                }
+                rtcAfter = Math.max(rtcAfter, Number(s.id) || 0);
+                if (!data) continue;
+                try {
+                    if (s.kind === 'offer') {
+                        await rtcPc.setRemoteDescription(new RTCSessionDescription(data));
+                        for (const c of rtcPendingIce) { try { await rtcPc.addIceCandidate(c); } catch (e) {} }
+                        rtcPendingIce = [];
+                        const answer = await rtcPc.createAnswer();
+                        await rtcPc.setLocalDescription(answer);
+                        await callsApi('signal', { call_id: rtcCallId, kind: 'answer', payload: JSON.stringify(answer) });
+                    } else if (s.kind === 'answer') {
+                        if (rtcPc.signalingState === 'have-local-offer') {
+                            await rtcPc.setRemoteDescription(new RTCSessionDescription(data));
+                            for (const c of rtcPendingIce) { try { await rtcPc.addIceCandidate(c); } catch (e) {} }
+                            rtcPendingIce = [];
+                        }
+                    } else if (s.kind === 'ice') {
+                        // Кандидат может прийти раньше описания — тогда придержим
+                        if (rtcPc.remoteDescription && rtcPc.remoteDescription.type) {
+                            try { await rtcPc.addIceCandidate(data); } catch (e) {}
+                        } else {
+                            rtcPendingIce.push(data);
+                        }
+                    }
+                } catch (e) {}
+            }
+        }
+
+        /** Один цикл опроса. Держим редко, когда ничего не происходит, и чаще во время звонка. */
+        async function rtcTick() {
+            rtcPollTimer = null;
+            if (!currentUser || document.visibilityState !== 'visible') { rtcPollSoon(4000); return; }
+            let d = null;
+            try { d = await callsApi('poll&after=' + rtcAfter); }
+            catch (e) { rtcPollSoon(5000); return; }
+
+            // входящий вызов
+            if (d.incoming && !rtcCallId && (!rtcIncomingCall || rtcIncomingCall.id !== d.incoming.id)) {
+                rtcIncomingCall = d.incoming;
+                const name = ((d.incoming.first_name || '') + ' ' + (d.incoming.last_name || '')).trim() || 'Собеседник';
+                document.getElementById('rtcInAva').innerHTML = rtcAvatarHtml({ name, avatar: d.incoming.avatar });
+                document.getElementById('rtcInName').textContent = name;
+                document.getElementById('rtcInKind').textContent =
+                    d.incoming.kind === 'audio' ? 'Аудиозвонок' : 'Видеозвонок';
+                document.getElementById('rtcIncoming').classList.add('open');
+                rtcRingtone(true);
+            }
+            // звонивший ушёл — прячем окно входящего
+            if (!d.incoming && rtcIncomingCall) {
+                rtcIncomingCall = null;
+                document.getElementById('rtcIncoming').classList.remove('open');
+                rtcRingtone(false);
+            }
+            // собеседник взял трубку
+            if (rtcCallId && d.active && Number(d.active.id) === Number(rtcCallId)
+                && d.active.status === 'accepted' && rtcRole === 'caller' && !rtcStartedAt) {
+                rtcSetState('Соединяем…');
+            }
+            if (d.signals && d.signals.length) await rtcHandleSignals(d.signals);
+
+            // звонок завершён другой стороной
+            if (rtcCallId && (!d.active || Number(d.active.id) !== Number(rtcCallId))) {
+                const why = d.recent_end && Number(d.recent_end.id) === Number(rtcCallId)
+                    ? d.recent_end.end_reason : '';
+                rtcCloseScreen(); rtcTeardown();
+                if (why === 'declined') toast('Собеседник отклонил звонок');
+                else if (why === 'missed') toast('Собеседник не ответил');
+                else if (why) toast('Звонок завершён');
+            }
+            rtcPollSoon(rtcCallId || rtcIncomingCall ? 1000 : 3000);
+        }
+
+        function rtcPollSoon(ms) {
+            if (rtcPollTimer) clearTimeout(rtcPollTimer);
+            rtcPollTimer = setTimeout(rtcTick, ms);
+        }
+
+        // Опрос запускаем только на странице чатов и только для вошедших.
+        // Пока вкладка скрыта, ходим редко — не тревожим сервер впустую.
+        function rtcStartPolling() {
+            if (!rtcSupported() || !currentUser) return;
+            rtcPollSoon(1500);
+            document.addEventListener('visibilitychange', () => {
+                if (document.visibilityState === 'visible') rtcPollSoon(300);
+            });
+        }
+        // Уходим со страницы во время разговора — предупредим собеседника
+        window.addEventListener('pagehide', () => {
+            if (rtcCallId) {
+                try {
+                    const blob = new Blob([JSON.stringify({ call_id: rtcCallId, reason: 'left' })],
+                                          { type: 'application/json' });
+                    navigator.sendBeacon('/api/calls.php?action=end', blob);
+                } catch (e) {}
+            }
+        });
+
+        // === ВИДЕОЗВОНКИ ЧЕРЕЗ ЯНДЕКС ТЕЛЕМОСТ (запасной путь) ===
         // Телемост нельзя встроить в iframe, поэтому встреча создаётся в Телемосте,
         // а ссылка отправляется собеседнику в чат (он присоединяется одним кликом).
 
