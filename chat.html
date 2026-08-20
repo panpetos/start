@@ -122,6 +122,9 @@
             display: flex; align-items: center; gap: 0.35rem; overflow-x: auto;
             flex: 1; min-width: 0; scrollbar-width: none;
         }
+        /* Видимостью управляет класс, а НЕ инлайновый style: инлайн перебивал правила
+           свёрнутой шторки, и спрятать полоску историй там было нечем. */
+        .stories-row.is-empty { display: none !important; }
         .stories-row::-webkit-scrollbar { display: none; }
         .story-item {
             flex-shrink: 0; cursor: pointer; border: none; background: none; font-family: inherit;
@@ -141,8 +144,9 @@
         }
         .story-avatar img { width: 100%; height: 100%; object-fit: cover; }
         /* Кнопка «добавить историю» — отдельным элементом рядом, а не наклейкой на аватарке */
+        /* Тот же размер, что у кружков историй: 34px рядом с 38px выглядели как ступенька */
         .story-add {
-            flex-shrink: 0; width: 34px; height: 34px; border-radius: 50%; border: 1.5px dashed #9CA3AF;
+            flex-shrink: 0; width: 38px; height: 38px; border-radius: 50%; border: 1.5px dashed #9CA3AF;
             background: none; color: #7C3AED; font-size: 1.05rem; line-height: 1; cursor: pointer;
             display: flex; align-items: center; justify-content: center; font-family: inherit;
         }
@@ -179,7 +183,22 @@
         .conversations-pane.collapsed .chat-sb-search,
         .conversations-pane.collapsed .conversation-info,
         .conversations-pane.collapsed .conversation-time { display: none; }
-        .conversations-pane.collapsed .stories-row { display: none; }
+        /* Свёрнутая шторка на ПК: истории идут ОДНОЙ колонкой под иконками.
+           Раньше ряд оставался горизонтальным, и в 76px кружки вставали по два в строку —
+           полоска «двоилась». На телефоне свёрнутая шторка разворачивается на всю ширину
+           (см. блок ниже), и истории там прячем совсем. */
+        @media (min-width: 769px) {
+            .conversations-pane.collapsed .stories-row {
+                flex-direction: column; flex: 0 1 auto; align-items: center;
+                width: 100%; gap: 0.3rem; max-height: 42vh;
+                overflow-y: auto; overflow-x: hidden;
+            }
+            /* В рейке шириной 76px слову «Истории» не место — остаётся только «＋» */
+            .conversations-pane.collapsed .stories-label { display: none; }
+        }
+        @media (max-width: 768px) {
+            .conversations-pane.collapsed .stories-row { display: none; }
+        }
         .conversations-pane.collapsed .conversation-item {
             justify-content: center; padding: 0.55rem 0; gap: 0;
         }
@@ -1528,22 +1547,13 @@
             }
         }
 
-        /* Действия над ответом ассистента: копировать, переслать, в задачи */
-        .ai-acts { display: flex; gap: 0.25rem; margin-top: 0.35rem; opacity: 0; transition: opacity 0.15s; }
-        .message:hover .ai-acts, .ai-acts:focus-within { opacity: 1; }
-        .ai-acts button {
-            border: none; background: rgba(124,58,237,0.12); color: inherit; cursor: pointer;
-            border-radius: 0.45rem; padding: 0.2rem 0.45rem; font-size: 0.86rem; line-height: 1.2;
-        }
-        .ai-acts button:hover { background: rgba(124,58,237,0.26); }
-        @media (max-width: 768px) { .ai-acts { opacity: 1; } }   /* на телефоне наведения нет */
-        body.dark .ai-acts button { background: rgba(255,255,255,0.10); }
         /* Озвучка ответа: пока читает — кнопка подсвечена и мягко пульсирует,
-           чтобы было видно, какой именно ответ сейчас звучит. */
-        .ai-acts .ai-speak.on { background: #7C3AED; color: #fff; animation: aiSpeakPulse 1.4s ease-in-out infinite; }
-        body.dark .ai-acts .ai-speak.on { background: #7C3AED; color: #fff; }
+           чтобы было видно, какой именно ответ сейчас звучит.
+           Сами кнопки под ответом теперь общие с перепиской — см. .msg-hover. */
+        .msg-hover button.ai-speak.on { background: #7C3AED; color: #fff; animation: aiSpeakPulse 1.4s ease-in-out infinite; }
+        body.dark .msg-hover button.ai-speak.on { background: #7C3AED; color: #fff; }
         @keyframes aiSpeakPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.55; } }
-        @media (prefers-reduced-motion: reduce) { .ai-acts .ai-speak.on { animation: none; } }
+        @media (prefers-reduced-motion: reduce) { .msg-hover button.ai-speak.on { animation: none; } }
 
         /* Кнопка возврата к последним сообщениям */
         .scroll-down-btn {
@@ -2561,7 +2571,7 @@
                 </button>
                 <!-- Истории — в этой же строке, теми же кружками: отдельная полоса под
                      шапкой занимала целую строку и делала список громоздким. -->
-                <div id="storiesRow" class="stories-row" style="display:none;"></div>
+                <div id="storiesRow" class="stories-row is-empty"></div>
                 <input id="chatSearchInput" class="chat-sb-search" type="text" placeholder="Поиск по чатам..." oninput="filterConversations()">
                 <!-- Что ищем: людей и чаты по названию или слова внутри переписок.
                      По имени искалось всегда, а «где я это писал» — не находилось никак. -->
@@ -2607,9 +2617,11 @@
                 <div class="pinned-bar" id="pinnedBar" style="display:none;" onclick="jumpToPinned()">
                     <svg width="17" height="17" class="pin-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4h6l-1 5 3.5 3.5H5.5L9 9 8 4z"/><path d="M12 12.5V20"/></svg>
                     <div class="pinned-text">
-                        <div class="pinned-title">Закреплённое сообщение</div>
+                        <div class="pinned-title" id="pinnedTitle">Закреплённое сообщение</div>
                         <div class="pinned-body" id="pinnedBody"></div>
                     </div>
+                    <button class="pinned-unpin" id="pinnedAll" onclick="event.stopPropagation();unpinAll()"
+                            title="Открепить все" aria-label="Открепить все" style="display:none;">⌫</button>
                     <button class="pinned-unpin" id="pinnedUnpin" onclick="event.stopPropagation();unpinCurrent()" title="Открепить" aria-label="Открепить">✕</button>
                 </div>
                 <!-- Закреплённый плеер: видно, что играет, можно поставить на паузу и остановить -->
@@ -3239,7 +3251,7 @@
         let groupIsOwner = false; // владелец текущей открытой группы (может модерировать и переименовывать)
 
         async function openGroupChat(groupId) {
-            pinnedMessage = null; renderPinnedBar();
+            clearPinnedBar();
             loadMentionMembers(groupId);   // чтобы подсказка по @ знала, кого предлагать
             cancelEditMessage();
             selectedUserId = GROUP_PREFIX + groupId;
@@ -3661,7 +3673,7 @@
         // ── Канал как раздел чата: лента постов психолога вместо переписки — писать этому человеку отсюда нельзя,
         // можно только читать и комментировать посты (как канал в Телеграм). Задача #29, рефок.
         async function openChannel(psychId) {
-            pinnedMessage = null; renderPinnedBar();
+            clearPinnedBar();
             selectedUserId = CHANNEL_PREFIX + psychId;
             syncChatUrl(selectedUserId);
             leaveAiMode();
@@ -3837,7 +3849,7 @@
         let feedRowsCache = [];
 
         async function openFeedSection() {
-            pinnedMessage = null; renderPinnedBar();
+            clearPinnedBar();
             selectedUserId = FEED_ID;
             syncChatUrl(selectedUserId);
             leaveAiMode();
@@ -5433,7 +5445,33 @@
         //  Закреплённый диалог — личная настройка: поднимается наверх списка.
         // ══════════════════════════════════════════════════════════════════════════════
         let pinnedChats = [];            // ключи закреплённых чатов
-        let pinnedMessage = null;        // {message_id, preview} текущего открытого чата
+        // Закреплений в чате может быть много (как в Telegram). В плашке показываем одно,
+        // нажатие перелистывает на следующее; pinnedMessage — то, что показано сейчас.
+        let pinnedMessages = [];         // [{message_id, preview}], от давних к свежим
+        let pinnedIdx = 0;               // какое из них сейчас в плашке
+        let pinnedMessage = null;        // = pinnedMessages[pinnedIdx]
+
+        /** Держим pinnedIdx в границах и обновляем pinnedMessage. */
+        function syncPinnedCurrent(keepId) {
+            if (!pinnedMessages.length) { pinnedIdx = 0; pinnedMessage = null; return; }
+            if (keepId) {
+                const i = pinnedMessages.findIndex(p => String(p.message_id) === String(keepId));
+                if (i >= 0) pinnedIdx = i;
+            }
+            if (pinnedIdx < 0 || pinnedIdx >= pinnedMessages.length) pinnedIdx = pinnedMessages.length - 1;
+            pinnedMessage = pinnedMessages[pinnedIdx];
+        }
+
+        function isPinned(id) {
+            return pinnedMessages.some(p => String(p.message_id) === String(id));
+        }
+
+        /** Полный сброс плашки при уходе из чата. Обнулять одно pinnedMessage мало:
+         *  renderPinnedBar восстановил бы его из оставшегося списка прошлого чата. */
+        function clearPinnedBar() {
+            pinnedMessages = []; pinnedIdx = 0; pinnedMessage = null;
+            renderPinnedBar();
+        }
 
         async function pinsApi(action, payload) {
             const url = '/api/chat_pins.php?action=' + action;
@@ -5680,47 +5718,94 @@
         /** Подтянуть закрепление для открытого чата и показать плашку. */
         async function loadPinnedMessage() {
             const key = currentChatKey();
-            pinnedMessage = null;
+            pinnedMessages = []; pinnedIdx = 0; pinnedMessage = null;
             if (!key) { renderPinnedBar(); return; }
             try {
                 const d = await pinsApi('state&chat_key=' + encodeURIComponent(key));
-                pinnedMessage = d.pinned_message || null;
-            } catch (e) { pinnedMessage = null; }
+                // Старый сервер отдаёт только pinned_message — понимаем оба ответа
+                pinnedMessages = d.pinned_messages || (d.pinned_message ? [d.pinned_message] : []);
+            } catch (e) { pinnedMessages = []; }
+            syncPinnedCurrent();
             renderPinnedBar();
         }
 
         function renderPinnedBar() {
             const bar = document.getElementById('pinnedBar');
             if (!bar) return;
+            syncPinnedCurrent();
             if (!pinnedMessage) { bar.style.display = 'none'; return; }
             bar.style.display = 'flex';
+            const n = pinnedMessages.length;
+            const title = document.getElementById('pinnedTitle');
+            // Показываем, сколько закреплено и какое сейчас перед глазами
+            if (title) title.textContent = n > 1
+                ? `Закреплённые · ${pinnedIdx + 1} из ${n}`
+                : 'Закреплённое сообщение';
             document.getElementById('pinnedBody').textContent = pinnedMessage.preview || 'Сообщение';
+            const un = document.getElementById('pinnedUnpin');
+            if (un) un.title = n > 1 ? 'Открепить это сообщение' : 'Открепить';
+            const all = document.getElementById('pinnedAll');
+            if (all) all.style.display = n > 1 ? 'flex' : 'none';
         }
 
-        /** Закрепить сообщение (одно на разговор — новое заменяет прежнее, как в Telegram). */
+        /** Закрепить ещё одно сообщение. Прежние остаются — как в Telegram. */
         async function pinMessage(evt, id, preview) {
             if (evt) evt.stopPropagation();
             const key = currentChatKey();
             if (!key || !id) return;
             try {
                 const d = await pinsApi('pin-message', { chat_key: key, message_id: id, preview: preview || '' });
-                pinnedMessage = { message_id: d.message_id, preview: d.preview };
+                pinnedMessages = d.pinned_messages || [{ message_id: d.message_id, preview: d.preview }];
+                syncPinnedCurrent(id);          // показываем то, что только что закрепили
                 renderPinnedBar();
+                refreshOpenChatMessages();
+                toast(pinnedMessages.length > 1
+                    ? `Закреплено · всего ${pinnedMessages.length}` : 'Сообщение закреплено');
             } catch (e) {
                 alert('Не удалось закрепить сообщение: ' + e.message);
             }
         }
 
-        async function unpinCurrent() {
+        /** Снять закрепление: одно (по id) или все сразу. */
+        async function unpinMessageById(id, all) {
             const key = currentChatKey();
             if (!key) return;
             try {
-                await pinsApi('unpin-message', { chat_key: key });
-                pinnedMessage = null;
+                const body = { chat_key: key };
+                if (!all && id) body.message_id = String(id);
+                const d = await pinsApi('unpin-message', body);
+                pinnedMessages = d.pinned_messages || [];
+                if (pinnedIdx >= pinnedMessages.length) pinnedIdx = pinnedMessages.length - 1;
+                syncPinnedCurrent();
                 renderPinnedBar();
+                refreshOpenChatMessages();
             } catch (e) {
                 alert('Не удалось открепить: ' + e.message);
             }
+        }
+        window.unpinMessageById = unpinMessageById;
+
+        /** Крестик в плашке: снимает то закрепление, что сейчас показано. */
+        async function unpinCurrent() {
+            if (!pinnedMessage) return;
+            await unpinMessageById(pinnedMessage.message_id, false);
+        }
+
+        /** Открепить все разом — из меню плашки, когда закреплений много. */
+        async function unpinAll() {
+            if (!pinnedMessages.length) return;
+            if (!confirm(`Открепить все закреплённые сообщения (${pinnedMessages.length})?`)) return;
+            await unpinMessageById(null, true);
+        }
+        window.unpinAll = unpinAll;
+
+        /** Перерисовать открытую переписку, чтобы «Закрепить/Открепить» в меню совпадало с делом.
+         *  loadMessages сам разбирает, что открыто — личный чат, группа или «Избранное». */
+        function refreshOpenChatMessages() {
+            try {
+                if (typeof isAiMode === 'function' && isAiMode()) return;
+                if (selectedUserId && typeof loadMessages === 'function') loadMessages();
+            } catch (e) {}
         }
 
         // Подсветка живёт около двух секунд. Список сообщений перерисовывается опросом раз в
@@ -5746,13 +5831,22 @@
             if (el && !el.classList.contains('flash')) el.classList.add('flash');
         }
 
-        /** Прокрутить переписку к закреплённому сообщению и подсветить его. */
+        /**
+         * Прокрутить переписку к закреплённому сообщению и подсветить его.
+         * Закреплений может быть несколько: как в Telegram, каждое нажатие по плашке
+         * переводит к следующему по кругу.
+         */
         function jumpToPinned() {
             if (!pinnedMessage) return;
             const id = pinnedMessage.message_id;
             const el = document.querySelector(`[data-msg-id="${id}"]`) ||
                        document.querySelector(`[data-fav-id="${id}"]`);
-            if (!el) { alert('Сообщение выше в переписке — прокрутите вверх, оно ещё не загружено.'); return; }
+            if (pinnedMessages.length > 1) {      // следующее показываем сразу, даже если это не нашлось
+                pinnedIdx = (pinnedIdx + 1) % pinnedMessages.length;
+                syncPinnedCurrent();
+                renderPinnedBar();
+            }
+            if (!el) { toast('Это сообщение выше в переписке — прокрутите вверх, оно ещё не загружено.'); return; }
             try { el.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (e) {}
             flashMessage(el, id);
         }
@@ -6039,9 +6133,9 @@
             try {
                 const r = await fetch('/api/stories.php?action=feed', { credentials: 'include' });
                 const d = await r.json();
-                if (!d || !d.ok) { row.style.display = 'none'; return; }
+                if (!d || !d.ok) { row.classList.add('is-empty'); return; }
                 storiesData = { mine: d.mine || [], data: d.data || [] };
-            } catch (e) { row.style.display = 'none'; return; }
+            } catch (e) { row.classList.add('is-empty'); return; }
 
             const mine = storiesData.mine[0] || null;
             const hasMine = mine && mine.stories && mine.stories.length;
@@ -6068,7 +6162,7 @@
             });
             // Пусто — оставляем только «плюс» с подписью, чтобы понятно было, что это такое.
             if (!hasMine && !storiesData.data.length) items.push('<span class="stories-label">Истории</span>');
-            row.style.display = 'flex';
+            row.classList.remove('is-empty');
             row.innerHTML = items.join('');
         }
 
@@ -7007,7 +7101,11 @@
             // Админу — быстрый путь из любой переписки в очередь доработок
             if (currentUser && currentUser.role === 'admin')
                 html += row('🧩', 'В задачи Клоду', `sendToDevTasks('${id}')`);
-            if (cap.canPin) html += row('📌', 'Закрепить', `pinMessageById('${id}')`);
+            // Закрепить можно много раз (как в Telegram), поэтому у уже закреплённого
+            // предлагаем обратное действие, а не «закрепить» второй раз.
+            if (cap.canPin) html += isPinned(id)
+                ? row('📌', 'Открепить', `unpinMessageById('${id}')`)
+                : row('📌', 'Закрепить', `pinMessageById('${id}')`);
             if (cap.canEdit) html += row('✏️', 'Изменить', cap.kind === 'group' ? `startEditGroupMessage(null,'${id}')`
                 : (cap.kind === 'fav' ? `startEditFavMessage(null,'${id}')` : `startEditMessage(null,'${id}')`));
             if (cap.canDelete) {
@@ -7914,7 +8012,7 @@
         }
 
         async function openAiBot() {
-            pinnedMessage = null; renderPinnedBar();
+            clearPinnedBar();
             selectedUserId = AI_ID;
             syncChatUrl(selectedUserId);
             cancelEditMessage();
@@ -8054,7 +8152,6 @@
                     </div></div>`;
                 return;
             }
-            const isAdm = currentUser && currentUser.role === 'admin';
             c.innerHTML = aiMessages.map((m, i) => {
                 const parts = splitAiSources(String(m.content || ''));
                 if (m.role !== 'user') parts.body = tidyAiAnswer(parts.body);
@@ -8063,14 +8160,7 @@
                     <div>${msgText(parts.body)}</div>
                     ${aiFilesHtml(m.files)}
                     ${sourcesHtml(parts.srcs)}
-                    <div class="ai-acts">
-                        ${m.role !== 'user'
-                            ? `<button class="ai-speak" data-idx="${i}" onclick="aiSpeak(${i})" title="Прослушать ответ">🔊</button>`
-                            : ''}
-                        <button onclick="aiCopy(${i})" title="Скопировать">📋</button>
-                        <button onclick="aiForward(${i})" title="Переслать в переписку">↪</button>
-                        ${isAdm ? `<button onclick="aiToTask(${i})" title="В задачи Клоду">🧩</button>` : ''}
-                    </div>
+                    ${aiHoverHtml(i, m.role !== 'user')}
                 </div>`;
             }).join('') + '<div id="aiTail"></div>';
             c.scrollTop = c.scrollHeight;
@@ -8080,6 +8170,81 @@
         // Действия над сообщением ассистента — то же, что и в обычной переписке:
         // скопировать, переслать человеку, а админу ещё и отправить в очередь доработок.
         function aiText(i) { const m = aiMessages[i]; return m ? String(m.content || '') : ''; }
+
+        // ── Кнопки под ответом: тот же вид, что и у обычных сообщений ────────────────
+        // Раньше это был свой ряд плоских эмодзи (.ai-acts), непохожий на остальной чат.
+        // Теперь — те же круглые кнопки при наведении и «⋮» с меню, что и в переписке.
+        const ICO_SPEAK = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5L6 9H3v6h3l5 4V5z"/><path d="M15.2 9.2a4 4 0 010 5.6"/><path d="M17.8 6.6a7.5 7.5 0 010 10.8"/></svg>';
+        const ICO_SPEAK_STOP = '<svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" stroke="none"><rect x="6" y="6" width="12" height="12" rx="2.4"/></svg>';
+        const ICO_REPLY_S = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M10 4L4 9l6 5V4z"/><path d="M4 9h11a5 5 0 015 5v3"/></svg>';
+        const ICO_DOTS_S = '<svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="6" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="12" cy="18" r="1.7"/></svg>';
+
+        function aiHoverHtml(i, isAssistant) {
+            return `<div class="msg-foot"><div class="msg-hover">
+                ${isAssistant ? `<button class="ai-speak" data-idx="${i}" onclick="event.stopPropagation();aiSpeak(${i})"
+                        title="Прослушать ответ" aria-label="Прослушать ответ">${ICO_SPEAK}</button>` : ''}
+                <button onclick="aiReply(event,${i})" title="Уточнить по этому ответу" aria-label="Уточнить">${ICO_REPLY_S}</button>
+                <button onclick="openAiMsgMenu(event,${i})" title="Ещё" aria-label="Ещё">${ICO_DOTS_S}</button>
+            </div></div>`;
+        }
+
+        /** Уточнить по ответу: цитата уходит в поле ввода, как «Ответить» в переписке. */
+        function aiReply(evt, i) {
+            if (evt) evt.stopPropagation();
+            closeFolderPicker();
+            const quote = aiPlainText(aiText(i)).slice(0, 160);
+            const inp = document.getElementById('messageInput');
+            if (!inp) return;
+            inp.value = (quote ? '> ' + quote + '…\n\n' : '') + inp.value;
+            inp.focus();
+            if (typeof autoGrowInput === 'function') autoGrowInput(inp);
+        }
+        window.aiReply = aiReply;
+
+        /** Удалить одну реплику из диалога с ассистентом (у обычных сообщений это есть). */
+        function aiDeleteMessage(i) {
+            if (!aiMessages[i]) return;
+            if (!confirm('Удалить это сообщение из диалога? Отменить будет нельзя.')) return;
+            if (aiSpeakIdx === i) aiStopSpeak();
+            aiMessages.splice(i, 1);
+            aiSave();
+            renderAiBar();
+            renderAiMessages();
+        }
+        window.aiDeleteMessage = aiDeleteMessage;
+
+        /** Меню «⋮» у реплики ассистента — тем же оформлением, что и у обычных сообщений. */
+        function openAiMsgMenu(evt, i) {
+            if (evt) { evt.stopPropagation(); evt.preventDefault(); }
+            closeFolderPicker();
+            document.querySelectorAll('.message.menu-open').forEach(el => el.classList.remove('menu-open'));
+            const own = document.querySelector(`[data-ai-idx="${i}"]`);
+            if (own) own.classList.add('menu-open');
+            const isAssistant = aiMessages[i] && aiMessages[i].role !== 'user';
+            const menu = document.createElement('div');
+            menu.className = 'folder-picker';
+            menu.id = 'folderPicker';
+            const row = (icon, label, call) =>
+                `<button class="folder-picker-row" onclick="event.stopPropagation();closeFolderPicker();${call}">
+                    <span class="fp-mark">${icon}</span>${label}
+                </button>`;
+            let html = '';
+            if (isAssistant) html += row('🔊', aiSpeakIdx === i ? 'Остановить озвучку' : 'Прослушать ответ', `aiSpeak(${i})`);
+            html += row('↩', 'Уточнить по ответу', `aiReply(null,${i})`);
+            html += row('📋', 'Скопировать текст', `aiCopy(${i})`);
+            html += row('↪', 'Переслать', `aiForward(${i})`);
+            if (currentUser && currentUser.role === 'admin') html += row('🧩', 'В задачи Клоду', `aiToTask(${i})`);
+            html += row('🗑', 'Удалить', `aiDeleteMessage(${i})`);
+            menu.innerHTML = html;
+            document.body.appendChild(menu);
+            const r = evt ? evt.currentTarget.getBoundingClientRect()
+                          : (own || document.body).getBoundingClientRect();
+            const mh = menu.getBoundingClientRect().height;
+            menu.style.left = Math.min(r.left, window.innerWidth - menu.offsetWidth - 8) + 'px';
+            menu.style.top = (r.bottom + mh > window.innerHeight ? Math.max(8, r.top - mh) : r.bottom + 4) + 'px';
+            setTimeout(() => document.addEventListener('click', closeFolderPicker, { once: true }), 0);
+        }
+        window.openAiMsgMenu = openAiMsgMenu;
 
         async function aiCopy(i) {
             const okc = await copyText(aiText(i));
@@ -8156,7 +8321,7 @@
             document.querySelectorAll('#messagesContainer .ai-speak').forEach(b => {
                 const on = aiSpeakIdx !== null && Number(b.dataset.idx) === aiSpeakIdx;
                 b.classList.toggle('on', on);
-                b.textContent = on ? '⏹' : '🔊';
+                b.innerHTML = on ? ICO_SPEAK_STOP : ICO_SPEAK;
                 b.title = on ? 'Остановить озвучку' : 'Прослушать ответ';
             });
         }
@@ -8378,7 +8543,7 @@
         }
 
         async function openFavorites() {
-            pinnedMessage = null; renderPinnedBar();
+            clearPinnedBar();
             selectedUserId = FAVORITES_ID;
             syncChatUrl(selectedUserId);
             leaveAiMode();
@@ -8561,8 +8726,9 @@
             favMsgCache[String(m.id)] = { content: m.content };
             msgCaps[String(m.id)] = {
                 kind: 'fav', author: 'Заметка', text: fav.body,
-                // Как и в личных чатах и группах: править можно только текст, у вложения править нечего
-                canForward: true, canPin: false, canEdit: !m.attachment_url, canDelete: true,
+                // Как и в личных чатах и группах: править можно только текст, у вложения править нечего.
+                // Закрепления в «Избранном» тоже работают: ключ разговора — __fav__, он свой у каждого.
+                canForward: true, canPin: true, canEdit: !m.attachment_url, canDelete: true,
             };
             return `
                 <div class="message mine${(isVideoNote(m) && !content) ? ' vn-only' : ''}" data-fav-id="${m.id}">

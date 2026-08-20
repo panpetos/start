@@ -48,12 +48,23 @@ function out($d, $c = 200) { http_response_code($c); echo json_encode($d, JSON_U
 $pinsError = '';
 try {
     $pdo->exec("CREATE TABLE IF NOT EXISTS chat_pinned_messages (
-        conversation_key VARCHAR(160) NOT NULL PRIMARY KEY,
+        conversation_key VARCHAR(160) NOT NULL,
         message_id VARCHAR(64) NOT NULL,
         preview VARCHAR(300) NULL,
         pinned_by VARCHAR(64) NOT NULL,
-        pinned_at DATETIME NOT NULL
+        pinned_at DATETIME NOT NULL,
+        PRIMARY KEY (conversation_key, message_id)
     ) DEFAULT CHARSET=utf8mb4");
+    // Миграция уже созданной таблицы: раньше первичным ключом был ОДИН conversation_key,
+    // из-за чего закрепление было ровно одно на разговор и новое затирало прежнее.
+    // Теперь ключ составной — закреплений может быть много, как в Telegram.
+    $pkCols = (int)$pdo->query("SELECT COUNT(*) FROM information_schema.STATISTICS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'chat_pinned_messages'
+          AND INDEX_NAME = 'PRIMARY'")->fetchColumn();
+    if ($pkCols === 1) {
+        $pdo->exec("ALTER TABLE chat_pinned_messages
+                    DROP PRIMARY KEY, ADD PRIMARY KEY (conversation_key, message_id)");
+    }
     $pdo->exec("CREATE TABLE IF NOT EXISTS chat_pinned_chats (
         user_id VARCHAR(64) NOT NULL,
         chat_key VARCHAR(120) NOT NULL,
@@ -98,12 +109,19 @@ try {
         $chatKey = (string)($_GET['chat_key'] ?? '');
         if ($chatKey === '') out(['ok' => false, 'error' => 'Не передан чат'], 400);
         $ck = conversationKey($chatKey, $userId);
-        $st = $pdo->prepare("SELECT message_id, preview, pinned_by, pinned_at FROM chat_pinned_messages WHERE conversation_key = ?");
+        // По возрастанию времени: в плашке листаем закреплённые так же, как они идут
+        // в переписке — от давнего к свежему.
+        $st = $pdo->prepare("SELECT message_id, preview, pinned_by, pinned_at FROM chat_pinned_messages
+                             WHERE conversation_key = ? ORDER BY pinned_at ASC, message_id ASC");
         $st->execute([$ck]);
-        $pinned = $st->fetch(PDO::FETCH_ASSOC) ?: null;
+        $list = $st->fetchAll(PDO::FETCH_ASSOC) ?: [];
         $c = $pdo->prepare("SELECT 1 FROM chat_pinned_chats WHERE user_id = ? AND chat_key = ?");
         $c->execute([$userId, $chatKey]);
-        out(['ok' => true, 'pinned_message' => $pinned, 'chat_pinned' => (bool)$c->fetchColumn()]);
+        out(['ok' => true,
+             'pinned_messages' => $list,
+             // старое поле оставляем: им пользуются вкладки, открытые до обновления
+             'pinned_message' => $list ? $list[count($list) - 1] : null,
+             'chat_pinned' => (bool)$c->fetchColumn()]);
     }
 
     if ($action === 'pinned-chats') {
@@ -120,25 +138,44 @@ try {
         if ($chatKey === '' || $messageId === '') out(['ok' => false, 'error' => 'Некорректный запрос'], 400);
         $ck = conversationKey($chatKey, $userId);
         $preview = cutText($body['preview'] ?? '', 300);
-        // Одно закрепление на разговор: новое заменяет прежнее (как в Telegram по умолчанию).
-        $st = $pdo->prepare("SELECT 1 FROM chat_pinned_messages WHERE conversation_key = ?");
-        $st->execute([$ck]);
-        if ($st->fetchColumn()) {
-            $pdo->prepare("UPDATE chat_pinned_messages SET message_id = ?, preview = ?, pinned_by = ?, pinned_at = NOW() WHERE conversation_key = ?")
-                ->execute([$messageId, $preview, $userId, $ck]);
-        } else {
-            $pdo->prepare("INSERT INTO chat_pinned_messages (conversation_key, message_id, preview, pinned_by, pinned_at) VALUES (?, ?, ?, ?, NOW())")
-                ->execute([$ck, $messageId, $preview, $userId]);
+        // Закреплений может быть много: новое ДОБАВЛЯЕТСЯ, а не затирает прежнее.
+        // Повторное закрепление того же сообщения только обновляет подпись и время.
+        $st = $pdo->prepare("SELECT 1 FROM chat_pinned_messages WHERE conversation_key = ? AND message_id = ?");
+        $st->execute([$ck, $messageId]);
+        if (!$st->fetchColumn()) {
+            $cnt = $pdo->prepare("SELECT COUNT(*) FROM chat_pinned_messages WHERE conversation_key = ?");
+            $cnt->execute([$ck]);
+            if ((int)$cnt->fetchColumn() >= 50) {
+                out(['ok' => false, 'error' => 'Больше 50 закреплённых сообщений в одном чате не поддерживается'], 400);
+            }
         }
-        out(['ok' => true, 'message_id' => $messageId, 'preview' => $preview]);
+        $pdo->prepare("INSERT INTO chat_pinned_messages (conversation_key, message_id, preview, pinned_by, pinned_at)
+                       VALUES (?, ?, ?, ?, NOW())
+                       ON DUPLICATE KEY UPDATE preview = VALUES(preview), pinned_by = VALUES(pinned_by), pinned_at = NOW()")
+            ->execute([$ck, $messageId, $preview, $userId]);
+        $all = $pdo->prepare("SELECT message_id, preview, pinned_by, pinned_at FROM chat_pinned_messages
+                              WHERE conversation_key = ? ORDER BY pinned_at ASC, message_id ASC");
+        $all->execute([$ck]);
+        out(['ok' => true, 'message_id' => $messageId, 'preview' => $preview,
+             'pinned_messages' => $all->fetchAll(PDO::FETCH_ASSOC) ?: []]);
     }
 
     if ($action === 'unpin-message' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         $chatKey = (string)($body['chat_key'] ?? '');
         if ($chatKey === '') out(['ok' => false, 'error' => 'Не передан чат'], 400);
-        $pdo->prepare("DELETE FROM chat_pinned_messages WHERE conversation_key = ?")
-            ->execute([conversationKey($chatKey, $userId)]);
-        out(['ok' => true]);
+        $ck = conversationKey($chatKey, $userId);
+        // С message_id — снимаем одно закрепление, без него — все сразу («Открепить все»).
+        $messageId = trim((string)($body['message_id'] ?? ''));
+        if ($messageId !== '') {
+            $pdo->prepare("DELETE FROM chat_pinned_messages WHERE conversation_key = ? AND message_id = ?")
+                ->execute([$ck, $messageId]);
+        } else {
+            $pdo->prepare("DELETE FROM chat_pinned_messages WHERE conversation_key = ?")->execute([$ck]);
+        }
+        $all = $pdo->prepare("SELECT message_id, preview, pinned_by, pinned_at FROM chat_pinned_messages
+                              WHERE conversation_key = ? ORDER BY pinned_at ASC, message_id ASC");
+        $all->execute([$ck]);
+        out(['ok' => true, 'pinned_messages' => $all->fetchAll(PDO::FETCH_ASSOC) ?: []]);
     }
 
     if ($action === 'pin-chat' && $_SERVER['REQUEST_METHOD'] === 'POST') {
