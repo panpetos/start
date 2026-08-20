@@ -1170,7 +1170,7 @@
         /* Кнопка «Стоп»: ответ бывает длинным, и ждать его до конца незачем */
         .ai-stop { display: none; align-items: center; gap: .3rem; font-family: inherit; font-size: .8rem;
                    font-weight: 600; cursor: pointer; padding: .35rem .7rem; border-radius: 999px;
-                   border: 1px solid #FCA5A5; background: #FEF2F2; color: #B91C1C; }
+                   border: 1px solid #FCA5A5; background: #FEF2F2; color: #B91C1C; flex-shrink: 0; }
         body.ai-answering .ai-stop { display: inline-flex; }
         body.dark .ai-stop { background: #3B1D1D; border-color: #7F1D1D; color: #FCA5A5; }
         /* Ход поиска в интернете — строкой над ответом, пока он набирается */
@@ -1217,28 +1217,75 @@
                      background-repeat: no-repeat; background-position: right .5rem center; }
         body.dark .ai-select { background-color: #2A2A2A; border-color: #444; color: #C9C9C9; }
 
-        /* Полоска над полем ввода: интернет и модель на виду, только у ассистента */
-        .ai-bar { display: none; align-items: center; gap: 0.4rem; flex-wrap: wrap;
+        /* Полоска над полем ввода: интернет и модель на виду, только у ассистента.
+           Раньше все кнопки шли одной кучей с flex-wrap: на узком экране они
+           переносились как попало и «слипались». Теперь два понятных блока —
+           слева диалог (выбор + создать + удалить), справа режим (интернет + модель),
+           между ними разделитель. Подсказка — отдельной строкой под ними. */
+        .ai-bar { display: none; flex-direction: column; gap: 0.3rem;
                   padding: 0.5rem 0.75rem 0.15rem; }
-        .ai-threads { max-width: 44vw; }
-        @media (min-width: 720px) { .ai-threads { max-width: 260px; } }
         body.ai-chat .ai-bar { display: flex; }
+        /* Строго одна строка: перенос добавлял ~12px высоты переписке на каждом
+           телефоне, а место экономится сжатием списков (см. min-width ниже). */
+        .ai-bar-row { display: flex; align-items: center; gap: 0.5rem; min-width: 0; }
+        .ai-bar-group { display: flex; align-items: center; gap: 0.3rem; min-width: 0; }
+        /* Правый блок прижат к правому краю. Сжиматься ему можно, но за счёт названия
+           модели, а не значка интернета: чип с режимом должен остаться читаемым. */
+        .ai-bar-group.ai-bar-right { margin-left: auto; min-width: 0; }
+        .ai-bar-right .ai-select { flex: 0 1 auto; min-width: 0; }
+        .ai-bar-sep { width: 1px; align-self: stretch; margin: 0.15rem 0.1rem;
+                      background: #E5E7EB; flex-shrink: 0; }
+        body.dark .ai-bar-sep { background: #444; }
+        /* Одна высота у всех органов управления — иначе ряд выглядит рваным */
+        .ai-select, .ai-chip, .ai-icon-btn, .ai-stop { height: 30px; }
+        /* min-width, чтобы от названия диалога не оставалось «Ка…»: пусть лучше
+           ужмётся название модели — оно короче и его видно в подсказке. */
+        .ai-threads { flex: 0 1 auto; min-width: 88px; max-width: 44vw; }
+        @media (min-width: 720px) { .ai-threads { max-width: 260px; } }
         .ai-chip { display: inline-flex; align-items: center; gap: 0.3rem; font-family: inherit;
                    font-size: 0.8rem; font-weight: 600; line-height: 1; cursor: pointer;
                    padding: 0.35rem 0.6rem; border-radius: 999px; border: 1px solid #E5E7EB;
-                   background: #F9FAFB; color: #4B5563; max-width: 100%; }
+                   background: #F9FAFB; color: #4B5563; max-width: 100%; flex-shrink: 0; }
         .ai-chip:hover { background: #F3F4F6; }
         .ai-chip.on { border-color: #C4B5FD; background: #F5F3FF; color: #6D28D9; }
         .ai-chip.off { color: #6B7280; }
-        .ai-bar-hint { font-size: 0.78rem; color: #9CA3AF; flex: 1 1 100%; }
-        @media (min-width: 720px) { .ai-bar-hint { flex: 1 1 auto; } }
+        /* Круглые кнопки-действия: «＋» и «🗑» рядом со списком диалогов */
+        .ai-icon-btn { width: 30px; flex-shrink: 0; display: inline-flex; align-items: center;
+                       justify-content: center; padding: 0; border-radius: 999px;
+                       border: 1px solid #E5E7EB; background: #F9FAFB; color: #4B5563;
+                       font-family: inherit; font-size: 0.95rem; line-height: 1; cursor: pointer; }
+        .ai-icon-btn:hover { border-color: #C4B5FD; background: #F5F3FF; color: #6D28D9; }
+        .ai-icon-btn.danger:hover { border-color: #FCA5A5; background: #FEF2F2; color: #B91C1C; }
+        body.dark .ai-icon-btn { background: #2A2A2A; border-color: #444; color: #C9C9C9; }
+        body.dark .ai-icon-btn:hover { border-color: #6D28D9; background: #2D1F4E; color: #C4B5FD; }
+        body.dark .ai-icon-btn.danger:hover { border-color: #7F1D1D; background: #3B1D1D; color: #FCA5A5; }
+        .ai-bar-hint { font-size: 0.78rem; color: #9CA3AF; }
         /* На телефоне подсказка съедала сотню точек высоты переписки. Оставляем её
            только там, где она действительно нужна — когда поиск недоступен. */
         @media (max-width: 719px) {
-            .ai-bar { padding: 0.35rem 0.6rem 0; gap: 0.35rem; }
+            .ai-bar { padding: 0.35rem 0.6rem 0; gap: 0.25rem; }
+            .ai-bar-row { gap: 0.35rem; }
             .ai-bar-hint { display: none; }
             .ai-bar.warn .ai-bar-hint { display: block; }
         }
+        /* Совсем узкий экран: у чипа остаётся значок и состояние («🌐 авто»),
+           слово «Интернет» и подпись «Стоп» прячем — ряд перестаёт переполняться. */
+        @media (max-width: 560px) {
+            .ai-chip-txt { display: none; }
+            .ai-threads { max-width: 38vw; }
+            .ai-bar-sep { display: none; }
+            /* На телефоне «🗑» из полоски убираем: вчетвером (диалоги, ＋, 🗑, интернет,
+               модель, а во время ответа ещё и «Стоп») они перестают помещаться в строку
+               и наезжают друг на друга. Удаление диалога осталось в меню «⋮» в шапке. */
+            .ai-icon-btn.danger { display: none; }
+        }
+        /* Совсем маленькие экраны (320px и уже): отдаём название диалога под сжатие,
+           иначе строка переполняется, когда во время ответа появляется «Стоп». */
+        @media (max-width: 360px) { .ai-threads { min-width: 64px; } }
+        /* И самый край (уже 320px): пока идёт ответ, прячем ещё и выбор модели —
+           менять её посреди ответа всё равно нечего, а строка перестаёт переполняться.
+           Модель остаётся в меню «⋮» → «Выбрать модель». */
+        @media (max-width: 320px) { body.ai-answering #aiModelSel { display: none; } }
         body.dark .ai-chip { background: #2A2A2A; border-color: #444; color: #C9C9C9; }
         body.dark .ai-chip.on { background: #2D1F4E; border-color: #6D28D9; color: #C4B5FD; }
         body.dark .ai-bar-hint { color: #8A8A8A; }
@@ -1487,6 +1534,12 @@
         .ai-acts button:hover { background: rgba(124,58,237,0.26); }
         @media (max-width: 768px) { .ai-acts { opacity: 1; } }   /* на телефоне наведения нет */
         body.dark .ai-acts button { background: rgba(255,255,255,0.10); }
+        /* Озвучка ответа: пока читает — кнопка подсвечена и мягко пульсирует,
+           чтобы было видно, какой именно ответ сейчас звучит. */
+        .ai-acts .ai-speak.on { background: #7C3AED; color: #fff; animation: aiSpeakPulse 1.4s ease-in-out infinite; }
+        body.dark .ai-acts .ai-speak.on { background: #7C3AED; color: #fff; }
+        @keyframes aiSpeakPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.55; } }
+        @media (prefers-reduced-motion: reduce) { .ai-acts .ai-speak.on { animation: none; } }
 
         /* Кнопка возврата к последним сообщениям */
         .scroll-down-btn {
@@ -3140,7 +3193,7 @@
             cancelEditMessage();
             selectedUserId = GROUP_PREFIX + groupId;
             syncChatUrl(selectedUserId);
-            document.body.classList.remove('ai-chat');
+            leaveAiMode();
             cancelEditMessage();
             headerRenderedFor = selectedUserId;
 
@@ -3560,7 +3613,7 @@
             pinnedMessage = null; renderPinnedBar();
             selectedUserId = CHANNEL_PREFIX + psychId;
             syncChatUrl(selectedUserId);
-            document.body.classList.remove('ai-chat');
+            leaveAiMode();
             cancelEditMessage();
             headerRenderedFor = selectedUserId;
 
@@ -3736,7 +3789,7 @@
             pinnedMessage = null; renderPinnedBar();
             selectedUserId = FEED_ID;
             syncChatUrl(selectedUserId);
-            document.body.classList.remove('ai-chat');
+            leaveAiMode();
             cancelEditMessage();
             headerRenderedFor = FEED_ID;
 
@@ -4820,7 +4873,7 @@
         // Начать новый чат с пользователем (даже если нет истории)
         async function startNewChat(userId) {
             selectedUserId = userId;
-            document.body.classList.remove('ai-chat');
+            leaveAiMode();
             cancelEditMessage();
 
             // Получить информацию о пользователе
@@ -5559,7 +5612,7 @@
         function closeCurrentChat() {
             if (pollInterval) { clearInterval(pollInterval); pollInterval = null; }
             selectedUserId = null;
-            document.body.classList.remove('ai-chat');
+            leaveAiMode();
             headerRenderedFor = null;
             const content = document.getElementById('chatContent');
             const empty = document.getElementById('emptyState');
@@ -7616,6 +7669,7 @@
         /** Начать чистый диалог. Прежний остаётся в списке — ничего не теряется. */
         function aiNewThread() {
             if (aiBusy) { toast('Дождитесь ответа'); return; }
+            aiStopSpeak();
             const th = { id: 'n' + Date.now(), title: 'Новый диалог', at: Date.now(), messages: [] };
             aiThreads.unshift(th);
             aiThreadId = th.id;
@@ -7632,6 +7686,7 @@
             if (id === '__new__') { aiNewThread(); return; }
             const th = aiThreads.find(t => t.id === id);
             if (!th) return;
+            aiStopSpeak();      // читаемый ответ остаётся в другом диалоге
             aiThreadId = th.id;
             aiMessages = Array.isArray(th.messages) ? th.messages : [];
             try { localStorage.setItem(AI_CURRENT, aiThreadId); } catch (e) {}
@@ -7644,6 +7699,7 @@
             const th = aiThreads.find(t => t.id === aiThreadId);
             if (!th) return;
             if (!confirm('Удалить диалог «' + th.title + '»? Отменить будет нельзя.')) return;
+            aiStopSpeak();
             aiThreads = aiThreads.filter(t => t.id !== aiThreadId);
             if (!aiThreads.length) aiThreads = [{ id: 'n' + Date.now(), title: 'Новый диалог', at: Date.now(), messages: [] }];
             aiThreadId = aiThreads[0].id;
@@ -7739,23 +7795,35 @@
             const threads = (aiThreads || []).map(t =>
                 `<option value="${escapeAttr(t.id)}"${t.id === aiThreadId ? ' selected' : ''}>${escapeHtml(t.title || 'Диалог')}</option>`).join('');
             bar.innerHTML = `
-                <select class="ai-select ai-threads" id="aiThreadSel" onchange="aiSwitchThread(this.value)"
-                        title="Диалоги с ассистентом" aria-label="Диалог">
-                    ${threads}<option value="__new__">＋ Новый диалог</option>
-                </select>
-                <button type="button" class="ai-chip" onclick="aiNewThread()" title="Новый диалог">＋</button>
-                <button type="button" class="ai-stop" onclick="aiStop()" title="Остановить ответ">■ Стоп</button>
-                <button type="button" id="aiWebChip" class="ai-chip ${aiSearchAvailable && mode !== 'off' ? 'on' : 'off'}"
-                        onclick="toggleAiSearch()"
-                        title="${aiSearchAvailable ? 'Поиск в интернете: выкл → авто → вкл' : escapeAttr(aiSearchReason)}">
-                    <span aria-hidden="true">🌐</span> Интернет: ${aiSearchAvailable ? AI_SEARCH_LABELS[mode] : 'недоступен'}
-                </button>
-                <select class="ai-select" id="aiModelSel" onchange="setAiModel(this.value)"
-                        title="${escapeAttr(cur ? cur.name : 'Выбрать модель')}" aria-label="Модель">
-                    ${aiModels.length
-                        ? aiModels.map(m => `<option value="${escapeAttr(m.id)}"${m.id === aiModel() ? ' selected' : ''}>${escapeHtml(m.name)}</option>`).join('')
-                        : '<option>Модели недоступны</option>'}
-                </select>
+                <div class="ai-bar-row">
+                    <div class="ai-bar-group">
+                        <select class="ai-select ai-threads" id="aiThreadSel" onchange="aiSwitchThread(this.value)"
+                                title="Диалоги с ассистентом" aria-label="Диалог">
+                            ${threads}<option value="__new__">＋ Новый диалог</option>
+                        </select>
+                        <button type="button" class="ai-icon-btn" onclick="aiNewThread()"
+                                title="Новый диалог" aria-label="Новый диалог">＋</button>
+                        <button type="button" class="ai-icon-btn danger" onclick="aiDeleteThread()"
+                                title="Удалить этот диалог" aria-label="Удалить этот диалог">🗑</button>
+                    </div>
+                    <div class="ai-bar-sep" aria-hidden="true"></div>
+                    <div class="ai-bar-group ai-bar-right">
+                        <button type="button" class="ai-stop" onclick="aiStop()" title="Остановить ответ">
+                            ■<span class="ai-chip-txt"> Стоп</span>
+                        </button>
+                        <button type="button" id="aiWebChip" class="ai-chip ${aiSearchAvailable && mode !== 'off' ? 'on' : 'off'}"
+                                onclick="toggleAiSearch()"
+                                title="${aiSearchAvailable ? 'Поиск в интернете: выкл → авто → вкл' : escapeAttr(aiSearchReason)}">
+                            <span aria-hidden="true">🌐</span><span class="ai-chip-txt">Интернет:</span> ${aiSearchAvailable ? AI_SEARCH_LABELS[mode] : 'недоступен'}
+                        </button>
+                        <select class="ai-select" id="aiModelSel" onchange="setAiModel(this.value)"
+                                title="${escapeAttr(cur ? cur.name : 'Выбрать модель')}" aria-label="Модель">
+                            ${aiModels.length
+                                ? aiModels.map(m => `<option value="${escapeAttr(m.id)}"${m.id === aiModel() ? ' selected' : ''}>${escapeHtml(m.name)}</option>`).join('')
+                                : '<option>Модели недоступны</option>'}
+                        </select>
+                    </div>
+                </div>
                 <span class="ai-bar-hint">${escapeHtml(hint)}</span>`;
         }
         window.renderAiBar = renderAiBar;
@@ -7789,6 +7857,7 @@
         /** Очистить текущий диалог, не удаляя его из списка. Остальные не трогаем. */
         function clearAiChat() {
             if (!confirm('Очистить этот диалог с ассистентом? Отменить будет нельзя.')) return;
+            aiStopSpeak();
             aiMessages = [];
             aiSave();
             renderAiBar();
@@ -7813,6 +7882,9 @@
             if (inputBar) inputBar.style.display = '';
             // Боту нельзя отправить файл, голосовое или кружок — прячем эти кнопки
             document.body.classList.add('ai-chat');
+            // Список голосов браузер отдаёт не сразу: трогаем его заранее, чтобы к первому
+            // нажатию «🔊» русский голос уже был выбран, а не подхватился со второго куска.
+            try { if (window.speechSynthesis) window.speechSynthesis.getVoices(); } catch (e) {}
 
             await loadAiModels();
             await loadAiSearchState();
@@ -7943,6 +8015,9 @@
                     ${aiFilesHtml(m.files)}
                     ${sourcesHtml(parts.srcs)}
                     <div class="ai-acts">
+                        ${m.role !== 'user'
+                            ? `<button class="ai-speak" data-idx="${i}" onclick="aiSpeak(${i})" title="Прослушать ответ">🔊</button>`
+                            : ''}
                         <button onclick="aiCopy(${i})" title="Скопировать">📋</button>
                         <button onclick="aiForward(${i})" title="Переслать в переписку">↪</button>
                         ${isAdm ? `<button onclick="aiToTask(${i})" title="В задачи Клоду">🧩</button>` : ''}
@@ -7950,6 +8025,7 @@
                 </div>`;
             }).join('') + '<div id="aiTail"></div>';
             c.scrollTop = c.scrollHeight;
+            aiSpeakPaint();   // переписка перерисовалась — вернуть подсветку читаемому сейчас ответу
         }
 
         // Действия над сообщением ассистента — то же, что и в обычной переписке:
@@ -7968,6 +8044,120 @@
         }
         function aiToTask(i) { sendToDevTasks(null, aiText(i)); }
         window.aiCopy = aiCopy; window.aiForward = aiForward; window.aiToTask = aiToTask;
+
+        // ── Озвучка ответов ассистента ───────────────────────────────────────────────
+        // Читает встроенный в браузер синтезатор речи (Web Speech API): ничего не
+        // отправляем на сервер и не тратим на это платный трафик модели.
+        let aiSpeakIdx = null;      // индекс ответа, который сейчас читается
+        let aiSpeakChunks = [];     // текст, нарезанный на короткие куски
+        let aiSpeakPos = 0;
+        // Номер «захода». cancel() роняет onend/onerror уже отменённого куска ПОСЛЕ того,
+        // как начался новый — без этой метки чужой обработчик перескакивал бы кусок
+        // или глушил только что запущенную озвучку.
+        let aiSpeakGen = 0;
+
+        function aiSpeakSupported() {
+            return typeof window.speechSynthesis !== 'undefined'
+                && typeof window.SpeechSynthesisUtterance === 'function';
+        }
+
+        /** Русский голос, если он есть в системе. Список подгружается асинхронно. */
+        function aiVoice() {
+            let list = [];
+            try { list = window.speechSynthesis.getVoices() || []; } catch (e) { return null; }
+            return list.find(v => /^ru/i.test(v.lang || '')) || null;
+        }
+
+        /**
+         * Текст для голоса: разметку, ссылки и список источников читать вслух незачем —
+         * иначе синтезатор бубнит «звёздочка звёздочка h t t p s двоеточие…».
+         */
+        function aiPlainText(t) {
+            let s = splitAiSources(String(t || '')).body;
+            s = tidyAiAnswer(s);
+            s = s.replace(/```[\s\S]*?```/g, ' Фрагмент кода. ');
+            s = s.replace(/`([^`]+)`/g, '$1');
+            s = s.replace(/!?\[([^\]]*)\]\([^)]*\)/g, '$1');     // ссылки — только их подпись
+            s = s.replace(/https?:\/\/\S+/g, ' ссылка ');
+            s = s.replace(/^\s{0,3}#{1,6}\s*/gm, '');            // заголовки
+            s = s.replace(/[*_>|~]+/g, ' ');
+            s = s.replace(/\s+/g, ' ').trim();
+            return s;
+        }
+
+        /**
+         * Режем на куски примерно по предложению: длинную реплику одним куском
+         * Chrome обрывает на середине — это его давняя особенность.
+         * Без lookbehind в регулярке: его не понимают старые Safari.
+         */
+        function aiSpeakChunk(text) {
+            const out = [];
+            let cur = '';
+            for (const w of String(text).split(/\s+/).filter(Boolean)) {
+                if (cur && (cur.length + 1 + w.length) > 180) { out.push(cur); cur = w; }
+                else cur = cur ? cur + ' ' + w : w;
+                if (cur.length > 90 && /[.!?…:]$/.test(w)) { out.push(cur); cur = ''; }
+            }
+            if (cur) out.push(cur);
+            return out;
+        }
+
+        /** Обновить кнопки озвучки, не перерисовывая всю переписку (иначе прыгает прокрутка). */
+        function aiSpeakPaint() {
+            document.querySelectorAll('#messagesContainer .ai-speak').forEach(b => {
+                const on = aiSpeakIdx !== null && Number(b.dataset.idx) === aiSpeakIdx;
+                b.classList.toggle('on', on);
+                b.textContent = on ? '⏹' : '🔊';
+                b.title = on ? 'Остановить озвучку' : 'Прослушать ответ';
+            });
+        }
+
+        function aiStopSpeak() {
+            aiSpeakGen++;
+            aiSpeakChunks = [];
+            aiSpeakPos = 0;
+            aiSpeakIdx = null;
+            try { if (window.speechSynthesis) window.speechSynthesis.cancel(); } catch (e) {}
+            aiSpeakPaint();
+        }
+        window.aiStopSpeak = aiStopSpeak;
+
+        function aiSpeakNext(gen) {
+            if (gen !== aiSpeakGen) return;                       // это уже прошлый заход
+            if (aiSpeakIdx === null || aiSpeakPos >= aiSpeakChunks.length) { aiStopSpeak(); return; }
+            const u = new SpeechSynthesisUtterance(aiSpeakChunks[aiSpeakPos++]);
+            const v = aiVoice();
+            if (v) u.voice = v;
+            u.lang = (v && v.lang) || 'ru-RU';
+            u.onend = () => aiSpeakNext(gen);
+            u.onerror = () => { if (gen === aiSpeakGen) aiStopSpeak(); };
+            try { window.speechSynthesis.speak(u); } catch (e) { aiStopSpeak(); }
+        }
+
+        /** Прослушать ответ. Повторное нажатие — остановить; нажатие на другом — переключиться. */
+        function aiSpeak(i) {
+            const wasSame = aiSpeakIdx === i;
+            aiStopSpeak();
+            if (wasSame) return;
+            if (!aiSpeakSupported()) { toast('Браузер не умеет озвучивать текст'); return; }
+            const text = aiPlainText(aiText(i));
+            if (!text) { toast('Нечего озвучивать'); return; }
+            aiSpeakChunks = aiSpeakChunk(text);
+            aiSpeakPos = 0;
+            aiSpeakIdx = i;
+            aiSpeakPaint();
+            aiSpeakNext(aiSpeakGen);
+        }
+        window.aiSpeak = aiSpeak;
+
+        // Ушли со страницы — голос не должен продолжать читать в фоне
+        window.addEventListener('pagehide', aiStopSpeak);
+
+        /** Уйти из режима ассистента: голос замолкает вместе со сменой чата. */
+        function leaveAiMode() {
+            document.body.classList.remove('ai-chat');
+            aiStopSpeak();
+        }
 
         /**
          * Что уходит модели: сам вопрос плюс текст приложенных файлов. В переписке
@@ -8142,7 +8332,7 @@
             pinnedMessage = null; renderPinnedBar();
             selectedUserId = FAVORITES_ID;
             syncChatUrl(selectedUserId);
-            document.body.classList.remove('ai-chat');
+            leaveAiMode();
             cancelEditMessage();
             headerRenderedFor = FAVORITES_ID;
 
@@ -8178,7 +8368,7 @@
         async function openSupportThread(threadId) {
             selectedUserId = SUPPORT_PREFIX + threadId;
             syncChatUrl(selectedUserId);
-            document.body.classList.remove('ai-chat');
+            leaveAiMode();
             cancelEditMessage();
             headerRenderedFor = null;
 
@@ -8252,7 +8442,7 @@
             presenceRefresh();
             mentionMembers = [];                           // список прошлого чата больше не годится
             setTimeout(() => loadMentionMembers(), 600);   // после отрисовки шапки — оттуда берём имя
-            document.body.classList.remove('ai-chat');
+            leaveAiMode();
             cancelEditMessage();
             headerRenderedFor = null; // пересобрать шапку под нового собеседника
 
