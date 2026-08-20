@@ -1679,6 +1679,56 @@
         .conversations-pane.collapsed .chat-new-menu { right: 8px; }
 
 
+        /* ── Отложенная отправка ────────────────────────────────────────────────── */
+        .sched-bar {
+            display: flex; align-items: center; gap: 0.4rem; cursor: pointer;
+            padding: 0.4rem 0.9rem; font-size: 0.8rem; color: #6D28D9;
+            background: rgba(124,58,237,0.08); border-top: 1px solid rgba(124,58,237,0.18);
+        }
+        .sched-bar:hover { background: rgba(124,58,237,0.15); }
+        .sched-bar.warn { color: #B91C1C; background: rgba(220,38,38,0.08); border-top-color: rgba(220,38,38,0.2); }
+        .sched-bar-txt { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        body.dark .sched-bar { color: #C4B5FD; background: rgba(124,58,237,0.18); }
+        body.dark .sched-bar.warn { color: #FCA5A5; background: rgba(220,38,38,0.16); }
+        .sched-row {
+            display: flex; align-items: center; gap: 0.5rem;
+            padding: 0.5rem 0.4rem; border-bottom: 1px solid rgba(128,128,128,0.16);
+        }
+        .sched-row:last-child { border-bottom: none; }
+        .sched-row-main { flex: 1; min-width: 0; }
+        .sched-row-main b { display: block; font-size: 0.85rem; }
+        .sched-row-main i { display: block; font-style: normal; font-size: 0.8rem; color: #6B7280;
+                            overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .sched-row-main u { display: block; text-decoration: none; font-size: 0.76rem; color: #B91C1C; margin-top: 0.15rem; }
+        .sched-row button {
+            flex-shrink: 0; border: none; background: rgba(124,58,237,0.12); color: inherit;
+            cursor: pointer; border-radius: 0.5rem; width: 30px; height: 30px; font-size: 0.9rem;
+        }
+        .sched-row button:hover { background: rgba(124,58,237,0.26); }
+        body.dark .sched-row-main i { color: #9CA3AF; }
+        body.dark .sched-row button { background: rgba(255,255,255,0.10); }
+        .sched-preview {
+            font-size: 0.85rem; color: #4B5563; background: rgba(128,128,128,0.10);
+            border-radius: 0.6rem; padding: 0.5rem 0.6rem; margin-bottom: 0.6rem;
+            max-height: 5.5rem; overflow: auto; white-space: pre-wrap; word-break: break-word;
+        }
+        body.dark .sched-preview { color: #C9C9C9; }
+        .sched-quick { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-bottom: 0.6rem; }
+        .sched-quick button {
+            border: 1px solid #E5E7EB; background: #F9FAFB; color: #4B5563; cursor: pointer;
+            border-radius: 999px; padding: 0.35rem 0.7rem; font-family: inherit; font-size: 0.8rem;
+        }
+        .sched-quick button:hover { border-color: #C4B5FD; background: #F5F3FF; color: #6D28D9; }
+        body.dark .sched-quick button { background: #2A2A2A; border-color: #444; color: #C9C9C9; }
+        .sched-when { display: flex; align-items: center; gap: 0.5rem; }
+        .sched-when input {
+            flex: 1 1 auto; min-width: 0; font-family: inherit; font-size: 16px;
+            padding: 0.5rem 0.6rem; border: 1.5px solid #E5E7EB; border-radius: 0.6rem;
+            background: #fff; color: #1A1A1A;
+        }
+        .sched-when input:focus { border-color: #7C3AED; outline: none; }
+        body.dark .sched-when input { background: #1E1E1E; border-color: #444; color: #E6E6E6; }
+
         /* Окно настроек чатов */
         .cs-modal {
             position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 3000;
@@ -3275,6 +3325,7 @@
 
             await loadMessages();
             await loadPinnedMessage();
+            loadScheduled(); schedTick();   // запланированное в этот чат + разослать назревшее
             // Список слева обновляем, чтобы счётчик непрочитанных и превью были живыми (как в Телеграме).
             pollInterval = setInterval(async () => {
                 await loadMessages();
@@ -8035,6 +8086,7 @@
 
             await loadAiModels();
             await loadAiSearchState();
+            loadScheduled();        // у ассистента отложенной отправки нет — плашку убираем
             aiLoad();               // раньше полоска рисовалась до загрузки — список диалогов был пуст
             renderAiHeader();
             renderAiBar();
@@ -8574,6 +8626,7 @@
 
             await loadMessages();
             await loadPinnedMessage();
+            loadScheduled(); schedTick();   // запланированное в этот чат + разослать назревшее
 
             if (pollInterval) clearInterval(pollInterval);
             pollInterval = setInterval(loadMessages, 5000);
@@ -8671,6 +8724,7 @@
 
             await loadMessages();
             await loadPinnedMessage();
+            loadScheduled(); schedTick();   // запланированное в этот чат + разослать назревшее
 
             // Запустить polling
             if (pollInterval) clearInterval(pollInterval);
@@ -9842,6 +9896,12 @@
             }
             if (ai) items.push({ ico: '🎤', label: 'Продиктовать голосом', run: () => toggleDictation() });
             if (!mob) items.push({ ico: 'A', label: 'Форматирование текста', run: () => openComposer() });
+            // Отложенная отправка — везде, кроме ассистента: ему пишут ради ответа сейчас
+            if (typeof schedAvailable === 'function' && schedAvailable()) {
+                items.push({ ico: '🕒', label: 'Отправить позже', run: () => scheduleCurrentInput() });
+                if (schedPending.length)
+                    items.push({ ico: '📋', label: `Запланированные (${schedPending.length})`, run: () => openScheduledList() });
+            }
             return items;
         }
 
@@ -9889,6 +9949,248 @@
             closeCinMenu();
         });
         document.addEventListener('keydown', e => { if (e.key === 'Escape') closeCinMenu(); });
+
+        // ══════════════════════════════════════════════════════════════════════════════
+        //  ОТЛОЖЕННАЯ ОТПРАВКА (api/scheduled.php) — «отправить позже», как в Telegram
+        //  Работает в личных чатах, группах и «Избранном».
+        //  Доставку выполняет сервер: он же рассылает назревшее по «тику» — поэтому
+        //  сообщение уйдёт, даже если к этому времени вкладка будет закрыта.
+        // ══════════════════════════════════════════════════════════════════════════════
+        let schedPending = [];          // запланированные для ОТКРЫТОГО чата
+        let schedEditId = null;         // если переносим время у существующего
+
+        async function schedApi(action, payload) {
+            const url = '/api/scheduled.php?action=' + action;
+            const res = payload
+                ? await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                                     credentials: 'include', body: JSON.stringify(payload) })
+                : await fetch(url, { credentials: 'include' });
+            const d = await res.json().catch(() => ({}));
+            if (!res.ok || d.ok === false) throw new Error(d.error || ('HTTP ' + res.status));
+            return d;
+        }
+
+        /** Отложенная отправка не для ассистента: ему пишут, чтобы получить ответ сейчас. */
+        function schedAvailable() {
+            return !!selectedUserId && !(typeof isAiMode === 'function' && isAiMode());
+        }
+
+        async function loadScheduled() {
+            schedPending = [];
+            if (!schedAvailable()) { renderSchedBar(); return; }
+            try {
+                const d = await schedApi('list&chat_key=' + encodeURIComponent(currentChatKey()));
+                schedPending = d.data || [];
+            } catch (e) { schedPending = []; }
+            renderSchedBar();
+        }
+        window.loadScheduled = loadScheduled;
+
+        /** Разослать назревшее. Сервер сам не чаще раза в 20 секунд — дёргать безопасно. */
+        function schedTick() { schedApi('tick').catch(() => {}); }
+
+        function schedWhen(sql) {
+            // 'YYYY-MM-DD HH:MM:SS' — разбираем руками: Safari не понимает такой формат в Date()
+            const m = String(sql || '').match(/(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/);
+            if (!m) return sql || '';
+            const d = new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]);
+            const now = new Date();
+            const hhmm = m[4] + ':' + m[5];
+            const sameDay = d.toDateString() === now.toDateString();
+            const tomorrow = new Date(now.getTime() + 86400000).toDateString() === d.toDateString();
+            if (sameDay) return 'сегодня в ' + hhmm;
+            if (tomorrow) return 'завтра в ' + hhmm;
+            return d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' }) + ' в ' + hhmm;
+        }
+
+        function renderSchedBar() {
+            let bar = document.getElementById('schedBar');
+            const input = document.getElementById('chatInputBar');
+            if (!input) return;
+            if (!schedPending.length) { if (bar) bar.remove(); return; }
+            if (!bar) {
+                bar = document.createElement('div');
+                bar.id = 'schedBar';
+                bar.className = 'sched-bar';
+                bar.onclick = openScheduledList;
+                input.parentNode.insertBefore(bar, input);
+            }
+            const bad = schedPending.filter(x => x.status === 'failed').length;
+            const next = schedPending[0];
+            bar.className = 'sched-bar' + (bad ? ' warn' : '');
+            bar.innerHTML = `<span aria-hidden="true">🕒</span>
+                <span class="sched-bar-txt">${bad
+                    ? `Не удалось отправить: ${bad} — нажмите, чтобы посмотреть`
+                    : `Запланировано: ${schedPending.length} · ближайшее ${escapeHtml(schedWhen(next.send_at))}`}</span>`;
+        }
+
+        /** Окно со списком запланированного: посмотреть, перенести, отменить. */
+        async function openScheduledList() {
+            await loadScheduled();
+            let m = document.getElementById('schedList');
+            if (!m) {
+                m = document.createElement('div');
+                m.id = 'schedList';
+                m.className = 'cs-modal';
+                m.onclick = e => { if (e.target === m) m.style.display = 'none'; };
+                document.body.appendChild(m);
+            }
+            const rows = schedPending.length ? schedPending.map(x => `
+                <div class="sched-row${x.status === 'failed' ? ' bad' : ''}">
+                    <div class="sched-row-main">
+                        <b>${escapeHtml(schedWhen(x.send_at))}</b>
+                        <i>${escapeHtml(String(x.content || '').slice(0, 120))}</i>
+                        ${x.status === 'failed' ? `<u>Не отправлено: ${escapeHtml(x.error || 'причина неизвестна')}</u>` : ''}
+                    </div>
+                    <button type="button" onclick="reschedule(${x.id})" title="Перенести">🕒</button>
+                    <button type="button" onclick="cancelScheduled(${x.id})" title="Отменить">✕</button>
+                </div>`).join('') : '<div class="sa-empty">Пока ничего не запланировано.</div>';
+            m.innerHTML = `<div class="cs-box">
+                <div class="cs-head"><b>Запланированные сообщения</b>
+                    <button type="button" onclick="document.getElementById('schedList').style.display='none'">✕</button></div>
+                ${rows}
+            </div>`;
+            m.style.display = 'flex';
+        }
+        window.openScheduledList = openScheduledList;
+
+        async function cancelScheduled(id) {
+            try {
+                await schedApi('cancel', { id });
+                await loadScheduled();
+                openScheduledList();
+                toast('Отправка отменена');
+            } catch (e) { alert('Не удалось отменить: ' + e.message); }
+        }
+        window.cancelScheduled = cancelScheduled;
+
+        function reschedule(id) {
+            const it = schedPending.find(x => String(x.id) === String(id));
+            schedEditId = id;
+            const mm = document.getElementById('schedList');
+            if (mm) mm.style.display = 'none';
+            openSchedulePicker(it ? it.content : '');
+        }
+        window.reschedule = reschedule;
+
+        /** Окно выбора времени — как «Время отправки» в Telegram. */
+        function openSchedulePicker(text) {
+            if (!schedAvailable()) { toast('Здесь отложенная отправка недоступна'); return; }
+            const body = String(text == null ? '' : text);
+            if (!schedEditId && !body.trim()) { toast('Сначала наберите сообщение'); return; }
+            let m = document.getElementById('schedPicker');
+            if (!m) {
+                m = document.createElement('div');
+                m.id = 'schedPicker';
+                m.className = 'cs-modal';
+                m.onclick = e => { if (e.target === m) closeSchedulePicker(); };
+                document.body.appendChild(m);
+            }
+            // по умолчанию — через час, округлённо до пяти минут вперёд
+            const d = new Date(Date.now() + 3600000);
+            d.setMinutes(Math.ceil(d.getMinutes() / 5) * 5, 0, 0);
+            const pad = n => String(n).padStart(2, '0');
+            const dateVal = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+            const timeVal = `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+            const t = new Date();       // раньше сегодняшнего дня выбирать нечего
+            const minVal = `${t.getFullYear()}-${pad(t.getMonth() + 1)}-${pad(t.getDate())}`;
+            m.innerHTML = `<div class="cs-box">
+                <div class="cs-head"><b>${schedEditId ? 'Перенести отправку' : 'Время отправки'}</b>
+                    <button type="button" onclick="closeSchedulePicker()">✕</button></div>
+                <div class="sched-preview">${escapeHtml(body.slice(0, 200)) || '—'}</div>
+                <div class="sched-quick">
+                    <button type="button" onclick="schedQuick(1)">Через час</button>
+                    <button type="button" onclick="schedQuick(3)">Через 3 часа</button>
+                    <button type="button" onclick="schedQuickAt(1,9,0)">Завтра в 9:00</button>
+                    <button type="button" onclick="schedQuickAt(0,19,0)">Сегодня в 19:00</button>
+                </div>
+                <div class="sched-when">
+                    <input type="date" id="schedDate" value="${dateVal}" min="${minVal}">
+                    <span>в</span>
+                    <input type="time" id="schedTime" value="${timeVal}">
+                </div>
+                <div class="sa-note" id="schedHint"></div>
+                <button class="sa-go" onclick="confirmSchedule()">${schedEditId ? 'Перенести' : 'Отправить позже'}</button>
+            </div>`;
+            m.dataset.text = body;
+            m.style.display = 'flex';
+            const upd = () => {
+                const h = document.getElementById('schedHint');
+                const ts = schedChosenTs();
+                h.textContent = ts ? 'Уйдёт ' + schedWhen(schedTsToSql(ts)) : 'Выберите дату и время';
+            };
+            document.getElementById('schedDate').oninput = upd;
+            document.getElementById('schedTime').oninput = upd;
+            upd();
+        }
+        window.openSchedulePicker = openSchedulePicker;
+
+        function closeSchedulePicker() {
+            const m = document.getElementById('schedPicker');
+            if (m) m.style.display = 'none';
+            schedEditId = null;
+        }
+        window.closeSchedulePicker = closeSchedulePicker;
+
+        function schedTsToSql(ts) {
+            const d = new Date(ts * 1000), pad = n => String(n).padStart(2, '0');
+            return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:00`;
+        }
+
+        /** Выбранный момент в секундах epoch (по часам самого человека). */
+        function schedChosenTs() {
+            const dv = (document.getElementById('schedDate') || {}).value || '';
+            const tv = (document.getElementById('schedTime') || {}).value || '';
+            const a = dv.match(/(\d{4})-(\d{2})-(\d{2})/), b = tv.match(/(\d{2}):(\d{2})/);
+            if (!a || !b) return 0;
+            return Math.floor(new Date(+a[1], +a[2] - 1, +a[3], +b[1], +b[2], 0, 0).getTime() / 1000);
+        }
+
+        function schedSet(d) {
+            const pad = n => String(n).padStart(2, '0');
+            document.getElementById('schedDate').value = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+            document.getElementById('schedTime').value = `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+            document.getElementById('schedDate').dispatchEvent(new Event('input'));
+        }
+        function schedQuick(hours) { schedSet(new Date(Date.now() + hours * 3600000)); }
+        function schedQuickAt(dayOffset, h, min) {
+            const d = new Date();
+            d.setDate(d.getDate() + dayOffset);
+            d.setHours(h, min, 0, 0);
+            if (d.getTime() < Date.now()) d.setDate(d.getDate() + 1);   // «сегодня в 19:00» уже прошло — значит завтра
+            schedSet(d);
+        }
+        window.schedQuick = schedQuick; window.schedQuickAt = schedQuickAt;
+
+        async function confirmSchedule() {
+            const ts = schedChosenTs();
+            if (!ts) { toast('Выберите дату и время'); return; }
+            if (ts * 1000 < Date.now() + 30000) { toast('Выберите время хотя бы на минуту вперёд'); return; }
+            const m = document.getElementById('schedPicker');
+            const text = (m && m.dataset.text) || '';
+            try {
+                if (schedEditId) {
+                    await schedApi('reschedule', { id: schedEditId, send_at_ts: ts });
+                } else {
+                    await schedApi('create', { chat_key: currentChatKey(), content: text, send_at_ts: ts });
+                    const inp = document.getElementById('messageInput');
+                    if (inp) { inp.value = ''; if (typeof autoGrowInput === 'function') autoGrowInput(inp); }
+                }
+                closeSchedulePicker();
+                await loadScheduled();
+                toast('Уйдёт ' + schedWhen(schedTsToSql(ts)));
+            } catch (e) {
+                alert('Не удалось запланировать: ' + e.message);
+            }
+        }
+        window.confirmSchedule = confirmSchedule;
+
+        /** Пункт меню «⋮»: берём то, что уже набрано в поле. */
+        function scheduleCurrentInput() {
+            const inp = document.getElementById('messageInput');
+            openSchedulePicker(inp ? inp.value : '');
+        }
+        window.scheduleCurrentInput = scheduleCurrentInput;
 
         // Emoji функции
         function toggleEmojiPicker() {
