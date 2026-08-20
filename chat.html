@@ -147,7 +147,7 @@
             display: flex; align-items: center; justify-content: center; font-family: inherit;
         }
         .story-add:hover { border-color: #7C3AED; background: rgba(124,58,237,0.08); }
-        .stories-label { font-size: 0.72rem; color: #9CA3AF; flex-shrink: 0; margin-right: 0.1rem; }
+        .stories-label { font-size: 0.72rem; color: #9CA3AF; flex-shrink: 0; margin-right: 0.1rem; white-space: nowrap; }
         body.dark .stories-label { color: #7A7A7A; }
         body.dark .story-ring { background: #444; }
 
@@ -236,6 +236,10 @@
            до одной буквы и лишь отнимали ширину у самого списка чатов. */
         .conversations-pane.pane-tight .chat-folders { width: 50px; }
         .conversations-pane.pane-tight .ftab-name { display: none; }
+        /* В узкой шторке на «Истории» с подписью не хватает места рядом с тремя круглыми
+           кнопками шапки: текст «Истории» упирался в overflow:hidden шапки и обрезался/наезжал
+           на соседние кнопки, выглядя криво. Кружки историй остаются, подпись прячем. */
+        .conversations-pane.pane-tight .stories-label { display: none; }
         /* И сама шапка ничего не выпускает наружу, чем бы её ни наполнили */
         .chat-sb-head { overflow: hidden; }
         .chat-sb-head .chat-hdr-btn { flex-shrink: 0; }
