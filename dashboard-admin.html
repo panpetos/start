@@ -8,7 +8,8 @@
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
     <title>Админка — psytalk.pro</title>
     <link rel="stylesheet" href="/css/styles.css?v=20260821">
-    <script src="/js/layout.js?v=20260821"></script>
+    <script src="/js/netguard.js?v=20260821b"></script>
+    <script src="/js/layout.js?v=20260821b"></script>
     <!-- Одно меню в кабинете. Разделы сайта живут в боковом меню («Сайт»), поэтому
          бургер шапки здесь лишний: на телефоне рядом оказывались два меню, и человек
          не понимал, в какое жать. Правило дублирует логику layout.js намеренно —
@@ -1802,7 +1803,7 @@
         let supLastInboxUnread = 0;
         function supStartPolling() {
             if (supPollTimer) clearInterval(supPollTimer);
-            supPollTimer = setInterval(async () => {
+            supPollTimer = setInterval(psyGuardPoll(async () => {
                 try {
                     const res = await (await fetch('/api/support.php?action=threads', { credentials:'include' })).json();
                     const rows = (res && res.ok) ? (res.data || []) : [];
@@ -1826,7 +1827,7 @@
                     updateSupportBadge(widgetUnread + inbox.unread);
                     if (currentTab === 'support' && !supportThreadId) updateThreadList(rows);
                 } catch(e) {}
-            }, 5000);
+            }), 8000);
         }
 
         function updateSupportBadge(count) {
@@ -2006,10 +2007,10 @@
             }
 
             if (supMsgPollTimer) clearInterval(supMsgPollTimer);
-            supMsgPollTimer = setInterval(() => {
+            supMsgPollTimer = setInterval(psyGuardPoll(() => {
                 if (currentTab !== 'support' || !supportThreadId) { clearInterval(supMsgPollTimer); supMsgPollTimer = null; return; }
-                openSupportThread(supportThreadId);
-            }, 3000);
+                return openSupportThread(supportThreadId);
+            }), 5000);
         }
 
         // Через общий загрузчик (js/app.js): крупное уходит частями, иначе файл
@@ -2250,10 +2251,10 @@
                 '<div id="devTaskList"><div class="loading">Загрузка...</div></div>';
             devSetupDropzone(document.getElementById('devDrop'), document.getElementById('devFiles'), 'new');
             await devRefresh();
-            devPollTimer = setInterval(() => {
-                if (document.getElementById('devTaskList')) devRefresh();
-                else { clearInterval(devPollTimer); devPollTimer = null; }
-            }, 15000);
+            devPollTimer = setInterval(psyGuardPoll(() => {
+                if (document.getElementById('devTaskList')) return devRefresh();
+                clearInterval(devPollTimer); devPollTimer = null;
+            }), 20000);
         }
         function devSetupDropzone(zone, input, kind){
             if (!zone || !input) return;
@@ -3312,7 +3313,7 @@
             }
             pollNoteReminders();
             if (noteReminderTimer) clearInterval(noteReminderTimer);
-            noteReminderTimer = setInterval(pollNoteReminders, 20000);
+            noteReminderTimer = setInterval(psyGuardPoll(pollNoteReminders), 20000);
         }
 
         // ── Права дополнительных акков админа ──────────────────────────────────

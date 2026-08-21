@@ -42,7 +42,10 @@ if (!$pdo) { http_response_code(500); echo json_encode(['error' => 'Нет по�
 if (session_status() === PHP_SESSION_NONE) session_start();
 $userId = $_SESSION['user_id'] ?? null;
 
+// Поддержку админка опрашивает раз в несколько секунд — проверять схему на каждый
+// такой запрос незачем, раз в час достаточно (см. psy_schema_once).
 try {
+    psy_schema_once('support_schema_v1', 3600, function () use ($pdo) {
     $pdo->exec("CREATE TABLE IF NOT EXISTS support_threads (
         id INT AUTO_INCREMENT PRIMARY KEY,
         token VARCHAR(64) NOT NULL,
@@ -74,6 +77,7 @@ try {
     try { $pdo->exec("ALTER TABLE support_threads ADD COLUMN user_read_at DATETIME NULL AFTER admin_read_at"); } catch (Exception $e) {}
     psy_widen_id_columns($pdo, 'support_threads', ['user_id']);
     psy_align_collation($pdo, ['support_threads', 'support_messages']);
+    });
 } catch (Exception $e) {}
 
 /** Профиль текущего пользователя (для авто-подстановки контактов). */

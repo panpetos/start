@@ -40,7 +40,13 @@ const ONLINE_WINDOW_SEC = 70;
 /** Сколько живёт отметка «печатает» — иначе она застревает, если вкладку закрыли. */
 const TYPING_TTL_SEC = 7;
 
+// Присутствие — один из самых частых запросов на сайте (каждая вкладка, раз в
+// полминуты). Подготовка таблиц здесь делалась на КАЖДЫЙ такой запрос, включая
+// заведомо падающий ALTER: MySQL всё равно берёт метаданные и блокировку. При
+// многих вкладках это заметная доля нагрузки на ровном месте — теперь проверяем
+// схему не чаще раза в час (см. psy_schema_once в schema_util.php).
 try {
+    psy_schema_once('presence_schema_v1', 3600, function () use ($pdo) {
     $pdo->exec("CREATE TABLE IF NOT EXISTS user_presence (
         user_id VARCHAR(64) PRIMARY KEY,
         last_seen DATETIME NOT NULL,
@@ -57,6 +63,7 @@ try {
         PRIMARY KEY (user_id, peer_id)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
     psy_align_collation($pdo, ['user_presence', 'chat_reads']);
+    });
 } catch (Exception $e) {
     http_response_code(500);
     echo json_encode(['error' => 'Не удалось подготовить таблицы: ' . $e->getMessage()], JSON_UNESCAPED_UNICODE);

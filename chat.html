@@ -9,6 +9,7 @@
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
     <title>Сообщения - psytalk.pro</title>
     <link rel="preconnect" href="https://unpkg.com">
+    <script src="/js/netguard.js?v=20260821b"></script>
     <script defer src="https://unpkg.com/lucide@latest"></script>
     <style>
         *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
@@ -3277,6 +3278,37 @@
         let currentUser = null;
         let healthConsentGranted = true; // клиенты — до подтверждения false
         let selectedUserId = null;
+        /**
+         * Обёртка для фоновых опросов (сообщения, список диалогов, присутствие).
+         *
+         * Три правила, которые снимают с сервера почти всю лишнюю нагрузку:
+         *   • вкладка свёрнута — не опрашиваем вовсе, человек всё равно не смотрит;
+         *   • прошлый проход ещё не вернулся — новый не запускаем (иначе при медленном
+         *     сервере запросы копятся лавиной и добивают базу);
+         *   • сервер просит передышку (psyServerBusy) — молчим, пока не отпустит.
+         * Когда вкладка снова открыта, обновляемся сразу, не дожидаясь таймера.
+         */
+        function psyPollGuard(fn) {
+            let busy = false;
+            const wrapped = async function () {
+                if (document.hidden) return;
+                if (busy) return;
+                if (window.psyServerBusy && window.psyServerBusy()) return;
+                busy = true;
+                try { return await fn.apply(this, arguments); }
+                catch (e) { /* сеть моргнула — просто ждём следующего круга */ }
+                finally { busy = false; }
+            };
+            return wrapped;
+        }
+        // Вернулись на вкладку — подтягиваем свежее сразу, не дожидаясь таймера.
+        document.addEventListener('visibilitychange', function () {
+            if (document.hidden || !currentUser) return;
+            if (window.psyServerBusy && window.psyServerBusy()) return;
+            try { if (typeof loadConversations === 'function') loadConversations(); } catch (e) {}
+            try { if (selectedUserId && typeof loadMessages === 'function') loadMessages(); } catch (e) {}
+        });
+
         let pollInterval = null;
         let isAdminMode = false;  // Режим отправки от имени техподдержки
         let headerRenderedFor = null; // чтобы не пересобирать шапку при каждом поллинге
@@ -3515,11 +3547,11 @@
             await loadPinnedMessage();
             loadScheduled(); schedTick();   // запланированное в этот чат + разослать назревшее
             // Список слева обновляем, чтобы счётчик непрочитанных и превью были живыми (как в Телеграме).
-            pollInterval = setInterval(async () => {
+            pollInterval = setInterval(psyPollGuard(async () => {
                 await loadMessages();
                 await loadMyGroups();
                 refreshConversationList();
-            }, 5000);
+            }), 5000);
         }
 
         /**
@@ -4815,7 +4847,7 @@
             await loadConversations();
             loadStoriesRow();   // не await — истории не должны задерживать открытие чатов
             if (storiesPollTimer) clearInterval(storiesPollTimer);
-            storiesPollTimer = setInterval(loadStoriesRow, 60000);
+            storiesPollTimer = setInterval(psyPollGuard(loadStoriesRow), 60000);
 
             rtcStartPolling();  // слушаем входящие звонки
 
@@ -4840,7 +4872,7 @@
             // Звуковые уведомления о новых сообщениях — опрашиваем список диалогов
             // всегда (не только когда открыт конкретный чат), как у админа в поддержке.
             if (unreadPollTimer) clearInterval(unreadPollTimer);
-            unreadPollTimer = setInterval(loadConversations, 6000);
+            unreadPollTimer = setInterval(psyPollGuard(loadConversations), 8000);
             // Разрешение на уведомления спрашиваем по первому действию человека, а не сразу
             // при открытии: браузеры блокируют запрос без жеста, да и это невежливо.
             ['click', 'keydown', 'touchstart'].forEach(ev =>
@@ -4850,14 +4882,14 @@
             // не настроен — тогда человек включал каналы и ничего не получал. Раз в пару минут
             // просим сервер прогнать рассылку; он сам не даст запускать её чаще, чем нужно.
             notifyTick();
-            setInterval(notifyTick, 120000);
+            setInterval(psyPollGuard(notifyTick), 120000);
 
             // «Я здесь» — раз в 30 секунд; состояние собеседников — раз в 10.
             // Окно «онлайн» на сервере 70 секунд, так что пропущенный сигнал не гасит статус.
             presencePing();
-            setInterval(presencePing, 30000);
+            setInterval(psyPollGuard(presencePing), 30000);
             presenceRefresh();
-            setInterval(presenceRefresh, 10000);
+            setInterval(psyPollGuard(presenceRefresh), 15000);
         }
 
         // ── Звук + тост при новом сообщении (во всех чатах, любая роль) ──
@@ -5215,7 +5247,7 @@
 
             // Запустить polling
             if (pollInterval) clearInterval(pollInterval);
-            pollInterval = setInterval(loadMessages, 5000);
+            pollInterval = setInterval(psyPollGuard(loadMessages), 5000);
         }
 
         // Обращения в поддержку (виджет на сайте) — задача #37: показываем их в том же
@@ -8828,7 +8860,7 @@
             loadScheduled(); schedTick();   // запланированное в этот чат + разослать назревшее
 
             if (pollInterval) clearInterval(pollInterval);
-            pollInterval = setInterval(loadMessages, 5000);
+            pollInterval = setInterval(psyPollGuard(loadMessages), 5000);
         }
 
         async function openSupportThread(threadId) {
@@ -8849,7 +8881,7 @@
             await loadMessages();
 
             if (pollInterval) clearInterval(pollInterval);
-            pollInterval = setInterval(loadMessages, 5000);
+            pollInterval = setInterval(psyPollGuard(loadMessages), 5000);
         }
 
         async function loadSupportThreadMessages() {
@@ -8927,7 +8959,7 @@
 
             // Запустить polling
             if (pollInterval) clearInterval(pollInterval);
-            pollInterval = setInterval(loadMessages, 5000);
+            pollInterval = setInterval(psyPollGuard(loadMessages), 5000);
         }
 
         // ── Заметки для себя (личное «Избранное») ──
@@ -12987,13 +13019,28 @@
             }
         }
 
-        /** Один цикл опроса. Держим редко, когда ничего не происходит, и чаще во время звонка. */
+        /**
+         * Один цикл опроса.
+         *
+         * ЩАДИМ СЕРВЕР. Пока звонка нет, спешить некуда: опрашиваем раз в 6 секунд, а
+         * если вкладка свёрнута — раз в полминуты (о входящем всё равно сообщит push).
+         * Во время разговора, наоборот, ходим часто — там важна каждая доля секунды.
+         * Если сервер отвечает ошибкой, отступаем всё дальше (6, 12, 24… до минуты),
+         * чтобы при перегрузке десятки открытых вкладок не добивали базу.
+         */
+        let rtcPollBackoff = 0;
         async function rtcTick() {
             rtcPollTimer = null;
-            if (!currentUser || document.visibilityState !== 'visible') { rtcPollSoon(4000); return; }
+            if (!currentUser) { rtcPollSoon(30000); return; }
+            if (document.visibilityState !== 'visible' && !rtcCallId) { rtcPollSoon(30000); return; }
             let d = null;
             try { d = await callsApi('poll&after=' + rtcAfter); }
-            catch (e) { rtcPollSoon(5000); return; }
+            catch (e) {
+                rtcPollBackoff = Math.min(rtcPollBackoff ? rtcPollBackoff * 2 : 6000, 60000);
+                rtcPollSoon(rtcPollBackoff);
+                return;
+            }
+            rtcPollBackoff = 0;
 
             // входящий вызов
             if (d.incoming && !rtcCallId && (!rtcIncomingCall || rtcIncomingCall.id !== d.incoming.id)) {
@@ -13028,7 +13075,7 @@
                 else if (why === 'missed') toast('Собеседник не ответил');
                 else if (why) toast('Звонок завершён');
             }
-            rtcPollSoon(rtcCallId || rtcIncomingCall ? 1000 : 3000);
+            rtcPollSoon(rtcCallId || rtcIncomingCall ? 1000 : 6000);
         }
 
         function rtcPollSoon(ms) {

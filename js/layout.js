@@ -6,6 +6,11 @@
  *   подвал: <script>psyWriteFooter();</script>
  * Меняешь этот файл один раз — меняется на всех страницах.
  */
+// Если /js/netguard.js по какой-то причине не загрузился, страница всё равно должна
+// работать: подставляем безобидные заглушки вместо его функций.
+window.psyServerBusy = window.psyServerBusy || function () { return false; };
+window.psyGuardPoll = window.psyGuardPoll || function (fn) { return fn; };
+
 (function () {
   var path = location.pathname;
   function active(href) {
@@ -541,7 +546,7 @@
 
   function wireChatBadge() {
     refreshChatBadge();
-    setInterval(refreshChatBadge, 30000);
+    setInterval(psyGuardPoll(refreshChatBadge), 30000);
     // Вернулись на вкладку — обновляем сразу, а не через полминуты.
     document.addEventListener('visibilitychange', function () {
       if (!document.hidden) refreshChatBadge();
@@ -762,7 +767,7 @@
           }
         }).catch(function () {});
     }
-    function startPolling() { if (pollTimer) clearInterval(pollTimer); poll(); pollTimer = setInterval(poll, 5000); }
+    function startPolling() { if (pollTimer) clearInterval(pollTimer); poll(); pollTimer = setInterval(psyGuardPoll(poll), 5000); }
 
     function checkUnread() {
       if (!token || panelOpen) return;
@@ -771,7 +776,7 @@
           if (d && d.ok) updateBadge(d.unread || 0);
         }).catch(function(){});
     }
-    if (token) { checkUnread(); bgPollTimer = setInterval(checkUnread, 15000); }
+    if (token) { checkUnread(); bgPollTimer = setInterval(psyGuardPoll(checkUnread), 20000); }
 
     bubble.addEventListener('click', function () {
       var open = panel.style.display === 'flex';
@@ -802,7 +807,7 @@
         if (d && d.ok && d.token) {
           token = d.token; try { localStorage.setItem(TOKEN_KEY, token); } catch (e) {}
           showChat(); startPolling();
-          if (!bgPollTimer) bgPollTimer = setInterval(checkUnread, 15000);
+          if (!bgPollTimer) bgPollTimer = setInterval(psyGuardPoll(checkUnread), 20000);
           return true;
         }
         throw new Error((d && d.error) || 'Ошибка');

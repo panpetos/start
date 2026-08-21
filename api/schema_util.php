@@ -15,6 +15,40 @@
  * запрос. Любая ошибка не критична — молча пропускаем, вызывающий код от этого не зависит.
  */
 
+/**
+ * ПОЧЕМУ ЗДЕСЬ ПОЯВИЛСЯ КЭШ.
+ *
+ * Выравнивание схемы вызывается из двух с лишним десятков эндпоинтов, в том числе из
+ * самых частых (присутствие, непрочитанные, звонки). Каждый вызов лез в
+ * information_schema — а это самые дорогие запросы в MySQL. При десятках открытых
+ * вкладок база тратила почти все силы на проверку того, что и так уже давно в порядке,
+ * и сайт начинал отдавать 504.
+ *
+ * Схема меняется в лучшем случае при выкладке, поэтому проверять её на каждый запрос
+ * бессмысленно. Держим отметку о последней проверке в файле во временной папке: пока
+ * отметка свежая, к базе не обращаемся вообще. Если временная папка недоступна для
+ * записи, всё работает как раньше — просто без экономии.
+ *
+ * Форсировать проверку можно, удалив файлы из <tmp>/psy_schema.
+ */
+if (!function_exists('psy_schema_once')) {
+    function psy_schema_once($key, $ttl, callable $fn) {
+        static $mem = [];
+        if (isset($mem[$key])) return false;          // в этом же запросе уже проверяли
+        $mem[$key] = true;
+
+        $dir = sys_get_temp_dir() . '/psy_schema';
+        if (!is_dir($dir)) @mkdir($dir, 0700, true);
+        $file = $dir . '/' . preg_replace('/[^A-Za-z0-9_]/', '_', $key) . '.stamp';
+        if (is_file($file) && (time() - (int)@filemtime($file)) < $ttl) return false;
+        // отметку ставим ДО работы: иначе десяток одновременных запросов полезет в
+        // information_schema разом — ровно то, от чего мы уходим
+        @touch($file);
+        $fn();
+        return true;
+    }
+}
+
 if (!function_exists('psy_table_collation')) {
     function psy_table_collation(PDO $pdo, $table) {
         try {
@@ -33,6 +67,15 @@ if (!function_exists('psy_align_collation')) {
      * @param string $reference эталонная таблица (её сортировку считаем правильной)
      */
     function psy_align_collation(PDO $pdo, array $tables, $reference = 'users') {
+        // не чаще раза в час на один и тот же набор таблиц — см. psy_schema_once
+        psy_schema_once('coll_' . md5($reference . '|' . implode(',', $tables)), 3600,
+            function () use ($pdo, $tables, $reference) { psy_align_collation_now($pdo, $tables, $reference); });
+    }
+}
+
+if (!function_exists('psy_align_collation_now')) {
+    /** Сама проверка. Вызывать напрямую стоит только когда нужно наверняка. */
+    function psy_align_collation_now(PDO $pdo, array $tables, $reference = 'users') {
         $target = psy_table_collation($pdo, $reference);
         if (!$target) return; // не смогли определить эталон — ничего не трогаем
         $charset = (strpos($target, 'utf8mb4') === 0) ? 'utf8mb4' : 'utf8';
@@ -69,6 +112,13 @@ if (!function_exists('psy_widen_id_columns')) {
      */
     function psy_widen_id_columns(PDO $pdo, $table, array $columns) {
         if (!preg_match('/^[A-Za-z0-9_]+$/', $table)) return;
+        psy_schema_once('cols_' . md5($table . '|' . implode(',', $columns)), 3600,
+            function () use ($pdo, $table, $columns) { psy_widen_id_columns_now($pdo, $table, $columns); });
+    }
+}
+
+if (!function_exists('psy_widen_id_columns_now')) {
+    function psy_widen_id_columns_now(PDO $pdo, $table, array $columns) {
         try {
             $st = $pdo->prepare("SELECT COLUMN_NAME, DATA_TYPE, IS_NULLABLE FROM information_schema.COLUMNS
                                   WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?");

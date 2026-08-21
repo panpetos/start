@@ -69,6 +69,7 @@ jobs:
             put sw.js;
             mkdir -f css;
             put css/styles.css -o css/styles.css;
+            put js/netguard.js -o js/netguard.js;
             put js/layout.js -o js/layout.js;
             put js/auth.js -o js/auth.js;
             put js/articles.js -o js/articles.js;

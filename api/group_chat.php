@@ -43,7 +43,14 @@ if (!$userId) { http_response_code(401); echo json_encode(['error' => 'Треб�
 
 function out($d, $c = 200) { http_response_code($c); echo json_encode($d, JSON_UNESCAPED_UNICODE); exit; }
 
+// Схему проверяем не чаще раза в час (см. psy_schema_once): раньше пять ALTER'ов
+// и четыре CREATE TABLE выполнялись на каждый опрос группового чата, а он идёт
+// раз в пять секунд с каждой открытой вкладки.
 function ensureGroupTables(PDO $pdo) {
+    psy_schema_once('group_chat_schema_v1', 3600, function () use ($pdo) { ensureGroupTablesNow($pdo); });
+}
+
+function ensureGroupTablesNow(PDO $pdo) {
     $pdo->exec("CREATE TABLE IF NOT EXISTS chat_groups (
         id INT AUTO_INCREMENT PRIMARY KEY,
         name VARCHAR(255) NOT NULL,
