@@ -389,6 +389,24 @@ if ($action === 'unsubscribe' && $_SERVER['REQUEST_METHOD'] === 'POST') {
 
 if ($action === 'pending') {
     // Это спрашивает сервис-воркер, получив пустой пуш: что именно показать.
+    // Звонок важнее сообщений: если человеку прямо сейчас звонят, показываем вызов,
+    // а не «новое сообщение» — иначе о звонке он узнает только открыв сайт.
+    try {
+        $st = $pdo->prepare("SELECT c.kind, u.first_name, u.last_name
+                             FROM rtc_calls c LEFT JOIN users u ON u.id = c.from_id
+                             WHERE c.to_id = ? AND c.status = 'ringing'
+                               AND c.created_at > DATE_SUB(NOW(), INTERVAL 60 SECOND)
+                             ORDER BY c.id DESC LIMIT 1");
+        $st->execute([$userId]);
+        if ($call = $st->fetch(PDO::FETCH_ASSOC)) {
+            $who = trim((($call['first_name'] ?? '') . ' ' . ($call['last_name'] ?? ''))) ?: 'Собеседник';
+            pushOut(['ok' => true, 'count' => 0, 'call' => true,
+                     'title' => $who,
+                     'body' => ($call['kind'] === 'audio' ? 'Аудиозвонок' : 'Видеозвонок') . ' — нажмите, чтобы ответить',
+                     'url' => '/chat.html']);
+        }
+    } catch (Exception $e) { /* таблицы звонков может ещё не быть */ }
+
     $cnt = 0; $names = [];
     try {
         $st = $pdo->prepare("SELECT m.sender_id, COUNT(*) AS c
@@ -447,6 +465,25 @@ if ($action === 'pending') {
  * проверяем это по самой переписке, поэтому дёрнуть уведомление незнакомому
  * человеку не получится.
  */
+/**
+ * Толчок для звонка. Обычный poke требует свежего сообщения получателю, которого
+ * при звонке нет, поэтому право на пуш проверяем по самому звонку: разбудить можно
+ * только того, кому ты прямо сейчас звонишь.
+ */
+if ($action === 'poke-call' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    $to = trim((string)($body['to'] ?? ''));
+    if ($to === '' || $to === (string)$userId) pushOut(['ok' => false, 'error' => 'Некому'], 400);
+    try {
+        $st = $pdo->prepare("SELECT 1 FROM rtc_calls
+                             WHERE from_id = ? AND to_id = ? AND status = 'ringing'
+                               AND created_at > DATE_SUB(NOW(), INTERVAL 60 SECOND) LIMIT 1");
+        $st->execute([$userId, $to]);
+        if (!$st->fetchColumn()) pushOut(['ok' => false, 'error' => 'Нет активного вызова этому человеку'], 403);
+    } catch (Exception $e) { pushOut(['ok' => false, 'error' => 'Звонки недоступны'], 500); }
+    $r = push_send_to_user($pdo, $to);
+    pushOut(['ok' => true, 'sent' => $r['sent'], 'removed' => $r['removed']]);
+}
+
 if ($action === 'poke' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $to = trim((string)($body['to'] ?? ''));
     if ($to === '' || $to === (string)$userId) pushOut(['ok' => false, 'error' => 'Некому'], 400);

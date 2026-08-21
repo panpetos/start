@@ -13,7 +13,7 @@
  * переписка — это ещё и чужие данные на общем устройстве.
  */
 
-const VERSION = 'psy-v3';
+const VERSION = 'psy-v4';   // поднято: сервис-воркер научился показывать входящий звонок
 const SHELL = VERSION + '-shell';
 
 // Оболочка: то, без чего окно не нарисуется. Страницы сюда не входят намеренно —
@@ -147,12 +147,18 @@ self.addEventListener('push', (e) => {
         const body = (d && d.body) || 'Новое сообщение в чатах';
         const url = (d && d.url) || '/chat.html';
         const count = d && typeof d.count === 'number' ? d.count : 0;
+        const isCall = !!(d && d.call);
+        // Звонок ведёт себя иначе, чем сообщение: не гаснет сам, вибрирует «очередью»
+        // и не сворачивается в общую ленту уведомлений — иначе вызов легко пропустить
+        // при выключенном экране.
         await self.registration.showNotification(title, {
             body,
             icon: '/assets/icon-192.png',
             badge: '/assets/icon-192.png',
-            tag: 'psy-msg',          // одно уведомление, а не лента одинаковых
+            tag: isCall ? 'psy-call' : 'psy-msg',   // одно уведомление, а не лента одинаковых
             renotify: true,
+            requireInteraction: isCall,
+            vibrate: isCall ? [400, 200, 400, 200, 400] : undefined,
             data: { url },
         });
         // Число на иконке приложения, где это поддерживается

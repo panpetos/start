@@ -1788,6 +1788,49 @@
         .rtc-btn.answer .rtc-ico { background: #047857; }
         .rtc-lab { font-size: 0.72rem; opacity: 0.85; white-space: nowrap; }
 
+        /* Кнопка «свернуть» — в углу поверх видео */
+        .rtc-mini-btn {
+            position: absolute; z-index: 7; left: 12px;
+            top: calc(env(safe-area-inset-top) + 12px);
+            width: 40px; height: 40px; border-radius: 50%; border: none; cursor: pointer;
+            background: rgba(0,0,0,0.45); color: #fff; font-size: 1.2rem; line-height: 1;
+            display: flex; align-items: center; justify-content: center; font-family: inherit;
+        }
+        .rtc-mini-btn:hover { background: rgba(0,0,0,0.65); }
+
+        /* СВЁРНУТЫЙ звонок: разговор продолжается, а переписка снова доступна.
+           Соединение при этом не рвётся — прячется только экран. */
+        .rtc-minibar { display: none; }
+        .rtc-screen.min {
+            top: auto; left: auto; bottom: calc(env(safe-area-inset-bottom) + 12px); right: 12px;
+            width: min(280px, calc(100vw - 24px)); height: auto;
+            border-radius: 1rem; box-shadow: 0 12px 40px rgba(0,0,0,0.45); overflow: hidden;
+        }
+        /* В свёрнутом виде всё лишнее убираем, остаётся полоска */
+        .rtc-screen.min .rtc-remote,
+        .rtc-screen.min .rtc-local,
+        .rtc-screen.min .rtc-poster,
+        .rtc-screen.min .rtc-top,
+        .rtc-screen.min .rtc-bar,
+        .rtc-screen.min .rtc-mini-btn,
+        .rtc-screen.min .rtc-fallback { display: none !important; }
+        .rtc-screen.min .rtc-minibar {
+            display: flex; align-items: center; gap: 0.6rem; padding: 0.7rem 0.8rem; cursor: pointer;
+        }
+        .rtc-mini-ava {
+            width: 38px; height: 38px; border-radius: 50%; overflow: hidden; flex-shrink: 0;
+            background: linear-gradient(135deg,#047857,#059669); color: #fff;
+            display: flex; align-items: center; justify-content: center; font-weight: 700;
+        }
+        .rtc-mini-ava img { width: 100%; height: 100%; object-fit: cover; }
+        .rtc-mini-txt { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.25; }
+        .rtc-mini-txt b { font-size: 0.9rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .rtc-mini-txt i { font-style: normal; font-size: 0.78rem; color: #A7F3D0; font-variant-numeric: tabular-nums; }
+        .rtc-mini-hang {
+            width: 38px; height: 38px; border-radius: 50%; border: none; background: #DC2626;
+            color: #fff; cursor: pointer; font-size: 1rem; flex-shrink: 0;
+        }
+
         /* Входящий вызов — поверх всего, чтобы не потерялся за другими окнами */
         .rtc-incoming {
             position: fixed; top: 0; right: 0; bottom: 0; left: 0;
@@ -4345,8 +4388,13 @@
         window.openHeaderActions = openHeaderActions;
         window.runHeaderAction = runHeaderAction;
 
+        // Собеседник открытой переписки. Нужен звонку: раньше там стояла ссылка на
+        // несуществующую переменную, поэтому вместо фото всегда рисовались инициалы.
+        let chatPeerInfo = null;
+
         function renderChatHeader(other) {
             const name = `${other.first_name || ''} ${other.last_name || ''}`.trim() || 'Пользователь';
+            chatPeerInfo = { id: other.id || selectedUserId, name, avatar: other.avatar || '' };
             const roleText = other.role === 'psychologist' ? 'Психолог' : 'Клиент';
             const isPsy = currentUser && currentUser.role === 'psychologist';
             // Видеовстречу создаёт и сессию ведёт психолог; клиент только присоединяется по ссылке
@@ -12535,6 +12583,8 @@
             if (el) el.textContent = text;
             const top = document.getElementById('rtcTopState');   // та же подпись поверх видео
             if (top) top.textContent = text;
+            const mini = document.getElementById('rtcMiniState'); // и в свёрнутой полоске
+            if (mini) mini.textContent = text;
         }
 
         function rtcAvatarHtml(peer) {
@@ -12561,11 +12611,18 @@
             document.getElementById('rtcMicLab').textContent = 'Микрофон';
             document.getElementById('rtcCamIco').textContent = '🎥';
             document.getElementById('rtcCamLab').textContent = 'Камера';
+            // экран переиспользуется между звонками — возвращаем исходный вид
+            s.classList.remove('min');
+            rtcSwapped = false;
+            const remEl = document.getElementById('rtcRemote'), locEl = document.getElementById('rtcLocal');
+            remEl.style.transform = ''; locEl.style.transform = 'scaleX(-1)'; remEl.muted = false;
+            rtcInitSpeakerBtn();
         }
 
         function rtcCloseScreen() {
             const s = document.getElementById('rtcScreen');
-            if (s) { s.classList.remove('open', 'has-video', 'audio-only'); }
+            if (s) { s.classList.remove('open', 'has-video', 'audio-only', 'min'); }
+            rtcRingback(false);
             const inc = document.getElementById('rtcIncoming');
             if (inc) inc.classList.remove('open');
             rtcRingtone(false);
@@ -12618,6 +12675,7 @@
                 if (!rtcPc) return;
                 const st = rtcPc.connectionState;
                 if (st === 'connected') {
+                    rtcRingback(false);         // ответили — гудок больше не нужен
                     rtcSetState('Соединено');
                     document.getElementById('rtcFallback').style.display = 'none';
                     if (!rtcStartedAt) {
@@ -12637,6 +12695,102 @@
             };
             return pc;
         }
+
+        // ── Свернуть звонок ────────────────────────────────────────────────────────
+        // Соединение НЕ рвём: прячем только экран, поэтому разговор продолжается,
+        // пока человек пишет в переписке (просьба из задачи №71).
+        function rtcMinimize(on) {
+            const s = document.getElementById('rtcScreen');
+            if (!s || !s.classList.contains('open')) return;
+            s.classList.toggle('min', !!on);
+            if (on) {
+                document.getElementById('rtcMiniAva').innerHTML = rtcAvatarHtml(rtcPeer);
+                document.getElementById('rtcMiniName').textContent = (rtcPeer && rtcPeer.name) || 'Собеседник';
+                document.getElementById('rtcMiniState').textContent =
+                    document.getElementById('rtcState').textContent || '';
+            }
+        }
+        window.rtcMinimize = rtcMinimize;
+
+        // ── Поменять местами себя и собеседника ────────────────────────────────────
+        let rtcSwapped = false;
+        function rtcSwapViews() {
+            const rem = document.getElementById('rtcRemote'), loc = document.getElementById('rtcLocal');
+            if (!rem || !loc) return;
+            const a = rem.srcObject, c = loc.srcObject;
+            if (!a && !c) return;
+            rem.srcObject = c; loc.srcObject = a;
+            rtcSwapped = !rtcSwapped;
+            // Своё изображение показываем зеркально, чужое — как есть
+            rem.style.transform = rtcSwapped ? 'scaleX(-1)' : '';
+            loc.style.transform = rtcSwapped ? 'none' : 'scaleX(-1)';
+            loc.muted = true;                       // себя не слушаем ни в каком положении
+            rem.muted = rtcSwapped;                 // в своей же камере звука быть не должно
+        }
+        window.rtcSwapViews = rtcSwapViews;
+
+        // ── Гудок вызова у звонящего ───────────────────────────────────────────────
+        // Раньше звонящий не слышал ничего и не понимал, идёт ли вызов.
+        let rtcBack = null;
+        function rtcRingback(on) {
+            try {
+                if (!on) { if (rtcBack) { try { rtcBack.stop(); } catch (e) {} rtcBack = null; } return; }
+                if (rtcBack) return;
+                const Ctx = window.AudioContext || window.webkitAudioContext;
+                if (!Ctx) return;
+                const ctx = new Ctx();
+                const gain = ctx.createGain();
+                gain.gain.value = 0.0001;
+                gain.connect(ctx.destination);
+                const osc = ctx.createOscillator();
+                osc.type = 'sine';
+                osc.frequency.value = 425;          // привычный тон вызова
+                osc.connect(gain);
+                osc.start();
+                let t = ctx.currentTime;
+                for (let i = 0; i < 40; i++) {      // «гудок 1с — пауза 4с», как в телефоне
+                    gain.gain.setValueAtTime(0.05, t);
+                    gain.gain.setValueAtTime(0.0001, t + 1);
+                    t += 5;
+                }
+                rtcBack = { stop: () => { try { osc.stop(); ctx.close(); } catch (e) {} } };
+            } catch (e) {}
+        }
+
+        // ── Громкая связь ──────────────────────────────────────────────────────────
+        // Переключение устройства вывода возможно только там, где браузер даёт
+        // setSinkId. На телефонах выбор «динамик/разговорный» — возможность системы,
+        // а не страницы, поэтому кнопку показываем лишь при реальной поддержке.
+        let rtcSpeakerOn = true;
+        async function rtcInitSpeakerBtn() {
+            const btn = document.getElementById('rtcSpkBtn');
+            const rem = document.getElementById('rtcRemote');
+            if (!btn || !rem) return;
+            const supported = typeof rem.sinkId !== 'undefined' && typeof rem.setSinkId === 'function';
+            btn.style.display = supported ? 'flex' : 'none';
+        }
+        async function rtcToggleSpeaker() {
+            const rem = document.getElementById('rtcRemote');
+            if (!rem || typeof rem.setSinkId !== 'function') { toast('Браузер не умеет переключать вывод звука'); return; }
+            try {
+                const devs = await navigator.mediaDevices.enumerateDevices();
+                const outs = devs.filter(d => d.kind === 'audiooutput');
+                if (!outs.length) { toast('Другого устройства вывода не нашлось'); return; }
+                // «Обычная» — устройство по умолчанию, «громкая» — первое не-default
+                const target = rtcSpeakerOn
+                    ? (outs.find(d => d.deviceId !== 'default') || outs[0])
+                    : (outs.find(d => d.deviceId === 'default') || outs[0]);
+                await rem.setSinkId(target.deviceId);
+                rtcSpeakerOn = !rtcSpeakerOn;
+                const btn = document.getElementById('rtcSpkBtn');
+                btn.classList.toggle('off', !rtcSpeakerOn);
+                document.getElementById('rtcSpkIco').textContent = rtcSpeakerOn ? '🔊' : '🔈';
+                document.getElementById('rtcSpkLab').textContent = rtcSpeakerOn ? 'Динамик' : 'Наушник';
+            } catch (e) {
+                toast('Не удалось переключить вывод звука');
+            }
+        }
+        window.rtcToggleSpeaker = rtcToggleSpeaker;
 
         function rtcShowFallback(text) {
             const box = document.getElementById('rtcFallback');
@@ -12668,12 +12822,15 @@
             if (!window.isSecureContext) { toast('Звонки работают только по https'); return; }
             rtcKind = kind === 'audio' ? 'audio' : 'video';
             rtcRole = 'caller';
-            const other = (typeof chatPeer === 'object' && chatPeer) ? chatPeer : null;
+            // Берём фото и имя из шапки открытой переписки
+            const other = (chatPeerInfo && String(chatPeerInfo.id) === String(selectedUserId)) ? chatPeerInfo : null;
             rtcPeer = { id: selectedUserId,
-                        name: (document.querySelector('#chatHeader .name') || {}).textContent || 'Собеседник',
+                        name: (other && other.name)
+                              || (document.querySelector('#chatHeader .name') || {}).textContent || 'Собеседник',
                         avatar: (other && other.avatar) || '' };
             rtcOpenScreen();
             rtcSetState('Звоним…');
+            rtcRingback(true);          // звонящий должен слышать, что вызов идёт
             try {
                 rtcLocalStream = await rtcGetMedia(rtcKind);
             } catch (e) {
@@ -12692,6 +12849,12 @@
                 const offer = await rtcPc.createOffer();
                 await rtcPc.setLocalDescription(offer);
                 await callsApi('signal', { call_id: rtcCallId, kind: 'offer', payload: JSON.stringify(offer) });
+                // Будим собеседника пушем: иначе о звонке узнает только тот, у кого
+                // сайт уже открыт, а при выключенном экране вызов пройдёт мимо.
+                fetch('/api/push.php?action=poke-call', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include', body: JSON.stringify({ to: String(selectedUserId) })
+                }).catch(() => {});
                 rtcPollSoon(700);
             } catch (e) {
                 rtcCloseScreen(); rtcTeardown();
@@ -13091,12 +13254,26 @@
             <div class="rtc-top-name" id="rtcTopName">Собеседник</div>
             <div class="rtc-top-state"><span aria-hidden="true">🔒</span> <span id="rtcTopState">Соединяем…</span></div>
         </div>
-        <video class="rtc-local" id="rtcLocal" autoplay playsinline muted></video>
+        <video class="rtc-local" id="rtcLocal" autoplay playsinline muted
+               onclick="rtcSwapViews()" title="Поменять местами"></video>
         <div class="rtc-fallback" id="rtcFallback">
             <span id="rtcFallbackText">Не удалось соединиться напрямую.</span>
             <button type="button" onclick="rtcUseTelemost()">Через Телемост</button>
         </div>
+        <!-- Свернуть: разговор продолжается, можно писать в чат -->
+        <button type="button" class="rtc-mini-btn" id="rtcMinBtn" onclick="rtcMinimize(true)"
+                title="Свернуть звонок" aria-label="Свернуть звонок">▾</button>
+        <!-- Свёрнутый вид: узкая полоска, по нажатию разворачивается обратно -->
+        <div class="rtc-minibar" id="rtcMiniBar" onclick="rtcMinimize(false)">
+            <span class="rtc-mini-ava" id="rtcMiniAva"></span>
+            <span class="rtc-mini-txt"><b id="rtcMiniName">Собеседник</b><i id="rtcMiniState">00:00</i></span>
+            <button type="button" class="rtc-mini-hang" onclick="event.stopPropagation();rtcHangUp('hangup')"
+                    title="Завершить" aria-label="Завершить">📵</button>
+        </div>
         <div class="rtc-bar">
+            <button type="button" class="rtc-btn" id="rtcSpkBtn" onclick="rtcToggleSpeaker()" aria-label="Динамик" style="display:none;">
+                <span class="rtc-ico" id="rtcSpkIco">🔊</span><span class="rtc-lab" id="rtcSpkLab">Динамик</span>
+            </button>
             <button type="button" class="rtc-btn" id="rtcMicBtn" onclick="rtcToggleMic()" aria-label="Микрофон">
                 <span class="rtc-ico" id="rtcMicIco">🎤</span><span class="rtc-lab" id="rtcMicLab">Микрофон</span>
             </button>
