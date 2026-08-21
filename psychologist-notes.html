@@ -4,9 +4,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
     <title>Записки - psytalk.pro</title>
-    <link rel="stylesheet" href="/css/styles.css">
-    <script src="/js/layout.js"></script>
+    <link rel="stylesheet" href="/css/styles.css?v=20260821">
+    <script src="/js/layout.js?v=20260821"></script>
     <!-- Одно меню в кабинете. Разделы сайта живут в боковом меню («Сайт»), поэтому
          бургер шапки здесь лишний: на телефоне рядом оказывались два меню, и человек
          не понимал, в какое жать. Правило дублирует логику layout.js намеренно —
@@ -16,7 +19,6 @@
       @media (max-width:768px){#navMenu.nav-menu:not(.nav-menu-slim){display:none!important}}
     </style>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
         :root {
             --d-bg: #ECFDF5; --d-panel: #FFFFFF; --d-panel-alt: #FAFAFA;
             --d-border: #EFF7F3; --d-border-light: #F0F0F0; --d-border-accent: #D1FAE5;
@@ -178,8 +180,8 @@
         </div>
     </div>
 
-    <script src="/js/api.js"></script>
-    <script src="/js/auth.js"></script>
+    <script src="/js/api.js?v=20260821"></script>
+    <script src="/js/auth.js?v=20260821"></script>
     <script>
         function esc(s){ const d=document.createElement('div'); d.textContent=(s==null?'':String(s)); return d.innerHTML; }
         function fmtDateTime(s){ if(!s) return ''; const d=new Date(String(s).replace(' ','T')); if(isNaN(d)) return s; return d.toLocaleDateString('ru-RU')+' '+d.toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'}); }
