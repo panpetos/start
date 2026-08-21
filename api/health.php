@@ -53,12 +53,24 @@ try {
     }
 } catch (Exception $e) { $r['db_error'] = $e->getMessage(); }
 
-// 3. Сколько процессов PHP крутится от нашего аккаунта — если упёрлись в лимит,
-//    любой запрос, даже к статичной странице на PHP, будет ждать очереди.
+// 3. Процессы PHP. Важно различать две картины:
+//    - много процессов на всей машине, но мало наших — мешают соседи по хостингу;
+//    - много именно наших — значит, очередь создаёт наш же сайт, и лечится это у нас.
 $r['php_procs'] = null;
-foreach (['ps -e -o comm= | grep -c php', 'ps ax | grep -c "[p]hp"'] as $cmd) {
-    $n = @shell_exec($cmd);
-    if ($n !== null && trim((string)$n) !== '') { $r['php_procs'] = (int)trim($n); break; }
+$n = @shell_exec('ps -e -o comm= 2>/dev/null | grep -c php');
+if ($n !== null && trim((string)$n) !== '') $r['php_procs'] = (int)trim($n);
+
+$r['user'] = @get_current_user();
+$mine = @shell_exec('ps -u "$(id -un)" -o comm= 2>/dev/null | grep -c php');
+$r['php_procs_mine'] = ($mine !== null && trim((string)$mine) !== '') ? (int)trim($mine) : null;
+
+// 4. Файлы сессий: их сотни тысяч копятся от поисковых роботов, и тогда каждый
+//    session_start() начинает упираться в файловую систему.
+$sd = @ini_get('session.save_path');
+$r['session_path'] = $sd ?: '(по умолчанию)';
+if ($sd && is_dir($sd)) {
+    $cnt = @shell_exec('ls -U ' . escapeshellarg($sd) . ' 2>/dev/null | head -100000 | wc -l');
+    $r['session_files'] = ($cnt !== null && trim((string)$cnt) !== '') ? (int)trim($cnt) : null;
 }
 
 $r['total_ms'] = round((microtime(true) - $t0) * 1000);
