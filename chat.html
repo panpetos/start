@@ -9,7 +9,7 @@
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
     <title>Сообщения - psytalk.pro</title>
     <link rel="preconnect" href="https://unpkg.com">
-    <script src="/js/netguard.js?v=20260821b"></script>
+    <script src="/js/netguard.js?v=20260821c"></script>
     <script defer src="https://unpkg.com/lucide@latest"></script>
     <style>
         *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
@@ -3285,15 +3285,18 @@
          *   • вкладка свёрнута — не опрашиваем вовсе, человек всё равно не смотрит;
          *   • прошлый проход ещё не вернулся — новый не запускаем (иначе при медленном
          *     сервере запросы копятся лавиной и добивают базу);
-         *   • сервер просит передышку (psyServerBusy) — молчим, пока не отпустит.
+         *   • сервер просит передышку (psyServerBusy) — молчим, пока не отпустит;
+         *   • человек давно ничего не делал — разрежаем опрос вдвое-вчетверо.
          * Когда вкладка снова открыта, обновляемся сразу, не дожидаясь таймера.
          */
         function psyPollGuard(fn) {
-            let busy = false;
+            let busy = false, tick = 0;
             const wrapped = async function () {
                 if (document.hidden) return;
                 if (busy) return;
                 if (window.psyServerBusy && window.psyServerBusy()) return;
+                // человек давно ничего не делал — ходим реже (см. psyIdleFactor)
+                if (window.psyIdleFactor && tick++ % window.psyIdleFactor() !== 0) return;
                 busy = true;
                 try { return await fn.apply(this, arguments); }
                 catch (e) { /* сеть моргнула — просто ждём следующего круга */ }
@@ -13075,7 +13078,10 @@
                 else if (why === 'missed') toast('Собеседник не ответил');
                 else if (why) toast('Звонок завершён');
             }
-            rtcPollSoon(rtcCallId || rtcIncomingCall ? 1000 : 6000);
+            // во время разговора — часто, в покое — раз в 6 секунд, а если человек
+            // давно ничего не делал, ещё вдвое-вчетверо реже
+            const idleK = window.psyIdleFactor ? window.psyIdleFactor() : 1;
+            rtcPollSoon(rtcCallId || rtcIncomingCall ? 1000 : 6000 * idleK);
         }
 
         function rtcPollSoon(ms) {

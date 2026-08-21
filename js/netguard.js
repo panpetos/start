@@ -38,16 +38,39 @@
   function good() { fails = 0; window.psyBackoffUntil = 0; }
 
   /**
+   * Открытая, но забытая вкладка — обычное дело: их держат днями. Пока человек
+   * ничего не делает, опрашивать сервер в прежнем темпе незачем: через две минуты
+   * бездействия ходим вдвое реже, через десять — вчетверо. О новом сообщении всё
+   * равно сообщит push, а любое действие мгновенно возвращает обычную частоту.
+   */
+  var lastAct = Date.now();
+  function touch() { lastAct = Date.now(); }
+  ['pointerdown', 'keydown', 'wheel', 'touchstart', 'focus'].forEach(function (e) {
+    window.addEventListener(e, touch, { passive: true, capture: true });
+  });
+  document.addEventListener('visibilitychange', function () { if (!document.hidden) touch(); });
+
+  /** Во сколько раз разредить фоновый опрос прямо сейчас. */
+  window.psyIdleFactor = function () {
+    var idle = Date.now() - lastAct;
+    if (idle > 600000) return 4;
+    if (idle > 120000) return 2;
+    return 1;
+  };
+
+  /**
    * Обёртка для фоновых опросов по таймеру. Пропускает круг, если вкладка свёрнута,
-   * если прошлый запрос ещё не вернулся или если сервер попросил передышку.
+   * если прошлый запрос ещё не вернулся, если сервер попросил передышку или если
+   * человек давно ничего не делал.
    * Именно накопление незавершённых опросов и превращало «медленно» в «висит».
    */
   window.psyGuardPoll = function (fn) {
-    var busy = false;
+    var busy = false, tick = 0;
     return function () {
       if (document.hidden) return;
       if (busy) return;
       if (window.psyServerBusy()) return;
+      if (tick++ % window.psyIdleFactor() !== 0) return;
       busy = true;
       var done = function () { busy = false; };
       var r;
