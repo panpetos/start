@@ -73,5 +73,50 @@ if ($sd && is_dir($sd)) {
     $r['session_files'] = ($cnt !== null && trim((string)$cnt) !== '') ? (int)trim($cnt) : null;
 }
 
+// 5. ?bench=1 — сколько стоят типовые запросы сайта. Нужно, чтобы прикинуть,
+//    сколько людей хостинг вытянет, не устраивая проду настоящую нагрузку.
+//    Всё только на чтение, данные наружу не отдаются — одни тайминги.
+if (isset($_GET['bench']) && isset($pdo) && $pdo) {
+    $bench = [];
+    $timeit = function ($name, callable $fn) use (&$bench) {
+        $t = microtime(true);
+        try { $n = $fn(); } catch (Exception $e) { $n = 'ошибка: ' . substr($e->getMessage(), 0, 80); }
+        $bench[$name] = ['ms' => round((microtime(true) - $t) * 1000, 1), 'rows' => $n];
+    };
+    $dummy = '00000000000000000000000000000000';
+
+    // опрос звонков — самый частый запрос на сайте
+    $timeit('опрос звонков', function () use ($pdo, $dummy) {
+        $cols = "c.*, u.first_name, u.last_name, u.avatar";
+        $join = "rtc_calls c LEFT JOIN users u ON u.id = c.from_id";
+        $sql = "(SELECT $cols, 'in' AS slot FROM $join WHERE c.to_id = ? AND c.status IN ('ringing','accepted') ORDER BY c.id DESC LIMIT 1)
+                UNION ALL (SELECT $cols, 'out' AS slot FROM $join WHERE c.from_id = ? AND c.status IN ('ringing','accepted') ORDER BY c.id DESC LIMIT 1)
+                UNION ALL (SELECT $cols, 'end' AS slot FROM $join WHERE c.to_id = ? AND c.status = 'ended' AND c.ended_at > (NOW() - INTERVAL 30 SECOND) ORDER BY c.id DESC LIMIT 1)
+                UNION ALL (SELECT $cols, 'end' AS slot FROM $join WHERE c.from_id = ? AND c.status = 'ended' AND c.ended_at > (NOW() - INTERVAL 30 SECOND) ORDER BY c.id DESC LIMIT 1)";
+        $st = $pdo->prepare($sql); $st->execute([$dummy, $dummy, $dummy, $dummy]);
+        return count($st->fetchAll());
+    });
+
+    // присутствие — «кто онлайн»
+    $timeit('присутствие', function () use ($pdo) {
+        $st = $pdo->query("SELECT user_id FROM user_presence WHERE last_seen > (NOW() - INTERVAL 70 SECOND)");
+        return count($st->fetchAll());
+    });
+
+    // лента сообщений: 50 последних в самой свежей переписке
+    $timeit('переписка (50 сообщений)', function () use ($pdo) {
+        $st = $pdo->query("SELECT id FROM messages ORDER BY id DESC LIMIT 50");
+        return count($st->fetchAll());
+    });
+
+    // сколько всего накопилось — от размера таблиц зависит, как быстро всё это работает
+    foreach (['messages', 'users', 'rtc_call_signals', 'rtc_calls'] as $t) {
+        $timeit('строк в ' . $t, function () use ($pdo, $t) {
+            return (int)$pdo->query("SELECT COUNT(*) FROM `$t`")->fetchColumn();
+        });
+    }
+    $r['bench'] = $bench;
+}
+
 $r['total_ms'] = round((microtime(true) - $t0) * 1000);
 echo json_encode($r, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
