@@ -1680,78 +1680,145 @@
 
 
         /* ── Свои звонки (WebRTC) ────────────────────────────────────────────────
-           Разговор идёт напрямую между браузерами, сайт только знакомит собеседников. */
+           Разговор идёт напрямую между браузерами, сайт только знакомит собеседников.
+           Стороны заданы по отдельности, а не сокращением inset: в части мобильных
+           браузеров сокращение не понимается, и экран разворачивался не на весь телефон.
+           Высота — 100dvh с запасным 100vh: адресная строка на телефоне съедает часть
+           экрана, и на 100vh нижние кнопки уезжали под неё. */
         .rtc-screen {
-            position: fixed; inset: 0; z-index: 5000; display: none;
-            background: #06231B; color: #fff; flex-direction: column;
+            position: fixed; top: 0; right: 0; bottom: 0; left: 0;
+            width: 100%; height: 100vh; height: 100dvh;
+            z-index: 5000; display: none; overflow: hidden;
+            background: #06231B; color: #fff;
         }
-        .rtc-screen.open { display: flex; }
-        .rtc-stage { flex: 1; position: relative; min-height: 0; background: #04170F; overflow: hidden; }
-        .rtc-remote { width: 100%; height: 100%; object-fit: contain; background: #04170F; display: block; }
-        .rtc-screen.audio-only .rtc-remote { display: none; }
-        /* Своя картинка — в углу, зеркально: так привычнее, как в зеркале */
-        .rtc-local {
-            position: absolute; right: 14px; bottom: 14px; width: 168px; max-width: 34vw;
-            border-radius: 0.9rem; border: 2px solid rgba(255,255,255,0.35);
-            object-fit: cover; transform: scaleX(-1); background: #04170F; z-index: 2;
+        .rtc-screen.open { display: block; }
+        /* Видео собеседника занимает весь экран, поверх него — подписи и кнопки */
+        .rtc-remote {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            object-fit: cover; background: #04170F; display: block;
         }
-        .rtc-screen.audio-only .rtc-local { display: none; }
-        /* Заглушка для аудиозвонка и пока нет картинки: аватар и имя */
+        .rtc-screen.audio-only .rtc-remote,
+        .rtc-screen:not(.has-video) .rtc-remote { display: none; }
+
+        /* Пока картинки нет (аудиозвонок или ещё соединяемся) — аватар и состояние */
         .rtc-poster {
-            position: absolute; inset: 0; display: flex; flex-direction: column;
-            align-items: center; justify-content: center; gap: 0.9rem; text-align: center; padding: 1rem;
+            position: absolute; top: 0; right: 0; bottom: 0; left: 0;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            gap: 1rem; text-align: center; padding: 1.5rem;
         }
         .rtc-screen.has-video:not(.audio-only) .rtc-poster { display: none; }
         .rtc-ava {
-            width: 108px; height: 108px; border-radius: 50%; overflow: hidden;
+            width: 132px; height: 132px; border-radius: 50%; overflow: hidden; flex-shrink: 0;
             background: linear-gradient(135deg,#047857,#059669); display: flex;
-            align-items: center; justify-content: center; font-size: 2.4rem; font-weight: 700; color: #fff;
+            align-items: center; justify-content: center; font-size: 3rem; font-weight: 700; color: #fff;
+            box-shadow: 0 0 0 8px rgba(255,255,255,0.06);
         }
         .rtc-ava img { width: 100%; height: 100%; object-fit: cover; }
-        .rtc-name { font-size: 1.25rem; font-weight: 700; }
-        .rtc-state { font-size: 0.9rem; color: #A7F3D0; min-height: 1.2em; }
-        .rtc-secure { font-size: 0.78rem; color: #6EE7B7; display: flex; align-items: center; gap: 0.3rem; }
-        .rtc-bar {
-            flex-shrink: 0; display: flex; align-items: center; justify-content: center;
-            gap: 0.7rem; padding: 1rem; padding-bottom: max(1rem, env(safe-area-inset-bottom));
-            background: rgba(0,0,0,0.25);
+        .rtc-name { font-size: 1.4rem; font-weight: 700; }
+        .rtc-state { font-size: 1rem; color: #A7F3D0; min-height: 1.3em; font-variant-numeric: tabular-nums; }
+
+        /* Когда идёт картинка, имя и таймер уезжают наверх, чтобы не закрывать лицо */
+        .rtc-top {
+            position: absolute; top: 0; left: 0; right: 0; z-index: 3;
+            padding: max(0.9rem, env(safe-area-inset-top)) 1rem 0.9rem;
+            display: none; text-align: center;
+            background: linear-gradient(to bottom, rgba(0,0,0,0.55), rgba(0,0,0,0));
         }
-        .rtc-btn {
-            width: 56px; height: 56px; border-radius: 50%; border: none; cursor: pointer;
-            background: rgba(255,255,255,0.16); color: #fff; font-size: 1.3rem;
-            display: flex; align-items: center; justify-content: center; font-family: inherit;
-            transition: background 0.15s;
+        .rtc-screen.has-video:not(.audio-only) .rtc-top { display: block; }
+        .rtc-top-name { font-size: 1.05rem; font-weight: 700; }
+        .rtc-top-state { font-size: 0.85rem; color: #A7F3D0; font-variant-numeric: tabular-nums; }
+
+        /* Пометка о шифровании идёт под таймером обычным элементом. Плавающей она
+           налезала на своё видео в углу и ломалась на три строки. */
+        .rtc-secure {
+            display: flex; align-items: center; justify-content: center; gap: 0.4rem;
+            max-width: 260px; white-space: nowrap; font-size: 0.8rem; line-height: 1.35; color: #6EE7B7;
+            text-align: center; background: rgba(0,0,0,0.28);
+            border-radius: 999px; padding: 0.4rem 0.9rem; margin-top: 0.2rem;
         }
-        .rtc-btn:hover { background: rgba(255,255,255,0.28); }
-        .rtc-btn.off { background: #fff; color: #06231B; }
-        .rtc-btn.hang { background: #DC2626; }
-        .rtc-btn.hang:hover { background: #B91C1C; }
+        /* Своя картинка — в ВЕРХНЕМ углу и зеркально, как в зеркале. Снизу она
+           накладывалась на подпись о шифровании, пока идёт дозвон. */
+        .rtc-local {
+            position: absolute; right: 12px; z-index: 4;
+            top: calc(env(safe-area-inset-top) + 64px);
+            width: 104px; height: 138px; border-radius: 0.9rem;
+            border: 2px solid rgba(255,255,255,0.35); object-fit: cover;
+            transform: scaleX(-1); background: #04170F; display: block;
+        }
+        .rtc-screen.audio-only .rtc-local { display: none; }
+
         .rtc-fallback {
-            position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%);
-            background: rgba(0,0,0,0.55); border: 1px solid rgba(255,255,255,0.25);
-            color: #fff; border-radius: 0.7rem; padding: 0.55rem 0.9rem; font-size: 0.82rem;
-            display: none; align-items: center; gap: 0.6rem; z-index: 3; max-width: 92%;
+            position: absolute; left: 50%; transform: translateX(-50%); z-index: 5;
+            bottom: calc(env(safe-area-inset-bottom) + 116px);
+            background: rgba(0,0,0,0.72); border: 1px solid rgba(255,255,255,0.25);
+            color: #fff; border-radius: 0.8rem; padding: 0.7rem 0.9rem; font-size: 0.85rem;
+            display: none; flex-direction: column; align-items: center; gap: 0.55rem;
+            width: min(340px, calc(100% - 2rem)); text-align: center; line-height: 1.4;
         }
         .rtc-fallback button {
-            border: none; background: #fff; color: #06231B; border-radius: 0.5rem;
-            padding: 0.35rem 0.6rem; font-family: inherit; font-size: 0.8rem; font-weight: 700; cursor: pointer;
+            border: none; background: #fff; color: #06231B; border-radius: 0.6rem;
+            padding: 0.5rem 0.9rem; font-family: inherit; font-size: 0.85rem; font-weight: 700; cursor: pointer;
         }
+
+        /* Кнопки прижаты к низу и не залезают под системную полосу телефона */
+        .rtc-bar {
+            position: absolute; left: 0; right: 0; bottom: 0; z-index: 6;
+            display: flex; align-items: flex-start; justify-content: center; gap: 1.5rem;
+            padding: 1rem 1rem calc(1rem + env(safe-area-inset-bottom));
+            background: linear-gradient(to top, rgba(0,0,0,0.55), rgba(0,0,0,0));
+        }
+        .rtc-btn {
+            display: flex; flex-direction: column; align-items: center; gap: 0.4rem;
+            border: none; background: none; padding: 0; cursor: pointer;
+            font-family: inherit; color: #fff; width: 72px;
+        }
+        .rtc-ico {
+            width: 62px; height: 62px; border-radius: 50%; background: rgba(255,255,255,0.18);
+            display: flex; align-items: center; justify-content: center; font-size: 1.5rem;
+            transition: background 0.15s, transform 0.1s;
+        }
+        .rtc-btn:hover .rtc-ico { background: rgba(255,255,255,0.3); }
+        .rtc-btn:active .rtc-ico { transform: scale(0.94); }
+        .rtc-btn.off .rtc-ico { background: #fff; color: #06231B; }
+        .rtc-btn.hang .rtc-ico { background: #DC2626; }
+        .rtc-btn.hang:hover .rtc-ico { background: #B91C1C; }
+        .rtc-btn.answer .rtc-ico { background: #047857; }
+        .rtc-lab { font-size: 0.72rem; opacity: 0.85; white-space: nowrap; }
+
         /* Входящий вызов — поверх всего, чтобы не потерялся за другими окнами */
         .rtc-incoming {
-            position: fixed; inset: 0; z-index: 5100; display: none;
-            align-items: center; justify-content: center; background: rgba(0,0,0,0.55); padding: 1rem;
+            position: fixed; top: 0; right: 0; bottom: 0; left: 0;
+            width: 100%; height: 100vh; height: 100dvh;
+            z-index: 5100; display: none;
+            align-items: center; justify-content: center; background: rgba(0,0,0,0.6); padding: 1rem;
         }
         .rtc-incoming.open { display: flex; }
         .rtc-in-card {
-            background: #fff; color: #1A1A1A; border-radius: 1.2rem; padding: 1.6rem 1.4rem;
-            width: min(340px, 100%); text-align: center; box-shadow: 0 20px 60px rgba(0,0,0,0.35);
+            background: #06231B; color: #fff; border-radius: 1.4rem; padding: 2rem 1.4rem 1.6rem;
+            width: min(340px, 100%); text-align: center; box-shadow: 0 24px 70px rgba(0,0,0,0.5);
         }
-        body.dark .rtc-in-card { background: #252525; color: #E6E6E6; }
-        .rtc-in-card .rtc-ava { margin: 0 auto 0.9rem; width: 84px; height: 84px; font-size: 1.9rem; }
-        .rtc-in-actions { display: flex; gap: 0.8rem; justify-content: center; margin-top: 1.2rem; }
-        @media (max-width: 560px) {
-            .rtc-btn { width: 52px; height: 52px; font-size: 1.2rem; }
-            .rtc-local { width: 120px; }
+        .rtc-in-card .rtc-ava { margin: 0 auto 1rem; width: 96px; height: 96px; font-size: 2.2rem; }
+        .rtc-in-name { font-size: 1.25rem; font-weight: 700; }
+        .rtc-in-kind { font-size: 0.9rem; color: #A7F3D0; margin-top: 0.2rem; }
+        .rtc-in-actions { display: flex; gap: 2rem; justify-content: center; margin-top: 1.6rem; }
+
+        /* Тесный экран: кружки поменьше, своё видео ниже, подписи остаются */
+        @media (max-width: 380px), (max-height: 620px) {
+            .rtc-ava { width: 104px; height: 104px; font-size: 2.4rem; }
+            .rtc-ico { width: 54px; height: 54px; font-size: 1.3rem; }
+            .rtc-btn { width: 64px; }
+            .rtc-bar { gap: 1.1rem; }
+            .rtc-local { width: 84px; height: 112px; }
+        }
+        /* Телефон лёжа: невысокий экран — прячем подписи под кнопками и пометку о шифровании */
+        @media (orientation: landscape) and (max-height: 500px) {
+            .rtc-poster { gap: 0.5rem; padding: 0.75rem; }
+            .rtc-ava { width: 76px; height: 76px; font-size: 1.8rem; }
+            .rtc-name { font-size: 1.1rem; }
+            .rtc-lab { display: none; }
+            .rtc-secure { display: none; }   /* лёжа экран низкий — оставляем главное */
+            .rtc-bar { gap: 1rem; padding: 0.6rem 1rem calc(0.6rem + env(safe-area-inset-bottom)); }
+            .rtc-local { width: 96px; height: 72px; top: calc(env(safe-area-inset-top) + 48px); }
         }
 
         /* ── Отложенная отправка ────────────────────────────────────────────────── */
@@ -2788,43 +2855,6 @@
                     <button class="rb-x" onclick="editingMessageId ? cancelEditMessage() : cancelReply()"
                             title="Отменить" aria-label="Отменить">✕</button>
                 </div>
-                <!-- Экран разговора. Звук и видео идут напрямую между браузерами (WebRTC),
-                     сайт переносит только «знакомство» — несколько строк с параметрами связи. -->
-                <div class="rtc-screen" id="rtcScreen">
-                    <div class="rtc-stage">
-                        <video class="rtc-remote" id="rtcRemote" autoplay playsinline></video>
-                        <video class="rtc-local" id="rtcLocal" autoplay playsinline muted></video>
-                        <div class="rtc-poster">
-                            <div class="rtc-ava" id="rtcAva"></div>
-                            <div class="rtc-name" id="rtcName">Собеседник</div>
-                            <div class="rtc-state" id="rtcState">Соединяем…</div>
-                            <div class="rtc-secure"><span aria-hidden="true">🔒</span> Разговор зашифрован, сервер его не слышит</div>
-                        </div>
-                        <div class="rtc-fallback" id="rtcFallback">
-                            <span id="rtcFallbackText">Не удалось соединиться напрямую.</span>
-                            <button type="button" onclick="rtcUseTelemost()">Через Телемост</button>
-                        </div>
-                    </div>
-                    <div class="rtc-bar">
-                        <button type="button" class="rtc-btn" id="rtcMicBtn" onclick="rtcToggleMic()" title="Микрофон" aria-label="Микрофон">🎤</button>
-                        <button type="button" class="rtc-btn" id="rtcCamBtn" onclick="rtcToggleCam()" title="Камера" aria-label="Камера">🎥</button>
-                        <button type="button" class="rtc-btn hang" onclick="rtcHangUp('hangup')" title="Завершить" aria-label="Завершить">📵</button>
-                    </div>
-                </div>
-
-                <!-- Входящий вызов -->
-                <div class="rtc-incoming" id="rtcIncoming">
-                    <div class="rtc-in-card">
-                        <div class="rtc-ava" id="rtcInAva"></div>
-                        <div style="font-size:1.15rem;font-weight:700;" id="rtcInName">Вам звонят</div>
-                        <div style="font-size:0.88rem;color:#6B7280;margin-top:0.2rem;" id="rtcInKind">Аудиозвонок</div>
-                        <div class="rtc-in-actions">
-                            <button type="button" class="rtc-btn hang" onclick="rtcDecline()" title="Отклонить" aria-label="Отклонить">📵</button>
-                            <button type="button" class="rtc-btn" style="background:#047857;" onclick="rtcAccept()" title="Ответить" aria-label="Ответить">📞</button>
-                        </div>
-                    </div>
-                </div>
-
                 <div class="chat-input" id="chatInputBar">
                     <!-- «⋮» слева: смайлы, файлы, голосовое и прочее убраны внутрь, чтобы
                          строка ввода не была заставлена иконками. Список пунктов зависит от
@@ -12500,6 +12530,8 @@
         function rtcSetState(text) {
             const el = document.getElementById('rtcState');
             if (el) el.textContent = text;
+            const top = document.getElementById('rtcTopState');   // та же подпись поверх видео
+            if (top) top.textContent = text;
         }
 
         function rtcAvatarHtml(peer) {
@@ -12514,10 +12546,18 @@
             s.classList.add('open');
             s.classList.toggle('audio-only', rtcKind === 'audio');
             s.classList.remove('has-video');
+            const nm = (rtcPeer && rtcPeer.name) || 'Собеседник';
             document.getElementById('rtcAva').innerHTML = rtcAvatarHtml(rtcPeer);
-            document.getElementById('rtcName').textContent = (rtcPeer && rtcPeer.name) || 'Собеседник';
+            document.getElementById('rtcName').textContent = nm;
+            document.getElementById('rtcTopName').textContent = nm;
             document.getElementById('rtcFallback').style.display = 'none';
             document.getElementById('rtcCamBtn').style.display = rtcKind === 'audio' ? 'none' : 'flex';
+            // кнопки возвращаем во включённое состояние: экран переиспользуется между звонками
+            ['rtcMicBtn', 'rtcCamBtn'].forEach(id => document.getElementById(id).classList.remove('off'));
+            document.getElementById('rtcMicIco').textContent = '🎤';
+            document.getElementById('rtcMicLab').textContent = 'Микрофон';
+            document.getElementById('rtcCamIco').textContent = '🎥';
+            document.getElementById('rtcCamLab').textContent = 'Камера';
         }
 
         function rtcCloseScreen() {
@@ -12722,8 +12762,9 @@
             tr.enabled = !tr.enabled;
             const b = document.getElementById('rtcMicBtn');
             b.classList.toggle('off', !tr.enabled);
-            b.textContent = tr.enabled ? '🎤' : '🔇';
-            b.title = tr.enabled ? 'Выключить микрофон' : 'Включить микрофон';
+            document.getElementById('rtcMicIco').textContent = tr.enabled ? '🎤' : '🔇';
+            document.getElementById('rtcMicLab').textContent = tr.enabled ? 'Микрофон' : 'Включить';
+            b.setAttribute('aria-label', tr.enabled ? 'Выключить микрофон' : 'Включить микрофон');
         }
         window.rtcToggleMic = rtcToggleMic;
 
@@ -12734,8 +12775,9 @@
             tr.enabled = !tr.enabled;
             const b = document.getElementById('rtcCamBtn');
             b.classList.toggle('off', !tr.enabled);
-            b.textContent = tr.enabled ? '🎥' : '🚫';
-            b.title = tr.enabled ? 'Выключить камеру' : 'Включить камеру';
+            document.getElementById('rtcCamIco').textContent = tr.enabled ? '🎥' : '🚫';
+            document.getElementById('rtcCamLab').textContent = tr.enabled ? 'Камера' : 'Включить';
+            b.setAttribute('aria-label', tr.enabled ? 'Выключить камеру' : 'Включить камеру');
         }
         window.rtcToggleCam = rtcToggleCam;
 
@@ -13030,6 +13072,58 @@
 
         init();
     </script>
+    <!-- Экран разговора. Лежит прямым потомком body намеренно: внутри переписки любой
+         предок с transform/filter превращает position:fixed в позиционирование внутри
+         этого предка, и экран переставал разворачиваться на весь телефон. -->
+    <div class="rtc-screen" id="rtcScreen">
+        <video class="rtc-remote" id="rtcRemote" autoplay playsinline></video>
+        <div class="rtc-poster">
+            <div class="rtc-ava" id="rtcAva"></div>
+            <div class="rtc-name" id="rtcName">Собеседник</div>
+            <div class="rtc-state" id="rtcState">Соединяем…</div>
+            <div class="rtc-secure" title="Разговор шифруется между браузерами, сервер его не слышит"><span aria-hidden="true">🔒</span><span>Разговор зашифрован</span></div>
+        </div>
+        <!-- Верхняя строка: с кем говорим и сколько идёт разговор -->
+        <div class="rtc-top">
+            <div class="rtc-top-name" id="rtcTopName">Собеседник</div>
+            <div class="rtc-top-state"><span aria-hidden="true">🔒</span> <span id="rtcTopState">Соединяем…</span></div>
+        </div>
+        <video class="rtc-local" id="rtcLocal" autoplay playsinline muted></video>
+        <div class="rtc-fallback" id="rtcFallback">
+            <span id="rtcFallbackText">Не удалось соединиться напрямую.</span>
+            <button type="button" onclick="rtcUseTelemost()">Через Телемост</button>
+        </div>
+        <div class="rtc-bar">
+            <button type="button" class="rtc-btn" id="rtcMicBtn" onclick="rtcToggleMic()" aria-label="Микрофон">
+                <span class="rtc-ico" id="rtcMicIco">🎤</span><span class="rtc-lab" id="rtcMicLab">Микрофон</span>
+            </button>
+            <button type="button" class="rtc-btn" id="rtcCamBtn" onclick="rtcToggleCam()" aria-label="Камера">
+                <span class="rtc-ico" id="rtcCamIco">🎥</span><span class="rtc-lab" id="rtcCamLab">Камера</span>
+            </button>
+            <button type="button" class="rtc-btn hang" onclick="rtcHangUp('hangup')" aria-label="Завершить">
+                <span class="rtc-ico">📵</span><span class="rtc-lab">Завершить</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Входящий вызов -->
+    <div class="rtc-incoming" id="rtcIncoming">
+        <div class="rtc-in-card">
+            <div class="rtc-ava" id="rtcInAva"></div>
+            <div class="rtc-in-name" id="rtcInName">Вам звонят</div>
+            <div class="rtc-in-kind" id="rtcInKind">Аудиозвонок</div>
+            <div class="rtc-in-actions">
+                <button type="button" class="rtc-btn hang" onclick="rtcDecline()" aria-label="Отклонить">
+                    <span class="rtc-ico">📵</span><span class="rtc-lab">Отклонить</span>
+                </button>
+                <button type="button" class="rtc-btn answer" onclick="rtcAccept()" aria-label="Ответить">
+                    <span class="rtc-ico">📞</span><span class="rtc-lab">Ответить</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+
 </body>
 
 </html>
