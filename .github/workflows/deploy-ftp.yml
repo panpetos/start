@@ -139,6 +139,7 @@ jobs:
             put api/blog.php -o api/blog.php;
             put api/schema_util.php -o api/schema_util.php;
             put api/manifest.php -o api/manifest.php;
+            put api/health.php -o api/health.php;
             put api/upload_chunk.php -o api/upload_chunk.php;
             put api/push.php -o api/push.php;
             bye;
