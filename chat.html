@@ -162,6 +162,9 @@
             display: flex; align-items: center; justify-content: center; font-family: inherit;
         }
         .story-add:hover { border-color: #047857; background: rgba(4,120,87,0.08); }
+        /* Подстраховка: на компьютере плюс историй не показываем даже если полоска
+           осталась отрисованной с прошлого раза — «＋» в шапке уже умеет истории. */
+        @media (min-width: 769px) { .story-add { display: none; } }
         .stories-label { font-size: 0.72rem; color: #9CA3AF; flex-shrink: 0; margin-right: 0.1rem; white-space: nowrap; }
         body.dark .stories-label { color: #7A7A7A; }
         body.dark .story-ring { background: #444; }
@@ -6718,9 +6721,15 @@
             const mine = storiesData.mine[0] || null;
             const hasMine = mine && mine.stories && mine.stories.length;
             const items = [];
-            // Кнопка «добавить» стоит рядом с кружками, а не наклейкой поверх аватарки.
-            items.push(`<button type="button" class="story-add" onclick="openStoryComposer()"
-                                title="Добавить историю">＋</button>`);
+            // На компьютере «＋» для истории живёт в общем меню «＋» в шапке списка
+            // (пункт «История»), поэтому второй плюс рядом с кружками там лишний.
+            // На телефоне общего меню в шапке нет — плюс остаётся на месте.
+            const wideScreen = window.matchMedia('(min-width: 769px)').matches;
+            if (!wideScreen) {
+                // Кнопка «добавить» стоит рядом с кружками, а не наклейкой поверх аватарки.
+                items.push(`<button type="button" class="story-add" onclick="openStoryComposer()"
+                                    title="Добавить историю">＋</button>`);
+            }
             if (hasMine) {
                 const seenAll = mine.stories.every(x => x.seen);
                 items.push(`
@@ -6738,11 +6747,24 @@
                         </div>
                     </button>`);
             });
-            // Пусто — оставляем только «плюс» с подписью, чтобы понятно было, что это такое.
-            if (!hasMine && !storiesData.data.length) items.push('<span class="stories-label">Истории</span>');
+            if (!hasMine && !storiesData.data.length) {
+                // На компьютере показывать нечего: без плюса осталась бы одна подпись
+                // «Истории», которая ничего не делает. Прячем полоску целиком.
+                if (wideScreen) { row.classList.add('is-empty'); row.innerHTML = ''; return; }
+                // На телефоне оставляем «плюс» с подписью — иначе непонятно, что это.
+                items.push('<span class="stories-label">Истории</span>');
+            }
             row.classList.remove('is-empty');
             row.innerHTML = items.join('');
         }
+
+        // Перетащили окно через границу «телефон/компьютер» — плюс историй должен
+        // появиться или исчезнуть сразу, а не через минуту к следующему обновлению.
+        try {
+            window.matchMedia('(min-width: 769px)').addEventListener('change', () => {
+                if (typeof loadStoriesRow === 'function') loadStoriesRow();
+            });
+        } catch (e) {}
 
         function addStoryClick() {
             const inp = document.getElementById('storyFileInput');
