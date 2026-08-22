@@ -1789,24 +1789,38 @@
         .rtc-btn.answer .rtc-ico { background: #047857; }
         .rtc-lab { font-size: 0.72rem; opacity: 0.85; white-space: nowrap; }
 
-        /* Кнопка «свернуть» — в углу поверх видео */
+        /* Кнопка «свернуть». Была безымянной галочкой «▾» в углу — никто не понимал,
+           что она делает. Теперь это подписанная кнопка «В чат»: видно и что нажимать,
+           и что произойдёт (разговор не прервётся). */
         .rtc-mini-btn {
-            position: absolute; z-index: 7; left: 12px;
+            position: absolute; z-index: 7; left: max(12px, env(safe-area-inset-left));
             top: calc(env(safe-area-inset-top) + 12px);
-            width: 40px; height: 40px; border-radius: 50%; border: none; cursor: pointer;
-            background: rgba(0,0,0,0.45); color: #fff; font-size: 1.2rem; line-height: 1;
-            display: flex; align-items: center; justify-content: center; font-family: inherit;
+            height: 40px; border-radius: 999px; border: none; cursor: pointer;
+            background: rgba(0,0,0,0.5); color: #fff; font-size: 0.85rem; font-weight: 600;
+            display: flex; align-items: center; gap: 0.4rem; padding: 0 0.9rem;
+            font-family: inherit; line-height: 1;
         }
-        .rtc-mini-btn:hover { background: rgba(0,0,0,0.65); }
+        .rtc-mini-btn:hover { background: rgba(0,0,0,0.7); }
+        .rtc-mini-btn b { font-size: 1.05rem; font-weight: 400; line-height: 1; }
 
         /* СВЁРНУТЫЙ звонок: разговор продолжается, а переписка снова доступна.
-           Соединение при этом не рвётся — прячется только экран. */
+           Соединение при этом не рвётся — прячется только экран.
+
+           Раньше свёрнутое окно висело плавающим прямоугольником в правом нижнем углу
+           и накрывало собой поле ввода — написать во время разговора было невозможно.
+           Теперь это полоска НАД перепиской: body у страницы — вертикальная колонка,
+           поэтому полоска встаёт обычным блоком и честно сдвигает всё вниз, ничего
+           не перекрывая. Как строка активного звонка в телефоне. */
         .rtc-minibar { display: none; }
         .rtc-screen.min {
-            top: auto; left: auto; bottom: calc(env(safe-area-inset-bottom) + 12px); right: 12px;
-            width: min(280px, calc(100vw - 24px)); height: auto;
-            border-radius: 1rem; box-shadow: 0 12px 40px rgba(0,0,0,0.45); overflow: hidden;
+            position: static; order: -1; flex: 0 0 auto;
+            top: auto; right: auto; bottom: auto; left: auto;
+            width: 100%; height: auto; border-radius: 0; overflow: hidden;
+            background: linear-gradient(135deg, #047857, #059669);
+            box-shadow: 0 4px 16px rgba(0,0,0,0.18);
         }
+        /* Шапку страницы пускаем выше полоски, чтобы порядок был привычным */
+        body.rtc-min .header { order: -2; }
         /* В свёрнутом виде всё лишнее убираем, остаётся полоска */
         .rtc-screen.min .rtc-remote,
         .rtc-screen.min .rtc-local,
@@ -1816,7 +1830,22 @@
         .rtc-screen.min .rtc-mini-btn,
         .rtc-screen.min .rtc-fallback { display: none !important; }
         .rtc-screen.min .rtc-minibar {
-            display: flex; align-items: center; gap: 0.6rem; padding: 0.7rem 0.8rem; cursor: pointer;
+            display: flex; align-items: center; gap: 0.7rem; cursor: pointer;
+            padding: 0.6rem max(0.8rem, env(safe-area-inset-left)) 0.6rem 0.8rem;
+            max-width: 1100px; margin: 0 auto; width: 100%;
+        }
+        .rtc-screen.min .rtc-minibar:hover { background: rgba(255,255,255,0.08); }
+        /* «Нажмите, чтобы вернуться» — иначе непонятно, что полоска вообще нажимается */
+        .rtc-mini-back {
+            display: flex; align-items: center; gap: 0.35rem; flex-shrink: 0;
+            font-size: 0.8rem; font-weight: 600; color: #D1FAE5;
+            background: rgba(255,255,255,0.16); border-radius: 999px; padding: 0.35rem 0.75rem;
+        }
+        .rtc-mini-back .s { display: none; }
+        /* На узком экране подпись короче, но не исчезает: голая стрелка ничего не объясняет */
+        @media (max-width: 560px) {
+            .rtc-mini-back .l { display: none; }
+            .rtc-mini-back .s { display: inline; }
         }
         .rtc-mini-ava {
             width: 38px; height: 38px; border-radius: 50%; overflow: hidden; flex-shrink: 0;
@@ -1831,6 +1860,30 @@
             width: 38px; height: 38px; border-radius: 50%; border: none; background: #DC2626;
             color: #fff; cursor: pointer; font-size: 1rem; flex-shrink: 0;
         }
+
+        /* Шторка от касаний щекой: во время разговора без видео экран гасить браузеру
+           нельзя, поэтому закрываем кнопки — иначе ухо жмёт «Завершить». */
+        .rtc-dim {
+            position: absolute; top: 0; right: 0; bottom: 0; left: 0; z-index: 20;
+            background: #010D09; display: none; align-items: center; justify-content: center;
+            color: rgba(255,255,255,0.5); font-size: 0.9rem; text-align: center; padding: 2rem;
+        }
+        .rtc-screen.min .rtc-dim { display: none !important; }
+        .rtc-dim.on { display: flex; }
+        .rtc-dim button {
+            border: 1px solid rgba(255,255,255,0.25); background: rgba(255,255,255,0.08);
+            color: #fff; border-radius: 999px; padding: 0.7rem 1.3rem;
+            font-family: inherit; font-size: 0.9rem; cursor: pointer;
+        }
+
+        /* Честное предупреждение о плохой связи — чтобы не думали на сервис */
+        .rtc-weak {
+            position: absolute; left: 50%; transform: translateX(-50%); z-index: 8;
+            top: calc(env(safe-area-inset-top) + 62px);
+            display: none; background: rgba(180,83,9,0.92); color: #fff;
+            border-radius: 999px; padding: 0.35rem 0.85rem; font-size: 0.78rem; white-space: nowrap;
+        }
+        .rtc-screen.min .rtc-weak { display: none !important; }
 
         /* Входящий вызов — поверх всего, чтобы не потерялся за другими окнами */
         .rtc-incoming {
@@ -3289,6 +3342,14 @@
          *   • человек давно ничего не делал — разрежаем опрос вдвое-вчетверо.
          * Когда вкладка снова открыта, обновляемся сразу, не дожидаясь таймера.
          */
+        /**
+         * Пока работает сводный опрос, отдельные опросы стоят в стороне. Они остаются
+         * на месте и включатся сами, если sync.php перестанет отвечать.
+         */
+        function unlessSync(fn) {
+            return function () { if (syncOn) return; return fn.apply(this, arguments); };
+        }
+
         function psyPollGuard(fn) {
             let busy = false, tick = 0;
             const wrapped = async function () {
@@ -3308,6 +3369,7 @@
         document.addEventListener('visibilitychange', function () {
             if (document.hidden || !currentUser) return;
             if (window.psyServerBusy && window.psyServerBusy()) return;
+            if (syncOn) { syncNow(); return; }
             try { if (typeof loadConversations === 'function') loadConversations(); } catch (e) {}
             try { if (selectedUserId && typeof loadMessages === 'function') loadMessages(); } catch (e) {}
         });
@@ -3550,11 +3612,11 @@
             await loadPinnedMessage();
             loadScheduled(); schedTick();   // запланированное в этот чат + разослать назревшее
             // Список слева обновляем, чтобы счётчик непрочитанных и превью были живыми (как в Телеграме).
-            pollInterval = setInterval(psyPollGuard(async () => {
+            pollInterval = setInterval(psyPollGuard(unlessSync(async () => {
                 await loadMessages();
                 await loadMyGroups();
                 refreshConversationList();
-            }), 5000);
+            })), 5000);
         }
 
         /**
@@ -4440,8 +4502,9 @@
             const actions = [
                 // Свои звонки: звук и видео идут напрямую между браузерами, минуя сайт.
                 // Доступны обеим сторонам — раньше встречу мог начать только психолог.
-                { icon: '📞', label: 'Аудиозвонок', run: () => startRtcCall('audio') },
-                { icon: '🎥', label: 'Видеозвонок', run: () => startRtcCall('video') },
+                // Звонок один — как с телефона, сразу со звуком. Камеру включают уже
+                // в разговоре, кнопкой на экране: так проще и быстрее соединяется.
+                { icon: '📞', label: 'Позвонить', run: () => startRtcCall('audio') },
                 isPsy && { icon: '💳', label: 'Выставить счёт', run: () => openOrderModal() },
                 isPsy && { icon: '📝', label: 'Заметки по клиенту', run: () => openNotes() },
                 isPsy && { icon: '📹', label: 'Встреча в Телемосте (запасной путь)', run: () => startVideoCall() },
@@ -4875,7 +4938,7 @@
             // Звуковые уведомления о новых сообщениях — опрашиваем список диалогов
             // всегда (не только когда открыт конкретный чат), как у админа в поддержке.
             if (unreadPollTimer) clearInterval(unreadPollTimer);
-            unreadPollTimer = setInterval(psyPollGuard(loadConversations), 8000);
+            unreadPollTimer = setInterval(psyPollGuard(unlessSync(loadConversations)), 8000);
             // Разрешение на уведомления спрашиваем по первому действию человека, а не сразу
             // при открытии: браузеры блокируют запрос без жеста, да и это невежливо.
             ['click', 'keydown', 'touchstart'].forEach(ev =>
@@ -4890,9 +4953,13 @@
             // «Я здесь» — раз в 30 секунд; состояние собеседников — раз в 10.
             // Окно «онлайн» на сервере 70 секунд, так что пропущенный сигнал не гасит статус.
             presencePing();
-            setInterval(psyPollGuard(presencePing), 30000);
+            setInterval(psyPollGuard(unlessSync(presencePing)), 30000);
             presenceRefresh();
-            setInterval(psyPollGuard(presenceRefresh), 15000);
+            setInterval(psyPollGuard(unlessSync(presenceRefresh)), 15000);
+
+            // Сводный опрос: один запрос вместо пяти. Если не заработает — выше
+            // остались прежние таймеры, они подхватят.
+            syncSoon(600);
         }
 
         // ── Звук + тост при новом сообщении (во всех чатах, любая роль) ──
@@ -5018,25 +5085,135 @@
                                       { credentials: 'include' });
                 const d = await r.json();
                 if (!d || !d.ok) return;
-                const fresh = d.data || {};
-                const now = Date.now();
-                Object.keys(fresh).forEach(id => { if (fresh[id].online) onlineSince[id] = now; });
-                // Держим «в сети», пока не истёк запас: иначе один пропущенный ответ
-                // тут же гасит кружок, хотя человек никуда не делся.
-                Object.keys(fresh).forEach(id => {
-                    if (!fresh[id].online && !fresh[id].hidden
-                        && onlineSince[id] && now - onlineSince[id] < ONLINE_GRACE_MS) {
-                        fresh[id].online = true;
-                        fresh[id].sticky = true;
-                    }
-                });
-                presence = fresh;
-                presenceNow = d.now || null;
-                paintPresence();
+                presenceApply(d.data || {}, d.now);
             } catch (e) { /* связь моргнула — оставляем прежнее состояние, не мигаем */ }
         }
 
-        /** Отметить переписку прочитанной — с этого момента у собеседника появится вторая галочка. */
+        /** Разложить свежие данные о присутствии. Тем же пользуется сводный опрос. */
+        function presenceApply(fresh, serverNow) {
+            const now = Date.now();
+            Object.keys(fresh).forEach(id => { if (fresh[id].online) onlineSince[id] = now; });
+            // Держим «в сети», пока не истёк запас: иначе один пропущенный ответ
+            // тут же гасит кружок, хотя человек никуда не делся.
+            Object.keys(fresh).forEach(id => {
+                if (!fresh[id].online && !fresh[id].hidden
+                    && onlineSince[id] && now - onlineSince[id] < ONLINE_GRACE_MS) {
+                    fresh[id].online = true;
+                    fresh[id].sticky = true;
+                }
+            });
+            presence = fresh;
+            presenceNow = serverNow || null;
+            paintPresence();
+        }
+
+        // ══════════════════════════════════════════════════════════════════════════
+        //  СВОДНЫЙ ОПРОС (api/sync.php) — один запрос вместо пяти
+        //
+        //  Раньше открытая вкладка спрашивала сервер отдельно про сообщения, список
+        //  диалогов, «кто онлайн», «я здесь» и звонки. Полезной работы там на единицы
+        //  миллисекунд, а обвязки (соединение, запуск PHP, сессия, подключение к базе) —
+        //  почти двести на каждый запрос. Пять запросов в пять секунд с каждой вкладки
+        //  и сложились в ту нагрузку, из-за которой сайт лёг.
+        //
+        //  Теперь всё приходит одним ответом. И главное: тяжёлые списки сервер НЕ
+        //  присылает — только короткую отметку версии. Совпала с прежней, значит
+        //  перерисовывать нечего и за списком мы не идём. В спокойной переписке
+        //  тяжёлых запросов не будет ни одного.
+        //
+        //  Если sync.php почему-то не работает (старый сервер, ошибка), после трёх
+        //  неудач возвращаемся к прежним отдельным опросам — сайт от этого не встанет.
+        // ══════════════════════════════════════════════════════════════════════════
+        let syncOn = false;          // сводный опрос работает и берёт всё на себя
+        let syncFails = 0;
+        let syncTimer = null;
+        let syncRevs = { conv: '', msg: '' };
+        let syncPeerKey = null;      // для какой переписки посчитаны отметки версии
+
+        /** Как назвать текущую переписку для sync.php. null — версию считать не умеем. */
+        function syncPeer() {
+            const k = selectedUserId;
+            if (!k || k === AI_ID) return null;
+            if (typeof isSupportMode === 'function' && isSupportMode()) return null;
+            if (k === FAVORITES_ID) return 'favorites';
+            if (k.indexOf(GROUP_PREFIX) === 0) return 'g:' + k.slice(GROUP_PREFIX.length);
+            return k;
+        }
+
+        async function syncTick() {
+            syncTimer = null;
+            if (!currentUser) { syncSoon(30000); return; }
+            // Свёрнутая вкладка не опрашивает вовсе — кроме случая, когда идёт разговор.
+            if (document.hidden && !rtcCallId) { syncSoon(20000); return; }
+            if (window.psyServerBusy && window.psyServerBusy()) { syncSoon(5000); return; }
+
+            const peer = syncPeer();
+            if (peer !== syncPeerKey) { syncRevs = { conv: syncRevs.conv, msg: '' }; syncPeerKey = peer; }
+
+            let d = null;
+            try {
+                const r = await fetch('/api/sync.php', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+                    body: JSON.stringify({
+                        peer: peer,
+                        peers: presencePeers(),
+                        typing_to: Date.now() < typingUntil ? presenceKey() : '',
+                        rtc_after: rtcAfter,
+                        rev: syncRevs,
+                    }),
+                });
+                if (!r.ok) throw new Error('HTTP ' + r.status);
+                d = await r.json();
+                if (!d || d.ok === false) throw new Error(d && d.error);
+            } catch (e) {
+                if (++syncFails >= 3 && syncOn) {
+                    // Возвращаемся к прежней схеме: пусть медленнее, но работает
+                    syncOn = false;
+                    rtcPollSoon(1000);
+                }
+                syncSoon(syncOn ? 5000 : 30000);
+                return;
+            }
+            syncFails = 0;
+            // Берём опрос на себя, только если сервер и правда присылает состояние
+            // звонков. Иначе отдельный опрос обязан продолжать работать: остаться без
+            // звонков из-за неполного ответа — худшее, что может случиться.
+            if (!syncOn && d.rtc) syncOn = true;
+
+            try { if (d.presence) presenceApply(d.presence, d.now); } catch (e) {}
+            try { if (d.rtc) await rtcApplyPoll(d.rtc); } catch (e) {}
+
+            // Списки тянем, только если сервер сказал, что там что-то поменялось.
+            const rev = d.rev || {}, ch = d.changed || {};
+            if (rev.conv !== undefined) syncRevs.conv = rev.conv;
+            if (rev.msg !== undefined) syncRevs.msg = rev.msg;
+            try {
+                if (ch.conv) await loadConversations();
+                // Переписки, для которых версию посчитать нельзя (ИИ, поддержка),
+                // обновляем как раньше — по таймеру.
+                if (selectedUserId && (peer === null || ch.msg)) await loadMessages();
+            } catch (e) {}
+
+            syncSoon(syncNextDelay());
+        }
+
+        /** Как скоро спрашивать снова. Во время звонка — часто, в покое — редко. */
+        function syncNextDelay() {
+            if (rtcCallId || rtcIncomingCall) return 1000;
+            const idleK = window.psyIdleFactor ? window.psyIdleFactor() : 1;
+            return (selectedUserId ? 5000 : 8000) * idleK;
+        }
+
+        function syncSoon(ms) {
+            if (syncTimer) clearTimeout(syncTimer);
+            syncTimer = setTimeout(syncTick, ms);
+        }
+
+        /** Спросить прямо сейчас — после отправки сообщения или возврата на вкладку. */
+        function syncNow() { if (syncOn || syncFails === 0) syncSoon(120); }
+        window.syncNow = syncNow;
+
+                /** Отметить переписку прочитанной — с этого момента у собеседника появится вторая галочка. */
         async function presenceMarkRead() {
             const peer = presenceKey();
             if (!peer) return;
@@ -5160,6 +5337,9 @@
          * проверяет, что мы и правда только что написали этому человеку.
          */
         function pokePush(uid) {
+            // Сами только что написали — сводному опросу есть смысл сходить прямо сейчас,
+            // чтобы сообщение появилось у нас без ожидания следующего круга.
+            try { if (typeof syncNow === 'function') syncNow(); } catch (e) {}
             if (!uid) return;
             try {
                 fetch('/api/push.php?action=poke', {
@@ -5250,7 +5430,7 @@
 
             // Запустить polling
             if (pollInterval) clearInterval(pollInterval);
-            pollInterval = setInterval(psyPollGuard(loadMessages), 5000);
+            pollInterval = setInterval(psyPollGuard(unlessSync(loadMessages)), 5000);
         }
 
         // Обращения в поддержку (виджет на сайте) — задача #37: показываем их в том же
@@ -8863,7 +9043,7 @@
             loadScheduled(); schedTick();   // запланированное в этот чат + разослать назревшее
 
             if (pollInterval) clearInterval(pollInterval);
-            pollInterval = setInterval(psyPollGuard(loadMessages), 5000);
+            pollInterval = setInterval(psyPollGuard(unlessSync(loadMessages)), 5000);
         }
 
         async function openSupportThread(threadId) {
@@ -8884,7 +9064,7 @@
             await loadMessages();
 
             if (pollInterval) clearInterval(pollInterval);
-            pollInterval = setInterval(psyPollGuard(loadMessages), 5000);
+            pollInterval = setInterval(psyPollGuard(unlessSync(loadMessages)), 5000);
         }
 
         async function loadSupportThreadMessages() {
@@ -8962,7 +9142,7 @@
 
             // Запустить polling
             if (pollInterval) clearInterval(pollInterval);
-            pollInterval = setInterval(psyPollGuard(loadMessages), 5000);
+            pollInterval = setInterval(psyPollGuard(unlessSync(loadMessages)), 5000);
         }
 
         // ── Заметки для себя (личное «Избранное») ──
@@ -12565,6 +12745,12 @@
         let rtcPollTimer = null;
         let rtcRing = null;            // источник звука вызова
         let rtcIceServers = [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] }];
+        let rtcIceOut = [];            // кандидаты, ждущие отправки пачкой
+        let rtcIceFlushTimer = null;
+        let rtcMakingOffer = false;    // мы прямо сейчас формируем предложение
+        let rtcIgnoreOffer = false;    // столкнулись предложениями и наше главнее
+        let rtcQualityTimer = null;
+        let rtcWakeLock = null;
 
         function rtcSupported() {
             return !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.RTCPeerConnection);
@@ -12639,29 +12825,38 @@
             document.getElementById('rtcName').textContent = nm;
             document.getElementById('rtcTopName').textContent = nm;
             document.getElementById('rtcFallback').style.display = 'none';
-            document.getElementById('rtcCamBtn').style.display = rtcKind === 'audio' ? 'none' : 'flex';
+            const weak = document.getElementById('rtcWeak');
+            if (weak) weak.style.display = 'none';
             // кнопки возвращаем во включённое состояние: экран переиспользуется между звонками
-            ['rtcMicBtn', 'rtcCamBtn'].forEach(id => document.getElementById(id).classList.remove('off'));
+            document.getElementById('rtcMicBtn').classList.remove('off');
             document.getElementById('rtcMicIco').textContent = '🎤';
             document.getElementById('rtcMicLab').textContent = 'Микрофон';
-            document.getElementById('rtcCamIco').textContent = '🎥';
-            document.getElementById('rtcCamLab').textContent = 'Камера';
+            // Кнопка камеры есть всегда: звонок начинается со звука, а видео можно
+            // включить в любой момент разговора.
+            rtcSyncCamButton();
             // экран переиспользуется между звонками — возвращаем исходный вид
             s.classList.remove('min');
             rtcSwapped = false;
             const remEl = document.getElementById('rtcRemote'), locEl = document.getElementById('rtcLocal');
             remEl.style.transform = ''; locEl.style.transform = 'scaleX(-1)'; remEl.muted = false;
             rtcInitSpeakerBtn();
+            rtcKeepAwake(rtcKind === 'video');   // при видео экран держим, при звуке — нет
+            rtcDimArm();                         // защита от касаний щекой в разговоре без видео
         }
 
         function rtcCloseScreen() {
             const s = document.getElementById('rtcScreen');
             if (s) { s.classList.remove('open', 'has-video', 'audio-only', 'min'); }
+            document.body.classList.remove('rtc-min');
             rtcRingback(false);
             const inc = document.getElementById('rtcIncoming');
             if (inc) inc.classList.remove('open');
             rtcRingtone(false);
             if (rtcTimer) { clearInterval(rtcTimer); rtcTimer = null; }
+            rtcWatchQuality(false);
+            rtcKeepAwake(false);
+            rtcDimDisarm();
+            rtcStopBoost();
         }
 
         /** Освободить камеру и микрофон — иначе индикатор записи останется гореть. */
@@ -12675,36 +12870,131 @@
             if (l) l.srcObject = null;
             rtcCallId = null; rtcRole = null; rtcPeer = null;
             rtcAfter = 0; rtcPendingIce = []; rtcStartedAt = 0;
+            rtcIceOut = [];
+            if (rtcIceFlushTimer) { clearTimeout(rtcIceFlushTimer); rtcIceFlushTimer = null; }
+            rtcMakingOffer = false; rtcIgnoreOffer = false;
         }
 
+        /**
+         * Что просим у микрофона и камеры.
+         *
+         * ЗВУК — главное в психологической сессии, поэтому обработку включаем всю:
+         * эхоподавление (иначе собеседник слышит сам себя), шумоподавление и
+         * автоусиление. Один канал вместо двух: голос не выигрывает от стерео,
+         * а трафика тратит вдвое больше.
+         *
+         * КАРТИНКА раньше просилась 640×480 — отсюда и «плохое качество». Просим 720p
+         * (при нехватке канала WebRTC сам опустится ниже, это его работа), 30 кадров и
+         * фронтальную камеру.
+         */
+        const RTC_AUDIO = {
+            echoCancellation: true, noiseSuppression: true, autoGainControl: true,
+            channelCount: 1, sampleRate: 48000,
+        };
+        const RTC_VIDEO = {
+            width: { ideal: 1280, max: 1920 }, height: { ideal: 720, max: 1080 },
+            frameRate: { ideal: 30, max: 30 }, facingMode: 'user',
+        };
+
         async function rtcGetMedia(kind) {
-            const want = kind === 'audio' ? { audio: true, video: false }
-                                          : { audio: true, video: { width: { ideal: 640 }, height: { ideal: 480 } } };
+            const want = kind === 'audio' ? { audio: RTC_AUDIO, video: false }
+                                          : { audio: RTC_AUDIO, video: RTC_VIDEO };
             try {
                 return await navigator.mediaDevices.getUserMedia(want);
             } catch (e) {
-                // Нет камеры — пробуем хотя бы звук, звонок не должен падать целиком
+                // Камера может не отдать запрошенное разрешение — просим что дадут
                 if (kind !== 'audio') {
-                    try { return await navigator.mediaDevices.getUserMedia({ audio: true, video: false }); }
-                    catch (e2) { throw e2; }
+                    try { return await navigator.mediaDevices.getUserMedia({ audio: RTC_AUDIO, video: true }); }
+                    catch (e2) {
+                        // Нет камеры вовсе — звонок не должен падать целиком, остаётся звук
+                        try { return await navigator.mediaDevices.getUserMedia({ audio: RTC_AUDIO, video: false }); }
+                        catch (e3) { throw e3; }
+                    }
                 }
                 throw e;
             }
         }
 
+        /**
+         * Потолок битрейта. Трафик у звонка целиком между браузерами, но платят за него
+         * собеседники, а мобильный интернет не резиновый: 1,2 Мбит/с хватает для чёткого
+         * лица в 720p, звуку голоса — 32 кбит/с. Без потолка Chrome разгоняется до
+         * 2,5 Мбит/с там, где разницы не видно.
+         */
+        async function rtcTuneSenders() {
+            if (!rtcPc) return;
+            for (const sender of rtcPc.getSenders()) {
+                if (!sender.track) continue;
+                try {
+                    const prm = sender.getParameters();
+                    if (!prm.encodings || !prm.encodings.length) prm.encodings = [{}];
+                    if (sender.track.kind === 'video') {
+                        prm.encodings[0].maxBitrate = 1200000;
+                        prm.encodings[0].maxFramerate = 30;
+                        // Лицо важнее плавности: при нехватке канала лучше уронить
+                        // частоту кадров, чем размыть картинку.
+                        prm.degradationPreference = 'maintain-resolution';
+                    } else {
+                        prm.encodings[0].maxBitrate = 32000;
+                    }
+                    await sender.setParameters(prm);
+                } catch (e) { /* часть браузеров не даёт менять параметры — не беда */ }
+            }
+        }
+
+        /**
+         * Правки в описании соединения (SDP), которых нет в настройках потока:
+         *   • usedtx=1 — в тишине передача почти прекращается. В разговоре молчит
+         *     примерно половина времени, так что трафик падает почти вдвое;
+         *   • useinbandfec=1 — потерянный кусочек звука восстанавливается из
+         *     соседнего, голос не «булькает» на плохой связи;
+         *   • maxaveragebitrate — потолок, чтобы кодек не разгонялся зря.
+         */
+        function rtcTuneSdp(sdp) {
+            try {
+                return sdp.replace(/a=fmtp:(\d+) ([^\r\n]*minptime[^\r\n]*)/g, function (m, pt, rest) {
+                    let r = rest;
+                    if (!/usedtx=/.test(r)) r += ';usedtx=1';
+                    if (!/useinbandfec=/.test(r)) r += ';useinbandfec=1';
+                    if (!/maxaveragebitrate=/.test(r)) r += ';maxaveragebitrate=32000';
+                    return 'a=fmtp:' + pt + ' ' + r;
+                });
+            } catch (e) { return sdp; }
+        }
+
         function rtcBuildPc() {
-            const pc = new RTCPeerConnection({ iceServers: rtcIceServers });
+            const pc = new RTCPeerConnection({
+                iceServers: rtcIceServers,
+                // Кандидатов начинаем собирать заранее, ещё до создания предложения —
+                // соединение встаёт заметно быстрее.
+                iceCandidatePoolSize: 2,
+                bundlePolicy: 'max-bundle',
+            });
+            // Кандидатов за звонок набирается полтора десятка, и каждый уходил
+            // отдельным запросом. Копим четверть секунды и отправляем пачкой —
+            // на сервер приходит один запрос вместо пятнадцати.
             pc.onicecandidate = ev => {
                 if (!ev.candidate || !rtcCallId) return;
-                callsApi('signal', { call_id: rtcCallId, kind: 'ice', payload: JSON.stringify(ev.candidate) })
-                    .catch(() => {});
+                rtcIceOut.push(ev.candidate);
+                if (rtcIceFlushTimer) return;
+                rtcIceFlushTimer = setTimeout(rtcFlushIce, 250);
             };
             pc.ontrack = ev => {
                 const remote = document.getElementById('rtcRemote');
-                if (remote && ev.streams && ev.streams[0]) {
-                    remote.srcObject = ev.streams[0];
-                    if (ev.track.kind === 'video') document.getElementById('rtcScreen').classList.add('has-video');
-                }
+                if (!remote || !ev.streams || !ev.streams[0]) return;
+                remote.srcObject = ev.streams[0];
+                if (ev.track.kind !== 'video') return;
+                const scr = document.getElementById('rtcScreen');
+                // Собеседник включил камеру посреди разговора — уходим из режима
+                // «только звук» и показываем картинку.
+                scr.classList.add('has-video');
+                scr.classList.remove('audio-only');
+                rtcKind = 'video';
+                rtcSyncCamButton();
+                // Камеру могут и выключить — тогда возвращаемся к аватару.
+                ev.track.onmute = () => scr.classList.remove('has-video');
+                ev.track.onunmute = () => scr.classList.add('has-video');
+                ev.track.onended = () => scr.classList.remove('has-video');
             };
             pc.onconnectionstatechange = () => {
                 if (!rtcPc) return;
@@ -12712,6 +13002,8 @@
                 if (st === 'connected') {
                     rtcRingback(false);         // ответили — гудок больше не нужен
                     rtcSetState('Соединено');
+                    rtcTuneSenders();           // потолки битрейта применяем к живому соединению
+                    rtcWatchQuality(true);      // следим, не проседает ли связь
                     document.getElementById('rtcFallback').style.display = 'none';
                     if (!rtcStartedAt) {
                         rtcStartedAt = Date.now();
@@ -12738,6 +13030,9 @@
             const s = document.getElementById('rtcScreen');
             if (!s || !s.classList.contains('open')) return;
             s.classList.toggle('min', !!on);
+            // Полоска встаёт обычным блоком в колонке страницы и сдвигает переписку
+            // вниз — поле ввода остаётся доступным (раньше окно его накрывало).
+            document.body.classList.toggle('rtc-min', !!on);
             if (on) {
                 document.getElementById('rtcMiniAva').innerHTML = rtcAvatarHtml(rtcPeer);
                 document.getElementById('rtcMiniName').textContent = (rtcPeer && rtcPeer.name) || 'Собеседник';
@@ -12792,38 +13087,86 @@
             } catch (e) {}
         }
 
-        // ── Громкая связь ──────────────────────────────────────────────────────────
-        // Переключение устройства вывода возможно только там, где браузер даёт
-        // setSinkId. На телефонах выбор «динамик/разговорный» — возможность системы,
-        // а не страницы, поэтому кнопку показываем лишь при реальной поддержке.
-        let rtcSpeakerOn = true;
-        async function rtcInitSpeakerBtn() {
+        // ── Громкость и вывод звука ────────────────────────────────────────────────
+        //
+        //  ЧЕСТНО О ГРАНИЦАХ. Переключить звук на разговорный динамик («к уху») и
+        //  погасить экран по датчику приближения умеют только установленные
+        //  приложения — браузеру таких прав не дают, и обойти это нельзя. Что можно
+        //  сделать в браузере, то и делаем:
+        //    • где есть setSinkId (компьютеры, часть телефонов) — реально переключаем
+        //      устройство вывода;
+        //    • везде — усиливаем звук через Web Audio, это и есть привычное «громче»,
+        //      когда собеседника плохо слышно;
+        //    • если усиление почему-то не поднялось, возвращаем обычное воспроизведение
+        //      мгновенно: остаться без звука в сессии недопустимо.
+        let rtcLoud = false;
+        let rtcAudioCtx = null, rtcGain = null, rtcSrcNode = null;
+
+        function rtcInitSpeakerBtn() {
             const btn = document.getElementById('rtcSpkBtn');
-            const rem = document.getElementById('rtcRemote');
-            if (!btn || !rem) return;
-            const supported = typeof rem.sinkId !== 'undefined' && typeof rem.setSinkId === 'function';
-            btn.style.display = supported ? 'flex' : 'none';
+            if (!btn) return;
+            btn.style.display = 'flex';        // кнопка нужна всегда: «плохо слышно» бывает у всех
+            btn.classList.remove('off');
+            document.getElementById('rtcSpkIco').textContent = '🔊';
+            document.getElementById('rtcSpkLab').textContent = 'Громче';
+            rtcLoud = false;
+            rtcStopBoost();
         }
+
+        function rtcStopBoost() {
+            try { if (rtcSrcNode) rtcSrcNode.disconnect(); } catch (e) {}
+            try { if (rtcGain) rtcGain.disconnect(); } catch (e) {}
+            rtcSrcNode = null; rtcGain = null;
+            const rem = document.getElementById('rtcRemote');
+            if (rem) rem.muted = false;        // звук снова идёт обычным путём
+        }
+
         async function rtcToggleSpeaker() {
             const rem = document.getElementById('rtcRemote');
-            if (!rem || typeof rem.setSinkId !== 'function') { toast('Браузер не умеет переключать вывод звука'); return; }
-            try {
-                const devs = await navigator.mediaDevices.enumerateDevices();
-                const outs = devs.filter(d => d.kind === 'audiooutput');
-                if (!outs.length) { toast('Другого устройства вывода не нашлось'); return; }
-                // «Обычная» — устройство по умолчанию, «громкая» — первое не-default
-                const target = rtcSpeakerOn
-                    ? (outs.find(d => d.deviceId !== 'default') || outs[0])
-                    : (outs.find(d => d.deviceId === 'default') || outs[0]);
-                await rem.setSinkId(target.deviceId);
-                rtcSpeakerOn = !rtcSpeakerOn;
-                const btn = document.getElementById('rtcSpkBtn');
-                btn.classList.toggle('off', !rtcSpeakerOn);
-                document.getElementById('rtcSpkIco').textContent = rtcSpeakerOn ? '🔊' : '🔈';
-                document.getElementById('rtcSpkLab').textContent = rtcSpeakerOn ? 'Динамик' : 'Наушник';
-            } catch (e) {
-                toast('Не удалось переключить вывод звука');
+            if (!rem) return;
+            const want = !rtcLoud;
+
+            // 1. Настоящее переключение устройства — там, где браузер это умеет
+            if (typeof rem.setSinkId === 'function') {
+                try {
+                    const outs = (await navigator.mediaDevices.enumerateDevices())
+                        .filter(d => d.kind === 'audiooutput');
+                    if (outs.length > 1) {
+                        const target = want ? (outs.find(d => d.deviceId !== 'default') || outs[0])
+                                            : (outs.find(d => d.deviceId === 'default') || outs[0]);
+                        await rem.setSinkId(target.deviceId);
+                    }
+                } catch (e) { /* нет прав или единственный выход — идём дальше */ }
             }
+
+            // 2. Усиление громкости
+            if (want) {
+                try {
+                    const Ctx = window.AudioContext || window.webkitAudioContext;
+                    if (!Ctx || !rem.srcObject) throw new Error('нет Web Audio');
+                    if (!rtcAudioCtx || rtcAudioCtx.state === 'closed') rtcAudioCtx = new Ctx();
+                    if (rtcAudioCtx.state === 'suspended') await rtcAudioCtx.resume();
+                    if (rtcAudioCtx.state !== 'running') throw new Error('звук не запустился');
+                    rtcSrcNode = rtcAudioCtx.createMediaStreamSource(rem.srcObject);
+                    rtcGain = rtcAudioCtx.createGain();
+                    rtcGain.gain.value = 2.2;      // выше начинает хрипеть
+                    rtcSrcNode.connect(rtcGain).connect(rtcAudioCtx.destination);
+                    rem.muted = true;              // иначе звук пойдёт дважды
+                } catch (e) {
+                    rtcStopBoost();                // без звука не оставляем ни при каких условиях
+                    toast('Громче не вышло — браузер не разрешил');
+                    return;
+                }
+            } else {
+                rtcStopBoost();
+            }
+
+            rtcLoud = want;
+            const btn = document.getElementById('rtcSpkBtn');
+            btn.classList.toggle('off', rtcLoud);
+            document.getElementById('rtcSpkIco').textContent = rtcLoud ? '📢' : '🔊';
+            document.getElementById('rtcSpkLab').textContent = rtcLoud ? 'Обычно' : 'Громче';
+            btn.setAttribute('aria-label', rtcLoud ? 'Обычная громкость' : 'Сделать громче');
         }
         window.rtcToggleSpeaker = rtcToggleSpeaker;
 
@@ -12882,8 +13225,10 @@
                 rtcPc = rtcBuildPc();
                 rtcLocalStream.getTracks().forEach(t => rtcPc.addTrack(t, rtcLocalStream));
                 const offer = await rtcPc.createOffer();
+                offer.sdp = rtcTuneSdp(offer.sdp);
                 await rtcPc.setLocalDescription(offer);
-                await callsApi('signal', { call_id: rtcCallId, kind: 'offer', payload: JSON.stringify(offer) });
+                await callsApi('signal', { call_id: rtcCallId, kind: 'offer',
+                                           payload: JSON.stringify(rtcPc.localDescription) });
                 // Будим собеседника пушем: иначе о звонке узнает только тот, у кого
                 // сайт уже открыт, а при выключенном экране вызов пройдёт мимо.
                 fetch('/api/push.php?action=poke-call', {
@@ -12969,18 +13314,176 @@
         }
         window.rtcToggleMic = rtcToggleMic;
 
-        function rtcToggleCam() {
-            if (!rtcLocalStream) return;
-            const tr = rtcLocalStream.getVideoTracks()[0];
-            if (!tr) return;
-            tr.enabled = !tr.enabled;
-            const b = document.getElementById('rtcCamBtn');
-            b.classList.toggle('off', !tr.enabled);
-            document.getElementById('rtcCamIco').textContent = tr.enabled ? '🎥' : '🚫';
-            document.getElementById('rtcCamLab').textContent = tr.enabled ? 'Камера' : 'Включить';
-            b.setAttribute('aria-label', tr.enabled ? 'Выключить камеру' : 'Включить камеру');
+        /** Отправить накопившихся кандидатов одной посылкой. */
+        async function rtcFlushIce() {
+            rtcIceFlushTimer = null;
+            if (!rtcIceOut.length || !rtcCallId) { rtcIceOut = []; return; }
+            const batch = rtcIceOut.splice(0, rtcIceOut.length);
+            try {
+                await callsApi('signal', { call_id: rtcCallId, kind: 'ice', payload: JSON.stringify(batch) });
+            } catch (e) { /* не дошло — соединение попробует другими путями */ }
+        }
+
+        /**
+         * Камера в разговоре.
+         *
+         * Звонок у нас теперь один — обычный, со звуком, как с телефона. Видео это не
+         * отменяет: камеру можно включить в любой момент, и наоборот. Если видеодорожки
+         * ещё нет, спрашиваем камеру и добавляем её в идущее соединение — собеседнику
+         * ничего переустанавливать не нужно, картинка просто появляется.
+         */
+        async function rtcToggleCam() {
+            if (!rtcPc && !rtcLocalStream) return;
+            const btn = document.getElementById('rtcCamBtn');
+            const have = rtcLocalStream ? rtcLocalStream.getVideoTracks()[0] : null;
+
+            if (!have) {
+                if (btn) btn.disabled = true;
+                try {
+                    const cam = await navigator.mediaDevices.getUserMedia({ video: RTC_VIDEO });
+                    const track = cam.getVideoTracks()[0];
+                    if (!track) throw new Error('нет дорожки');
+                    rtcLocalStream.addTrack(track);
+                    const l = document.getElementById('rtcLocal');
+                    if (l) l.srcObject = rtcLocalStream;
+                    // Свободный слот от прошлого выключения переиспользуем, иначе новый
+                    const slot = rtcPc.getSenders().find(x => !x.track && x.__kind === 'video');
+                    if (slot) { await slot.replaceTrack(track); }
+                    else { const sn = rtcPc.addTrack(track, rtcLocalStream); sn.__kind = 'video'; }
+                    rtcKind = 'video';
+                    document.getElementById('rtcScreen').classList.remove('audio-only');
+                    await rtcRenegotiate();
+                    await rtcTuneSenders();
+                } catch (e) {
+                    toast('Не удалось включить камеру — проверьте разрешение в браузере');
+                } finally {
+                    if (btn) btn.disabled = false;
+                    rtcSyncCamButton();
+                }
+                return;
+            }
+
+            // Дорожка есть — просто гасим или возвращаем картинку. Полностью её не
+            // убираем: перезапрашивать камеру дольше и собеседник увидит «моргание».
+            have.enabled = !have.enabled;
+            rtcSyncCamButton();
         }
         window.rtcToggleCam = rtcToggleCam;
+
+        /** Привести кнопку камеры в соответствие с тем, что происходит на самом деле. */
+        function rtcSyncCamButton() {
+            const b = document.getElementById('rtcCamBtn');
+            if (!b) return;
+            const tr = rtcLocalStream ? rtcLocalStream.getVideoTracks()[0] : null;
+            const on = !!(tr && tr.enabled);
+            b.style.display = 'flex';                       // кнопка есть всегда, даже в звонке без видео
+            // Белый «выключенный» вид — только когда камеру намеренно погасили. Пока
+            // видео вообще не включали, кнопка обычная: это приглашение, а не запрет.
+            b.classList.toggle('off', !!tr && !on);
+            document.getElementById('rtcCamIco').textContent = tr ? (on ? '🎥' : '🚫') : '🎥';
+            document.getElementById('rtcCamLab').textContent = on ? 'Камера' : (tr ? 'Включить' : 'Видео');
+            b.setAttribute('aria-label', on ? 'Выключить камеру' : 'Включить видео');
+            // Своё окошко показываем, только когда камера реально работает
+            const l = document.getElementById('rtcLocal');
+            if (l) l.style.display = on ? 'block' : 'none';
+        }
+
+        /**
+         * Пересогласовать соединение (например, после включения камеры).
+         *
+         * Схема «вежливый и невежливый» из спецификации WebRTC: если оба включат камеру
+         * одновременно, предложения столкнутся и соединение развалится. Договорились
+         * заранее — уступает тот, кому звонили.
+         */
+        async function rtcRenegotiate() {
+            if (!rtcPc || !rtcCallId) return;
+            try {
+                rtcMakingOffer = true;
+                const offer = await rtcPc.createOffer();
+                offer.sdp = rtcTuneSdp(offer.sdp);
+                await rtcPc.setLocalDescription(offer);
+                await callsApi('signal', { call_id: rtcCallId, kind: 'offer',
+                                           payload: JSON.stringify(rtcPc.localDescription) });
+            } catch (e) { /* не вышло — картинка просто не появится, разговор продолжится */ }
+            finally { rtcMakingOffer = false; }
+        }
+
+        /**
+         * Присматриваем за качеством связи и честно говорим, если оно просело.
+         * Человеку важно понимать, что «плохо слышно» — это сеть, а не сервис.
+         */
+        function rtcWatchQuality(on) {
+            if (rtcQualityTimer) { clearInterval(rtcQualityTimer); rtcQualityTimer = null; }
+            if (!on) return;
+            let badRuns = 0;
+            rtcQualityTimer = setInterval(async () => {
+                if (!rtcPc) return;
+                try {
+                    const stats = await rtcPc.getStats();
+                    let lost = 0, recv = 0;
+                    stats.forEach(r => {
+                        if (r.type === 'inbound-rtp' && !r.isRemote) {
+                            lost += r.packetsLost || 0;
+                            recv += r.packetsReceived || 0;
+                        }
+                    });
+                    const ratio = recv ? lost / (lost + recv) : 0;
+                    badRuns = ratio > 0.08 ? badRuns + 1 : 0;
+                    const hint = document.getElementById('rtcWeak');
+                    if (hint) hint.style.display = badRuns >= 2 ? 'block' : 'none';
+                } catch (e) {}
+            }, 5000);
+        }
+
+        /**
+         * Не давать экрану гаснуть во время разговора.
+         *
+         * Оговорка, которую важно знать: браузер НЕ умеет гасить экран от датчика
+         * приближения — эта возможность есть только у установленных приложений. Поэтому
+         * при разговоре без видео мы, наоборот, экран не удерживаем: телефон погасит его
+         * сам по своему таймеру. А от случайных касаний щекой защищает затемнение
+         * (см. rtcDim) — оно закрывает кнопки, и разговор случайно не оборвётся.
+         */
+        async function rtcKeepAwake(on) {
+            try {
+                if (!on) {
+                    if (rtcWakeLock) { try { await rtcWakeLock.release(); } catch (e) {} rtcWakeLock = null; }
+                    return;
+                }
+                if (rtcWakeLock || !navigator.wakeLock) return;
+                rtcWakeLock = await navigator.wakeLock.request('screen');
+                rtcWakeLock.addEventListener('release', () => { rtcWakeLock = null; });
+            } catch (e) { /* браузер не умеет — не страшно */ }
+        }
+        // Свернули вкладку и вернулись — удержание экрана слетает, берём заново
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden && rtcCallId && rtcKind === 'video') rtcKeepAwake(true);
+        });
+
+        /**
+         * Затемнение на время разговора без видео.
+         *
+         * Телефон у уха — экран остаётся включённым (гасить его браузеру нельзя), и
+         * щека попадает по «Завершить». Через несколько секунд бездействия закрываем
+         * экран тёмной шторкой: касания по ней ничего не делают, а чтобы вернуть
+         * кнопки, достаточно нажать на надпись.
+         */
+        let rtcDimTimer = null;
+        function rtcDimArm() {
+            rtcDimDisarm();
+            if (!rtcCallId || rtcKind === 'video') return;
+            rtcDimTimer = setTimeout(() => {
+                const d = document.getElementById('rtcDim');
+                if (d && rtcCallId && rtcKind !== 'video') d.classList.add('on');
+            }, 12000);
+        }
+        function rtcDimDisarm() {
+            if (rtcDimTimer) { clearTimeout(rtcDimTimer); rtcDimTimer = null; }
+            const d = document.getElementById('rtcDim');
+            if (d) d.classList.remove('on');
+        }
+        function rtcDimOff() { rtcDimDisarm(); rtcDimArm(); }
+        window.rtcDimOff = rtcDimOff;
 
         /** Разобрать сигналы, пришедшие от собеседника. */
         async function rtcHandleSignals(signals) {
@@ -12998,24 +13501,50 @@
                 if (!data) continue;
                 try {
                     if (s.kind === 'offer') {
-                        await rtcPc.setRemoteDescription(new RTCSessionDescription(data));
+                        // Предложение приходит и в начале звонка, и позже — когда кто-то
+                        // включил камеру. Второй случай опасен столкновением: если оба
+                        // включили одновременно, наивная обработка рвёт соединение.
+                        // Уступает тот, кому звонили («вежливая» сторона по спецификации).
+                        const polite = rtcRole === 'callee';
+                        const busy = rtcMakingOffer || rtcPc.signalingState !== 'stable';
+                        rtcIgnoreOffer = !polite && busy;
+                        if (rtcIgnoreOffer) continue;      // наше предложение главнее
+                        if (busy) {
+                            // Откатываем своё, чтобы принять чужое
+                            await Promise.all([
+                                rtcPc.setLocalDescription({ type: 'rollback' }).catch(() => {}),
+                                rtcPc.setRemoteDescription(new RTCSessionDescription(data)),
+                            ]);
+                        } else {
+                            await rtcPc.setRemoteDescription(new RTCSessionDescription(data));
+                        }
                         for (const c of rtcPendingIce) { try { await rtcPc.addIceCandidate(c); } catch (e) {} }
                         rtcPendingIce = [];
                         const answer = await rtcPc.createAnswer();
+                        answer.sdp = rtcTuneSdp(answer.sdp);
                         await rtcPc.setLocalDescription(answer);
-                        await callsApi('signal', { call_id: rtcCallId, kind: 'answer', payload: JSON.stringify(answer) });
+                        await callsApi('signal', { call_id: rtcCallId, kind: 'answer',
+                                                   payload: JSON.stringify(rtcPc.localDescription) });
+                        await rtcTuneSenders();
                     } else if (s.kind === 'answer') {
                         if (rtcPc.signalingState === 'have-local-offer') {
                             await rtcPc.setRemoteDescription(new RTCSessionDescription(data));
                             for (const c of rtcPendingIce) { try { await rtcPc.addIceCandidate(c); } catch (e) {} }
                             rtcPendingIce = [];
+                            await rtcTuneSenders();
                         }
                     } else if (s.kind === 'ice') {
-                        // Кандидат может прийти раньше описания — тогда придержим
-                        if (rtcPc.remoteDescription && rtcPc.remoteDescription.type) {
-                            try { await rtcPc.addIceCandidate(data); } catch (e) {}
-                        } else {
-                            rtcPendingIce.push(data);
+                        // Кандидаты приходят пачкой (так их вчетверо меньше запросов),
+                        // но старые версии слали по одному — понимаем оба вида.
+                        const list = Array.isArray(data) ? data : [data];
+                        for (const cand of list) {
+                            if (!cand) continue;
+                            if (rtcPc.remoteDescription && rtcPc.remoteDescription.type) {
+                                try { await rtcPc.addIceCandidate(cand); }
+                                catch (e) { if (!rtcIgnoreOffer) { /* чужой кандидат после отката — не беда */ } }
+                            } else {
+                                rtcPendingIce.push(cand);
+                            }
                         }
                     }
                 } catch (e) {}
@@ -13034,6 +13563,9 @@
         let rtcPollBackoff = 0;
         async function rtcTick() {
             rtcPollTimer = null;
+            // Пока работает сводный опрос (sync.php), состояние звонков приходит вместе
+            // со всем остальным — отдельно спрашивать не нужно.
+            if (syncOn) { rtcPollSoon(rtcCallId ? 1000 : 15000); return; }
             if (!currentUser) { rtcPollSoon(30000); return; }
             if (document.visibilityState !== 'visible' && !rtcCallId) { rtcPollSoon(30000); return; }
             let d = null;
@@ -13044,7 +13576,16 @@
                 return;
             }
             rtcPollBackoff = 0;
+            await rtcApplyPoll(d);
+            // во время разговора — часто, в покое — раз в 6 секунд, а если человек
+            // давно ничего не делал, ещё вдвое-вчетверо реже
+            const idleK = window.psyIdleFactor ? window.psyIdleFactor() : 1;
+            rtcPollSoon(rtcCallId || rtcIncomingCall ? 1000 : 6000 * idleK);
+        }
 
+        /** Разобрать ответ опроса звонков. Приходит либо из rtcTick, либо из сводного опроса. */
+        async function rtcApplyPoll(d) {
+            if (!d) return;
             // входящий вызов
             if (d.incoming && !rtcCallId && (!rtcIncomingCall || rtcIncomingCall.id !== d.incoming.id)) {
                 rtcIncomingCall = d.incoming;
@@ -13052,7 +13593,7 @@
                 document.getElementById('rtcInAva').innerHTML = rtcAvatarHtml({ name, avatar: d.incoming.avatar });
                 document.getElementById('rtcInName').textContent = name;
                 document.getElementById('rtcInKind').textContent =
-                    d.incoming.kind === 'audio' ? 'Аудиозвонок' : 'Видеозвонок';
+                    d.incoming.kind === 'audio' ? 'Входящий звонок' : 'Входящий видеозвонок';
                 document.getElementById('rtcIncoming').classList.add('open');
                 rtcRingtone(true);
             }
@@ -13078,10 +13619,6 @@
                 else if (why === 'missed') toast('Собеседник не ответил');
                 else if (why) toast('Звонок завершён');
             }
-            // во время разговора — часто, в покое — раз в 6 секунд, а если человек
-            // давно ничего не делал, ещё вдвое-вчетверо реже
-            const idleK = window.psyIdleFactor ? window.psyIdleFactor() : 1;
-            rtcPollSoon(rtcCallId || rtcIncomingCall ? 1000 : 6000 * idleK);
         }
 
         function rtcPollSoon(ms) {
@@ -13294,7 +13831,7 @@
     <!-- Экран разговора. Лежит прямым потомком body намеренно: внутри переписки любой
          предок с transform/filter превращает position:fixed в позиционирование внутри
          этого предка, и экран переставал разворачиваться на весь телефон. -->
-    <div class="rtc-screen" id="rtcScreen">
+    <div class="rtc-screen" id="rtcScreen" onpointerdown="rtcDimOff()">
         <video class="rtc-remote" id="rtcRemote" autoplay playsinline></video>
         <div class="rtc-poster">
             <div class="rtc-ava" id="rtcAva"></div>
@@ -13315,13 +13852,23 @@
         </div>
         <!-- Свернуть: разговор продолжается, можно писать в чат -->
         <button type="button" class="rtc-mini-btn" id="rtcMinBtn" onclick="rtcMinimize(true)"
-                title="Свернуть звонок" aria-label="Свернуть звонок">▾</button>
-        <!-- Свёрнутый вид: узкая полоска, по нажатию разворачивается обратно -->
-        <div class="rtc-minibar" id="rtcMiniBar" onclick="rtcMinimize(false)">
+                title="Свернуть звонок и вернуться к переписке" aria-label="Свернуть звонок и вернуться к переписке">
+            <b aria-hidden="true">↙</b> В чат
+        </button>
+        <!-- Свёрнутый вид: полоска над перепиской, по нажатию разворачивается обратно -->
+        <div class="rtc-minibar" id="rtcMiniBar" onclick="rtcMinimize(false)"
+             title="Вернуться к звонку" role="button" tabindex="0">
             <span class="rtc-mini-ava" id="rtcMiniAva"></span>
             <span class="rtc-mini-txt"><b id="rtcMiniName">Собеседник</b><i id="rtcMiniState">00:00</i></span>
+            <span class="rtc-mini-back"><b aria-hidden="true">↗</b><span class="l">Вернуться к звонку</span><span class="s">Вернуться</span></span>
             <button type="button" class="rtc-mini-hang" onclick="event.stopPropagation();rtcHangUp('hangup')"
-                    title="Завершить" aria-label="Завершить">📵</button>
+                    title="Завершить звонок" aria-label="Завершить звонок">📵</button>
+        </div>
+        <!-- Плохая связь — говорим честно, чтобы не думали на сервис -->
+        <div class="rtc-weak" id="rtcWeak">Связь слабая — возможны перебои</div>
+        <!-- Шторка от касаний щекой в разговоре без видео -->
+        <div class="rtc-dim" id="rtcDim" onclick="event.stopPropagation()">
+            <button type="button" onclick="rtcDimOff()">Экран затемнён — нажмите, чтобы вернуть кнопки</button>
         </div>
         <div class="rtc-bar">
             <button type="button" class="rtc-btn" id="rtcSpkBtn" onclick="rtcToggleSpeaker()" aria-label="Динамик" style="display:none;">
@@ -13344,7 +13891,7 @@
         <div class="rtc-in-card">
             <div class="rtc-ava" id="rtcInAva"></div>
             <div class="rtc-in-name" id="rtcInName">Вам звонят</div>
-            <div class="rtc-in-kind" id="rtcInKind">Аудиозвонок</div>
+            <div class="rtc-in-kind" id="rtcInKind">Входящий звонок</div>
             <div class="rtc-in-actions">
                 <button type="button" class="rtc-btn hang" onclick="rtcDecline()" aria-label="Отклонить">
                     <span class="rtc-ico">📵</span><span class="rtc-lab">Отклонить</span>

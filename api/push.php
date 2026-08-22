@@ -402,7 +402,7 @@ if ($action === 'pending') {
             $who = trim((($call['first_name'] ?? '') . ' ' . ($call['last_name'] ?? ''))) ?: 'Собеседник';
             pushOut(['ok' => true, 'count' => 0, 'call' => true,
                      'title' => $who,
-                     'body' => ($call['kind'] === 'audio' ? 'Аудиозвонок' : 'Видеозвонок') . ' — нажмите, чтобы ответить',
+                     'body' => 'Входящий звонок — нажмите, чтобы ответить',
                      'url' => '/chat.html']);
         }
     } catch (Exception $e) { /* таблицы звонков может ещё не быть */ }
