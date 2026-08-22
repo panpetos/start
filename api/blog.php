@@ -193,7 +193,10 @@ if ($action === 'mine') {
 if ($action === 'save' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!$userId) out(['error' => 'Требуется авторизация'], 401);
     if ($tablesError) out(['error' => 'Блог недоступен: не удалось подготовить таблицу (' . $tablesError . ')'], 500);
-    if ($role !== 'psychologist' && !$isAdmin) out(['error' => 'Писать статьи в блог могут психологи'], 403);
+    // Задача №75: блог доступен всем ролям, не только специалистам. У психолога
+    // статья по-прежнему привязывается к его профилю (psychologist_id), у остальных
+    // это поле остаётся пустым — колонка допускает NULL.
+
 
     $id = (int)($body['id'] ?? 0);
     $title = trim((string)($body['title'] ?? ''));

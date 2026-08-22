@@ -18,3 +18,5 @@ api/config.php
 api/db.php
 *.env
 .env
+# Ключи эквайринга Сбербанка — только на сервере (см. sber_acquiring_config.sample.php)
+api/sber_acquiring_config.php

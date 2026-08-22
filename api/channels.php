@@ -173,6 +173,23 @@ function attachPostStats(PDO $pdo, array $posts, $userId) {
     return $posts;
 }
 
+/**
+ * Чей это канал.
+ *
+ * Раньше канал мог быть только у специалиста: столбец так и называется —
+ * psychologist_id. По задаче №75 канал доступен всем, поэтому у психолога ключом
+ * по-прежнему служит его psychologists.id (чтобы ничего не сломалось у тех, у кого
+ * канал уже есть), а у остальных — собственный id пользователя. Столбец строковый,
+ * оба вида значений в нём помещаются, переделывать таблицы не пришлось.
+ *
+ * Имя автора в ленте достаём с запасом обоими путями — см. запрос в action=feed.
+ */
+function myChannelId(PDO $pdo, $userId) {
+    if (!$userId) return null;
+    $psych = myPsychologistId($pdo, $userId);
+    return $psych ?: (string)$userId;
+}
+
 // Вернуть psychologists.id текущего пользователя (по сессии), либо null
 function myPsychologistId(PDO $pdo, $userId) {
     if (!$userId) return null;
@@ -194,7 +211,7 @@ if ($action === 'posts') {
     if ($psychId === '') { http_response_code(400); echo json_encode(['error' => 'psychologist_id обязателен']); exit; }
     try {
         // Скрытые админом посты автор видит у себя (со статусом), остальные — нет.
-        $isOwner = ($psychId !== '' && myPsychologistId($pdo, $userId) === $psychId);
+        $isOwner = ($psychId !== '' && myChannelId($pdo, $userId) === $psychId);
         $showHidden = $isOwner || isAdminUser($pdo, $userId);
         $hasHidden = hasColumn($pdo, 'channel_posts', 'is_hidden');
         $hiddenCond = ($hasHidden && !$showHidden) ? ' AND (is_hidden IS NULL OR is_hidden = 0)' : '';
@@ -222,11 +239,18 @@ if ($action === 'feed') {
         if (hasColumn($pdo, 'channel_posts', 'is_hidden')) $where[] = '(cp.is_hidden IS NULL OR cp.is_hidden = 0)';
         $params = [];
         if ($beforeId > 0) { $where[] = 'cp.id < ?'; $params[] = $beforeId; }
+        // Второй LEFT JOIN — на случай, когда канал ведёт не специалист: тогда в
+        // psychologist_id лежит id самого пользователя (см. myChannelId), и строки в
+        // psychologists для него нет. Имя берём тем путём, который сработал.
         $sql = "SELECT cp.id, cp.psychologist_id, cp.text, cp.image_url, cp.created_at,
-                       u.first_name, u.last_name, u.avatar, p.specialization
+                       COALESCE(u.first_name, u2.first_name) AS first_name,
+                       COALESCE(u.last_name,  u2.last_name)  AS last_name,
+                       COALESCE(u.avatar,     u2.avatar)     AS avatar,
+                       p.specialization
                 FROM channel_posts cp
                 LEFT JOIN psychologists p ON p.id = cp.psychologist_id
                 LEFT JOIN users u ON u.id = p.user_id
+                LEFT JOIN users u2 ON u2.id = cp.psychologist_id
                 " . ($where ? 'WHERE ' . implode(' AND ', $where) : '') . "
                 ORDER BY cp.created_at DESC, cp.id DESC LIMIT $limit";
         $st = $pdo->prepare($sql);
@@ -326,7 +350,7 @@ function channelSettings(PDO $pdo, $psychId) {
  */
 if ($action === 'delete-channel' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!$userId) { http_response_code(401); echo json_encode(['error' => 'Требуется авторизация']); exit; }
-    $psychId = myPsychologistId($pdo, $userId);
+    $psychId = myChannelId($pdo, $userId);
     if (!$psychId) { http_response_code(403); echo json_encode(['error' => 'Доступно только психологам с созданным профилем']); exit; }
     try {
         // комментарии и лайки чистим по постам канала, чтобы не оставлять сирот
@@ -351,7 +375,7 @@ if ($action === 'delete-channel' && $_SERVER['REQUEST_METHOD'] === 'POST') {
 
 if ($action === 'save-settings' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!$userId) { http_response_code(401); echo json_encode(['error' => 'Требуется авторизация']); exit; }
-    $psychId = myPsychologistId($pdo, $userId);
+    $psychId = myChannelId($pdo, $userId);
     if (!$psychId) { http_response_code(403); echo json_encode(['error' => 'Доступно только психологам с созданным профилем']); exit; }
     $title = isset($body['title']) ? trim((string)$body['title']) : null;
     $descr = isset($body['description']) ? trim((string)$body['description']) : null;
@@ -415,7 +439,7 @@ if ($action === 'my-subscriptions') {
 
 if ($action === 'post' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!$userId) { http_response_code(401); echo json_encode(['error' => 'Требуется авторизация']); exit; }
-    $psychId = myPsychologistId($pdo, $userId);
+    $psychId = myChannelId($pdo, $userId);
     if (!$psychId) { http_response_code(403); echo json_encode(['error' => 'Доступно только психологам с созданным профилем']); exit; }
     $text = isset($body['text']) ? trim((string)$body['text']) : '';
     $imageUrl = isset($body['image_url']) ? (string)$body['image_url'] : null;
@@ -430,7 +454,7 @@ if ($action === 'post' && $_SERVER['REQUEST_METHOD'] === 'POST') {
 
 if ($action === 'edit-post' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!$userId) { http_response_code(401); echo json_encode(['error' => 'Требуется авторизация']); exit; }
-    $psychId = myPsychologistId($pdo, $userId);
+    $psychId = myChannelId($pdo, $userId);
     $id = (int)($body['id'] ?? 0);
     if (!$psychId || !$id) { http_response_code(400); echo json_encode(['error' => 'Некорректный запрос']); exit; }
     $text = isset($body['text']) ? trim((string)$body['text']) : '';
@@ -451,7 +475,7 @@ if ($action === 'edit-post' && $_SERVER['REQUEST_METHOD'] === 'POST') {
 
 if ($action === 'delete-post' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!$userId) { http_response_code(401); echo json_encode(['error' => 'Требуется авторизация']); exit; }
-    $psychId = myPsychologistId($pdo, $userId);
+    $psychId = myChannelId($pdo, $userId);
     $id = (int)($body['id'] ?? 0);
     if (!$psychId || !$id) { http_response_code(400); echo json_encode(['error' => 'Некорректный запрос']); exit; }
     try {

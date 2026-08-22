@@ -1801,6 +1801,21 @@
         }
         .rtc-screen.audio-only .rtc-local { display: none; }
 
+        /* Поменялись местами: свой кадр разворачивается на весь экран, кадр
+           собеседника уезжает в уголок. Меняется только вид — потоки остаются в своих
+           элементах, поэтому звук собеседника никуда не девается (задача №74). */
+        .rtc-screen.swapped .rtc-local {
+            position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+            width: 100%; height: 100%; border: none; border-radius: 0; z-index: 1;
+            object-fit: cover;
+        }
+        .rtc-screen.swapped .rtc-remote {
+            position: absolute; right: 12px; left: auto; z-index: 4;
+            top: calc(env(safe-area-inset-top) + 64px);
+            width: 104px; height: 138px; border-radius: 0.9rem;
+            border: 2px solid rgba(255,255,255,0.35); object-fit: cover;
+        }
+
         .rtc-fallback {
             position: absolute; left: 50%; transform: translateX(-50%); z-index: 5;
             bottom: calc(env(safe-area-inset-bottom) + 116px);
@@ -7404,28 +7419,25 @@
         /** Свой канал. У психолога он один и заводится вместе с профилем — «создать»
          *  означает открыть его и написать первый пост, как в Telegram. */
         async function openMyChannel() {
-            if (!currentUser || currentUser.role !== 'psychologist') {
-                toast('Каналы ведут специалисты — у клиентов их нет');
-                return;
-            }
+            if (!currentUser) return;
+            // Задача №75: канал может вести кто угодно, не только специалист.
+            // У психолога ключ канала — id его профиля (так уже заведены существующие
+            // каналы), у остальных — собственный id пользователя.
             if (!myOwnPsychId) {
                 try {
                     const d = await (await fetch('/api/my_profile.php?action=get', { credentials: 'include' })).json();
                     myOwnPsychId = (d && d.ok && d.profile) ? d.profile.id : null;
                 } catch (e) {}
             }
-            if (!myOwnPsychId) { toast('Сначала заполните профиль специалиста'); return; }
+            if (!myOwnPsychId) myOwnPsychId = String(currentUser.id);
             openChannel(myOwnPsychId);
         }
         window.openMyChannel = openMyChannel;
 
         /** Блог. Редактор статей пока живёт отдельной страницей — ведём туда. */
         function openMyBlog() {
-            if (!currentUser || currentUser.role !== 'psychologist') {
-                toast('Блог ведут специалисты — у клиентов его нет');
-                return;
-            }
-            location.href = '/psychologist-blog.html';
+            if (!currentUser) return;
+            location.href = '/psychologist-blog.html';   // задача №75: блог доступен всем ролям
         }
         window.openMyBlog = openMyBlog;
 
@@ -13413,18 +13425,21 @@
             // включить в любой момент разговора.
             rtcSyncCamButton();
             // экран переиспользуется между звонками — возвращаем исходный вид
-            s.classList.remove('min');
+            s.classList.remove('min', 'swapped');
             rtcSwapped = false;
             const remEl = document.getElementById('rtcRemote'), locEl = document.getElementById('rtcLocal');
             remEl.style.transform = ''; locEl.style.transform = 'scaleX(-1)'; remEl.muted = false;
             rtcInitSpeakerBtn();
+            rtcFacing = 'user';
+            document.getElementById('rtcFlipLab').textContent = 'Фронтальная';
+            rtcInitFlipBtn();
             rtcKeepAwake(rtcKind === 'video');   // при видео экран держим, при звуке — нет
             rtcDimArm();                         // защита от касаний щекой в разговоре без видео
         }
 
         function rtcCloseScreen() {
             const s = document.getElementById('rtcScreen');
-            if (s) { s.classList.remove('open', 'has-video', 'audio-only', 'min'); }
+            if (s) { s.classList.remove('open', 'has-video', 'audio-only', 'min', 'swapped'); }
             document.body.classList.remove('rtc-min');
             rtcRingback(false);
             const inc = document.getElementById('rtcIncoming');
@@ -13622,18 +13637,27 @@
 
         // ── Поменять местами себя и собеседника ────────────────────────────────────
         let rtcSwapped = false;
+        /**
+         * Поменять местами себя и собеседника.
+         *
+         * РАНЬШЕ ЗДЕСЬ ПРОПАДАЛ ЗВУК. Картинки менялись переносом потока из одного
+         * видеоэлемента в другой, а звук собеседника живёт в том же потоке. После
+         * обмена он оказывался в маленьком окошке, которое всегда заглушено «чтобы не
+         * слышать себя», — и собеседника переставало быть слышно (задача №74).
+         *
+         * Теперь потоки не трогаем вовсе: каждый остаётся в своём элементе, звук
+         * собеседника — там же, где был. Меняем только внешний вид: кто занимает весь
+         * экран, а кто — уголок. Звук физически не может потеряться.
+         */
         function rtcSwapViews() {
+            const scr = document.getElementById('rtcScreen');
             const rem = document.getElementById('rtcRemote'), loc = document.getElementById('rtcLocal');
-            if (!rem || !loc) return;
-            const a = rem.srcObject, c = loc.srcObject;
-            if (!a && !c) return;
-            rem.srcObject = c; loc.srcObject = a;
+            if (!scr || !rem || !loc) return;
+            if (!rem.srcObject && !loc.srcObject) return;
             rtcSwapped = !rtcSwapped;
-            // Своё изображение показываем зеркально, чужое — как есть
-            rem.style.transform = rtcSwapped ? 'scaleX(-1)' : '';
-            loc.style.transform = rtcSwapped ? 'none' : 'scaleX(-1)';
+            scr.classList.toggle('swapped', rtcSwapped);
             loc.muted = true;                       // себя не слушаем ни в каком положении
-            rem.muted = rtcSwapped;                 // в своей же камере звука быть не должно
+            rem.muted = false;                      // собеседника — всегда слышно
         }
         window.rtcSwapViews = rtcSwapViews;
 
@@ -13957,6 +13981,58 @@
         }
         window.rtcToggleCam = rtcToggleCam;
 
+        /**
+         * Переключить камеру: фронтальная ↔ основная (задача №73).
+         *
+         * Дорожку в соединении не пересоздаём, а подменяем (replaceTrack) — собеседник
+         * просто видит другую картинку, пересогласование и пауза не нужны.
+         * Кнопку показываем только там, где камер и правда больше одной.
+         */
+        let rtcFacing = 'user';
+        async function rtcFlipCamera() {
+            if (!rtcLocalStream) return;
+            const btn = document.getElementById('rtcFlipBtn');
+            const old = rtcLocalStream.getVideoTracks()[0];
+            if (!old) { rtcToggleCam(); return; }          // видео ещё не включали
+            const want = rtcFacing === 'user' ? 'environment' : 'user';
+            if (btn) btn.disabled = true;
+            try {
+                const cam = await navigator.mediaDevices.getUserMedia({
+                    video: Object.assign({}, RTC_VIDEO, { facingMode: { ideal: want } }),
+                });
+                const track = cam.getVideoTracks()[0];
+                if (!track) throw new Error('камера не отдала картинку');
+                const sender = rtcPc && rtcPc.getSenders().find(x => x.track && x.track.kind === 'video');
+                if (sender) await sender.replaceTrack(track);
+                rtcLocalStream.removeTrack(old);
+                try { old.stop(); } catch (e) {}
+                rtcLocalStream.addTrack(track);
+                const l = document.getElementById('rtcLocal');
+                if (l) l.srcObject = rtcLocalStream;
+                rtcFacing = want;
+                // Своё изображение зеркалим только у фронтальной: основная камера
+                // показывает мир как есть, и зеркало сбивало бы с толку.
+                if (l) l.style.transform = (rtcFacing === 'user') ? 'scaleX(-1)' : 'none';
+                document.getElementById('rtcFlipLab').textContent = rtcFacing === 'user' ? 'Фронтальная' : 'Основная';
+                await rtcTuneSenders();
+            } catch (e) {
+                toast('Не удалось переключить камеру');
+            } finally { if (btn) btn.disabled = false; }
+        }
+        window.rtcFlipCamera = rtcFlipCamera;
+
+        /** Кнопка смены камеры нужна, только если камер больше одной. */
+        async function rtcInitFlipBtn() {
+            const btn = document.getElementById('rtcFlipBtn');
+            if (!btn) return;
+            btn.style.display = 'none';
+            try {
+                const cams = (await navigator.mediaDevices.enumerateDevices())
+                    .filter(d => d.kind === 'videoinput');
+                if (cams.length > 1) btn.style.display = 'flex';
+            } catch (e) {}
+        }
+
         /** Привести кнопку камеры в соответствие с тем, что происходит на самом деле. */
         function rtcSyncCamButton() {
             const b = document.getElementById('rtcCamBtn');
@@ -13973,6 +14049,10 @@
             // Своё окошко показываем, только когда камера реально работает
             const l = document.getElementById('rtcLocal');
             if (l) l.style.display = on ? 'block' : 'none';
+            // Менять камеру есть смысл только когда она включена
+            const flip = document.getElementById('rtcFlipBtn');
+            if (flip && !on) flip.style.display = 'none';
+            else if (flip && on) rtcInitFlipBtn();
         }
 
         /**
@@ -14466,6 +14546,10 @@
             </button>
             <button type="button" class="rtc-btn" id="rtcCamBtn" onclick="rtcToggleCam()" aria-label="Камера">
                 <span class="rtc-ico" id="rtcCamIco">🎥</span><span class="rtc-lab" id="rtcCamLab">Камера</span>
+            </button>
+            <!-- Смена камеры: фронтальная ↔ основная (задача №73) -->
+            <button type="button" class="rtc-btn" id="rtcFlipBtn" onclick="rtcFlipCamera()" aria-label="Сменить камеру" style="display:none;">
+                <span class="rtc-ico">🔄</span><span class="rtc-lab" id="rtcFlipLab">Фронтальная</span>
             </button>
             <button type="button" class="rtc-btn hang" onclick="rtcHangUp('hangup')" aria-label="Завершить">
                 <span class="rtc-ico">📵</span><span class="rtc-lab">Завершить</span>

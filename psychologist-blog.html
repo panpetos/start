@@ -324,7 +324,7 @@
                 try { currentUser = await window.Auth.getCurrentUser(); } catch(e) {}
             }
             if (!currentUser) { window.location.href = '/login.html?redirect=' + encodeURIComponent('/psychologist-blog.html'); return; }
-            if (currentUser.role !== 'psychologist' && currentUser.role !== 'admin') { window.location.href = '/client-dashboard.html'; return; }
+            // Задача №75: блог доступен всем ролям, а не только специалистам.
             mountDashSidebar('psychologist', ((currentUser.first_name||'') + ' ' + (currentUser.last_name||'')).trim() || currentUser.email || '');
             await loadMine();
         })();
