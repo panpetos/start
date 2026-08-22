@@ -3424,7 +3424,7 @@
 
     <script src="/js/api.js?v=20260821"></script>
     <script src="/js/auth.js?v=20260821"></script>
-    <script src="/js/lightbox.js?v=2"></script>
+    <script src="/js/lightbox.js?v=3"></script>
     <script src="/js/post-format.js?v=20260821"></script>
     <script src="/js/header.js?v=20260821"></script>
     <script>
@@ -5469,6 +5469,36 @@
                         ${again}
                     </div>`;
         }
+
+        /**
+         * Пункты меню в просмотрщике фото, которые есть только в переписке.
+         * Сам просмотрщик (js/lightbox.js) общий для всего сайта и про переписку
+         * ничего не знает — он просто спрашивает у страницы, что ещё умеет.
+         */
+        window.psyLightboxActions = function (item) {
+            const out = [];
+            const node = item && item.node;
+            if (!node || !node.closest) return out;
+            const msg = node.closest('[data-msg-id], [data-fav-id]');
+            const id = msg && (msg.getAttribute('data-msg-id') || msg.getAttribute('data-fav-id'));
+            if (!id) return out;
+
+            out.push({ icon: 'goto', label: 'Перейти к сообщению', run: () => {
+                psyLightboxClose();
+                const el = document.querySelector(`[data-msg-id="${id}"]`) || document.querySelector(`[data-fav-id="${id}"]`);
+                if (!el) { toast('Сообщение выше в переписке — прокрутите вверх'); return; }
+                try { el.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (e) {}
+                flashMessage(el, id);
+            } });
+
+            if (typeof openForwardMenu === 'function' && msgCaps[id] && msgCaps[id].canForward) {
+                out.push({ icon: 'fwd', label: 'Переслать фото', run: () => {
+                    psyLightboxClose();
+                    openForwardMenu(null, msgCaps[id].kind, id);
+                } });
+            }
+            return out;
+        };
 
         function pokePush(uid) {
             // Сами только что написали — сводному опросу есть смысл сходить прямо сейчас,
@@ -13107,36 +13137,82 @@
             return d;
         }
 
-        /** Короткий сигнал вызова — генерируем звуком, чтобы не тащить файл на сервер. */
-        function rtcRingtone(on) {
+        // ── ЗВОНОК ДОЛЖЕН БЫТЬ СЛЫШЕН ────────────────────────────────────────────
+        //
+        //  ПОЧЕМУ РАНЬШЕ НЕ ЗВОНИЛО. Браузер не даёт странице издавать звук, пока
+        //  человек на ней хоть раз что-то не нажал: звуковой движок создаётся
+        //  «спящим». У звонящего это работало — он только что нажал «Позвонить».
+        //  А у того, КОМУ звонят, никакого нажатия не было: движок оставался спящим,
+        //  и входящий приходил молча. Ровно то, на что жаловались.
+        //
+        //  ЧТО ДЕЛАЕМ. Будим звук заранее — при первом же касании страницы (открыл
+        //  чат, пролистал список) — и держим один общий движок на всю вкладку.
+        //  К моменту звонка он уже готов. Плюс вибрация и более заметная мелодия.
+        let psyAudioCtx = null;
+        function psyAudio() {
             try {
-                if (!on) {
-                    if (rtcRing) { try { rtcRing.stop(); } catch (e) {} rtcRing = null; }
-                    return;
-                }
-                if (rtcRing) return;
                 const Ctx = window.AudioContext || window.webkitAudioContext;
-                if (!Ctx) return;
-                const ctx = new Ctx();
-                const gain = ctx.createGain();
-                gain.gain.value = 0.0001;
-                gain.connect(ctx.destination);
+                if (!Ctx) return null;
+                if (!psyAudioCtx || psyAudioCtx.state === 'closed') psyAudioCtx = new Ctx();
+                if (psyAudioCtx.state === 'suspended') psyAudioCtx.resume().catch(() => {});
+                return psyAudioCtx;
+            } catch (e) { return null; }
+        }
+        // Любое касание страницы будит звук — потом он понадобится без спроса
+        ['pointerdown', 'keydown', 'touchstart'].forEach(ev =>
+            document.addEventListener(ev, () => psyAudio(), { passive: true, capture: true }));
+
+        /** Вибрация. Браузер разрешает её только после действия человека на странице. */
+        function psyVibrate(pattern) {
+            try { if (navigator.vibrate) navigator.vibrate(pattern); } catch (e) {}
+        }
+
+        /**
+         * Один «звоночек»: два тона сразу, как в телефонном аппарате. Одна синусоида
+         * звучала тихо и терялась в комнате, поэтому берём пару и заметную громкость.
+         */
+        function rtcBeep(ctx, freqs, at, dur, vol) {
+            freqs.forEach(f => {
                 const osc = ctx.createOscillator();
+                const g = ctx.createGain();
                 osc.type = 'sine';
-                osc.frequency.value = 480;
-                osc.connect(gain);
-                osc.start();
-                // «бип-бип — пауза», как в телефоне
-                let t = ctx.currentTime;
-                for (let i = 0; i < 60; i++) {
-                    gain.gain.setValueAtTime(0.06, t);
-                    gain.gain.setValueAtTime(0.0001, t + 0.4);
-                    gain.gain.setValueAtTime(0.06, t + 0.6);
-                    gain.gain.setValueAtTime(0.0001, t + 1.0);
-                    t += 3;
+                osc.frequency.value = f;
+                osc.connect(g); g.connect(ctx.destination);
+                // мягкие края, иначе на старте и в конце слышен щелчок
+                g.gain.setValueAtTime(0.0001, at);
+                g.gain.exponentialRampToValueAtTime(vol, at + 0.02);
+                g.gain.setValueAtTime(vol, at + dur - 0.03);
+                g.gain.exponentialRampToValueAtTime(0.0001, at + dur);
+                osc.start(at); osc.stop(at + dur + 0.02);
+            });
+        }
+
+        /**
+         * Входящий вызов у того, КОМУ звонят: мелодия + вибрация, пока не ответят.
+         * Повторяем по таймеру, а не расписываем наперёд: звук могли разбудить уже
+         * после начала звонка, и заранее составленное расписание пропало бы впустую.
+         */
+        function rtcRingtone(on) {
+            if (!on) {
+                if (rtcRing) { try { rtcRing.stop(); } catch (e) {} rtcRing = null; }
+                psyVibrate(0);
+                return;
+            }
+            if (rtcRing) return;
+            const cycle = () => {
+                const ctx = psyAudio();
+                if (ctx && ctx.state === 'running') {
+                    const t = ctx.currentTime;
+                    // «дзинь-дзинь» — два коротких звонка подряд, как у телефона
+                    rtcBeep(ctx, [440, 480], t + 0.02, 0.45, 0.22);
+                    rtcBeep(ctx, [440, 480], t + 0.62, 0.45, 0.22);
                 }
-                rtcRing = { stop: () => { try { osc.stop(); ctx.close(); } catch (e) {} } };
-            } catch (e) {}
+                // Вибрация работает и там, где звук выключен, — а в кармане её и заметят
+                psyVibrate([450, 180, 450]);
+            };
+            cycle();
+            const timer = setInterval(cycle, 2600);
+            rtcRing = { stop: () => clearInterval(timer) };
         }
 
         function rtcSetState(text) {
@@ -13403,28 +13479,20 @@
         // Раньше звонящий не слышал ничего и не понимал, идёт ли вызов.
         let rtcBack = null;
         function rtcRingback(on) {
-            try {
-                if (!on) { if (rtcBack) { try { rtcBack.stop(); } catch (e) {} rtcBack = null; } return; }
-                if (rtcBack) return;
-                const Ctx = window.AudioContext || window.webkitAudioContext;
-                if (!Ctx) return;
-                const ctx = new Ctx();
-                const gain = ctx.createGain();
-                gain.gain.value = 0.0001;
-                gain.connect(ctx.destination);
-                const osc = ctx.createOscillator();
-                osc.type = 'sine';
-                osc.frequency.value = 425;          // привычный тон вызова
-                osc.connect(gain);
-                osc.start();
-                let t = ctx.currentTime;
-                for (let i = 0; i < 40; i++) {      // «гудок 1с — пауза 4с», как в телефоне
-                    gain.gain.setValueAtTime(0.05, t);
-                    gain.gain.setValueAtTime(0.0001, t + 1);
-                    t += 5;
-                }
-                rtcBack = { stop: () => { try { osc.stop(); ctx.close(); } catch (e) {} } };
-            } catch (e) {}
+            if (!on) {
+                if (rtcBack) { try { rtcBack.stop(); } catch (e) {} rtcBack = null; }
+                return;
+            }
+            if (rtcBack) return;
+            const cycle = () => {
+                const ctx = psyAudio();
+                if (!ctx || ctx.state !== 'running') return;
+                // «гудок 1 с — пауза 4 с», как в телефоне: 425 Гц — привычный тон вызова
+                rtcBeep(ctx, [425], ctx.currentTime + 0.02, 1.0, 0.14);
+            };
+            cycle();
+            const timer = setInterval(cycle, 5000);
+            rtcBack = { stop: () => clearInterval(timer) };
         }
 
         // ── Громкость и вывод звука ────────────────────────────────────────────────
@@ -13571,10 +13639,7 @@
                                            payload: JSON.stringify(rtcPc.localDescription) });
                 // Будим собеседника пушем: иначе о звонке узнает только тот, у кого
                 // сайт уже открыт, а при выключенном экране вызов пройдёт мимо.
-                fetch('/api/push.php?action=poke-call', {
-                    method: 'POST', headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include', body: JSON.stringify({ to: String(selectedUserId) })
-                }).catch(() => {});
+                rtcPokeCall(String(selectedUserId));
                 rtcPollSoon(700);
             } catch (e) {
                 rtcCloseScreen(); rtcTeardown();
@@ -13582,6 +13647,26 @@
             }
         }
         window.startRtcCall = startRtcCall;
+
+        /**
+         * Разбудить собеседника пушем.
+         *
+         * Одного раза мало: телефон мог быть в глубоком сне, уведомление — прийти с
+         * задержкой или потеряться. Пока вызов идёт, повторяем ещё дважды. Сервер сам
+         * проверяет, что вызов этому человеку правда активен, — лишнего не уйдёт.
+         */
+        function rtcPokeCall(to) {
+            const poke = () => {
+                if (!rtcCallId) return;            // уже ответили или отменили
+                fetch('/api/push.php?action=poke-call', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include', body: JSON.stringify({ to })
+                }).catch(() => {});
+            };
+            poke();
+            setTimeout(poke, 8000);
+            setTimeout(poke, 18000);
+        }
 
         /** Принять входящий. */
         async function rtcAccept() {
