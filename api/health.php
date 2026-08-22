@@ -73,6 +73,17 @@ $r['session'] = [
     'cookie_secure'   => (int)@ini_get('session.cookie_secure'),
     'cookie_samesite' => (string)@ini_get('session.cookie_samesite'),
 ];
+// Читает ли PHP наш .user.ini — и если нет, то почему
+$root = $_SERVER['DOCUMENT_ROOT'] ?? '';
+$r['user_ini'] = [
+    'filename'  => (string)@ini_get('user_ini.filename'),
+    'cache_ttl' => (int)@ini_get('user_ini.cache_ttl'),
+    'doc_root'  => $root,
+    'script_dir'=> __DIR__,
+    'file_here' => is_file(__DIR__ . '/.user.ini'),
+    'file_root' => $root ? is_file(rtrim($root, '/') . '/.user.ini') : null,
+    'file_up'   => is_file(dirname(__DIR__) . '/.user.ini'),
+];
 $sd = @ini_get('session.save_path');
 $r['session_path'] = $sd ?: '(по умолчанию)';
 if ($sd && is_dir($sd)) {
