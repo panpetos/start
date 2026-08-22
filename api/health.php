@@ -83,6 +83,12 @@ $r['user_ini'] = [
     'file_here' => is_file(__DIR__ . '/.user.ini'),
     'file_root' => $root ? is_file(rtrim($root, '/') . '/.user.ini') : null,
     'file_up'   => is_file(dirname(__DIR__) . '/.user.ini'),
+    // Как запущен PHP: .user.ini читает только FastCGI/FPM, модуль Apache — нет
+    'sapi'      => php_sapi_name(),
+    // Проверочное значение из того же файла. Если оно применилось, а настройки
+    // сессии — нет, значит их перебивает код, а не игнорируется весь файл.
+    'upload_max' => (string)@ini_get('upload_max_filesize'),
+    'post_max'   => (string)@ini_get('post_max_size'),
 ];
 $sd = @ini_get('session.save_path');
 $r['session_path'] = $sd ?: '(по умолчанию)';
