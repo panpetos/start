@@ -54,6 +54,29 @@ $now  = date('Y-m-d H:i:s');
 $out  = ['ok' => true, 'now' => $now, 'rev' => [], 'changed' => []];
 
 /**
+ * Индексы под отметки версии.
+ *
+ * Отметка считается на КАЖДОМ опросе каждой вкладки, поэтому она обязана идти по
+ * индексу. Без индексов по sender_id и receiver_id это полный перебор таблицы
+ * сообщений — ровно та ошибка, из-за которой сайт уже ложился однажды. Сейчас
+ * сообщений сотни и индексы добавляются мгновенно; на миллионе строк это была бы
+ * долгая блокирующая операция, так что делаем сразу и один раз в сутки проверяем.
+ */
+function syncEnsureIndexes(PDO $pdo) {
+    psy_schema_once('messages_rev_idx_v1', 86400, function () use ($pdo) {
+        try {
+            $have = [];
+            foreach ($pdo->query("SHOW INDEX FROM messages")->fetchAll(PDO::FETCH_ASSOC) as $r)
+                $have[strtolower($r['Key_name'])] = true;
+            if (!isset($have['idx_sync_sender']))
+                try { $pdo->exec("ALTER TABLE messages ADD INDEX idx_sync_sender (sender_id, created_at)"); } catch (Exception $e) {}
+            if (!isset($have['idx_sync_receiver']))
+                try { $pdo->exec("ALTER TABLE messages ADD INDEX idx_sync_receiver (receiver_id, created_at)"); } catch (Exception $e) {}
+        } catch (Exception $e) { /* нет прав на ALTER — отметки просто будут дороже */ }
+    });
+}
+
+/**
  * «Отметка версии» набора строк: сколько их и когда была последняя правка.
  * Считается по индексам и не тащит наружу ни одного сообщения. Если отметка
  * совпала с той, что уже есть у браузера, — значит, ничего не изменилось.
@@ -132,18 +155,21 @@ try { $out['rtc'] = rtcPollFor($pdo, $userId, $body['rtc_after'] ?? 0); }
 catch (Exception $e) { $out['rtc'] = ['incoming' => null, 'active' => null, 'signals' => [], 'recent_end' => null]; }
 
 // ── 4. Изменилось ли что-то в переписке и в списке диалогов ───────────────────
-// Правку сообщения одним лишь счётчиком не поймать, поэтому, если в таблице есть
-// отметка времени правки, берём и её.
-$edited = syncHasColumn($pdo, 'messages', 'edited_at') ? ', MAX(edited_at)'
-        : (syncHasColumn($pdo, 'messages', 'updated_at') ? ', MAX(updated_at)' : ', NULL');
-
 $peer = trim((string)($body['peer'] ?? ''));
 $revIn = (array)($body['rev'] ?? []);
 
-// список диалогов: любое моё сообщение в любую сторону
+syncEnsureIndexes($pdo);
+
+// Список диалогов: любое моё сообщение в любую сторону. Условие «sender ИЛИ receiver»
+// в одном запросе не даёт MySQL воспользоваться индексом — считаем двумя отдельными
+// выборками, каждая по своему индексу, и складываем.
 $out['rev']['conv'] = syncRev($pdo,
-    "SELECT COUNT(*), MAX(created_at)$edited FROM messages WHERE sender_id = ? OR receiver_id = ?",
-    [$userId, $userId]);
+    "SELECT (SELECT COUNT(*) FROM messages WHERE sender_id = ?)
+          + (SELECT COUNT(*) FROM messages WHERE receiver_id = ?),
+            GREATEST(COALESCE((SELECT MAX(created_at) FROM messages WHERE sender_id = ?), '0'),
+                     COALESCE((SELECT MAX(created_at) FROM messages WHERE receiver_id = ?), '0')),
+            NULL",
+    [$userId, $userId, $userId, $userId]);
 
 if ($peer !== '' && strpos($peer, 'g:') === 0) {
     $gid = substr($peer, 2);
@@ -153,10 +179,25 @@ if ($peer !== '' && strpos($peer, 'g:') === 0) {
     $out['rev']['msg'] = syncRev($pdo,
         "SELECT COUNT(*), MAX(created_at), NULL FROM favorite_messages WHERE user_id = ?", [$userId]);
 } elseif ($peer !== '') {
+    // Та же причина: две выборки по индексам вместо одного условия с ИЛИ.
+    // Правку сообщения счётчиком не поймать, поэтому в ОТКРЫТОЙ переписке берём ещё и
+    // время последней правки — строк там немного, а без этого исправленный текст
+    // не обновился бы у собеседника.
+    $ed = syncHasColumn($pdo, 'messages', 'edited_at') ? 'edited_at'
+        : (syncHasColumn($pdo, 'messages', 'updated_at') ? 'updated_at' : null);
+    $edSel = $ed
+        ? "GREATEST(COALESCE((SELECT MAX($ed) FROM messages WHERE sender_id = ? AND receiver_id = ?), '0'),
+                    COALESCE((SELECT MAX($ed) FROM messages WHERE sender_id = ? AND receiver_id = ?), '0'))"
+        : 'NULL';
+    $args = [$userId, $peer, $peer, $userId, $userId, $peer, $peer, $userId];
+    if ($ed) array_push($args, $userId, $peer, $peer, $userId);
     $out['rev']['msg'] = syncRev($pdo,
-        "SELECT COUNT(*), MAX(created_at)$edited FROM messages
-          WHERE (sender_id = ? AND receiver_id = ?) OR (sender_id = ? AND receiver_id = ?)",
-        [$userId, $peer, $peer, $userId]);
+        "SELECT (SELECT COUNT(*) FROM messages WHERE sender_id = ? AND receiver_id = ?)
+              + (SELECT COUNT(*) FROM messages WHERE sender_id = ? AND receiver_id = ?),
+                GREATEST(COALESCE((SELECT MAX(created_at) FROM messages WHERE sender_id = ? AND receiver_id = ?), '0'),
+                         COALESCE((SELECT MAX(created_at) FROM messages WHERE sender_id = ? AND receiver_id = ?), '0')),
+                $edSel",
+        $args);
 }
 
 foreach (['conv', 'msg'] as $k) {
