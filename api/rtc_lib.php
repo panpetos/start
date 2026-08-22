@@ -38,6 +38,7 @@ function rtcEnsureSchema($pdo) {
             created_at DATETIME NOT NULL,
             answered_at DATETIME NULL,
             ended_at DATETIME NULL,
+            logged TINYINT NOT NULL DEFAULT 0,
             INDEX idx_to (to_id, status),
             INDEX idx_from (from_id, status),
             INDEX idx_created (created_at)
@@ -55,6 +56,9 @@ function rtcEnsureSchema($pdo) {
         // Уборка старых сигналов шла по created_at без индекса — полный перебор
         // таблицы. Добавляем индекс существующим установкам.
         try { $pdo->exec("ALTER TABLE rtc_call_signals ADD INDEX idx_created (created_at)"); } catch (Exception $e) {}
+        // Отметка «о звонке уже написали в переписку» — у тех, чьи таблицы созданы
+        // прошлой версией, этой колонки ещё нет.
+        try { $pdo->exec("ALTER TABLE rtc_calls ADD COLUMN logged TINYINT NOT NULL DEFAULT 0"); } catch (Exception $e) {}
         psy_align_collation($pdo, ['rtc_calls', 'rtc_call_signals']);
     } catch (Exception $e) {}
 }
@@ -89,9 +93,18 @@ function expireStale($pdo, $force = false) {
                            ON DUPLICATE KEY UPDATE v = VALUES(v)")
                 ->execute([date('Y-m-d H:i:s')]);
         }
-        $pdo->prepare("UPDATE rtc_calls SET status = 'ended', end_reason = 'missed', ended_at = NOW()
-                       WHERE status = 'ringing' AND created_at < (NOW() - INTERVAL ? SECOND)")
-            ->execute([RING_TIMEOUT]);
+        // Просроченные «звонит…» помечаем пропущенными и про каждый оставляем запись
+        // в переписке — поэтому берём их списком, а не одним общим UPDATE.
+        $st = $pdo->prepare("SELECT id FROM rtc_calls
+                              WHERE status = 'ringing' AND created_at < (NOW() - INTERVAL ? SECOND) LIMIT 50");
+        $st->execute([RING_TIMEOUT]);
+        $lost = $st->fetchAll(PDO::FETCH_COLUMN) ?: [];
+        if ($lost) {
+            $in = implode(',', array_fill(0, count($lost), '?'));
+            $pdo->prepare("UPDATE rtc_calls SET status = 'ended', end_reason = 'missed', ended_at = NOW()
+                           WHERE id IN ($in)")->execute($lost);
+            foreach ($lost as $id) rtcLogCall($pdo, $id);
+        }
         $pdo->exec("DELETE FROM rtc_call_signals WHERE created_at < (NOW() - INTERVAL 1 DAY)");
         $pdo->exec("DELETE FROM rtc_calls WHERE created_at < (NOW() - INTERVAL 7 DAY)");
     } catch (Exception $e) { /* нет таблицы состояния — уборка подождёт */ }
@@ -166,7 +179,9 @@ function rtcPollFor($pdo, $userId, $after = 0) {
     // Уборку запускаем, только когда она реально нужна (висит просроченный вызов)
     // либо изредка «за компанию» — чтобы старые записи не копились. Внутри стоит
     // ещё и общий на всю платформу ограничитель «не чаще раза в минуту».
-    if ($stale || mt_rand(1, 50) === 1) expireStale($pdo);
+    // Просроченный вызов есть — убираемся сразу, не дожидаясь ограничителя: иначе
+    // запись о пропущенном появилась бы в переписке с опозданием до минуты.
+    if ($stale || mt_rand(1, 50) === 1) expireStale($pdo, $stale);
 
     $signals = [];
     if ($active) {
@@ -182,4 +197,86 @@ function rtcPollFor($pdo, $userId, $after = 0) {
 
     return ['incoming' => $incoming, 'active' => $active,
             'signals' => $signals, 'recent_end' => $recentEnd];
+}
+
+
+/**
+ * Запись о звонке в переписке.
+ *
+ * Раньше звонок не оставлял следа: не дозвонился — и непонятно, звонили тебе или нет;
+ * поговорили — и в переписке пусто. Теперь каждый завершённый звонок оставляет строку
+ * в той же переписке, как в телефоне и в мессенджерах.
+ *
+ * Пишем ровно один раз на звонок: завершить его могут обе стороны разом, поэтому
+ * запись «занимается» одним UPDATE с проверкой отметки — кто успел, тот и пишет.
+ *
+ * Текст начинается с «☎️ » — по этому признаку страница рисует его отдельной плашкой
+ * посередине, а не обычным пузырём. Если разбирать некому (список диалогов, письмо,
+ * push), текст и так читается по-человечески.
+ */
+function rtcLogCall(PDO $pdo, $callId) {
+    $callId = (int)$callId;
+    if (!$callId) return;
+    try {
+        $claim = $pdo->prepare("UPDATE rtc_calls SET logged = 1 WHERE id = ? AND (logged = 0 OR logged IS NULL)");
+        try { $claim->execute([$callId]); }
+        catch (PDOException $e) { rtcEnsureSchema($pdo); $claim->execute([$callId]); }
+        if (!$claim->rowCount()) return;          // про этот звонок уже написали
+
+        $call = loadCall($pdo, $callId);
+        if (!$call) return;
+        $reason = (string)($call['end_reason'] ?? '');
+        if ($reason === 'replaced') return;       // технический перезапуск, человеку не событие
+
+        if (!empty($call['answered_at'])) {
+            $sec = strtotime((string)($call['ended_at'] ?: 'now')) - strtotime((string)$call['answered_at']);
+            $text = '☎️ Звонок · ' . rtcDurWords($sec);
+        } else {
+            switch ($reason) {
+                case 'declined': $text = '☎️ Звонок отклонён'; break;
+                case 'missed':   $text = '☎️ Пропущенный звонок'; break;
+                case 'hangup':   $text = '☎️ Отменённый звонок'; break;
+                case 'fallback': $text = '☎️ Звонок не состоялся — перешли в Телемост'; break;
+                default:         $text = '☎️ Звонок не состоялся';
+            }
+        }
+        rtcSendDm($pdo, $call['from_id'], $call['to_id'], $text);
+    } catch (Exception $e) { /* переписка без записи — не повод ронять звонок */ }
+}
+
+/** «45 с», «3 мин 01 с», «1 ч 02 мин» — как показывают длительность в телефоне. */
+function rtcDurWords($sec) {
+    $sec = max(0, (int)$sec);
+    if ($sec < 60) return $sec . ' с';
+    $m = intdiv($sec, 60); $s = $sec % 60;
+    if ($m < 60) return $m . ' мин ' . str_pad((string)$s, 2, '0', STR_PAD_LEFT) . ' с';
+    $h = intdiv($m, 60); $m = $m % 60;
+    return $h . ' ч ' . str_pad((string)$m, 2, '0', STR_PAD_LEFT) . ' мин';
+}
+
+/**
+ * Написать в личную переписку. Таблицу messages мы не заводим — она серверная, и в
+ * разных установках ключ то автоинкрементный, то строковый: спрашиваем у базы, а не
+ * гадаем (тот же приём, что в api/stories.php).
+ */
+function rtcSendDm(PDO $pdo, $from, $to, $content) {
+    static $auto = null;
+    if ($auto === null) {
+        $auto = false;
+        try {
+            $r = $pdo->query("SHOW COLUMNS FROM messages LIKE 'id'");
+            $c = $r ? $r->fetch(PDO::FETCH_ASSOC) : null;
+            $auto = $c && stripos((string)($c['Extra'] ?? ''), 'auto_increment') !== false;
+        } catch (Exception $e) {}
+    }
+    $now = date('Y-m-d H:i:s');
+    try {
+        if ($auto) {
+            $pdo->prepare("INSERT INTO messages (sender_id, receiver_id, content, created_at) VALUES (?, ?, ?, ?)")
+                ->execute([$from, $to, $content, $now]);
+        } else {
+            $pdo->prepare("INSERT INTO messages (id, sender_id, receiver_id, content, created_at) VALUES (?, ?, ?, ?, ?)")
+                ->execute([bin2hex(random_bytes(16)), $from, $to, $content, $now]);
+        }
+    } catch (Exception $e) {}
 }

@@ -139,6 +139,7 @@ try {
         if (!isParty($call, $userId)) out(['ok' => false, 'error' => 'Звонок недоступен'], 403);
         $pdo->prepare("UPDATE rtc_calls SET status = 'ended', end_reason = 'declined', ended_at = NOW()
                        WHERE id = ? AND status <> 'ended'")->execute([$call['id']]);
+        rtcLogCall($pdo, $call['id']);   // след в переписке: «звонок отклонён»
         out(['ok' => true]);
     }
 
@@ -148,6 +149,7 @@ try {
         $reason = substr((string)($body['reason'] ?? 'hangup'), 0, 40);
         $pdo->prepare("UPDATE rtc_calls SET status = 'ended', end_reason = ?, ended_at = NOW()
                        WHERE id = ? AND status <> 'ended'")->execute([$reason, $call['id']]);
+        rtcLogCall($pdo, $call['id']);   // след в переписке: длительность либо причина
         out(['ok' => true]);
     }
 
