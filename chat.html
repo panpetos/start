@@ -187,19 +187,23 @@
         .conversations-pane.collapsed .chat-sb-search,
         .conversations-pane.collapsed .conversation-info,
         .conversations-pane.collapsed .conversation-time { display: none; }
-        /* Свёрнутая шторка на ПК: истории идут ОДНОЙ колонкой под иконками.
-           Раньше ряд оставался горизонтальным, и в 76px кружки вставали по два в строку —
-           полоска «двоилась». На телефоне свёрнутая шторка разворачивается на всю ширину
-           (см. блок ниже), и истории там прячем совсем. */
+        /* Свёрнутая шторка: в ней остаётся только самое нужное.
+           Истории занимали колонкой почти половину высоты, и на список контактов —
+           ради которого шторку и держат открытой — оставалась узкая щель. Убрали:
+           истории видны в развёрнутом виде, а разворачивается шторка одним нажатием.
+           Три кнопки складываем в сетку 2×2 вместо столбика — шапка втрое ниже. */
         @media (min-width: 769px) {
-            .conversations-pane.collapsed .stories-row {
-                flex-direction: column; flex: 0 1 auto; align-items: center;
-                width: 100%; gap: 0.3rem; max-height: 42vh;
-                overflow-y: auto; overflow-x: hidden;
+            .conversations-pane.collapsed .stories-row { display: none; }
+            .conversations-pane.collapsed .chat-sb-head:not(.searching) {
+                display: grid; grid-template-columns: 1fr 1fr; gap: 5px;
+                padding: 6px 6px 8px; justify-items: center; align-items: center;
             }
-            /* В рейке шириной 76px слову «Истории» не место — остаётся только «＋» */
-            .conversations-pane.collapsed .stories-label { display: none; }
+            /* Третья кнопка — во всю ширину второй строки, чтобы не висела косо */
+            .conversations-pane.collapsed .chat-sb-head:not(.searching) #sbSettingsBtn { grid-column: 1 / -1; }
+            .conversations-pane.collapsed .chat-hdr-btn { width: 32px; height: 32px; }
         }
+        /* На телефоне свёрнутая шторка разворачивается на всю ширину (см. блок ниже),
+           но истории в ней всё равно ни к чему — там для них своя строка. */
         @media (max-width: 768px) {
             .conversations-pane.collapsed .stories-row { display: none; }
         }

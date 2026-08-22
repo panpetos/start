@@ -273,6 +273,15 @@
         }
         window.togglePw = togglePw;
 
+        // Регистрация живёт здесь же, отдельной вкладкой. Ссылка вида
+        // /login.html?tab=register открывает её сразу — на неё ведут кнопки с сайта.
+        (function openTabFromUrl() {
+            try {
+                const t = new URLSearchParams(location.search).get('tab');
+                if (t === 'register') document.addEventListener('DOMContentLoaded', () => switchTab('register'));
+            } catch (e) {}
+        })();
+
         function switchTab(tab) {
             document.querySelectorAll('.tab-btn').forEach((b, i) => b.classList.toggle('active', (i === 0 && tab === 'login') || (i === 1 && tab === 'register')));
             document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));

@@ -31,6 +31,7 @@ jobs:
             put assets/quiz-hero.jpg -o assets/quiz-hero.jpg;
             put assets/session.mp4 -o assets/session.mp4;
             put assets/session-poster.jpg -o assets/session-poster.jpg;
+            put .user.ini -o .user.ini;
             put index.html;
             put search.html;
             put book.html;

@@ -66,6 +66,13 @@ $r['php_procs_mine'] = ($mine !== null && trim((string)$mine) !== '') ? (int)tri
 
 // 4. Файлы сессий: их сотни тысяч копятся от поисковых роботов, и тогда каждый
 //    session_start() начинает упираться в файловую систему.
+// Живут ли настройки из .user.ini — по ним видно, помнится вход или нет
+$r['session'] = [
+    'cookie_lifetime' => (int)@ini_get('session.cookie_lifetime'),
+    'gc_maxlifetime'  => (int)@ini_get('session.gc_maxlifetime'),
+    'cookie_secure'   => (int)@ini_get('session.cookie_secure'),
+    'cookie_samesite' => (string)@ini_get('session.cookie_samesite'),
+];
 $sd = @ini_get('session.save_path');
 $r['session_path'] = $sd ?: '(по умолчанию)';
 if ($sd && is_dir($sd)) {
