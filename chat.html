@@ -2486,6 +2486,21 @@
             color: #999;
         }
 
+        /* «Скелет» переписки, пока она грузится: серые пузыри вместо чужих сообщений */
+        .msg-skeleton { padding: 1rem 0.5rem; display: flex; flex-direction: column; gap: 0.6rem; }
+        .sk-bubble {
+            height: 38px; border-radius: 1rem; opacity: 0.5;
+            background: linear-gradient(90deg, rgba(150,150,150,0.14) 25%, rgba(150,150,150,0.24) 37%, rgba(150,150,150,0.14) 63%);
+            background-size: 400% 100%; animation: skShine 1.3s ease infinite;
+        }
+        .sk-bubble.theirs { align-self: flex-start; }
+        .sk-bubble.mine { align-self: flex-end; background-color: rgba(4,120,87,0.12); }
+        .sk-bubble.w1 { width: min(52%, 260px); }
+        .sk-bubble.w2 { width: min(38%, 200px); }
+        .sk-bubble.w3 { width: min(64%, 320px); height: 58px; }
+        @keyframes skShine { 0% { background-position: 100% 50%; } 100% { background-position: 0 50%; } }
+        @media (prefers-reduced-motion: reduce) { .sk-bubble { animation: none; } }
+
         /* Событие звонка в переписке — плашка посередине, не пузырь: это не чьё-то
            сообщение, а факт, общий для обоих собеседников. */
         .call-ev {
@@ -3682,6 +3697,7 @@
         let groupIsOwner = false; // владелец текущей открытой группы (может модерировать и переименовывать)
 
         async function openGroupChat(groupId) {
+            showChatFromCache(GROUP_PREFIX + groupId);   // мгновенно, до ответа сервера
             clearPinnedBar();
             loadMentionMembers(groupId);   // чтобы подсказка по @ знала, кого предлагать
             cancelEditMessage();
@@ -3804,9 +3820,11 @@
             const rows = d.data || [];
             const wasScrolledToBottom = container.scrollHeight - container.scrollTop <= container.clientHeight + 50;
             const grpDay = { prev: '' };
-            renderIfChanged(container, rows.length
+            const grpHtml = rows.length
                 ? rows.map(m => daySepHtml(m.created_at, grpDay) + groupBubbleHtml(m)).join('')
-                : `<div class="empty-state"><div><p style="color:#9CA3AF;">👥 Группа создана — напишите первое сообщение.</p></div></div>`);
+                : `<div class="empty-state"><div><p style="color:#9CA3AF;">👥 Группа создана — напишите первое сообщение.</p></div></div>`;
+            renderIfChanged(container, grpHtml);
+            rememberChatHtml(selectedUserId, grpHtml);   // чтобы в следующий раз открылась мгновенно
             repaintAllVoice();
             restoreVideoNote();
             restoreFlash();
@@ -5584,6 +5602,79 @@
             } catch (e) { return []; }
         }
 
+        let convCache = [];          // последний загруженный список диалогов
+        let msgGen = 0;              // номер загрузки: ответы прошлого чата не рисуем
+        const chatHtmlCache = {};    // последняя разметка переписки — для мгновенного переключения
+        const CHAT_HTML_CACHE_MAX = 12;
+
+        /** Запомнить разметку переписки, чтобы в следующий раз она открылась мгновенно. */
+        function rememberChatHtml(key, html) {
+            if (!key || !html) return;
+            chatHtmlCache[key] = html;
+            // Держим только последние переписки: разметка длинного чата весит немало
+            const keys = Object.keys(chatHtmlCache);
+            if (keys.length > CHAT_HTML_CACHE_MAX) delete chatHtmlCache[keys[0]];
+        }
+
+        /**
+         * Мгновенное переключение чата.
+         *
+         * Пока сервер отвечает, на экране висела ПРЕДЫДУЩАЯ переписка — казалось, что
+         * приложение зависло. Теперь при переключении сразу показываем то, что уже
+         * знаем: шапку из списка диалогов и сообщения с прошлого открытия. Свежие
+         * данные приедут через мгновение и заменят их без мигания (renderIfChanged
+         * ничего не перерисует, если разметка не изменилась).
+         *
+         * Ничего не знаем — рисуем «скелет» из серых полосок вместо чужой переписки.
+         */
+        function showChatFromCache(key) {
+            const container = document.getElementById('messagesContainer');
+            if (!container) return;
+            // Шапка — из уже загруженного списка, без обращения к серверу.
+            // У групп, «Избранного» и ИИ шапка своя — её не трогаем, только сообщения.
+            const isDm = key && key !== FAVORITES_ID && key !== AI_ID && key.indexOf(GROUP_PREFIX) !== 0;
+            if (!isDm) {
+                const cachedOther = chatHtmlCache[key];
+                container.innerHTML = cachedOther || CHAT_SKELETON_HTML;
+                if (cachedOther) { container.scrollTop = container.scrollHeight; repaintAllVoice(); restoreVideoNote(); restoreFlash(); }
+                return;
+            }
+            const other = convCache.find(c => c.user_id === key);
+            if (other) {
+                try {
+                    document.getElementById('chatHeader').innerHTML = renderChatHeader(other);
+                    headerRenderedFor = key;
+                    updateSessionButton();
+                    if (window.lucide) lucide.createIcons();
+                } catch (e) {}
+            } else {
+                headerRenderedFor = null;
+            }
+            const cached = chatHtmlCache[key];
+            container.innerHTML = cached || CHAT_SKELETON_HTML;
+            if (cached) {
+                container.scrollTop = container.scrollHeight;
+                repaintAllVoice(); restoreVideoNote(); restoreFlash();
+            }
+        }
+
+        // «Скелет» на время загрузки: несколько серых пузырей вместо пустоты или чужой
+        // переписки. Человеку сразу видно, что открылся другой чат и он грузится.
+        const CHAT_SKELETON_HTML =
+            '<div class="msg-skeleton">' +
+            ['theirs w1', 'mine w2', 'theirs w3', 'mine w1', 'theirs w2']
+                .map(c => '<div class="sk-bubble ' + c + '"></div>').join('') +
+            '</div>';
+
+        /** Обновить список диалогов, но не чаще раза в 10 секунд. */
+        let convListSoonAt = 0;
+        function refreshConvListSoon() {
+            const now = Date.now();
+            if (now - convListSoonAt < 10000) return;
+            convListSoonAt = now;
+            loadConversations().catch(() => {});
+        }
+
         async function loadConversations() {
             try {
                 const response = await fetch('/api/messages.php?action=conversations', {
@@ -5591,6 +5682,10 @@
                 });
                 let conversations = await response.json();
                 if (!Array.isArray(conversations)) conversations = [];
+                // Держим список под рукой: из него берётся шапка открытой переписки.
+                // Раньше при каждом открытии чата список запрашивался ЗАНОВО, только
+                // чтобы найти в нём имя собеседника, — лишний круг к серверу.
+                convCache = conversations;
 
                 const supportConvs = await loadSupportConversations();
                 if (supportConvs.length) {
@@ -9214,6 +9309,7 @@
         }
 
         async function openFavorites() {
+            showChatFromCache(FAVORITES_ID);             // мгновенно, до ответа сервера
             clearPinnedBar();
             selectedUserId = FAVORITES_ID;
             syncChatUrl(selectedUserId);
@@ -9322,10 +9418,14 @@
 
         async function openChat(userId) {
             selectedUserId = userId;
+            // СРАЗУ показываем новую переписку — шапку и сообщения с прошлого раза.
+            // Без этого на экране до ответа сервера висела предыдущая переписка, и это
+            // читалось как «приложение подвисло».
+            showChatFromCache(userId);
             syncChatUrl(selectedUserId);
             // Открыли переписку — значит прочитали: у собеседника появится вторая галочка
             presenceMarkRead();
-            presenceRefresh();
+            if (!syncOn) presenceRefresh();   // при сводном опросе состояние и так придёт
             mentionMembers = [];                           // список прошлого чата больше не годится
             setTimeout(() => loadMentionMembers(), 600);   // после отрисовки шапки — оттуда берём имя
             leaveAiMode();
@@ -9341,9 +9441,14 @@
             document.getElementById('chatContent').style.display = 'flex';
             document.querySelector('.chat-container').classList.add('mobile-chat-open');
 
-            await loadMessages();
-            await loadPinnedMessage();
+            // Закреплённое и запланированное грузим параллельно с сообщениями:
+            // раньше они шли следом и добавляли к ожиданию ещё круг.
+            await Promise.all([
+                loadMessages(),
+                loadPinnedMessage().catch(() => {}),
+            ]);
             loadScheduled(); schedTick();   // запланированное в этот чат + разослать назревшее
+            if (syncOn) syncNow();          // сводный опрос — сразу, не дожидаясь таймера
 
             // Запустить polling
             if (pollInterval) clearInterval(pollInterval);
@@ -9359,9 +9464,11 @@
                 favMessagesCache = rows;
                 const container = document.getElementById('messagesContainer');
                 const wasScrolledToBottom = container.scrollHeight - container.scrollTop <= container.clientHeight + 50;
-                renderIfChanged(container, rows.length
+                const favHtml = rows.length
                     ? rows.map(favMessageBubbleHtml).join('')
-                    : `<div class="empty-state"><div><p style="color:#9CA3AF;">⭐ Тут будут ваши заметки, файлы и пересланные сообщения — видны только вам</p></div></div>`);
+                    : `<div class="empty-state"><div><p style="color:#9CA3AF;">⭐ Тут будут ваши заметки, файлы и пересланные сообщения — видны только вам</p></div></div>`;
+                renderIfChanged(container, favHtml);
+                rememberChatHtml(FAVORITES_ID, favHtml);
                 repaintAllVoice();
                 restoreVideoNote();
                 restoreFlash();
@@ -9745,16 +9852,23 @@
             if (isSupportMode()) { await loadSupportThreadMessages(); return; }
             if (selectedUserId.indexOf(GROUP_PREFIX) === 0) { await loadGroupMessages(); return; }
 
-            try {
-                // Загрузить данные пользователя
-                const convResponse = await fetch('/api/messages.php?action=conversations', {
-                    credentials: 'include'
-                });
-                const conversations = await convResponse.json();
-                const otherUser = conversations.find(c => c.user_id === selectedUserId);
+            // ── ПОЧЕМУ ПЕРЕКЛЮЧЕНИЕ ЧАТОВ ТОРМОЗИЛО ─────────────────────────────
+            // Здесь шли ПЯТЬ запросов подряд, каждый ждал предыдущего: список диалогов
+            // (только чтобы найти имя для шапки), сами сообщения, счета, отметки правок
+            // и снова список диалогов в конце. Полсекунды на запрос — и вот две-три
+            // секунды, пока на экране висит ПРЕДЫДУЩАЯ переписка.
+            //
+            // Теперь: шапка берётся из уже загруженного списка (запрос не нужен),
+            // остальные три идут одновременно, а список диалогов обновляет сводный
+            // опрос — и только когда там правда что-то изменилось.
+            const gen = ++msgGen;
+            const peerAtStart = selectedUserId;
+            const stale = () => gen !== msgGen || selectedUserId !== peerAtStart;
 
+            try {
                 // Шапку строим один раз на диалог (а не каждые 5 сек при поллинге),
                 // иначе сбрасывался бы таймер сессии.
+                let otherUser = convCache.find(c => c.user_id === selectedUserId);
                 if (otherUser && headerRenderedFor !== selectedUserId) {
                     document.getElementById('chatHeader').innerHTML = renderChatHeader(otherUser);
                     headerRenderedFor = selectedUserId;
@@ -9762,26 +9876,33 @@
                     try { if (window.lucide) lucide.createIcons(); } catch(e) {}
                 }
 
-                // Загрузить сообщения
-                const response = await fetch(`/api/messages.php?action=list&with_user=${selectedUserId}`, {
-                    credentials: 'include'
-                });
-                const messages = await response.json();
+                // Сообщения, счета и отметки правок — одновременно, а не по очереди.
+                // Отметки правок раньше можно было спросить только по списку id, то есть
+                // строго после сообщений; теперь message_edit.php умеет отдавать их сразу
+                // за всю переписку — поэтому запрос уходит вместе с остальными.
+                const [messages, editedMap] = await Promise.all([
+                    fetch(`/api/messages.php?action=list&with_user=${selectedUserId}`, { credentials: 'include' })
+                        .then(r => r.json()).catch(() => []),
+                    fetch(`/api/message_edit.php?action=edited-map&with=${encodeURIComponent(selectedUserId)}`,
+                          { credentials: 'include' })
+                        .then(r => r.json()).then(d => (d && d.ok && d.data) || {}).catch(() => ({})),
+                    loadOrders().catch(() => {}),
+                    // Собеседника нет в кэше (новый диалог) — подтянем список заодно
+                    otherUser ? Promise.resolve(null) : loadConversations().catch(() => {}),
+                ]);
+                // Пока грузили, человек переключился на другую переписку — чужое не рисуем
+                if (stale()) return;
+                if (!Array.isArray(messages)) return;
 
-                // Живое состояние счетов для интерактивных карточек
-                await loadOrders();
-
-                // Отметки "отредактировано" — messages.php server-only и не отдаёт эту информацию,
-                // поэтому статус правок подтягивается отдельно из message_edit.php (задачи #29, #42).
-                let editedMap = {};
-                try {
-                    const ids = messages.filter(m => m.id).map(m => m.id).join(',');
-                    if (ids) {
-                        const er = await fetch(`/api/message_edit.php?action=edited-map&ids=${encodeURIComponent(ids)}`, { credentials: 'include' });
-                        const ed = await er.json();
-                        if (ed && ed.ok) editedMap = ed.data || {};
+                if (!otherUser && headerRenderedFor !== selectedUserId) {
+                    otherUser = convCache.find(c => c.user_id === selectedUserId);
+                    if (otherUser) {
+                        document.getElementById('chatHeader').innerHTML = renderChatHeader(otherUser);
+                        headerRenderedFor = selectedUserId;
+                        updateSessionButton();
+                        try { if (window.lucide) lucide.createIcons(); } catch(e) {}
                     }
-                } catch (e) {}
+                }
 
                 const container = document.getElementById('messagesContainer');
                 const wasScrolledToBottom = container.scrollHeight - container.scrollTop <= container.clientHeight + 50;
@@ -9896,7 +10017,11 @@
                         </div>
                     `;
                 }).join('');
+                if (stale()) return;
                 renderIfChanged(container, dmHtml);
+                // Запоминаем разметку: при следующем открытии этой переписки она появится
+                // мгновенно, ещё до ответа сервера (см. showChatFromCache).
+                rememberChatHtml(peerAtStart, dmHtml);
                 noteNewMessages(messages.length);   // считаем новые, если человек читает выше
                 loadKnownTranscripts();             // чужие расшифровки показываем сразу
                 loadReactions();
@@ -9908,8 +10033,10 @@
                     container.scrollTop = container.scrollHeight;
                 }
 
-                // Обновить список диалогов
-                await loadConversations();
+                // Список диалогов здесь больше не перезагружаем: раньше это был пятый
+                // запрос подряд на каждое открытие чата И на каждый опрос. Его обновляет
+                // сводный опрос, и только когда там правда что-то изменилось.
+                if (!syncOn) refreshConvListSoon();
 
             } catch (error) {
                 console.error('Load messages error:', error);

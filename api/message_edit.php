@@ -9,6 +9,7 @@
  * POST ?action=edit          {message_id, content}   — автор сообщения меняет текст (сохраняется в лог)
  * POST ?action=delete        {message_id}             — автор удаляет своё сообщение (текст остаётся в логе)
  * GET  ?action=edited-map    &ids=1,2,3               — для каких из этих id есть правки (участнику диалога)
+ * GET  ?action=edited-map    &with=<id собеседника>     — то же сразу за всю переписку, без списка id
  * GET  ?action=recent-edits  &limit=200                — журнал правок для админа (кто/когда/с чего на что)
  */
 
@@ -54,10 +55,15 @@ function ensureEditLogTable(PDO $pdo) {
         INDEX idx_edited_at (edited_at)
     ) DEFAULT CHARSET=utf8mb4");
 }
-try { ensureEditLogTable($pdo); psy_align_collation($pdo, ['message_edit_log']); } catch (Exception $e) {}
-// Метка "сообщение отредактировано" в самой таблице messages — на будущее (messages.php её сегодня не
-// отдаёт в ответах, т.к. этот файл нам недоступен, поэтому UI полагается на action=edited-map ниже).
-try { $pdo->exec("ALTER TABLE messages ADD COLUMN edited_at DATETIME NULL"); } catch (Exception $e) {}
+// Подготовку схемы делаем не чаще раза в час: этот файл дёргается при каждом открытии
+// переписки и на каждом опросе, а заведомо падающий ALTER на главной таблице сообщений
+// всё равно заставляет MySQL брать блокировку метаданных.
+psy_schema_once('message_edit_schema_v1', 3600, function () use ($pdo) {
+    try { ensureEditLogTable($pdo); psy_align_collation($pdo, ['message_edit_log']); } catch (Exception $e) {}
+    // Метка "сообщение отредактировано" в самой таблице messages — на будущее (messages.php её сегодня не
+    // отдаёт в ответах, т.к. этот файл нам недоступен, поэтому UI полагается на action=edited-map ниже).
+    try { $pdo->exec("ALTER TABLE messages ADD COLUMN edited_at DATETIME NULL"); } catch (Exception $e) {}
+});
 
 $action = $_GET['action'] ?? '';
 $body = ($_SERVER['REQUEST_METHOD'] === 'POST') ? (json_decode(file_get_contents('php://input'), true) ?: []) : [];
@@ -145,6 +151,28 @@ if ($action === 'delete' && $_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 if ($action === 'edited-map') {
+    // Режим «по собеседнику»: отдаём правки сразу за всю переписку.
+    //
+    // Зачем: раньше карту правок можно было спросить только по списку id, а список
+    // id получается лишь ПОСЛЕ загрузки сообщений — то есть ещё один запрос строго
+    // после предыдущего. При открытии чата такие цепочки и складывались в те самые
+    // секунды ожидания. С этим режимом запрос уходит одновременно с сообщениями.
+    $with = trim((string)($_GET['with'] ?? ''));
+    if ($with !== '') {
+        $result = [];
+        try {
+            $st = $pdo->prepare("SELECT l.message_id, MAX(l.edited_at) AS last_edited
+                                   FROM message_edit_log l
+                                   JOIN messages m ON m.id = l.message_id
+                                  WHERE (m.sender_id = ? AND m.receiver_id = ?)
+                                     OR (m.sender_id = ? AND m.receiver_id = ?)
+                                  GROUP BY l.message_id");
+            $st->execute([$userId, $with, $with, $userId]);
+            foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $r) $result[$r['message_id']] = $r['last_edited'];
+        } catch (Exception $e) {}
+        out(['ok' => true, 'data' => $result]);
+    }
+
     $idsParam = trim((string)($_GET['ids'] ?? ''));
     if ($idsParam === '') out(['ok' => true, 'data' => []]);
     $ids = array_values(array_unique(array_filter(array_map('trim', explode(',', $idsParam)), fn($v) => $v !== '')));
