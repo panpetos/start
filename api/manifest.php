@@ -41,5 +41,23 @@ echo json_encode([
         ['name' => 'Найти психолога', 'short_name' => 'Поиск', 'url' => '/search.html?src=app'],
         ['name' => 'Лента', 'short_name' => 'Лента', 'url' => '/feed.html?src=app'],
     ],
+    // «Поделиться» из других приложений: система показывает psytalk в общем списке
+    // рядом с Telegram и MAX. Форма уходит POST'ом — принимает её сервис-воркер
+    // (см. sw.js, ветка /share-target) и переводит человека в чат с выбором получателя.
+    'share_target' => [
+        'action' => '/share-target',
+        'method' => 'POST',
+        'enctype' => 'multipart/form-data',
+        'params' => [
+            'title' => 'title',
+            'text'  => 'text',
+            'url'   => 'url',
+            'files' => [[
+                'name' => 'files',
+                'accept' => ['image/*', 'video/*', 'audio/*', 'application/pdf',
+                             'text/plain', '.doc', '.docx', '.xls', '.xlsx'],
+            ]],
+        ],
+    ],
     'categories' => ['health', 'medical', 'social'],
 ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);

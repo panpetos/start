@@ -13,7 +13,7 @@
  * переписка — это ещё и чужие данные на общем устройстве.
  */
 
-const VERSION = 'psy-v6';   // поднято: звонок вибрирует настойчивее и умеет «Ответить»
+const VERSION = 'psy-v7';   // поднято: приём «Поделиться» из других приложений
 const SHELL = VERSION + '-shell';
 
 // Оболочка: то, без чего окно не нарисуется. Страницы сюда не входят намеренно —
@@ -57,8 +57,48 @@ function neverCache(url) {
            url.pathname === '/';
 }
 
+/**
+ * ПРИЁМ «ПОДЕЛИТЬСЯ» ИЗ ДРУГИХ ПРИЛОЖЕНИЙ.
+ *
+ * Система отдаёт то, чем поделились, обычной формой POST — а страницу по POST не
+ * откроешь. Поэтому забираем содержимое здесь, складываем во временное хранилище
+ * и переводим человека на обычный адрес чата, который уже покажет, куда отправить.
+ * Так работают все приложения, принимающие «поделиться» в вебе.
+ */
+const SHARE_CACHE = 'psy-share';
+
 self.addEventListener('fetch', (e) => {
     const req = e.request;
+    if (req.method === 'POST' && new URL(req.url).pathname === '/share-target') {
+        e.respondWith((async () => {
+            try {
+                const form = await req.formData();
+                const id = 's' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+                const cache = await caches.open(SHARE_CACHE);
+                const files = (form.getAll('files') || []).filter(f => f && typeof f.size === 'number');
+                const meta = {
+                    title: String(form.get('title') || ''),
+                    text: String(form.get('text') || ''),
+                    url: String(form.get('url') || ''),
+                    files: [],
+                };
+                for (let i = 0; i < files.length && i < 10; i++) {
+                    const f = files[i];
+                    const type = f.type || 'application/octet-stream';
+                    meta.files.push({ name: f.name || ('файл-' + (i + 1)), type: type, size: f.size });
+                    await cache.put('/__share/' + id + '/' + i,
+                        new Response(f, { headers: { 'Content-Type': type } }));
+                }
+                await cache.put('/__share/' + id,
+                    new Response(JSON.stringify(meta), { headers: { 'Content-Type': 'application/json' } }));
+                return Response.redirect('/chat.html?share=' + id, 303);
+            } catch (err) {
+                // Что-то пошло не так — всё равно открываем чат, а не пустую ошибку
+                return Response.redirect('/chat.html', 303);
+            }
+        })());
+        return;
+    }
     if (req.method !== 'GET') return;
     const url = new URL(req.url);
     if (url.origin !== self.location.origin) return;   // чужие домены не наше дело
