@@ -71,6 +71,7 @@ $r['session'] = [
     'cookie_lifetime' => (int)@ini_get('session.cookie_lifetime'),
     'gc_maxlifetime'  => (int)@ini_get('session.gc_maxlifetime'),
     'cookie_secure'   => (int)@ini_get('session.cookie_secure'),
+    'cookie_httponly' => (int)@ini_get('session.cookie_httponly'),
     'cookie_samesite' => (string)@ini_get('session.cookie_samesite'),
 ];
 // Читает ли PHP наш .user.ini — и если нет, то почему
