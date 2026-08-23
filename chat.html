@@ -242,20 +242,22 @@
            телефоне уезжал в горизонтальную прокрутку. Теперь узкая колонка с иконками. */
         .chat-folders {
             display: flex; flex-direction: column; align-items: stretch;
-            width: 66px; flex-shrink: 0; padding: 0.4rem 0.25rem; gap: 0.15rem;
+            /* Было 66px при подписи в 0.62rem — рейка выглядела мелкой и подписи
+               обрезались уже на втором слове. На ПК места хватает, расширяем. */
+            width: 84px; flex-shrink: 0; padding: 0.5rem 0.3rem; gap: 0.2rem;
             background: #FAFAFC; border-right: 1px solid #ECECF2;
             overflow-y: auto; overflow-x: hidden; scrollbar-width: none;
         }
         .chat-folders::-webkit-scrollbar { display: none; }
         .folder-tab {
             flex: 0 0 auto; border: none; background: transparent; color: #6B7280;
-            font-family: inherit; font-size: 0.62rem; font-weight: 600;
-            padding: 0.45rem 0.1rem 0.35rem; border-radius: 0.6rem; cursor: pointer;
-            display: flex; flex-direction: column; align-items: center; gap: 0.15rem;
-            line-height: 1.15; text-align: center; position: relative;
+            font-family: inherit; font-size: 0.72rem; font-weight: 600;
+            padding: 0.6rem 0.15rem 0.5rem; border-radius: 0.7rem; cursor: pointer;
+            display: flex; flex-direction: column; align-items: center; gap: 0.25rem;
+            line-height: 1.2; text-align: center; position: relative;
         }
-        .folder-tab .ftab-ico { font-size: 1.05rem; line-height: 1; display: inline-flex; align-items: center; justify-content: center; }
-        .folder-tab .ftab-ico svg { width: 19px; height: 19px; }
+        .folder-tab .ftab-ico { font-size: 1.25rem; line-height: 1; display: inline-flex; align-items: center; justify-content: center; }
+        .folder-tab .ftab-ico svg { width: 23px; height: 23px; }
         .folder-tab .ftab-name {
             display: block; max-width: 100%; overflow: hidden;
             text-overflow: ellipsis; white-space: nowrap;
@@ -267,9 +269,9 @@
             width: 3px; border-radius: 0 3px 3px 0; background: #047857;
         }
         .folder-tab .fcount {
-            position: absolute; top: 2px; right: 6px;
-            background: #047857; color: #fff; font-size: 0.58rem; font-weight: 700;
-            min-width: 15px; padding: 0 3px; border-radius: 8px; line-height: 15px;
+            position: absolute; top: 3px; right: 8px;
+            background: #047857; color: #fff; font-size: 0.62rem; font-weight: 700;
+            min-width: 16px; padding: 0 4px; border-radius: 8px; line-height: 16px;
         }
         .folder-tab-add { color: #047857; }
         .folder-tab-add .ftab-ico { font-size: 1rem; }
@@ -282,7 +284,9 @@
         .conversations-pane.pane-tight .sb-narrow-only { display: inline-flex; }
         /* В узкой шторке рейка папок — только иконки: подписи всё равно обрезались
            до одной буквы и лишь отнимали ширину у самого списка чатов. */
-        .conversations-pane.pane-tight .chat-folders { width: 50px; }
+        .conversations-pane.pane-tight .chat-folders { width: 52px; padding: 0.4rem 0.2rem; }
+        .conversations-pane.pane-tight .folder-tab { padding: 0.45rem 0.1rem 0.4rem; }
+        .conversations-pane.pane-tight .folder-tab .ftab-ico svg { width: 20px; height: 20px; }
         .conversations-pane.pane-tight .ftab-name { display: none; }
         /* В узкой шторке на «Истории» с подписью не хватает места рядом с тремя круглыми
            кнопками шапки: текст «Истории» упирался в overflow:hidden шапки и обрезался/наезжал
@@ -819,6 +823,12 @@
             cursor: pointer; padding: 0; text-decoration: none;
         }
         .hdr-icon-btn:hover { background: #D1FAE5; color: #047857; }
+        /* Звонок — то, за чем лезут чаще всего. Выделяем цветом, чтобы кнопку
+           было видно с первого взгляда, а не искать её среди серых. */
+        .hdr-icon-btn.hdr-quick { background: #D1FAE5; color: #047857; }
+        .hdr-icon-btn.hdr-quick:hover { background: #A7F3D0; }
+        body.dark .hdr-icon-btn.hdr-quick { background: #10402F; color: #6EE7B7; }
+        body.dark .hdr-icon-btn.hdr-quick:hover { background: #15533E; }
         /* Иконка внутри цветного круга-аватарки и значок канала на её углу */
         .ava-ico { display: inline-flex; align-items: center; justify-content: center; color: #fff; }
         .ava-ico svg { width: 22px; height: 22px; }
@@ -932,6 +942,33 @@
         /* Нажатая кнопка подсвечивается: видно, что сейчас включено */
         .cmp-tool.on { background: #047857; color: #fff; }
         body.dark .cmp-tool.on { background: #059669; }
+        /* Прикреплённое в окне форматирования */
+        .cmp-attach-bar {
+            display: flex; flex-wrap: wrap; gap: 0.4rem;
+            padding: 0.6rem 1.1rem 0; flex-shrink: 0;
+        }
+        .cmp-chip {
+            display: inline-flex; align-items: center; gap: 0.35rem;
+            background: #ECFDF5; border: 1px solid #A7F3D0; color: #065F46;
+            border-radius: 0.6rem; padding: 0.28rem 0.5rem; font-size: 0.82rem; max-width: 100%;
+            overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        }
+        .cmp-chip button {
+            border: none; background: none; color: #047857; cursor: pointer;
+            font-size: 0.9rem; line-height: 1; padding: 0 0 0 0.15rem;
+        }
+        .cmp-attach-btn {
+            display: inline-flex; align-items: center; gap: 0.4rem; position: relative;
+            border: 1.5px solid #D1D5DB; border-radius: 0.6rem; padding: 0.45rem 0.75rem;
+            color: #4B5563; font-size: 0.88rem; font-weight: 600; cursor: pointer;
+            background: #fff; transition: background 0.15s, border-color 0.15s, color 0.15s;
+        }
+        .cmp-attach-btn:hover { background: #ECFDF5; border-color: #6EE7B7; color: #047857; }
+        body.dark .cmp-attach-btn { background: #2A2A2A; border-color: #444; color: #C9C9C9; }
+        body.dark .cmp-attach-btn:hover { background: #10402F; border-color: #047857; color: #6EE7B7; }
+        body.dark .cmp-chip { background: #10402F; border-color: #17553E; color: #A7F3D0; }
+        body.dark .cmp-chip button { color: #6EE7B7; }
+
         .cmp-btn-ghost {
             border: 1.5px solid #E5E7EB; background: transparent; color: #4B5563;
             border-radius: 0.6rem; padding: 0.5rem 0.9rem; cursor: pointer;
@@ -1138,6 +1175,24 @@
             align-self: flex-start;
             border-bottom-left-radius: 4px;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        }
+
+        /* Появление сообщения: короткий подъём с лёгким «перелётом», как в iOS.
+           Пузырь растёт из своего угла — своего справа, чужого слева, — поэтому
+           движение выглядит так, будто сообщение выходит из строки ввода. */
+        @keyframes psyMsgIn {
+            from { opacity: 0; transform: translateY(12px) scale(0.94); }
+            60%  { opacity: 1; transform: translateY(-2px) scale(1.008); }
+            to   { opacity: 1; transform: none; }
+        }
+        .message.msg-in, .message.msg-in-mine {
+            animation: psyMsgIn 0.34s cubic-bezier(0.22, 1, 0.36, 1) both;
+            transform-origin: bottom left;
+            will-change: transform, opacity;
+        }
+        .message.msg-in-mine { transform-origin: bottom right; }
+        @media (prefers-reduced-motion: reduce) {
+            .message.msg-in, .message.msg-in-mine { animation: none; }
         }
 
         /* Кнопки в шапке списка диалогов. Раньше фон задавался инлайново (#f9fafb) и в тёмной
@@ -1599,6 +1654,10 @@
             display: flex; align-items: center; justify-content: center; font-size: 1.15rem;
         }
         .scroll-down-btn:hover { background: #D1FAE5; color: #047857; }
+        /* Стрелка — рисунок, а не символ ↓. Символ U+2193 на Android подхватывался
+           цветным эмодзи-шрифтом и приходил со своим кружком: на тёмной кнопке чёрным,
+           на светлой белым — стрелки не было видно вовсе. SVG берёт цвет кнопки. */
+        .sd-arrow { display: block; flex-shrink: 0; }
         .sd-count {
             position: absolute; top: -6px; right: -4px; min-width: 20px; height: 20px; padding: 0 5px;
             border-radius: 10px; background: #047857; color: #fff;
@@ -2670,6 +2729,8 @@
                 background: #F3F4F6;
             }
             .folder-tab .ftab-ico { font-size: 0.95rem; }
+            /* На телефоне папки — ряд «таблеток», там увеличенная иконка ПК не нужна */
+            .folder-tab .ftab-ico svg { width: 18px; height: 18px; }
             .folder-tab.active { background: #047857; color: #fff; }
             .folder-tab.active::before { display: none; }
             .folder-tab .fcount {
@@ -3163,7 +3224,7 @@
                      сообщению одним нажатием, а если пришли новые — видеть их число. -->
                 <button type="button" id="scrollDownBtn" class="scroll-down-btn" style="display:none;"
                         onclick="scrollChatToBottom(true)" title="К последним сообщениям" aria-label="К последним сообщениям">
-                    <span class="sd-arrow">↓</span><span class="sd-count" id="scrollDownCount"></span>
+                    <svg class="sd-arrow" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14"/><path d="M19 12l-7 7-7-7"/></svg><span class="sd-count" id="scrollDownCount"></span>
                 </button>
                 <!-- Ответ на сообщение -->
                 <div class="reply-bar" id="replyBar" style="display:none;">
@@ -3358,7 +3419,18 @@
                 <div id="composerText" class="cmp-text" contenteditable="true" role="textbox"
                      aria-multiline="true" data-placeholder="Текст сообщения. Выделите его и нажмите кнопку сверху."></div>
             </div>
-            <div style="padding:0.85rem 1.1rem;border-top:1px solid #eee;display:flex;gap:0.5rem;justify-content:flex-end;flex-shrink:0;">
+            <div id="cmpAttachBar" class="cmp-attach-bar" style="display:none;"></div>
+            <div style="padding:0.85rem 1.1rem;border-top:1px solid #eee;display:flex;gap:0.5rem;align-items:center;flex-shrink:0;">
+                <!-- Прикрепить прямо отсюда: раньше за файлом приходилось закрывать
+                     окно, цеплять его в строке ввода и открывать форматирование заново. -->
+                <label class="cmp-attach-btn" title="Прикрепить фото или документ">
+                    <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20.4 12.3l-7.9 7.9a5 5 0 01-7-7l8-8a3.3 3.3 0 014.7 4.7l-8 8a1.7 1.7 0 01-2.4-2.4l7.4-7.3"/></svg>
+                    <span>Файл</span>
+                    <input type="file" id="cmpFileInput" onchange="cmpPickFiles(event)"
+                           accept="image/*,.pdf,.doc,.docx,.txt" multiple
+                           style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;clip:rect(0 0 0 0);border:0;padding:0;margin:-1px;">
+                </label>
+                <div style="flex:1;"></div>
                 <button onclick="closeComposer()" class="cmp-btn-ghost">Отмена</button>
                 <button onclick="sendFromComposer()" class="cmp-btn-send">Отправить</button>
             </div>
@@ -3882,6 +3954,8 @@
                 // Править можно только текст: у вложения править нечего, а кнопка сбивала с толку
                 canForward: true, canPin: true, canEdit: isMine && !m.attachment_url,
                 canDelete: (isMine || groupIsOwner),
+                voiceUrl: (m.attachment_type === 'voice' || isVideoNote(m)) ? (m.attachment_url || '') : '',
+                placeholder: attachPlaceholderKind({ content: splitReply(m.content).body }),
             };
             const editedTag = m.edited_at ? ` <span style="opacity:0.65;font-style:italic;" title="Отредактировано ${escapeHtml(formatTime(m.edited_at))}">(ред.)</span>` : '';
             const grp = splitReply(m.content);
@@ -4667,6 +4741,9 @@
 
         const HDR_DOTS_SVG = '<svg width="19" height="19" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="6" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="12" cy="18" r="1.8"/></svg>';
         const HDR_EXIT_SVG = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 5V4a1 1 0 00-1-1H5a1 1 0 00-1 1v16a1 1 0 001 1h8a1 1 0 001-1v-1"/><path d="M20 12H9"/><path d="M12.5 8.5L9 12l3.5 3.5"/></svg>';
+        // Трубка рисунком, а не значком 📞: эмодзи на разных телефонах разного размера
+        // и цвета, рядом с «⋮» это выглядело чужеродно. SVG берёт цвет шапки.
+        const HDR_CALL_SVG = '<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.9v3a2 2 0 01-2.2 2 19.8 19.8 0 01-8.6-3.1 19.5 19.5 0 01-6-6A19.8 19.8 0 012.1 4.2 2 2 0 014.1 2h3a2 2 0 012 1.7c.1.9.4 1.8.7 2.7a2 2 0 01-.5 2.1L8.1 9.9a16 16 0 006 6l1.4-1.2a2 2 0 012.1-.5c.9.3 1.8.6 2.7.7a2 2 0 011.7 2z"/></svg>';
 
         /**
          * Собрать правую часть шапки. actions — то, что уходит в «⋮»;
@@ -4675,14 +4752,30 @@
         function headerActionsHtml(actions, pinnedHtml) {
             // «В кабинет» раньше висела отдельной иконкой прямо в шапке открытой переписки —
             // лишняя кнопка, когда человек уже читает конкретный диалог. Переносим её в «⋮».
-            headerActions = (actions || []).filter(Boolean)
+            const all = (actions || []).filter(Boolean);
+            // Пункт с quick — это то, за чем лезут чаще всего (звонок). Прятать его
+            // в «⋮» значит требовать два нажатия там, где хватит одного. Такие пункты
+            // выносим отдельной иконкой рядом с «⋮» и из меню убираем, чтобы не двоилось.
+            const quick = all.filter(a => a.quick);
+            headerActions = all.filter(a => !a.quick)
                 .concat([{ icon: HDR_EXIT_SVG, label: 'В личный кабинет', href: getDashboardUrl() }]);
+            const quickHtml = quick.map((a, i) =>
+                `<button class="hdr-icon-btn hdr-quick" onclick="event.stopPropagation();runQuickAction(${i})"
+                         title="${escapeHtml(a.label)}" aria-label="${escapeHtml(a.label)}">${a.icon}</button>`).join('');
+            quickActions = quick;
             const dots = `<button class="hdr-icon-btn" onclick="openHeaderActions(event)" title="Действия" aria-label="Действия">${HDR_DOTS_SVG}</button>`;
             return `<div class="chat-header-actions">
                         ${pinnedHtml || ''}
+                        ${quickHtml}
                         ${dots}
                     </div>`;
         }
+        let quickActions = [];
+        function runQuickAction(i) {
+            const a = quickActions[i];
+            if (a && typeof a.run === 'function') a.run();
+        }
+        window.runQuickAction = runQuickAction;
 
         function openHeaderActions(evt) {
             if (evt) { evt.stopPropagation(); evt.preventDefault(); }
@@ -4730,7 +4823,7 @@
                 // Доступны обеим сторонам — раньше встречу мог начать только психолог.
                 // Звонок один — как с телефона, сразу со звуком. Камеру включают уже
                 // в разговоре, кнопкой на экране: так проще и быстрее соединяется.
-                { icon: '📞', label: 'Позвонить', run: () => startRtcCall('audio') },
+                { icon: HDR_CALL_SVG, label: 'Позвонить', quick: true, run: () => startRtcCall('audio') },
                 isPsy && { icon: '💳', label: 'Выставить счёт', run: () => openOrderModal() },
                 isPsy && { icon: '📝', label: 'Заметки по клиенту', run: () => openNotes() },
                 isPsy && { icon: '📹', label: 'Встреча в Телемосте (запасной путь)', run: () => startVideoCall() },
@@ -7937,6 +8030,15 @@
         });
         document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeCreateMenu(); });
 
+        /**
+         * Настройки чата.
+         *
+         * Отсюда убраны «Создать группу/канал/блог» — они уже есть в «＋» рядом со
+         * списком чатов, и держать две двери в одно и то же место незачем. Убран и
+         * пункт «Лента»: это раздел, он стоит строкой в самом списке чатов, а не в
+         * настройках. Вместо них — «Настройки профиля», за которыми раньше
+         * приходилось уходить в личный кабинет.
+         */
         function openChatSettings() {
             const dark = document.body.classList.contains('dark');
             let m = document.getElementById('chatSettingsModal');
@@ -7953,21 +8055,14 @@
                         <b>⚙️ Настройки</b>
                         <button type="button" onclick="closeChatSettings()" title="Закрыть">✕</button>
                     </div>
-                    <div class="cs-group-title">Создать</div>
-                    <button class="cs-row" onclick="closeChatSettings();openCreateGroupModal()">
-                        <span>👥</span><div><b>Группу</b><i>общая переписка на несколько человек</i></div></button>
-                    <button class="cs-row" onclick="closeChatSettings();openMyChannel()">
-                        <span>📢</span><div><b>Канал</b><i>публикации для подписчиков, попадают в Ленту</i></div></button>
-                    <button class="cs-row" onclick="closeChatSettings();openMyBlog()">
-                        <span>📝</span><div><b>Блог</b><i>статьи с просмотрами и лайками</i></div></button>
                     <div class="cs-group-title">Оформление</div>
                     <button class="cs-row" onclick="closeChatSettings();openWallpaperPicker()">
                         <span>🎨</span><div><b>Обои переписки</b><i>фон для окна сообщений</i></div></button>
                     <button class="cs-row" onclick="toggleChatTheme();openChatSettings()">
                         <span>${dark ? '☀️' : '🌙'}</span><div><b>${dark ? 'Светлая тема' : 'Тёмная тема'}</b><i>сейчас ${dark ? 'тёмная' : 'светлая'}</i></div></button>
                     <div class="cs-group-title">Мои разделы</div>
-                    <button class="cs-row" onclick="closeChatSettings();openFeedSection()">
-                        <span>📰</span><div><b>Лента</b><i>посты каналов, на которые вы подписаны</i></div></button>
+                    <a class="cs-row" href="/edit-profile.html">
+                        <span>👤</span><div><b>Настройки профиля</b><i>имя, фото, контакты, пароль</i></div></a>
                     ${(currentUser && currentUser.role === 'psychologist') ? `
                     <a class="cs-row" href="/psychologist-blog.html">
                         <span>📝</span><div><b>Мой блог</b><i>статьи: черновики, публикация, просмотры</i></div></a>
@@ -8275,14 +8370,17 @@
         }
 
         /** Кнопки, появляющиеся при наведении на сообщение: быстрый ответ и меню. */
-        function msgHoverHtml(id) {
+        function msgHoverHtml(id, opts) {
             if (!id) return '';
             // Реакция вынесена прямо в строку наведения: искать её в «Ещё» долго,
-            // а отреагировать хочется одним движением.
-            return `<div class="msg-hover">
+            // а отреагировать хочется одним движением. В «Избранном» смысла в ней
+            // меньше — это заметки себе, — поэтому там она живёт только в «⋮».
+            const react = (opts && opts.noReact) ? '' : `
                         <button onclick="event.stopPropagation();openReactionPicker('${id}')" title="Реакция" aria-label="Реакция">
                             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8.5 14.5s1.3 1.6 3.5 1.6 3.5-1.6 3.5-1.6"/><path d="M9 9.5h.01M15 9.5h.01"/></svg>
-                        </button>
+                        </button>`;
+            return `<div class="msg-hover">
+                        ${react}
                         <button onclick="startReply(event,'${id}')" title="Ответить" aria-label="Ответить">
                             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M10 4L4 9l6 5V4z"/><path d="M4 9h11a5 5 0 015 5v3"/></svg>
                         </button>
@@ -8312,7 +8410,12 @@
             let html = row('😊', 'Реакция', `openReactionPicker('${id}')`);
             html += row('↩', 'Ответить', `startReply(null,'${id}')`);
             html += row('☑', 'Выделить', `enterSelectMode('${id}')`);
-            if ((cap.text || '').trim()) html += row('📋', 'Скопировать текст', `copyMessageText('${id}')`);
+            if (cap.voiceUrl) {
+                // Копировать «[Голосовое сообщение: 00:05]» бессмысленно — копируем сказанное.
+                html += row('📋', 'Скопировать расшифровку', `copyVoiceTranscript('${id}')`);
+            } else if ((cap.text || '').trim() && !cap.placeholder) {
+                html += row('📋', 'Скопировать текст', `copyMessageText('${id}')`);
+            }
             if (cap.canForward) html += row('↪', 'Переслать', `openForwardMenu(null,'${cap.kind || 'msg'}','${id}')`);
             // Админу — быстрый путь из любой переписки в очередь доработок
             if (currentUser && currentUser.role === 'admin')
@@ -8382,6 +8485,49 @@
             toast(okc ? 'Текст скопирован' : 'Не удалось скопировать');
         }
         window.copyMessageText = copyMessageText;
+
+        /**
+         * Скопировать сказанное в голосовом (или кружке).
+         *
+         * Раньше «скопировать текст» у голосового копировал служебную подпись
+         * «[Голосовое сообщение: 00:05]» — то есть ничего полезного. Теперь берём
+         * расшифровку: сперва из памяти, потом общую с сервера (кто-то мог уже
+         * расшифровать эту запись), и только в последнюю очередь распознаём сами —
+         * распознавание платное, зря тратить незачем.
+         */
+        async function copyVoiceTranscript(id) {
+            const cap = msgCaps[id] || {};
+            const url = cap.voiceUrl;
+            if (!url) return;
+            let text = sttCache[id] || '';
+            if (!text) {
+                toast('Расшифровываю…');
+                try {
+                    const ready = await (await fetch('/api/transcribe.php?action=get&url=' + encodeURIComponent(url),
+                                                     { credentials: 'include' })).json();
+                    if (ready && ready.text) text = ready.text;
+                } catch (e) {}
+            }
+            if (!text) {
+                try {
+                    text = await transcribeUrl(url, (p) => toast('Расшифровываю… ' + Math.round(p * 100) + '%'));
+                    fetch('/api/transcribe.php?action=save', {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+                        body: JSON.stringify({ url, text })
+                    }).catch(() => {});
+                } catch (e) {
+                    toast('Не удалось расшифровать: ' + (e.message || 'ошибка'));
+                    return;
+                }
+            }
+            sttCache[id] = text;
+            // Показываем расшифровку и под самим сообщением — раз уж она уже есть
+            const box = document.querySelector(`[data-stt="${id}"]`);
+            if (box) box.innerHTML = sttHtml(text);
+            const okc = await copyText(text);
+            toast(okc ? 'Расшифровка скопирована' : 'Не удалось скопировать');
+        }
+        window.copyVoiceTranscript = copyVoiceTranscript;
 
         /** Отправить сообщение в очередь «Задачи Клоду» (только админ). */
         async function sendToDevTasks(id, textOverride) {
@@ -10020,6 +10166,7 @@
                 repaintAllVoice();
                 restoreVideoNote();
                 restoreFlash();
+                loadReactions();   // без этого реакции в «Избранном» не появлялись после перерисовки
                 if (wasScrolledToBottom) container.scrollTop = container.scrollHeight;
             } catch (e) { console.error('Load favorites error:', e); }
         }
@@ -10068,7 +10215,7 @@
                     ${quoteHtml(fav.replyId)}
                     <div id="fav-body-${m.id}">${content}</div>
                     ${attachmentHtml}
-                    <div class="msg-foot"><div class="message-time">${time}</div>${msgHoverHtml(String(m.id))}</div>
+                    <div class="msg-foot"><div class="message-time">${time}</div>${msgHoverHtml(String(m.id), { noReact: true })}</div>
                 </div>`;
         }
 
@@ -10715,6 +10862,10 @@
                             kind: 'msg', author: isMine ? 'Вы' : (m.sender_first_name || 'Собеседник'),
                             text: rp.body, canForward: true, canPin: true,
                             canEdit: !!(isMine && !m.attachment_url), canDelete: !!(isMine || isAdminMode),
+                            // Голосовое и кружок: «скопировать текст» для них означает
+                            // скопировать расшифровку, а не служебную подпись с длительностью.
+                            voiceUrl: (m.attachment_type === 'voice' || isVideoNote(m)) ? (m.attachment_url || '') : '',
+                            placeholder: phKind,
                         };
                     }
 
@@ -11076,6 +11227,10 @@
         function onMessageKeyDown(e) {
             if (e.key !== 'Enter') return;
             if (e.shiftKey) return;          // Shift+Enter — перенос строки
+            // На телефоне Enter — это перенос строки, а не отправка: рядом с полем и так
+            // есть кнопка отправки, а экранная клавиатура ставит Enter туда, куда палец
+            // попадает случайно — сообщение улетало недописанным. На ПК всё как было.
+            if (isPhoneLayout()) return;
             e.preventDefault();
             sendMessage();
         }
@@ -11153,10 +11308,24 @@
             const el = cmpArea();
             if (!el) return;
             el.focus();
+            const sel = window.getSelection();
+            const hadSelection = !!(sel && sel.rangeCount && !sel.isCollapsed);
             // Просим браузер расставлять теги (<b>), а не стили (<span style>):
             // из тегов потом легко собрать разметку обратно.
             try { document.execCommand('styleWithCSS', false, false); } catch (e) {}
             try { document.execCommand(cmd, false, null); } catch (e) {}
+            // Выделили кусок и нажали «жирный» — значит оформить хотели ИМЕННО его.
+            // Браузер же оставлял стиль включённым, и всё, что печаталось дальше,
+            // тоже шло жирным: приходилось каждый раз выключать кнопку вручную.
+            // Ставим курсор в конец оформленного куска и гасим режим ввода. У
+            // схлопнутого курсора команда переключает только режим — уже набранный
+            // текст она не трогает.
+            if (hadSelection) {
+                try {
+                    sel.collapseToEnd();
+                    if (document.queryCommandState(cmd)) document.execCommand(cmd, false, null);
+                } catch (e) {}
+            }
             cmpSyncToolbar();
         }
 
@@ -11281,6 +11450,7 @@
         }
 
         function openComposer() {
+            setTimeout(cmpPaintAttachBar, 0);
             renderCmpToolbar();
             const el = cmpArea();
             const input = document.getElementById('messageInput');
@@ -11305,15 +11475,52 @@
             document.getElementById('composerModal').style.display = 'none';
         }
 
+        /**
+         * Прикрепить файл из окна форматирования.
+         *
+         * Ничего своего не изобретаем: файлы уходят тем же путём, что и из строки
+         * ввода (общая очередь pendingAttachments), а оформленный текст становится
+         * подписью к первому из них. Поэтому здесь работают и альбом из нескольких
+         * снимков, и ограничение по размеру, и полоска прогресса.
+         */
+        async function cmpPickFiles(event) {
+            const files = [...(event.target.files || [])];
+            event.target.value = '';
+            if (!files.length) return;
+            const ok = await acceptFiles(files);
+            if (ok) cmpPaintAttachBar();
+        }
+        window.cmpPickFiles = cmpPickFiles;
+
+        /** Что уже прикреплено — показываем прямо в окне, чтобы это не было сюрпризом. */
+        function cmpPaintAttachBar() {
+            const bar = document.getElementById('cmpAttachBar');
+            if (!bar) return;
+            if (!pendingAttachments.length) { bar.style.display = 'none'; bar.innerHTML = ''; return; }
+            bar.style.display = 'flex';
+            bar.innerHTML = pendingAttachments.map((a, i) =>
+                `<span class="cmp-chip">${a.isImage ? '🖼' : '📄'} ${escapeHtml(a.name || 'файл')}
+                    <button type="button" onclick="cmpDropAttachment(${i})" title="Убрать">✕</button></span>`
+            ).join('');
+        }
+        function cmpDropAttachment(i) {
+            pendingAttachments.splice(i, 1);
+            renderAttachBar();
+            cmpPaintAttachBar();
+        }
+        window.cmpDropAttachment = cmpDropAttachment;
+
         async function sendFromComposer() {
             const el = cmpArea();
             const input = document.getElementById('messageInput');
             if (!el || !input) return;
             const md = cmpToMarkdown(el);
-            if (!md.trim()) { alert('Введите текст сообщения.'); return; }
+            // С прикреплённым файлом текст необязателен — он идёт подписью к нему
+            if (!md.trim() && !pendingAttachments.length) { alert('Введите текст сообщения.'); return; }
             input.value = md;
             document.getElementById('composerModal').style.display = 'none';
             el.innerHTML = '';
+            cmpPaintAttachBar();
             await sendMessage();
         }
 
@@ -12013,10 +12220,14 @@
          *  сторон, иначе каждый видит только свои: у меня собеседник — «он», у него — «я».
          *  Поэтому склеиваем два id по порядку. */
         function reactionChatKey() {
+            const me = currentUser ? String(currentUser.id) : '';
+            // «Избранное» — это личный разговор с самим собой, и ключ у него свой.
+            // Раньше здесь стоял presenceKey(), а он для «Избранного» отдаёт пустую
+            // строку (там некому «быть в сети») — реакция молча не сохранялась вовсе.
+            if (selectedUserId === FAVORITES_ID) return me ? ('fav|' + me) : '';
             const k = presenceKey();
             if (!k) return '';
             if (isGroupKey(k)) return k;
-            const me = currentUser ? String(currentUser.id) : '';
             return [me, String(k)].sort().join('|');
         }
 
@@ -12032,8 +12243,10 @@
 
         /** Реакции рисуем поверх готовой разметки: так опрос переписки их не затирает. */
         function paintReactions() {
-            document.querySelectorAll('.message[data-msg-id]').forEach(el => {
-                const id = el.getAttribute('data-msg-id');
+            // В «Избранном» у пузыря data-fav-id, а не data-msg-id: без этого реакции
+            // там не появлялись, даже если сохранялись.
+            document.querySelectorAll('.message[data-msg-id], .message[data-fav-id]').forEach(el => {
+                const id = el.getAttribute('data-msg-id') || el.getAttribute('data-fav-id');
                 const set = reactionMap[id];
                 let box = el.querySelector('.msg-reacts');
                 if (!set || !Object.keys(set).length) { if (box) box.remove(); return; }
@@ -12093,7 +12306,10 @@
         /** Выбор реакции из меню действий над сообщением. */
         function openReactionPicker(msgId) {
             closeFolderPicker();
-            const el = document.querySelector(`[data-msg-id="${msgId}"]`);
+            // В «Избранном» у пузыря data-fav-id — без этого окошко выбора смайла
+            // прилипало к левому верхнему углу страницы, а не к самому сообщению.
+            const el = document.querySelector(`[data-msg-id="${msgId}"]`)
+                    || document.querySelector(`[data-fav-id="${msgId}"]`);
             const menu = document.createElement('div');
             menu.className = 'folder-picker react-picker';
             menu.id = 'folderPicker';
@@ -12613,6 +12829,32 @@
          * Переносить сам узел бесполезно: браузер ставит видео на паузу, как только элемент
          * вынут из документа. Поэтому просто не трогаем DOM, когда нечего менять.
          */
+        // ── Появление сообщений ────────────────────────────────────────────────
+        //  Переписка перерисовывается целиком на каждом опросе, поэтому анимацию
+        //  нельзя вешать на .message: она проигрывалась бы у всей ленты каждые
+        //  несколько секунд. Помним, какие сообщения уже показывали, и оживляем
+        //  только те, что появились впервые — и только если чат уже был открыт
+        //  (иначе при заходе дёргалась бы вся история).
+        let seenMsgIds = new Set();
+        let seenMsgChat = '';
+
+        function animateNewMessages(container) {
+            if (!container) return;
+            const chat = String(selectedUserId || '');
+            const fresh = seenMsgChat !== chat;
+            if (fresh) { seenMsgIds = new Set(); seenMsgChat = chat; }
+            container.querySelectorAll('.message[data-msg-id], .message[data-fav-id]').forEach(el => {
+                const id = el.getAttribute('data-msg-id') || el.getAttribute('data-fav-id');
+                if (!id || seenMsgIds.has(id)) return;
+                seenMsgIds.add(id);
+                if (fresh) return;                       // первая отрисовка чата — без анимации
+                el.classList.add(el.classList.contains('mine') ? 'msg-in-mine' : 'msg-in');
+                el.addEventListener('animationend', () => {
+                    el.classList.remove('msg-in', 'msg-in-mine');
+                }, { once: true });
+            });
+        }
+
         function renderIfChanged(container, html) {
             if (!container) return false;
             // Ключом идёт и сам чат: иначе, вернувшись из канала (его посты пишутся в тот же
@@ -12622,6 +12864,7 @@
             container.dataset.renderedChat = key;
             container.dataset.rendered = html;
             container.innerHTML = html;
+            animateNewMessages(container);
             return true;
         }
 
