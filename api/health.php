@@ -141,6 +141,70 @@ if (isset($_GET['msgcols']) && isset($pdo) && $pdo) {
     $r['messages_cols'] = $m;
 }
 
+// 4c. ?promo=1 — почему промокод бесплатной записи «не срабатывает».
+//     Здесь две стороны, которые обязаны сойтись: админка ПИШЕТ настройку через
+//     admin_ext.php (таблицу и колонки он определяет сам), а promo_booking.php
+//     ЧИТАЕТ её жёстко из settings(key_name, value). Если это разные места —
+//     код сохраняется, но проверка его не видит. Значение наружу не отдаём:
+//     только куда пишем, куда читаем и пусто там или нет.
+if (isset($_GET['promo']) && isset($pdo) && $pdo) {
+    $p = [];
+
+    // Так таблицу настроек ищет admin_ext.php (сторона записи)
+    $writeTable = null; $writeKey = null; $writeVal = null;
+    foreach (['settings', 'site_settings', 'options', 'config'] as $table) {
+        try { $cols = $pdo->query("SHOW COLUMNS FROM `$table`")->fetchAll(PDO::FETCH_COLUMN); }
+        catch (Exception $e) { continue; }
+        if (!$cols) continue;
+        $lc = array_map('strtolower', $cols);
+        $k = null; $v = null;
+        foreach (['setting_key', 'key_name', 'key', 'name', 'k', 'option_name', 'param', 'param_name'] as $c) {
+            $i = array_search($c, $lc, true); if ($i !== false) { $k = $cols[$i]; break; }
+        }
+        foreach (['setting_value', 'value', 'val', 'v', 'option_value', 'data'] as $c) {
+            $i = array_search($c, $lc, true); if ($i !== false) { $v = $cols[$i]; break; }
+        }
+        if ($k && $v) { $writeTable = $table; $writeKey = $k; $writeVal = $v; break; }
+    }
+    $p['admin_writes_to'] = $writeTable ? "$writeTable($writeKey, $writeVal)" : 'таблица настроек не найдена';
+    $p['promo_reads_from'] = 'settings(key_name, value)';
+    $p['same_place'] = ($writeTable === 'settings' && strtolower((string)$writeKey) === 'key_name'
+                        && strtolower((string)$writeVal) === 'value');
+
+    // Ровно тот запрос, которым читает promo_booking.php
+    try {
+        $st = $pdo->prepare("SELECT value FROM settings WHERE key_name = ? LIMIT 1");
+        $st->execute(['free_promo_code']);
+        $v = $st->fetchColumn();
+        $p['row_exists'] = ($v !== false);
+        $p['value_empty'] = ($v === false || $v === null || trim((string)$v) === '');
+        $p['value_len'] = ($v === false || $v === null) ? 0 : strlen(trim((string)$v));
+    } catch (Exception $e) {
+        $p['read_error'] = substr($e->getMessage(), 0, 140);
+    }
+    try {
+        $st = $pdo->prepare("SELECT value FROM settings WHERE key_name = ? LIMIT 1");
+        $st->execute(['free_promo_limit']);
+        $lim = $st->fetchColumn();
+        $p['limit_value'] = ($lim === false) ? '(нет строки)' : (string)$lim;
+    } catch (Exception $e) {}
+
+    // Сколько ключей вообще лежит в таблице — если ноль, настройки не сохраняются вовсе
+    try { $p['settings_rows'] = (int)$pdo->query("SELECT COUNT(*) FROM settings")->fetchColumn(); }
+    catch (Exception $e) { $p['settings_rows'] = 'ошибка: ' . substr($e->getMessage(), 0, 80); }
+    // Соседний ключ из той же формы «Тарифы» — он был в белом списке всегда.
+    // Если он есть, а free_promo_code нет — значит форма сохраняется, а ключ терялся.
+    try {
+        $st = $pdo->prepare("SELECT value FROM settings WHERE key_name = ? LIMIT 1");
+        $st->execute(['price_self']);
+        $p['price_self_exists'] = ($st->fetchColumn() !== false);
+    } catch (Exception $e) {}
+    try { $p['promo_bookings'] = (int)$pdo->query("SELECT COUNT(*) FROM promo_bookings")->fetchColumn(); }
+    catch (Exception $e) { $p['promo_bookings'] = '(таблицы ещё нет)'; }
+
+    $r['promo'] = $p;
+}
+
 // 5. ?bench=1 — сколько стоят типовые запросы сайта. Нужно, чтобы прикинуть,
 //    сколько людей хостинг вытянет, не устраивая проду настоящую нагрузку.
 //    Всё только на чтение, данные наружу не отдаются — одни тайминги.
