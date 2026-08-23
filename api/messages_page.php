@@ -78,7 +78,8 @@ if (!$known) {
     $sel = 'm.*';
 } else {
     $cols = ['id', 'sender_id', 'receiver_id', 'content', 'created_at'];
-    foreach (['attachment_url', 'attachment_type', 'attachment_name', 'edited_at'] as $c) {
+    foreach (['attachment_url', 'attachment_type', 'attachment_name', 'edited_at',
+              'is_read', 'read_at'] as $c) {
         if (mpHasColumn($pdo, $c)) $cols[] = $c;
     }
     $cols = array_values(array_intersect($cols, $known));
@@ -125,7 +126,53 @@ try {
 
     // Наружу отдаём в привычном порядке: от старых к новым, как рисует переписку чат
     $rows = array_reverse($rows);
-    mpOut(['ok' => true, 'data' => $rows, 'has_more' => $hasMore, 'cursor' => $cursor]);
+
+    // ── Отметить прочитанным ──────────────────────────────────────────────────
+    // Прежний путь чтения (messages.php?action=list) снимал непрочитанность попутно,
+    // сам этого не объявляя. Когда переписку стал отдавать этот файл, отметка
+    // пропала — счётчик у диалога горел даже после того, как всё прочитано.
+    //
+    // Писать на каждый опрос нельзя: чат обновляет переписку раз в несколько секунд,
+    // и постоянный UPDATE — ровно та нагрузка, из-за которой сайт уже ложился.
+    // Поэтому смотрим на строки, которые и так только что прочли: есть ли среди них
+    // непрочитанное МНЕ. Нет — не трогаем базу вовсе. Есть — один UPDATE, и он
+    // закрывает всю переписку, включая то, что не попало в текущую порцию.
+    $markedRead = false;
+    $flag = mpHasColumn($pdo, 'is_read') ? 'is_read'
+          : (mpHasColumn($pdo, 'read_at') ? 'read_at' : null);
+    if ($flag && $rows) {
+        $needs = false;
+        foreach ($rows as $row) {
+            if ((string)($row['sender_id'] ?? '') !== (string)$peer) continue;
+            if ((string)($row['receiver_id'] ?? '') !== (string)$userId) continue;
+            $v = $row[$flag] ?? null;
+            if ($flag === 'is_read' ? !(int)$v : ($v === null || $v === '')) { $needs = true; break; }
+        }
+        if ($needs) {
+            try {
+                $sqlUpd = $flag === 'is_read'
+                    ? "UPDATE messages SET is_read = 1
+                        WHERE sender_id = ? AND receiver_id = ? AND (is_read = 0 OR is_read IS NULL)"
+                    : "UPDATE messages SET read_at = ?
+                        WHERE sender_id = ? AND receiver_id = ? AND read_at IS NULL";
+                $up = $pdo->prepare($sqlUpd);
+                $up->execute($flag === 'is_read'
+                    ? [$peer, $userId]
+                    : [date('Y-m-d H:i:s'), $peer, $userId]);
+                // Клиент рисует галочки по этим же полям — отдаём уже обновлённое состояние
+                foreach ($rows as &$row) {
+                    if ((string)($row['sender_id'] ?? '') !== (string)$peer) continue;
+                    if ((string)($row['receiver_id'] ?? '') !== (string)$userId) continue;
+                    $row[$flag] = $flag === 'is_read' ? 1 : date('Y-m-d H:i:s');
+                }
+                unset($row);
+                $markedRead = true;   // счётчик у диалога устарел — чат обновит список
+            } catch (Exception $e) { /* не отметилось — переписку всё равно отдаём */ }
+        }
+    }
+
+    mpOut(['ok' => true, 'data' => $rows, 'has_more' => $hasMore,
+           'cursor' => $cursor, 'marked_read' => $markedRead]);
 } catch (Exception $e) {
     mpOut(['ok' => false, 'error' => 'Не удалось прочитать переписку'], 500);
 }

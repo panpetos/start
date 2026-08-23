@@ -117,7 +117,8 @@ if (isset($_GET['msgcols']) && isset($pdo) && $pdo) {
         $m['show_columns'] = 'ошибка: ' . substr($e->getMessage(), 0, 120);
         $m['count'] = 0;
     }
-    foreach (['attachment_url', 'attachment_type', 'attachment_name', 'edited_at'] as $c) {
+    foreach (['attachment_url', 'attachment_type', 'attachment_name', 'edited_at',
+              'is_read', 'read_at', 'seen', 'status', 'deleted_at'] as $c) {
         $m['has_' . $c] = in_array($c, $names, true);
     }
     // Тот самый запрос, что стоял в messages_page.php: работает ли подстановка в SHOW

@@ -3534,7 +3534,7 @@
 
     <script src="/js/api.js?v=20260821"></script>
     <script src="/js/auth.js?v=20260821"></script>
-    <script src="/js/lightbox.js?v=3"></script>
+    <script src="/js/lightbox.js?v=4"></script>
     <script src="/js/post-format.js?v=20260823"></script>
     <script src="/js/header.js?v=20260821"></script>
     <script>
@@ -10577,6 +10577,13 @@
                 if (stale()) return;
 
                 let messages;
+                // Сервер снял непрочитанность — счётчик в списке диалогов устарел.
+                // Раньше это делал прежний путь чтения, и список обновлялся заодно с ним;
+                // теперь просим обновить его ровно тогда, когда есть что обновлять.
+                if (page && page.marked_read) {
+                    try { refreshConversationList(); } catch (e) {}
+                    try { if (window.psyRefreshChatBadge) psyRefreshChatBadge(); } catch (e) {}
+                }
                 if (page && page.ok && Array.isArray(page.data)) {
                     if (dmState.peer !== peerAtStart) {
                         // Открыли другую переписку — начинаем её историю с чистого листа

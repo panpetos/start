@@ -416,14 +416,28 @@ window.psyGuardPoll = window.psyGuardPoll || function (fn) { return fn; };
   // свободный правый верхний угол контента и считаем top от реальной высоты шапки.
   // Просмотр фото во весь экран должен работать на любой странице, а не только там,
   // где скрипт подключён руками: иначе картинки в виджете поддержки открывались новой вкладкой.
-  try {
-    if (!document.querySelector('script[src*="/js/lightbox.js"]')) {
+  // ВАЖНО про момент проверки. layout.js подключается в начале <head> и выполняется
+  // ЕЩЁ ДО того, как разбор дойдёт до собственного тега страницы <script src="lightbox.js">.
+  // Поэтому querySelector ничего не находил, и на десяти страницах (лента, блог, поиск,
+  // главная, кабинеты…) грузилась ВТОРАЯ копия — с другой версией в адресе, то есть
+  // отдельным файлом. Два перехватчика кликов открывали по фото два окна просмотра сразу,
+  // и закрывать их приходилось по очереди. Ждём конца разбора страницы и смотрим на факт:
+  // если lightbox уже поднялся (есть window.psyLightbox) — второй не нужен.
+  function ensureLightbox() {
+    try {
+      if (window.psyLightbox) return;
+      if (document.querySelector('script[src*="/js/lightbox.js"]')) return;
       var lb = document.createElement('script');
-      lb.src = '/js/lightbox.js?v=2';
+      lb.src = '/js/lightbox.js?v=4';
       lb.async = true;
       document.head.appendChild(lb);
-    }
-  } catch (e) {}
+    } catch (e) {}
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', ensureLightbox);
+  } else {
+    ensureLightbox();
+  }
 
   var sbCss = document.createElement('style');
   sbCss.textContent =
@@ -613,6 +627,9 @@ window.psyGuardPoll = window.psyGuardPoll || function (fn) { return fn; };
   }
 
   function wireChatBadge() {
+    // Наружу — чтобы чат мог обновить счётчик сразу после того, как переписка
+    // отмечена прочитанной, не дожидаясь очередных 30 секунд.
+    window.psyRefreshChatBadge = refreshChatBadge;
     refreshChatBadge();
     setInterval(psyGuardPoll(refreshChatBadge), 30000);
     // Вернулись на вкладку — обновляем сразу, а не через полминуты.
