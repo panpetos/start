@@ -225,12 +225,17 @@
                  + `<text x="${b.x + b.w / 2}" y="${b.y + b.h / 2 + 4}" text-anchor="middle"
                      font-size="13" font-family="inherit" fill="currentColor">${esc(n)}</text>`;
         });
-        return `<div class="psy-diagram" style="overflow-x:auto;margin:0.5rem 0;">
+        // Обёртка с кнопкой сохранения: схему часто хотят унести в документ или
+        // показать вне чата, а вырезать её скриншотом — лишняя морока.
+        return `<div class="psy-diagram-wrap"><div class="psy-diagram" style="overflow-x:auto;margin:0.5rem 0;">
                   <svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" style="max-width:100%;height:auto;display:block;">
                     <defs><marker id="psyArrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
                       <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor" opacity="0.55"/></marker></defs>
                     ${out}
                   </svg>
+                </div>
+                <button type="button" class="dg-save-btn" onclick="if(window.saveDiagramFrom)saveDiagramFrom(this)"
+                        title="Сохранить схему картинкой">⬇ Картинкой</button>
                 </div>`;
     }
 

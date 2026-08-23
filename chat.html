@@ -942,6 +942,102 @@
         /* Нажатая кнопка подсвечивается: видно, что сейчас включено */
         .cmp-tool.on { background: #047857; color: #fff; }
         body.dark .cmp-tool.on { background: #059669; }
+        /* ── Конструктор блок-схем ─────────────────────────────────────────────── */
+        .dg-box {
+            background: #fff; border-radius: 1rem; max-width: 620px; width: 100%;
+            max-height: 90vh; display: flex; flex-direction: column;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        .dg-head {
+            padding: 0.9rem 1.1rem; border-bottom: 1px solid #eee;
+            display: flex; justify-content: space-between; align-items: center; flex-shrink: 0;
+        }
+        .dg-head button { background: none; border: none; font-size: 1.2rem; cursor: pointer; color: #6B7280; }
+        .dg-tabs { display: flex; gap: 0.35rem; padding: 0.7rem 1.1rem 0; flex-shrink: 0; }
+        .dg-tab {
+            border: none; background: #F3F4F6; color: #4B5563; font-family: inherit;
+            font-size: 0.86rem; font-weight: 600; padding: 0.45rem 0.9rem;
+            border-radius: 2rem; cursor: pointer;
+        }
+        .dg-tab.on { background: #047857; color: #fff; }
+        .dg-body { padding: 0.8rem 1.1rem; overflow-y: auto; flex: 1; min-height: 0; }
+        .dg-sec-title {
+            font-size: 0.75rem; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 0.04em; color: #9CA3AF; margin: 0.9rem 0 0.4rem;
+        }
+        .dg-row { display: flex; align-items: center; gap: 0.4rem; margin-bottom: 0.35rem; }
+        .dg-num {
+            flex-shrink: 0; width: 20px; height: 20px; border-radius: 50%;
+            background: #ECFDF5; color: #047857; font-size: 0.7rem; font-weight: 700;
+            display: inline-flex; align-items: center; justify-content: center;
+        }
+        .dg-row input, .dg-row select {
+            font-family: inherit; font-size: 0.88rem; padding: 0.42rem 0.55rem;
+            border: 1.5px solid #E5E7EB; border-radius: 0.5rem; background: #fff; color: #1A1A1A;
+            min-width: 0;
+        }
+        .dg-row .dg-name { flex: 1; }
+        .dg-row select { flex: 1; }
+        .dg-row .dg-label { width: 96px; flex-shrink: 0; text-align: center; }
+        .dg-arrow { color: #9CA3AF; flex-shrink: 0; }
+        .dg-x {
+            flex-shrink: 0; border: none; background: none; color: #9CA3AF;
+            cursor: pointer; font-size: 0.95rem; padding: 0.2rem 0.3rem; border-radius: 0.4rem;
+        }
+        .dg-x:hover { background: #FEE2E2; color: #DC2626; }
+        .dg-add {
+            border: 1.5px dashed #A7F3D0; background: #fff; color: #047857;
+            font-family: inherit; font-size: 0.85rem; font-weight: 600;
+            padding: 0.42rem 0.8rem; border-radius: 0.55rem; cursor: pointer; margin-top: 0.25rem;
+        }
+        .dg-add:hover { background: #ECFDF5; }
+        .dg-empty { color: #9CA3AF; font-size: 0.85rem; padding: 0.4rem 0; }
+        .dg-hint { color: #6B7280; font-size: 0.82rem; line-height: 1.5; margin-bottom: 0.5rem; }
+        .dg-hint code { background: #F3F4F6; border-radius: 0.3rem; padding: 0.1rem 0.3rem; }
+        #dgText {
+            width: 100%; min-height: 140px; font-family: ui-monospace, Menlo, Consolas, monospace;
+            font-size: 0.88rem; line-height: 1.5; padding: 0.6rem 0.7rem; resize: vertical;
+            border: 1.5px solid #E5E7EB; border-radius: 0.6rem; background: #fff; color: #1A1A1A;
+        }
+        .dg-preview {
+            border: 1px solid #EFF7F3; border-radius: 0.7rem; padding: 0.6rem;
+            background: #FAFAFC; color: #14532D; overflow-x: auto; min-height: 60px;
+        }
+        /* В просмотре кнопка сохранения не нужна — такая же стоит внизу окна */
+        .dg-preview .dg-save-btn { display: none; }
+        .dg-foot {
+            padding: 0.85rem 1.1rem; border-top: 1px solid #eee;
+            display: flex; gap: 0.5rem; align-items: center; flex-shrink: 0;
+        }
+        /* Кнопка «картинкой» под уже отправленной схемой */
+        .psy-diagram-wrap { position: relative; }
+        .dg-save-btn {
+            border: none; background: rgba(128,128,128,0.16); color: inherit;
+            font-family: inherit; font-size: 0.74rem; font-weight: 600;
+            padding: 0.22rem 0.55rem; border-radius: 0.45rem; cursor: pointer;
+            opacity: 0.75; margin-top: 0.15rem;
+        }
+        .dg-save-btn:hover { opacity: 1; background: rgba(128,128,128,0.28); }
+
+        body.dark .dg-box { background: #1E1E1E; color: #E6E6E6; }
+        body.dark .dg-head, body.dark .dg-foot { border-color: #333; }
+        body.dark .dg-tab { background: #2A2A2A; color: #C9C9C9; }
+        body.dark .dg-tab.on { background: #047857; color: #fff; }
+        body.dark .dg-row input, body.dark .dg-row select, body.dark #dgText {
+            background: #2A2A2A; border-color: #444; color: #E6E6E6;
+        }
+        body.dark .dg-add { background: #1E1E1E; border-color: #17553E; color: #6EE7B7; }
+        body.dark .dg-add:hover { background: #10402F; }
+        body.dark .dg-preview { background: #232323; border-color: #333; color: #A7F3D0; }
+        body.dark .dg-num { background: #10402F; color: #6EE7B7; }
+        body.dark .dg-hint code { background: #2A2A2A; }
+
+        @media (max-width: 560px) {
+            .dg-row { flex-wrap: wrap; }
+            .dg-row select { flex: 1 1 40%; }
+            .dg-row .dg-label { width: 100%; order: 3; text-align: left; }
+        }
+
         /* Прикреплённое в окне форматирования */
         .cmp-attach-bar {
             display: flex; flex-wrap: wrap; gap: 0.4rem;
@@ -3456,6 +3552,46 @@
         </div>
     </div>
 
+    <!-- Конструктор блок-схем: блоки и связи списком, рядом живой просмотр.
+         Готовая схема уходит в сообщение обычным блоком ```схема — формат прежний. -->
+    <div id="diagramModal" style="display:none;position:fixed;inset:0;background:rgba(18,42,34,0.6);z-index:1350;align-items:center;justify-content:center;padding:1rem;">
+        <div class="dg-box">
+            <div class="dg-head">
+                <b>⤵ Блок-схема</b>
+                <button onclick="closeDiagramBuilder()" title="Закрыть">✕</button>
+            </div>
+            <div class="dg-tabs">
+                <button type="button" class="dg-tab on" data-tab="build" onclick="dgSetTab('build')">Конструктор</button>
+                <button type="button" class="dg-tab" data-tab="text" onclick="dgSetTab('text')">Текстом</button>
+            </div>
+            <div class="dg-body">
+                <div id="dgBuild">
+                    <div class="dg-sec-title">Блоки</div>
+                    <div id="dgNodes"></div>
+                    <button type="button" class="dg-add" onclick="dgAddNode()">＋ Блок</button>
+
+                    <div class="dg-sec-title">Связи</div>
+                    <div id="dgEdges"></div>
+                    <button type="button" class="dg-add" onclick="dgAddEdge()">＋ Связь</button>
+                </div>
+                <div id="dgTextPane" style="display:none;">
+                    <div class="dg-hint">Одна строка — одна связь. Стрелка <b>-&gt;</b>, подпись в чёрточках:<br>
+                        <code>Проверка -&gt; |нет| Отказ</code></div>
+                    <textarea id="dgText" spellcheck="false" oninput="dgReadTextareaLive()"
+                              placeholder="Заявка -&gt; Проверка&#10;Проверка -&gt; |да| Оплата"></textarea>
+                </div>
+                <div class="dg-sec-title">Как это будет выглядеть</div>
+                <div id="dgPreview" class="dg-preview"></div>
+            </div>
+            <div class="dg-foot">
+                <button type="button" class="cmp-btn-ghost" onclick="dgDownload()">⬇ Картинкой</button>
+                <div style="flex:1;"></div>
+                <button type="button" class="cmp-btn-ghost" onclick="closeDiagramBuilder()">Отмена</button>
+                <button type="button" class="cmp-btn-send" onclick="dgInsert()">Вставить</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Обои переписки -->
     <div id="wallpaperModal" style="display:none;position:fixed;inset:0;background:rgba(18,42,34,0.6);z-index:1320;align-items:center;justify-content:center;padding:1rem;">
         <div style="background:#fff;border-radius:1rem;max-width:420px;width:100%;max-height:85vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
@@ -3626,7 +3762,7 @@
     <script src="/js/api.js?v=20260821"></script>
     <script src="/js/auth.js?v=20260821"></script>
     <script src="/js/lightbox.js?v=5"></script>
-    <script src="/js/post-format.js?v=20260823"></script>
+    <script src="/js/post-format.js?v=20260823b"></script>
     <script src="/js/header.js?v=20260821"></script>
     <script>
         const FAVORITES_ID = '__fav__'; // псевдо-собеседник «Избранное» (свой личный диалог)
@@ -11342,20 +11478,326 @@
             { t: '✕',   title: 'Убрать оформление',    act: () => cmpCmd('removeFormat') },
         ];
 
-        /**
-         * Заготовка блок-схемы: человеку остаётся заменить слова на свои.
-         * Схема рисуется из текста между ```схема и ```, поэтому вставляем её как
-         * есть — обычным текстом, который потом превратится в картинку.
-         */
-        function cmpDiagram() {
+        /** Кнопка «⤵» в форматировании открывает конструктор схемы. */
+        function cmpDiagram() { openDiagramBuilder(); }
+
+        // ══════════════════════════════════════════════════════════════════════════
+        //  КОНСТРУКТОР БЛОК-СХЕМ
+        //
+        //  Схема живёт в сообщении обычным текстом между ```схема и ``` — так её
+        //  видно везде: в переписке она превращается в рисунок, а в письме или
+        //  push-уведомлении читается как есть. Формат остаётся прежним, менять его
+        //  незачем: готовый вид устраивает.
+        //
+        //  Менять было что в СОСТАВЛЕНИИ. Раньше кнопка просто вставляла заготовку
+        //  «Заявка -> Проверка», и дальше человек правил стрелки руками, гадая, что
+        //  получится. Теперь это конструктор: блоки и связи списком, рядом живой
+        //  просмотр — видно сразу. Вкладка «Текстом» никуда не делась: кто привык
+        //  писать стрелками, пишет стрелками, и обе вкладки показывают одно и то же.
+        // ══════════════════════════════════════════════════════════════════════════
+        let dgNodes = [];      // [{id, name}]
+        let dgEdges = [];      // [{from, to, label}] — from/to это id
+        let dgSeq = 1;
+        let dgTab = 'build';
+        let dgTarget = 'composer';   // куда вставлять готовую схему
+
+        function dgNewId() { return 'n' + (dgSeq++); }
+
+        /** Текст схемы → блоки и связи. Правила те же, что у рисовалки в post-format.js. */
+        function dgParseText(text) {
+            const nodes = [];
+            const byName = new Map();
+            const edges = [];
+            const add = (raw) => {
+                const name = String(raw || '').replace(/^[\[(]|[\])]$/g, '').trim();
+                if (!name) return null;
+                if (!byName.has(name)) {
+                    const n = { id: dgNewId(), name };
+                    byName.set(name, n.id);
+                    nodes.push(n);
+                }
+                return byName.get(name);
+            };
+            String(text || '').split('\n').forEach(line => {
+                const t = line.trim();
+                if (!t || /^```/.test(t)) return;
+                const parts = t.split(/\s*(?:->|→|-->)\s*/);
+                if (parts.length === 1) { add(t); return; }
+                for (let i = 0; i < parts.length - 1; i++) {
+                    let to = parts[i + 1], label = '';
+                    const lm = /^\|([^|]*)\|\s*(.*)$/.exec(to);
+                    if (lm) { label = lm[1].trim(); to = lm[2]; }
+                    const a = add(parts[i]), b = add(to);
+                    if (a && b && a !== b) edges.push({ from: a, to: b, label });
+                }
+            });
+            return { nodes, edges };
+        }
+
+        /** Блоки и связи → текст схемы (то, что уйдёт в сообщение). */
+        function dgToText() {
+            const nameOf = (id) => (dgNodes.find(n => n.id === id) || {}).name || '';
+            const lines = [];
+            dgEdges.forEach(e => {
+                const a = nameOf(e.from), b = nameOf(e.to);
+                if (!a || !b) return;
+                lines.push(a + ' -> ' + (e.label ? '|' + e.label + '| ' : '') + b);
+            });
+            // Блоки, ни с чем не связанные, тоже должны попасть в схему — иначе они
+            // молча пропадали бы при вставке.
+            const linked = new Set();
+            dgEdges.forEach(e => { linked.add(e.from); linked.add(e.to); });
+            dgNodes.forEach(n => { if (!linked.has(n.id) && n.name.trim()) lines.push(n.name.trim()); });
+            return lines.join('\n');
+        }
+
+        function openDiagramBuilder(target) {
+            dgTarget = target || 'composer';
+            // Открыли поверх уже набранной схемы — подхватываем её, а не начинаем с нуля
+            const existing = dgPickExistingText();
+            if (existing) {
+                const p = dgParseText(existing);
+                dgNodes = p.nodes; dgEdges = p.edges;
+            } else if (!dgNodes.length) {
+                dgNodes = [
+                    { id: dgNewId(), name: 'Заявка' },
+                    { id: dgNewId(), name: 'Проверка' },
+                    { id: dgNewId(), name: 'Оплата' },
+                    { id: dgNewId(), name: 'Отказ' },
+                ];
+                dgEdges = [
+                    { from: dgNodes[0].id, to: dgNodes[1].id, label: '' },
+                    { from: dgNodes[1].id, to: dgNodes[2].id, label: 'да' },
+                    { from: dgNodes[1].id, to: dgNodes[3].id, label: 'нет' },
+                ];
+            }
+            dgTab = 'build';
+            document.getElementById('diagramModal').style.display = 'flex';
+            dgRender();
+        }
+        window.openDiagramBuilder = openDiagramBuilder;
+
+        /** Если в поле уже есть блок ```схема — возьмём его содержимое. */
+        function dgPickExistingText() {
             const el = cmpArea();
-            if (!el) return;
+            const src = el ? cmpToMarkdown(el) : '';
+            const m = /```\s*(?:схема|блок-схема|diagram|flow)\s*\n([\s\S]*?)```/i.exec(src || '');
+            return m ? m[1] : '';
+        }
+
+        function closeDiagramBuilder() {
+            const m = document.getElementById('diagramModal');
+            if (m) m.style.display = 'none';
+        }
+        window.closeDiagramBuilder = closeDiagramBuilder;
+
+        function dgSetTab(t) {
+            // Уходим с «Текстом» — сначала забираем то, что там написали руками
+            if (dgTab === 'text' && t !== 'text') dgReadTextarea();
+            dgTab = t;
+            dgRender();
+        }
+        window.dgSetTab = dgSetTab;
+
+        /** На вкладке «Текстом» просмотр обновляется прямо во время набора. */
+        function dgReadTextareaLive() {
+            dgReadTextarea();
+            const box = document.getElementById('dgPreview');
+            const ta = document.getElementById('dgText');
+            if (box && ta) {
+                const svg = (typeof psyDiagramSvg === 'function') ? psyDiagramSvg(ta.value) : '';
+                box.innerHTML = svg || '<div class="dg-empty">Схема пока пустая</div>';
+            }
+        }
+        window.dgReadTextareaLive = dgReadTextareaLive;
+
+        function dgReadTextarea() {
+            const ta = document.getElementById('dgText');
+            if (!ta) return;
+            const p = dgParseText(ta.value);
+            dgNodes = p.nodes; dgEdges = p.edges;
+        }
+
+        function dgAddNode() {
+            dgNodes.push({ id: dgNewId(), name: '' });
+            dgRender();
+            const inputs = document.querySelectorAll('#dgNodes .dg-name');
+            const last = inputs[inputs.length - 1];
+            if (last) last.focus();
+        }
+        function dgDelNode(id) {
+            dgNodes = dgNodes.filter(n => n.id !== id);
+            dgEdges = dgEdges.filter(e => e.from !== id && e.to !== id);
+            dgRender();
+        }
+        function dgSetName(id, v) {
+            const n = dgNodes.find(x => x.id === id);
+            if (n) { n.name = v; dgPreview(); }
+        }
+        function dgAddEdge() {
+            if (dgNodes.length < 2) { toast('Сначала добавьте хотя бы два блока'); return; }
+            dgEdges.push({ from: dgNodes[0].id, to: dgNodes[1].id, label: '' });
+            dgRender();
+        }
+        function dgDelEdge(i) { dgEdges.splice(i, 1); dgRender(); }
+        function dgSetEdge(i, field, v) {
+            if (!dgEdges[i]) return;
+            dgEdges[i][field] = v;
+            dgPreview();
+        }
+        window.dgAddNode = dgAddNode; window.dgDelNode = dgDelNode; window.dgSetName = dgSetName;
+        window.dgAddEdge = dgAddEdge; window.dgDelEdge = dgDelEdge; window.dgSetEdge = dgSetEdge;
+
+        /** Перерисовать только просмотр — на каждое нажатие клавиши списки не трогаем,
+         *  иначе поле теряло бы курсор посреди слова. */
+        function dgPreview() {
+            const box = document.getElementById('dgPreview');
+            if (!box) return;
+            const text = dgToText();
+            const svg = (typeof psyDiagramSvg === 'function') ? psyDiagramSvg(text) : '';
+            box.innerHTML = svg || '<div class="dg-empty">Добавьте блоки и связи — схема появится здесь</div>';
+            const ta = document.getElementById('dgText');
+            if (ta && dgTab !== 'text') ta.value = text;
+        }
+
+        function dgRender() {
+            const build = document.getElementById('dgBuild');
+            const textPane = document.getElementById('dgTextPane');
+            if (!build || !textPane) return;
+            document.querySelectorAll('#diagramModal .dg-tab').forEach(b =>
+                b.classList.toggle('on', b.dataset.tab === dgTab));
+            build.style.display = dgTab === 'build' ? 'block' : 'none';
+            textPane.style.display = dgTab === 'text' ? 'block' : 'none';
+
+            const opts = (sel) => dgNodes.map(n =>
+                `<option value="${escapeHtml(n.id)}"${n.id === sel ? ' selected' : ''}>${escapeHtml(n.name || '(без названия)')}</option>`).join('');
+
+            document.getElementById('dgNodes').innerHTML = dgNodes.map((n, i) => `
+                <div class="dg-row">
+                    <span class="dg-num">${i + 1}</span>
+                    <input class="dg-name" value="${escapeHtml(n.name)}" placeholder="Название блока" maxlength="60"
+                           oninput="dgSetName('${n.id}', this.value)">
+                    <button type="button" class="dg-x" onclick="dgDelNode('${n.id}')" title="Убрать блок">✕</button>
+                </div>`).join('') || '<div class="dg-empty">Блоков пока нет</div>';
+
+            document.getElementById('dgEdges').innerHTML = dgEdges.map((e, i) => `
+                <div class="dg-row">
+                    <select onchange="dgSetEdge(${i},'from',this.value)">${opts(e.from)}</select>
+                    <span class="dg-arrow">→</span>
+                    <input class="dg-label" value="${escapeHtml(e.label || '')}" placeholder="подпись" maxlength="24"
+                           oninput="dgSetEdge(${i},'label',this.value)">
+                    <select onchange="dgSetEdge(${i},'to',this.value)">${opts(e.to)}</select>
+                    <button type="button" class="dg-x" onclick="dgDelEdge(${i})" title="Убрать связь">✕</button>
+                </div>`).join('') || '<div class="dg-empty">Связей пока нет</div>';
+
+            if (dgTab === 'text') {
+                const ta = document.getElementById('dgText');
+                if (ta) { ta.value = dgToText(); }
+            }
+            dgPreview();
+        }
+
+        /** Готовую схему вставляем в текст обычным блоком — как и раньше. */
+        function dgInsert() {
+            if (dgTab === 'text') dgReadTextarea();
+            const text = dgToText().trim();
+            if (!text) { toast('Схема пустая'); return; }
+            const block = '```схема\n' + text + '\n```';
+            closeDiagramBuilder();
+            const el = cmpArea();
+            if (dgTarget === 'input' || !el || document.getElementById('composerModal').style.display === 'none') {
+                // Из строки ввода — дописываем прямо туда, окно форматирования не нужно
+                const input = document.getElementById('messageInput');
+                if (input) {
+                    input.value = (input.value ? input.value.replace(/\n*$/, '\n') : '') + block + '\n';
+                    input.focus();
+                    autoGrowInput(input);
+                    saveDraftSoon();
+                }
+                return;
+            }
             el.focus();
-            const tpl = '```схема\nЗаявка -> Проверка\nПроверка -> |да| Оплата\nПроверка -> |нет| Отказ\n```';
-            try { document.execCommand('insertText', false, '\n' + tpl + '\n'); }
-            catch (e) { el.appendChild(document.createTextNode('\n' + tpl + '\n')); }
+            // ВАЖНО: схему в поле кладём ТЕКСТОМ, строка за строкой.
+            // Соблазн прогнать всё поле через formatPostText велик, но так делать
+            // нельзя: он превращает схему в рисунок прямо в поле, а обратно в
+            // разметку рисунок уже не собирается — при отправке вместо схемы
+            // уходили слипшиеся названия блоков.
+            const node = document.createElement('div');
+            node.setAttribute('data-dg', '1');
+            ['```схема'].concat(text.split('\n')).concat(['```']).forEach(line => {
+                const d = document.createElement('div');
+                d.textContent = line;
+                node.appendChild(d);
+            });
+            // Уже вставленную схему заменяем, а не добавляем вторую
+            const prev = el.querySelector('[data-dg]');
+            if (prev) prev.replaceWith(node);
+            else el.appendChild(node);
             cmpSyncToolbar();
         }
+        window.dgInsert = dgInsert;
+
+        // ── Схема картинкой ──────────────────────────────────────────────────────
+        /**
+         * Сохранить схему как PNG.
+         *
+         * Рисунок в переписке использует currentColor — он берёт цвет пузыря. В
+         * отдельном файле никакого «текущего цвета» нет, поэтому перед сохранением
+         * подставляем конкретный и кладём белый фон: иначе на светлом просмотрщике
+         * получилась бы пустая картинка.
+         */
+        async function psyDiagramPng(svg, filename) {
+            if (!svg) return;
+            try {
+                const clone = svg.cloneNode(true);
+                const w = Math.max(1, Math.ceil(parseFloat(clone.getAttribute('width')) || svg.getBoundingClientRect().width));
+                const h = Math.max(1, Math.ceil(parseFloat(clone.getAttribute('height')) || svg.getBoundingClientRect().height));
+                clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+                clone.setAttribute('width', w); clone.setAttribute('height', h);
+                let src = new XMLSerializer().serializeToString(clone);
+                src = src.replace(/currentColor/g, '#14532D');
+                src = src.replace(/font-family="inherit"/g, 'font-family="Inter, Arial, sans-serif"');
+                const scale = 2;                       // чтобы не мылилось на экране телефона
+                const img = new Image();
+                img.crossOrigin = 'anonymous';
+                await new Promise((res, rej) => {
+                    img.onload = res; img.onerror = rej;
+                    img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(src);
+                });
+                const canvas = document.createElement('canvas');
+                canvas.width = w * scale; canvas.height = h * scale;
+                const ctx = canvas.getContext('2d');
+                ctx.fillStyle = '#FFFFFF';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                const blob = await new Promise(r => canvas.toBlob(r, 'image/png'));
+                if (!blob) throw new Error('пусто');
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url; a.download = filename || 'psytalk-shema.png';
+                document.body.appendChild(a); a.click(); a.remove();
+                setTimeout(() => URL.revokeObjectURL(url), 4000);
+                toast('Схема сохранена картинкой');
+            } catch (e) {
+                toast('Не удалось сохранить картинку');
+            }
+        }
+        window.psyDiagramPng = psyDiagramPng;
+
+        function dgDownload() {
+            const svg = document.querySelector('#dgPreview svg');
+            if (!svg) { toast('Схема пустая'); return; }
+            psyDiagramPng(svg, 'psytalk-shema.png');
+        }
+        window.dgDownload = dgDownload;
+
+        /** Кнопка «картинкой» под уже отправленной схемой в переписке. */
+        function saveDiagramFrom(btn) {
+            const box = btn && btn.closest('.psy-diagram-wrap');
+            const svg = box && box.querySelector('svg');
+            psyDiagramPng(svg, 'psytalk-shema.png');
+        }
+        window.saveDiagramFrom = saveDiagramFrom;
 
         function renderCmpToolbar() {
             const box = document.getElementById('cmpToolbar');
@@ -11849,6 +12291,9 @@
             }
             if (ai) items.push({ ico: '🎤', label: 'Продиктовать голосом', run: () => toggleDictation() });
             if (!mob) items.push({ ico: 'A', label: 'Форматирование текста', run: () => openComposer() });
+            // Схему часто рисуют без остального оформления — пусть будет отдельным
+            // пунктом, а не только кнопкой внутри окна форматирования.
+            items.push({ ico: '⤵', label: 'Блок-схема', run: () => openDiagramBuilder('input') });
             // Отложенная отправка — везде, кроме ассистента: ему пишут ради ответа сейчас
             if (typeof schedAvailable === 'function' && schedAvailable()) {
                 items.push({ ico: '🕒', label: 'Отправить позже', run: () => scheduleCurrentInput() });
