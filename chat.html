@@ -866,6 +866,50 @@
         .ch-post-more:hover { text-decoration: underline; }
         body.dark .ch-post-more { color: #6EE7B7; }
 
+        /* Окно публикации в свой канал — стоит над лентой постов */
+        .ch-composer {
+            background: #fff; border: 1.5px solid #D1FAE5; border-radius: 1rem;
+            padding: 0.85rem 1rem; margin: 0 auto 0.9rem; max-width: 620px; width: 100%;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        }
+        .ch-composer-title { font-size: 0.78rem; font-weight: 700; color: #047857; margin-bottom: 0.5rem; }
+        .ch-composer-text {
+            width: 100%; border: 1.5px solid #E5E7EB; border-radius: 0.7rem; padding: 0.6rem 0.7rem;
+            font-family: inherit; font-size: 0.94rem; line-height: 1.45; color: #333;
+            resize: vertical; outline: none; background: #fff; box-sizing: border-box;
+        }
+        .ch-composer-text:focus { border-color: #6EE7B7; }
+        .ch-composer-preview { position: relative; margin-top: 0.5rem; }
+        .ch-composer-preview img { width: 100%; max-height: 220px; object-fit: cover; border-radius: 0.7rem; display: block; }
+        .ch-composer-drop {
+            position: absolute; top: 0.4rem; right: 0.4rem; border: none; cursor: pointer;
+            width: 1.7rem; height: 1.7rem; border-radius: 50%; background: rgba(0,0,0,0.55); color: #fff;
+            font-size: 0.85rem; line-height: 1; display: flex; align-items: center; justify-content: center;
+        }
+        .ch-composer-bar { display: flex; align-items: center; gap: 0.5rem; margin-top: 0.55rem; }
+        .ch-composer-attach {
+            position: relative; cursor: pointer; font-size: 1.15rem; line-height: 1; flex-shrink: 0;
+            width: 2.1rem; height: 2.1rem; border-radius: 0.6rem; background: #ECFDF5;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .ch-composer-msg { flex: 1; min-width: 0; font-size: 0.78rem; color: #6B7280; overflow-wrap: anywhere; }
+        .ch-composer-send {
+            flex-shrink: 0; border: none; border-radius: 0.7rem; padding: 0.55rem 1.1rem; cursor: pointer;
+            background: #047857; color: #fff; font-family: inherit; font-weight: 700; font-size: 0.87rem;
+        }
+        .ch-composer-send:disabled { opacity: 0.6; cursor: default; }
+        body.dark .ch-composer { background: #252525; border-color: #14503B; box-shadow: 0 2px 8px rgba(0,0,0,0.25); }
+        body.dark .ch-composer-title { color: #6EE7B7; }
+        body.dark .ch-composer-text { background: #2A2A2A; border-color: #444; color: #E6E6E6; }
+        body.dark .ch-composer-text::placeholder { color: #777; }
+        body.dark .ch-composer-text:focus { border-color: #047857; }
+        body.dark .ch-composer-attach { background: #0B3B2E; }
+        body.dark .ch-composer-msg { color: #999; }
+        @media (max-width: 480px) {
+            .ch-composer { padding: 0.7rem 0.75rem; border-radius: 0.85rem; }
+            .ch-composer-send { padding: 0.55rem 0.8rem; font-size: 0.82rem; }
+        }
+
         /* В ленте над постом стоит имя канала — по нему уходят в сам канал */
         .ch-post-author { margin-bottom: 0.15rem; }
         .ch-post-author button {
@@ -4001,6 +4045,26 @@
         const CHANNEL_PREFIX = 'channel:'; // псевдо-собеседник «Канал» — раздел чата с лентой постов вместо переписки (задача #29, рефок)
         let myChannels = [];      // клиент: список подписок; психолог: свой канал (массив из одного элемента)
         let myOwnPsychId = null;  // id профиля психолога текущего пользователя (для «Мой канал»)
+        // Ключ СВОЕГО канала. У психолога это id его профиля (так заведены уже
+        // существующие каналы), у всех остальных — собственный id пользователя.
+        // Ровно та же логика, что в api/channels.php → myChannelId(): без неё
+        // клиент открывал свой канал «чужим» и не мог в нём ничего опубликовать.
+        let myOwnChannelId = null;
+        async function resolveMyChannelId() {
+            if (myOwnChannelId) return myOwnChannelId;
+            if (!currentUser) return null;
+            if (!myOwnPsychId && currentUser.role === 'psychologist') {
+                try {
+                    const d = await (await fetch('/api/my_profile.php?action=get', { credentials: 'include' })).json();
+                    myOwnPsychId = (d && d.ok && d.profile) ? d.profile.id : null;
+                } catch (e) {}
+            }
+            myOwnChannelId = String(myOwnPsychId || currentUser.id);
+            return myOwnChannelId;
+        }
+        function isMyChannel(psychId) {
+            return myOwnChannelId !== null && String(psychId) === String(myOwnChannelId);
+        }
         const GROUP_PREFIX = 'group:'; // групповой чат — общий чат на несколько человек, как в Telegram
         let myGroups = [];
         let groupMembersCache = [];
@@ -4074,6 +4138,7 @@
                     const r = await fetch('/api/my_profile.php?action=get', { credentials: 'include' });
                     const d = await r.json();
                     myOwnPsychId = (d && d.ok && d.profile) ? d.profile.id : null;
+                    myOwnChannelId = String(myOwnPsychId || currentUser.id);
                     // оформление своего канала подтягиваем сразу — иначе в списке до открытия
                     // канала показывалось бы имя из профиля вместо названия канала
                     let own = null;
@@ -4095,17 +4160,53 @@
                         } catch (e) {}
                     }
                     myChannels = own ? [own] : [];
-                } else if (currentUser.role === 'client') {
+                } else {
                     const r = await fetch('/api/channels.php?action=my-subscriptions', { credentials: 'include' });
                     const d = await r.json().catch(() => ({}));
                     // Ошибку не глушим: иначе каналы просто «исчезают» из списка без объяснений.
                     if (!r.ok || d.ok === false) throw new Error(d.error || ('HTTP ' + r.status));
                     myChannels = d.data || [];
+                    // Свой канал у не-психолога. Показываем его в списке только когда
+                    // он уже начат (есть пост или оформление) — иначе у каждого клиента
+                    // висела бы пустая строка «Мой канал». Завести канал можно из «＋».
+                    const mine = await resolveMyChannelId();
+                    if (mine) {
+                        const own = await loadOwnChannelIfStarted(mine);
+                        if (own) myChannels = [own, ...myChannels.filter(c => String(c.psychologist_id) !== String(mine))];
+                    }
                 }
             } catch (e) {
                 myChannels = [];
                 channelsLoadError = e.message || 'неизвестная ошибка';
             }
+        }
+
+        /**
+         * Свой канал для списка диалогов — но только если он уже начат: есть хотя бы
+         * один пост или заданное оформление. Возвращает null, если канала фактически нет.
+         */
+        async function loadOwnChannelIfStarted(chanId) {
+            let info = null, hasPost = false;
+            try {
+                const r = await fetch('/api/channels.php?action=info&psychologist_id=' + encodeURIComponent(chanId), { credentials: 'include' });
+                const d = await r.json();
+                if (d && d.ok) { info = d; channelInfoCache[chanId] = d; }
+            } catch (e) {}
+            try {
+                const r = await fetch('/api/channels.php?action=posts&psychologist_id=' + encodeURIComponent(chanId), { credentials: 'include' });
+                const d = await r.json();
+                hasPost = !!(d && d.data && d.data.length);
+            } catch (e) {}
+            const styled = !!(info && ((info.title || '').trim() || (info.description || '').trim() || info.avatar_url));
+            if (!hasPost && !styled) return null;
+            return {
+                psychologist_id: chanId, user_id: currentUser.id,
+                first_name: currentUser.first_name, last_name: currentUser.last_name,
+                avatar: currentUser.avatar, _own: true,
+                channel_title: info ? info.title : null,
+                channel_description: info ? info.description : null,
+                channel_avatar: info ? info.avatar_url : null,
+            };
         }
 
         function channelsErrHtml() {
@@ -4658,7 +4759,10 @@
             if (pollInterval) { clearInterval(pollInterval); pollInterval = null; }
 
             const c = myChannels.find(x => String(x.psychologist_id) === String(psychId)) || {};
-            const isOwn = !!c._own;
+            // Владельца определяем и по ключу своего канала: только что заведённого
+            // канала ещё нет в списке диалогов, а публиковать в нём уже нужно.
+            await resolveMyChannelId();
+            const isOwn = !!c._own || isMyChannel(psychId);
             let info = { subscribers_count: 0, is_subscribed: false };
             try {
                 const r = await fetch('/api/channels.php?action=info&psychologist_id=' + encodeURIComponent(psychId), { credentials: 'include' });
@@ -4675,7 +4779,7 @@
 
             const writeBtn = (!isOwn && c.user_id)
                 ? `<a href="/chat.html?user=${encodeURIComponent(c.user_id)}" class="session-btn" style="background:#15803D;text-decoration:none;" title="Написать психологу лично">✉️<span class="btn-label"> Написать</span></a>`
-                : (isOwn ? `<a href="/psychologist-dashboard.html" class="session-btn" style="background:#047857;text-decoration:none;" title="Мой канал в кабинете">✍️<span class="btn-label"> Мой канал</span></a>` : '');
+                : (isOwn ? `<button class="session-btn" style="background:#047857;" onclick="focusChannelComposer()" title="Написать пост в свой канал">✍️<span class="btn-label"> Пост</span></button>` : '');
             const editBtn = isOwn
                 ? `<button class="session-btn" style="background:#0EA5E9;" onclick="openChannelSettings('${psychId}')" title="Аватарка, название и описание канала">🎨<span class="btn-label"> Оформление</span></button>`
                 : '';
@@ -4689,11 +4793,12 @@
                     <div class="name">${escapeHtml(name)}</div>
                     <div class="role">${sub}</div>
                 </div>
-                ${headerActionsHtml([
-                    { icon: '👤', label: 'Профиль психолога', href: '/psychologist-profile.html?id=' + encodeURIComponent(psychId) },
-                ], writeBtn + editBtn)}`;
+                ${headerActionsHtml(
+                    (isOwn && !myOwnPsychId) ? [] : [
+                        { icon: '👤', label: 'Профиль психолога', href: '/psychologist-profile.html?id=' + encodeURIComponent(psychId) },
+                    ], writeBtn + editBtn)}`;
 
-            await loadChannelPosts(psychId);
+            await loadChannelPosts(psychId, isOwn);
         }
 
         // ── Оформление своего канала: аватарка, название, описание ──
@@ -4702,7 +4807,7 @@
 
         function openChannelSettings(psychId) {
             const c = myChannels.find(x => String(x.psychologist_id) === String(psychId)) || {};
-            if (!c._own) return;   // оформление меняет только владелец канала
+            if (!c._own && !isMyChannel(psychId)) return;   // оформление меняет только владелец канала
             channelSettingsFor = psychId;
             const info = channelInfoCache[psychId] || {};
             const profileName = `${c.first_name || ''} ${c.last_name || ''}`.trim() || 'Канал';
@@ -4786,25 +4891,122 @@
             }
         }
 
-        async function loadChannelPosts(psychId) {
+        /**
+         * Окно публикации в СВОЙ канал. Раньше опубликовать пост было негде вообще:
+         * эндпоинт `channels.php?action=post` существовал, а формы к нему не было ни
+         * на одной странице — поэтому «создать канал» не получалось ни у клиента,
+         * ни у психолога. Форму показываем только владельцу канала.
+         */
+        function channelComposerHtml() {
+            return `
+            <div class="ch-composer" id="chComposer">
+                <div class="ch-composer-title">Новый пост в вашем канале</div>
+                <textarea id="chComposerText" class="ch-composer-text" rows="3"
+                          placeholder="О чём рассказать подписчикам?"></textarea>
+                <div class="ch-composer-preview" id="chComposerPreview" style="display:none;"></div>
+                <div class="ch-composer-bar">
+                    <label class="ch-composer-attach" title="Добавить картинку">🖼️
+                        <input type="file" accept="image/*" onchange="pickChannelImage(event)"
+                               style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;clip:rect(0 0 0 0);">
+                    </label>
+                    <span class="ch-composer-msg" id="chComposerMsg"></span>
+                    <button type="button" class="ch-composer-send" id="chComposerSend"
+                            onclick="publishChannelPost()">Опубликовать</button>
+                </div>
+            </div>`;
+        }
+
+        let chComposerImage = null;   // адрес уже загруженной картинки поста
+
+        function focusChannelComposer() {
+            const ta = document.getElementById('chComposerText');
+            if (ta) { ta.scrollIntoView({ block: 'center', behavior: 'smooth' }); ta.focus(); }
+        }
+        window.focusChannelComposer = focusChannelComposer;
+
+        async function pickChannelImage(e) {
+            const file = e.target.files && e.target.files[0];
+            e.target.value = '';
+            if (!file) return;
+            const msg = document.getElementById('chComposerMsg');
+            const prev = document.getElementById('chComposerPreview');
+            if (msg) msg.textContent = 'Загружаем картинку…';
+            try {
+                chComposerImage = await uploadFileUrl(file);
+                if (prev) {
+                    prev.style.display = 'block';
+                    prev.innerHTML = `<img src="${escapeHtml(chComposerImage)}" alt="">` +
+                        `<button type="button" class="ch-composer-drop" onclick="dropChannelImage()" title="Убрать картинку">✕</button>`;
+                }
+                if (msg) msg.textContent = '';
+            } catch (err) {
+                chComposerImage = null;
+                if (msg) msg.textContent = 'Не удалось загрузить: ' + (err.message || 'ошибка');
+            }
+        }
+        window.pickChannelImage = pickChannelImage;
+
+        function dropChannelImage() {
+            chComposerImage = null;
+            const prev = document.getElementById('chComposerPreview');
+            if (prev) { prev.style.display = 'none'; prev.innerHTML = ''; }
+        }
+        window.dropChannelImage = dropChannelImage;
+
+        async function publishChannelPost() {
+            const ta = document.getElementById('chComposerText');
+            const btn = document.getElementById('chComposerSend');
+            const msg = document.getElementById('chComposerMsg');
+            const text = ta ? ta.value.trim() : '';
+            if (!text && !chComposerImage) { if (msg) msg.textContent = 'Напишите текст или добавьте картинку'; return; }
+            if (btn) btn.disabled = true;
+            if (msg) msg.textContent = 'Публикуем…';
+            try {
+                const r = await fetch('/api/channels.php?action=post', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+                    body: JSON.stringify({ text, image_url: chComposerImage }),
+                });
+                const d = await r.json().catch(() => ({}));
+                if (!r.ok || d.ok === false) throw new Error(d.error || ('HTTP ' + r.status));
+                if (ta) ta.value = '';
+                dropChannelImage();
+                if (msg) msg.textContent = '';
+                const chanId = await resolveMyChannelId();
+                await loadChannelPosts(chanId, true);
+                // канал только что появился — обновим список диалогов, чтобы он там был
+                await loadMyChannels();
+                refreshConversationList();
+            } catch (e) {
+                if (msg) msg.textContent = 'Не удалось опубликовать: ' + (e.message || 'ошибка');
+            } finally {
+                if (btn) btn.disabled = false;
+            }
+        }
+        window.publishChannelPost = publishChannelPost;
+
+        async function loadChannelPosts(psychId, isOwn) {
             const container = document.getElementById('messagesContainer');
             container.innerHTML = '<div class="empty-state"><p style="color:#9CA3AF;">Загрузка постов…</p></div>';
             dropRenderCache();
+            if (isOwn === undefined) isOwn = isMyChannel(psychId);
             let rows = [];
             try {
                 const r = await fetch('/api/channels.php?action=posts&psychologist_id=' + encodeURIComponent(psychId), { credentials: 'include' });
                 const d = await r.json();
                 rows = (d && d.data) || [];
             } catch (e) {}
+            const composer = isOwn ? channelComposerHtml() : '';
             if (!rows.length) {
-                container.innerHTML = `<div class="empty-state"><div><p style="color:#9CA3AF;">📡 Здесь появятся публикации психолога — писать в этот раздел нельзя, это только чтение и комментарии к постам.</p></div></div>`;
+                container.innerHTML = composer + (isOwn
+                    ? `<div class="empty-state"><div><p style="color:#9CA3AF;">📡 Канал пока пустой. Первый пост увидят подписчики и Лента.</p></div></div>`
+                    : `<div class="empty-state"><div><p style="color:#9CA3AF;">📡 Здесь появятся публикации автора — писать в этот раздел нельзя, это только чтение и комментарии к постам.</p></div></div>`);
                 dropRenderCache();
                 return;
             }
             chPostCache = {};
             rows.forEach(p => { chPostCache[String(p.id)] = p; });
             chPostChannel = psychId;
-            container.innerHTML = rows.map(chPostHtml).join('');
+            container.innerHTML = composer + rows.map(chPostHtml).join('');
             dropRenderCache();      // канал писал в контейнер напрямую
         }
 
@@ -8427,16 +8629,11 @@
         async function openMyChannel() {
             if (!currentUser) return;
             // Задача №75: канал может вести кто угодно, не только специалист.
-            // У психолога ключ канала — id его профиля (так уже заведены существующие
-            // каналы), у остальных — собственный id пользователя.
-            if (!myOwnPsychId) {
-                try {
-                    const d = await (await fetch('/api/my_profile.php?action=get', { credentials: 'include' })).json();
-                    myOwnPsychId = (d && d.ok && d.profile) ? d.profile.id : null;
-                } catch (e) {}
-            }
-            if (!myOwnPsychId) myOwnPsychId = String(currentUser.id);
-            openChannel(myOwnPsychId);
+            // Ключ канала считает resolveMyChannelId() — там же, где и в остальном коде,
+            // чтобы «свой» канал везде определялся одинаково.
+            const chanId = await resolveMyChannelId();
+            if (!chanId) return;
+            openChannel(chanId);
         }
         window.openMyChannel = openMyChannel;
 

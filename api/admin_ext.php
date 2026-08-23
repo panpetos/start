@@ -135,7 +135,11 @@ function allowedSettingKeys(): array {
     // Модель приёма оплаты и процент сервиса-сплита: без них новые поля тарификации
     // молча не сохранялись бы — список ключей белый, лишнее сюда не пройдёт.
     $keys = ['price_self', 'price_couple', 'price_teen', 'platform_commission', 'acquiring_fee', 'tax_rate',
-             'payment_model', 'split_fee', 'split_fee_payer'];
+             'payment_model', 'split_fee', 'split_fee_payer',
+             // Промокод бесплатной записи (api/promo_booking.php). Без этих двух ключей
+             // админка показывала «Сохранено», а значение молча не доходило до settings —
+             // и промокод не срабатывал никогда.
+             'free_promo_code', 'free_promo_limit'];
     foreach (['self', 'couple', 'teen'] as $t) {
         foreach (['enabled', 'price', 'title', 'duration', 'deadline'] as $f) {
             $keys[] = "promo_{$t}_{$f}";
@@ -516,9 +520,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         list($table, $kc, $vc) = settingsCols($pdo);
         if (!$table) { http_response_code(500); echo json_encode(['error' => 'Не найдена таблица настроек']); exit; }
         $allowed = allowedSettingKeys();
-        $saved = 0; $errors = [];
+        $saved = 0; $errors = []; $skipped = [];
         foreach ($settings as $key => $val) {
-            if (!in_array($key, $allowed, true)) continue;
+            // Ключ не в белом списке — не сохраняем, но и не молчим: раньше такой
+            // ключ исчезал бесследно, а админка рапортовала об успехе.
+            if (!in_array($key, $allowed, true)) { $skipped[] = $key; continue; }
             try {
                 $chk = $pdo->prepare("SELECT COUNT(*) FROM `$table` WHERE `$kc` = ?");
                 $chk->execute([$key]);
@@ -532,7 +538,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $saved++;
             } catch (Exception $e) { $errors[] = $key; }
         }
-        echo json_encode(['ok' => true, 'saved' => $saved, 'errors' => $errors]);
+        echo json_encode(['ok' => true, 'saved' => $saved, 'errors' => $errors, 'skipped' => $skipped]);
         exit;
     }
 

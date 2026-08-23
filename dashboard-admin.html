@@ -1744,7 +1744,16 @@
             const res = await apiPost('save-settings', { settings: payload });
             btn.disabled = false;
             if (res && res.ok) {
-                if(msg){ msg.textContent = '✅ Сохранено (обновлено полей: '+(res.saved||0)+')'; msg.style.color='#16A34A'; }
+                const skipped = (res.skipped || []);
+                if(msg){
+                    if (skipped.length) {
+                        msg.textContent = '⚠️ Сохранено полей: '+(res.saved||0)+', не приняты сервером: '+skipped.join(', ');
+                        msg.style.color = '#B45309';
+                    } else {
+                        msg.textContent = '✅ Сохранено (обновлено полей: '+(res.saved||0)+')';
+                        msg.style.color = '#16A34A';
+                    }
+                }
             } else {
                 if(msg){ msg.textContent = '⚠️ ' + ((res&&res.error)||'Не удалось сохранить'); msg.style.color='#DC2626'; }
             }

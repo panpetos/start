@@ -325,7 +325,9 @@
             }
             if (!currentUser) { window.location.href = '/login.html?redirect=' + encodeURIComponent('/psychologist-blog.html'); return; }
             // Задача №75: блог доступен всем ролям, а не только специалистам.
-            mountDashSidebar('psychologist', ((currentUser.first_name||'') + ' ' + (currentUser.last_name||'')).trim() || currentUser.email || '');
+            // Боковое меню — по РОЛИ пользователя: клиенту незачем показывать разделы
+            // кабинета психолога, из них он всё равно ничего не откроет.
+            mountDashSidebar(currentUser.role || 'client', ((currentUser.first_name||'') + ' ' + (currentUser.last_name||'')).trim() || currentUser.email || '');
             await loadMine();
         })();
     </script>
