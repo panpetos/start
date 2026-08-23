@@ -909,23 +909,29 @@
         .cmp-tool.code { font-family: ui-monospace, Menlo, Consolas, monospace; }
         .cmp-sep { width: 1px; align-self: stretch; background: #ECECEC; margin: 0 0.25rem; }
         .cmp-text {
-            width: 100%; min-height: 8rem; max-height: 40vh; resize: vertical;
+            width: 100%; min-height: 9rem; max-height: 52vh; overflow-y: auto;
             border: 1.5px solid #E5E7EB; border-radius: 0.7rem; padding: 0.7rem 0.85rem;
             font-family: inherit; font-size: 0.95rem; line-height: 1.45; outline: none;
-            margin: 0.9rem 0 0; box-sizing: border-box;
+            margin: 0.9rem 0 0; box-sizing: border-box; word-break: break-word; text-align: left;
         }
         .cmp-text:focus { border-color: #047857; }
-        .cmp-preview-label {
-            font-size: 0.7rem; font-weight: 700; text-transform: uppercase;
-            letter-spacing: 0.04em; color: #9CA3AF; margin: 0.8rem 0 0.3rem;
+        /* Подсказка в пустом поле: у contenteditable своего placeholder нет */
+        .cmp-text:empty::before {
+            content: attr(data-placeholder); color: #9CA3AF; pointer-events: none;
         }
-        .cmp-preview {
-            border: 1px dashed #E5E7EB; border-radius: 0.7rem; padding: 0.7rem 0.85rem;
-            font-size: 0.95rem; line-height: 1.45; min-height: 3rem;
-            max-height: 22vh; overflow-y: auto; margin-bottom: 0.9rem;
-            word-break: break-word;
+        .cmp-text :is(h2, h3) { font-size: 1.05rem; margin: 0.35rem 0; font-weight: 700; }
+        .cmp-text blockquote {
+            margin: 0.4rem 0; padding: 0.3rem 0.8rem; border-left: 3px solid #047857; opacity: 0.9;
         }
-        .cmp-preview :is(h2, h3) { font-size: 1.02rem; margin: 0.3rem 0; }
+        .cmp-text ul, .cmp-text ol { margin: 0.35rem 0 0.35rem 1.3rem; padding: 0; }
+        .cmp-text code {
+            background: rgba(127,127,127,0.18); padding: 0.05em 0.3em;
+            border-radius: 0.25em; font-size: 0.92em;
+        }
+        .cmp-text a { color: #047857; }
+        /* Нажатая кнопка подсвечивается: видно, что сейчас включено */
+        .cmp-tool.on { background: #047857; color: #fff; }
+        body.dark .cmp-tool.on { background: #059669; }
         .cmp-btn-ghost {
             border: 1.5px solid #E5E7EB; background: transparent; color: #4B5563;
             border-radius: 0.6rem; padding: 0.5rem 0.9rem; cursor: pointer;
@@ -3322,10 +3328,11 @@
                 <button onclick="closeComposer()" style="background:none;border:none;font-size:1.2rem;cursor:pointer;color:#6B7280;">✕</button>
             </div>
             <div class="cmp-toolbar" id="cmpToolbar"></div>
-            <div style="padding:0 1.1rem;flex:1;min-height:0;display:flex;flex-direction:column;">
-                <textarea id="composerText" class="cmp-text" placeholder="Текст сообщения. Можно оформлять кнопками выше."></textarea>
-                <div class="cmp-preview-label">Как это будет выглядеть</div>
-                <div class="cmp-preview" id="composerPreview"></div>
+            <div style="padding:0 1.1rem 1rem;flex:1;min-height:0;display:flex;flex-direction:column;">
+                <!-- Поле сразу показывает результат: выделил, нажал «Ж» — и текст жирный.
+                     Отдельного окна с разметкой больше нет, символы вроде ** не мозолят глаза. -->
+                <div id="composerText" class="cmp-text" contenteditable="true" role="textbox"
+                     aria-multiline="true" data-placeholder="Текст сообщения. Выделите его и нажмите кнопку сверху."></div>
             </div>
             <div style="padding:0.85rem 1.1rem;border-top:1px solid #eee;display:flex;gap:0.5rem;justify-content:flex-end;flex-shrink:0;">
                 <button onclick="closeComposer()" class="cmp-btn-ghost">Отмена</button>
@@ -11040,37 +11047,51 @@
         }
 
         // ── Окно форматирования ──
+        // ══════════════════════════════════════════════════════════════════════════
+        //  ОКНО ФОРМАТИРОВАНИЯ — ТЕПЕРЬ СРАЗУ РЕЗУЛЬТАТ
+        //
+        //  Раньше здесь было поле с разметкой (**жирный**) и второе окно снизу,
+        //  показывающее, «как это будет выглядеть». Человеку приходилось держать в
+        //  голове символы и сверяться с превью — неудобно и незачем.
+        //
+        //  Теперь поле само показывает оформленный текст: выделил, нажал «Ж» — и текст
+        //  жирный прямо здесь. Окно предпросмотра убрано за ненадобностью.
+        //
+        //  Хранить сообщения мы по-прежнему будем разметкой — так они одинаково
+        //  выглядят везде и не тащат за собой чужой HTML. Поэтому на входе разметка
+        //  превращается в оформленный текст, а на выходе обратно (cmpToMarkdown).
+        // ══════════════════════════════════════════════════════════════════════════
         const CMP_TOOLS = [
-            { t: 'H2',  title: 'Заголовок',           act: () => cmpPrefix('## ') },
-            { t: 'H3',  title: 'Подзаголовок',        act: () => cmpPrefix('### ') },
+            { t: 'H2',  title: 'Заголовок',            cmd: 'h2',   act: () => cmpBlock('H2') },
+            { t: 'H3',  title: 'Подзаголовок',         cmd: 'h3',   act: () => cmpBlock('H3') },
             { sep: true },
-            { t: 'Ж',   cls: 'b',    title: 'Жирный (**текст**)',        act: () => cmpWrap('**') },
-            { t: 'К',   cls: 'i',    title: 'Курсив (*текст*)',          act: () => cmpWrap('*') },
-            { t: 'Ч',   cls: 'u',    title: 'Подчёркнутый (__текст__)',  act: () => cmpWrap('__') },
-            { t: 'З',   cls: 's',    title: 'Зачёркнутый (~~текст~~)',   act: () => cmpWrap('~~') },
-            { t: '{ }', cls: 'code', title: 'Код (`текст`)',             act: () => cmpWrap('`') },
+            { t: 'Ж',   cls: 'b',    title: 'Жирный',       cmd: 'bold',          act: () => cmpCmd('bold') },
+            { t: 'К',   cls: 'i',    title: 'Курсив',       cmd: 'italic',        act: () => cmpCmd('italic') },
+            { t: 'Ч',   cls: 'u',    title: 'Подчёркнутый', cmd: 'underline',     act: () => cmpCmd('underline') },
+            { t: 'З',   cls: 's',    title: 'Зачёркнутый',  cmd: 'strikeThrough', act: () => cmpCmd('strikeThrough') },
+            { t: '{ }', cls: 'code', title: 'Код',                                act: () => cmpCode() },
             { sep: true },
-            { t: '“ ”', title: 'Цитата',              act: () => cmpPrefix('> ') },
-            { t: '• —', title: 'Маркированный список', act: () => cmpPrefix('- ') },
-            { t: '1.',  title: 'Нумерованный список',  act: () => cmpPrefix('1. ') },
+            { t: '“ ”', title: 'Цитата',               cmd: 'blockquote', act: () => cmpBlock('BLOCKQUOTE') },
+            { t: '• —', title: 'Маркированный список', cmd: 'insertUnorderedList', act: () => cmpCmd('insertUnorderedList') },
+            { t: '1.',  title: 'Нумерованный список',  cmd: 'insertOrderedList',   act: () => cmpCmd('insertOrderedList') },
             { t: '🔗',  title: 'Ссылка',               act: () => cmpLink() },
             { t: '⤵',   title: 'Блок-схема',           act: () => cmpDiagram() },
+            { t: '✕',   title: 'Убрать оформление',    act: () => cmpCmd('removeFormat') },
         ];
 
-        /** Заготовка блок-схемы: человеку остаётся заменить слова на свои. */
+        /**
+         * Заготовка блок-схемы: человеку остаётся заменить слова на свои.
+         * Схема рисуется из текста между ```схема и ```, поэтому вставляем её как
+         * есть — обычным текстом, который потом превратится в картинку.
+         */
         function cmpDiagram() {
-            const ta = cmpArea();
-            if (!ta) return;
-            const tpl = '```схема\nЗаявка -> Проверка\nПроверка -> |да| Оплата\nПроверка -> |нет| Отказ\n```\n';
-            const at = ta.selectionStart;
-            const before = ta.value.slice(0, at);
-            const pad = (before && !before.endsWith('\n')) ? '\n' : '';
-            ta.value = before + pad + tpl + ta.value.slice(at);
-            ta.focus();
-            // курсор — на первое слово, чтобы сразу печатать своё
-            const pos = before.length + pad.length + '```схема\n'.length;
-            ta.setSelectionRange(pos, pos + 'Заявка'.length);
-            renderCmpPreview();
+            const el = cmpArea();
+            if (!el) return;
+            el.focus();
+            const tpl = '```схема\nЗаявка -> Проверка\nПроверка -> |да| Оплата\nПроверка -> |нет| Отказ\n```';
+            try { document.execCommand('insertText', false, '\n' + tpl + '\n'); }
+            catch (e) { el.appendChild(document.createTextNode('\n' + tpl + '\n')); }
+            cmpSyncToolbar();
         }
 
         function renderCmpToolbar() {
@@ -11078,64 +11099,205 @@
             if (!box) return;
             box.innerHTML = CMP_TOOLS.map((it, i) => it.sep
                 ? '<span class="cmp-sep"></span>'
-                : `<button type="button" class="cmp-tool ${it.cls || ''}" title="${escapeHtml(it.title)}" onclick="CMP_TOOLS[${i}].act()">${escapeHtml(it.t)}</button>`
+                // Нажатие мышью не должно уводить курсор из текста — иначе пропадёт выделение
+                : `<button type="button" class="cmp-tool ${it.cls || ''}" data-cmd="${it.cmd || ''}"
+                           title="${escapeHtml(it.title)}" onmousedown="event.preventDefault()"
+                           onclick="CMP_TOOLS[${i}].act()">${escapeHtml(it.t)}</button>`
             ).join('');
         }
 
         function cmpArea() { return document.getElementById('composerText'); }
-        function cmpWrap(mark) { wrapPostSelection(cmpArea(), mark, mark); renderCmpPreview(); }
-        function cmpPrefix(pfx) { prefixPostLine(cmpArea(), pfx); renderCmpPreview(); }
+
+        /** Применить оформление к выделенному. */
+        function cmpCmd(cmd) {
+            const el = cmpArea();
+            if (!el) return;
+            el.focus();
+            // Просим браузер расставлять теги (<b>), а не стили (<span style>):
+            // из тегов потом легко собрать разметку обратно.
+            try { document.execCommand('styleWithCSS', false, false); } catch (e) {}
+            try { document.execCommand(cmd, false, null); } catch (e) {}
+            cmpSyncToolbar();
+        }
+
+        /** Заголовок, подзаголовок, цитата — оформление целой строки. */
+        function cmpBlock(tag) {
+            const el = cmpArea();
+            if (!el) return;
+            el.focus();
+            const already = cmpInside(tag);
+            try { document.execCommand('formatBlock', false, already ? 'DIV' : tag); } catch (e) {}
+            cmpSyncToolbar();
+        }
+
+        /** Внутри ли курсор такого блока — чтобы кнопка работала как переключатель. */
+        function cmpInside(tag) {
+            const sel = window.getSelection();
+            if (!sel || !sel.anchorNode) return false;
+            let n = sel.anchorNode;
+            const root = cmpArea();
+            while (n && n !== root) {
+                if (n.nodeType === 1 && n.tagName === tag) return true;
+                n = n.parentNode;
+            }
+            return false;
+        }
+
+        /** Код: своего execCommand нет, оборачиваем выделение сами. */
+        function cmpCode() {
+            const el = cmpArea();
+            const sel = window.getSelection();
+            if (!el || !sel || !sel.rangeCount) return;
+            if (cmpInside('CODE')) { cmpCmd('removeFormat'); return; }
+            const range = sel.getRangeAt(0);
+            if (range.collapsed) return;
+            const code = document.createElement('code');
+            try { range.surroundContents(code); }
+            catch (e) { code.appendChild(range.extractContents()); range.insertNode(code); }
+            sel.removeAllRanges();
+            const r = document.createRange(); r.selectNodeContents(code); sel.addRange(r);
+            cmpSyncToolbar();
+        }
+
         function cmpLink() {
+            const el = cmpArea();
+            const sel = window.getSelection();
+            if (!el) return;
             const url = prompt('Ссылка (http://, https:// или /внутренний-путь):', 'https://');
             if (url === null) return;
             const u = url.trim();
             if (!/^(https?:\/\/|\/)/.test(u)) { alert('Такая ссылка не поддерживается.'); return; }
-            const ta = cmpArea();
-            const start = ta.selectionStart, end = ta.selectionEnd;
-            const text = ta.value.slice(start, end) || 'текст ссылки';
-            ta.value = ta.value.slice(0, start) + '[' + text + '](' + u + ')' + ta.value.slice(end);
-            ta.focus();
-            ta.setSelectionRange(start + 1, start + 1 + text.length);
-            renderCmpPreview();
+            el.focus();
+            if (sel && sel.rangeCount && !sel.getRangeAt(0).collapsed) {
+                try { document.execCommand('createLink', false, u); } catch (e) {}
+            } else {
+                // Нечего выделять — вставляем сам адрес ссылкой
+                try { document.execCommand('insertHTML', false,
+                    '<a href="' + escapeAttr(u) + '">' + escapeHtml(u) + '</a>&nbsp;'); } catch (e) {}
+            }
+            cmpSyncToolbar();
         }
 
-        function renderCmpPreview() {
-            const out = document.getElementById('composerPreview');
-            const ta = cmpArea();
-            if (!out || !ta) return;
-            out.innerHTML = ta.value.trim()
-                ? formatPostText(ta.value)
-                : '<span style="color:#9CA3AF;">Здесь появится оформленный текст</span>';
+        /** Подсветить кнопки, которые сейчас включены. */
+        function cmpSyncToolbar() {
+            document.querySelectorAll('#cmpToolbar .cmp-tool[data-cmd]').forEach(b => {
+                const cmd = b.getAttribute('data-cmd');
+                let on = false;
+                try {
+                    if (cmd === 'h2') on = cmpInside('H2');
+                    else if (cmd === 'h3') on = cmpInside('H3');
+                    else if (cmd === 'blockquote') on = cmpInside('BLOCKQUOTE');
+                    else if (cmd) on = document.queryCommandState(cmd);
+                } catch (e) {}
+                b.classList.toggle('on', !!on);
+            });
+        }
+
+        /**
+         * Оформленный текст → наша разметка.
+         *
+         * Идём по дереву и складываем строку: жирное в **, курсив в *, и так далее.
+         * Чужой HTML сюда не попадает — поле принимает только то, что расставили
+         * кнопки, а вставку из буфера мы очищаем до простого текста.
+         */
+        function cmpToMarkdown(root) {
+            const walk = (node) => {
+                if (node.nodeType === 3) return node.nodeValue.replace(/ /g, ' ');
+                if (node.nodeType !== 1) return '';
+                const kids = () => Array.from(node.childNodes).map(walk).join('');
+                switch (node.tagName) {
+                    case 'BR': return '\n';
+                    case 'B': case 'STRONG': { const t = kids(); return t.trim() ? '**' + t + '**' : t; }
+                    case 'I': case 'EM': { const t = kids(); return t.trim() ? '*' + t + '*' : t; }
+                    case 'U': { const t = kids(); return t.trim() ? '__' + t + '__' : t; }
+                    case 'S': case 'STRIKE': case 'DEL': { const t = kids(); return t.trim() ? '~~' + t + '~~' : t; }
+                    case 'CODE': { const t = kids(); return t.trim() ? '`' + t + '`' : t; }
+                    case 'A': {
+                        const href = node.getAttribute('href') || '';
+                        const t = kids().trim();
+                        if (!href) return t;
+                        return (t && t !== href) ? '[' + t + '](' + href + ')' : href;
+                    }
+                    case 'H1': case 'H2': return '## ' + kids().trim() + '\n';
+                    case 'H3': case 'H4': return '### ' + kids().trim() + '\n';
+                    case 'BLOCKQUOTE':
+                        return kids().trim().split('\n').map(l => '> ' + l).join('\n') + '\n';
+                    case 'UL':
+                        return Array.from(node.children).map(li => '- ' + walk(li).trim()).join('\n') + '\n';
+                    case 'OL':
+                        return Array.from(node.children).map((li, i) => (i + 1) + '. ' + walk(li).trim()).join('\n') + '\n';
+                    case 'LI': return kids();
+                    case 'DIV': case 'P': {
+                        const t = kids();
+                        return t.endsWith('\n') ? t : t + '\n';
+                    }
+                    default: return kids();
+                }
+            };
+            return Array.from(root.childNodes).map(walk).join('')
+                .replace(/\n{3,}/g, '\n\n')      // подряд идущие пустые строки схлопываем
+                .replace(/[ \t]+\n/g, '\n')
+                .trim();
         }
 
         function openComposer() {
             renderCmpToolbar();
-            const ta = cmpArea();
+            const el = cmpArea();
             const input = document.getElementById('messageInput');
-            // переносим уже набранное, чтобы не пришлось перепечатывать
-            ta.value = input ? input.value : '';
-            ta.oninput = renderCmpPreview;
-            renderCmpPreview();
+            // Переносим уже набранное и сразу показываем оформленным
+            const text = input ? input.value : '';
+            el.innerHTML = text.trim() ? formatPostText(text) : '';
             document.getElementById('composerModal').style.display = 'flex';
-            ta.focus();
+            el.focus();
+            // Курсор в конец текста
+            try {
+                const r = document.createRange(); r.selectNodeContents(el); r.collapse(false);
+                const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(r);
+            } catch (e) {}
+            cmpSyncToolbar();
         }
+
         function closeComposer() {
-            // не теряем набранное: возвращаем текст в обычное поле
-            const ta = cmpArea();
+            // Не теряем набранное: возвращаем текст в обычное поле разметкой
+            const el = cmpArea();
             const input = document.getElementById('messageInput');
-            if (input && ta) { input.value = ta.value; autoGrowInput(input); }
+            if (input && el) { input.value = cmpToMarkdown(el); autoGrowInput(input); }
             document.getElementById('composerModal').style.display = 'none';
         }
+
         async function sendFromComposer() {
-            const ta = cmpArea();
+            const el = cmpArea();
             const input = document.getElementById('messageInput');
-            if (!ta || !input) return;
-            if (!ta.value.trim()) { alert('Введите текст сообщения.'); return; }
-            input.value = ta.value;
+            if (!el || !input) return;
+            const md = cmpToMarkdown(el);
+            if (!md.trim()) { alert('Введите текст сообщения.'); return; }
+            input.value = md;
             document.getElementById('composerModal').style.display = 'none';
-            ta.value = '';
+            el.innerHTML = '';
             await sendMessage();
         }
+
+        // Подсветка кнопок и защита от чужого HTML при вставке
+        document.addEventListener('DOMContentLoaded', () => {
+            const el = cmpArea();
+            if (!el) return;
+            ['keyup', 'mouseup', 'input'].forEach(ev => el.addEventListener(ev, cmpSyncToolbar));
+            el.addEventListener('paste', (e) => {
+                // Вставляем только текст: чужая разметка со стилями нам не нужна
+                e.preventDefault();
+                const t = (e.clipboardData || window.clipboardData).getData('text/plain');
+                try { document.execCommand('insertText', false, t); } catch (err) {}
+            });
+            // Привычные сочетания работают и здесь
+            el.addEventListener('keydown', (e) => {
+                if (!(e.ctrlKey || e.metaKey)) return;
+                const k = e.key.toLowerCase();
+                if (k === 'b' || k === 'и') { e.preventDefault(); cmpCmd('bold'); }
+                else if (k === 'i' || k === 'ш') { e.preventDefault(); cmpCmd('italic'); }
+                else if (k === 'u' || k === 'г') { e.preventDefault(); cmpCmd('underline'); }
+                else if (e.key === 'Enter') { e.preventDefault(); sendFromComposer(); }
+            });
+        });
 
         async function sendMessage() {
             // Идёт правка — «отправить» означает «сохранить», как и в других мессенджерах
