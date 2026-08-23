@@ -2501,6 +2501,15 @@
             color: #999;
         }
 
+        /* «Выше есть ещё»: и подсказка, и кнопка — если прокрутка не сработала */
+        .dm-older {
+            margin: 0.6rem auto 0.4rem; width: fit-content; cursor: pointer;
+            padding: 0.35rem 0.9rem; border-radius: 999px; font-size: 0.8rem; font-weight: 600;
+            background: rgba(4,120,87,0.10); color: #065F46;
+        }
+        .dm-older:hover { background: rgba(4,120,87,0.18); }
+        body.dark .dm-older { background: rgba(4,120,87,0.24); color: #A7F3D0; }
+
         /* «Скелет» переписки, пока она грузится: серые пузыри вместо чужих сообщений */
         .msg-skeleton { padding: 1rem 0.5rem; display: flex; flex-direction: column; gap: 0.6rem; }
         .sk-bubble {
@@ -5664,6 +5673,63 @@
                 }));
             } catch (e) { return []; }
         }
+
+        // ══════════════════════════════════════════════════════════════════════════
+        //  ПЕРЕПИСКА ПОРЦИЯМИ
+        //
+        //  Раньше чат забирал ВСЕ сообщения переписки одним запросом — и делал это не
+        //  только при открытии, но и на каждом опросе. Пока сообщений сотни, это
+        //  незаметно; на нескольких тысячах в одной переписке каждое открытие тянуло бы
+        //  мегабайт и заметно тормозило.
+        //
+        //  Теперь берём последние 50, а старые подгружаются, когда человек прокручивает
+        //  переписку вверх — как в любом мессенджере. Уже подгруженное не теряется:
+        //  очередной опрос приносит только свежий кусок и склеивается с тем, что есть.
+        // ══════════════════════════════════════════════════════════════════════════
+        const DM_PAGE = 50;
+        let dmState = { peer: null, list: [], cursor: null, hasMore: false, loading: false };
+        let dmKeepScroll = 0;        // высота прокрутки до вставки старых — чтобы не «прыгнуло»
+
+        /** Склеить свежую порцию с тем, что уже показано, без повторов. */
+        function dmMerge(fresh) {
+            if (!dmState.list.length) return fresh.slice();
+            const seen = new Set(fresh.map(m => String(m.id)));
+            const older = dmState.list.filter(m => !seen.has(String(m.id)));
+            return older.concat(fresh);
+        }
+
+        /** Подгрузить порцию старых сообщений (человек долистал до верха). */
+        async function loadOlderMessages() {
+            if (dmState.loading || !dmState.hasMore || !dmState.cursor) return;
+            if (dmState.peer !== selectedUserId) return;
+            dmState.loading = true;
+            const box = document.getElementById('messagesContainer');
+            try {
+                const r = await fetch('/api/messages_page.php?with=' + encodeURIComponent(dmState.peer) +
+                                      '&limit=' + DM_PAGE + '&before=' + encodeURIComponent(dmState.cursor),
+                                      { credentials: 'include' });
+                const d = await r.json();
+                if (!d || !d.ok || !Array.isArray(d.data) || !d.data.length) { dmState.hasMore = false; return; }
+                dmState.list = d.data.concat(dmState.list);
+                dmState.cursor = d.cursor;
+                dmState.hasMore = !!d.has_more;
+                // Запоминаем высоту до вставки: после отрисовки вернём прокрутку на то
+                // же место, иначе переписка скакнёт вниз на высоту добавленного.
+                dmKeepScroll = box ? box.scrollHeight : 0;
+                await loadMessages();
+            } catch (e) { /* не вышло — просто останемся на том, что есть */ }
+            finally { dmState.loading = false; }
+        }
+        window.loadOlderMessages = loadOlderMessages;
+
+        // Долистали до верха — подтягиваем предыдущие
+        document.addEventListener('DOMContentLoaded', () => {
+            const box = document.getElementById('messagesContainer');
+            if (!box) return;
+            box.addEventListener('scroll', () => {
+                if (box.scrollTop < 140) loadOlderMessages();
+            }, { passive: true });
+        });
 
         let convCache = [];          // последний загруженный список диалогов
         let msgGen = 0;              // номер загрузки: ответы прошлого чата не рисуем
@@ -10084,9 +10150,11 @@
                 // Отметки правок раньше можно было спросить только по списку id, то есть
                 // строго после сообщений; теперь message_edit.php умеет отдавать их сразу
                 // за всю переписку — поэтому запрос уходит вместе с остальными.
-                const [messages, editedMap] = await Promise.all([
-                    fetch(`/api/messages.php?action=list&with_user=${selectedUserId}`, { credentials: 'include' })
-                        .then(r => r.json()).catch(() => []),
+                const [page, editedMap] = await Promise.all([
+                    // Порциями: последние 50, старые подтягиваются прокруткой вверх
+                    fetch(`/api/messages_page.php?with=${encodeURIComponent(selectedUserId)}&limit=${DM_PAGE}`,
+                          { credentials: 'include' })
+                        .then(r => r.json()).catch(() => null),
                     fetch(`/api/message_edit.php?action=edited-map&with=${encodeURIComponent(selectedUserId)}`,
                           { credentials: 'include' })
                         .then(r => r.json()).then(d => (d && d.ok && d.data) || {}).catch(() => ({})),
@@ -10096,6 +10164,29 @@
                 ]);
                 // Пока грузили, человек переключился на другую переписку — чужое не рисуем
                 if (stale()) return;
+
+                let messages;
+                if (page && page.ok && Array.isArray(page.data)) {
+                    if (dmState.peer !== peerAtStart) {
+                        // Открыли другую переписку — начинаем её историю с чистого листа
+                        dmState = { peer: peerAtStart, list: [], cursor: page.cursor,
+                                    hasMore: !!page.has_more, loading: dmState.loading };
+                    } else if (!dmState.list.length) {
+                        dmState.cursor = page.cursor;
+                        dmState.hasMore = !!page.has_more;
+                    }
+                    messages = dmMerge(page.data);
+                    dmState.list = messages;
+                } else {
+                    // Запасной путь: сервер порциями не отдал — берём переписку целиком,
+                    // как раньше. Лучше медленно, чем пустой экран.
+                    messages = await fetch(`/api/messages.php?action=list&with_user=${selectedUserId}`,
+                                           { credentials: 'include' })
+                        .then(r => r.json()).catch(() => []);
+                    if (stale()) return;
+                    if (!Array.isArray(messages)) return;
+                    dmState = { peer: peerAtStart, list: messages, cursor: null, hasMore: false, loading: false };
+                }
                 if (!Array.isArray(messages)) return;
 
                 if (!otherUser && headerRenderedFor !== selectedUserId) {
@@ -10114,7 +10205,12 @@
                 // Альбомы сворачиваем до отрисовки: подряд идущие фото одной отправки
                 // становятся одним сообщением с сеткой вместо череды одинаковых пузырей.
                 const dmDay = { prev: '' };
-                const dmHtml = foldAlbums(messages).map(m => {
+                // Показываем, что история продолжается выше: иначе кажется, будто
+                // переписка началась с середины.
+                const olderHint = dmState.hasMore
+                    ? `<div class="dm-older" onclick="loadOlderMessages()">${dmState.loading ? 'Загружаю…' : '↑ Показать более ранние'}</div>`
+                    : '';
+                const dmHtml = olderHint + foldAlbums(messages).map(m => {
                     const sep = daySepHtml(m.created_at, dmDay);
                     // Для админа: сообщения от support тоже считаются "своими"
                     const isMine = String(m.sender_id) === String(currentUser.id) ||
@@ -10233,7 +10329,12 @@
                 repaintAllVoice();
                 restoreVideoNote();
                 restoreFlash();
-                if (wasScrolledToBottom) {
+                if (dmKeepScroll) {
+                    // Вставили порцию старых сверху — сдвигаем прокрутку ровно на её
+                    // высоту, чтобы человек остался на том же сообщении.
+                    container.scrollTop += (container.scrollHeight - dmKeepScroll);
+                    dmKeepScroll = 0;
+                } else if (wasScrolledToBottom) {
                     container.scrollTop = container.scrollHeight;
                 }
 
