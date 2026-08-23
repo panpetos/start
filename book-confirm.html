@@ -451,14 +451,19 @@
         // Задана ли вообще бесплатная запись по промокоду. Пока админ не задал код,
         // поле не показываем: иначе клиент вводит код и получает «сейчас отключено»,
         // а выглядит это как поломка страницы.
-        let promoEnabled = false;
+        //
+        // По умолчанию — ПОКАЗЫВАЕМ. Прячем только если сервер прямо ответил, что
+        // функция выключена. Иначе любая сетевая ошибка прятала бы поле совсем, и
+        // человек с действующим промокодом не смог бы его ввести — это хуже, чем
+        // лишнее поле на экране.
+        let promoEnabled = true;
 
         async function loadPromoEnabled() {
             try {
                 const r = await fetch('/api/promo_booking.php?action=enabled', { credentials: 'include' });
                 const d = await r.json();
-                promoEnabled = !!(d && d.enabled);
-            } catch (e) { promoEnabled = false; }
+                if (d && d.ok) promoEnabled = !!d.enabled;
+            } catch (e) { /* оставляем поле показанным */ }
         }
 
         function promoReset() {
