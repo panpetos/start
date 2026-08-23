@@ -26,55 +26,92 @@
     const rx = (open, close) => new RegExp(open.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + NOSP +
                                            close.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g');
 
+    // ── Адреса, домены и почта ───────────────────────────────────────────────────
+    //
+    //  ПОЧЕМУ ЭТО ПЕРЕПИСАНО. Раньше разметка (**жирный**, _курсив_) применялась
+    //  ПЕРВОЙ, а ссылки искались уже в готовом html. Из-за этого адрес с
+    //  подчёркиванием — https://site.ru/my_page_name — по дороге превращался в
+    //  «my<i>page</i>name», и ссылкой становился только огрызок до первого «_».
+    //  То же со звёздочкой. А ещё адрес не распознавался, если перед ним не было
+    //  пробела («Ссылка:https://…») или он стоял в кавычках-ёлочках («…»).
+    //
+    //  Теперь наоборот: сначала из ИСХОДНОГО текста вынимаем всё, что похоже на
+    //  адрес, и заменяем метками. Разметка работает с остатком и до адресов не
+    //  дотягивается. В конце метки заменяются готовыми ссылками.
+
+    // Домены верхнего уровня для адресов, написанных без схемы (site.ru/page)
+    const TLD = 'ru|рф|com|net|org|io|dev|me|pro|su|info|biz|online|site|store|app|ai|' +
+                'tech|space|website|cloud|team|group|life|world|club|shop|xyz|edu|gov|' +
+                'tv|cc|by|kz|ua|de|fr|uk|us';
+    // Символы, которых в адресе не бывает: кавычки, угловые скобки, пробелы
+    const STOP = '\\s<>"\'«»';
+    const LINK_SCAN = new RegExp(
+        // 1) полный адрес со схемой или начинающийся с www.
+        '(?:https?://|www\\.)[^' + STOP + ']+' +
+        // 2) почта
+        '|[^' + STOP + '()@]+@[^' + STOP + '()@]+\\.[a-zA-Zа-яА-ЯёЁ]{2,}' +
+        // 3) домен без схемы: site.ru, sub.site.com/path
+        '|[a-zA-Z0-9а-яА-ЯёЁ][-a-zA-Z0-9а-яА-ЯёЁ]*(?:\\.[-a-zA-Z0-9а-яА-ЯёЁ]+)*\\.(?:' + TLD + ')' +
+        '(?:/[^' + STOP + ']*)?',
+        'g');
+
+    /** Отрезать от адреса то, что на самом деле принадлежит предложению. */
+    function trimUrlTail(u) {
+        let s = u;
+        for (let i = 0; i < 4; i++) {
+            const before = s;
+            s = s.replace(/[.,;:!?…]+$/, '');                  // точка в конце предложения
+            // Закрывающая парная разметка: «**смотри https://site.ru/a**» — звёздочки
+            // здесь принадлежат жирному тексту, а не адресу. Одиночные * и _ не трогаем:
+            // в настоящих адресах они встречаются.
+            s = s.replace(/(?:\*\*|__|~~|`)+$/, '');
+            // Непарная закрывающая скобка — тоже часть предложения, а не адреса.
+            // Парная остаётся: в Википедии адреса вида /wiki/Тест_(значения) законны.
+            while (/\)$/.test(s) && (s.split(')').length > s.split('(').length)) s = s.slice(0, -1);
+            while (/\]$/.test(s) && (s.split(']').length > s.split('[').length)) s = s.slice(0, -1);
+            if (s === before) break;
+        }
+        return s;
+    }
+
     function inlineFmt(s) {
-        const out = escapeHtml(s)
+        const raw = (s == null ? '' : String(s));
+        const tokens = [];
+        const put = (html) => '\u0001' + (tokens.push(html) - 1) + '\u0001';
+        const link = (href, text) =>
+            '<a href="' + escapeHtml(href) + '" target="_blank" rel="noopener nofollow">' + escapeHtml(text) + '</a>';
+
+        // 1) Явная разметка [текст](адрес) — разбираем раньше остального,
+        //    иначе адрес внутри скобок уехал бы в метку и разметка сломалась.
+        let work = raw.replace(/\[([^\]\n]+)\]\((https?:\/\/[^\s)]+|\/[^\s)]*)\)/g,
+            (m, text, url) => put('<a href="' + escapeHtml(url) + '" target="_blank" rel="noopener nofollow">' +
+                                  escapeHtml(text) + '</a>'));
+
+        // 2) Голые адреса, домены и почта — тоже в метки, ДО разметки
+        work = work.replace(LINK_SCAN, (m, offset, whole) => {
+            // Внутри метки ничего искать не нужно
+            if (m.indexOf('\u0001') >= 0) return m;
+            const url = trimUrlTail(m);
+            const tail = m.slice(url.length);
+            if (!url) return m;
+            if (/@/.test(url) && !/^https?:\/\//i.test(url)) return put(link('mailto:' + url, url)) + tail;
+            const href = /^https?:\/\//i.test(url) ? url : 'https://' + url;
+            return put(link(href, url)) + tail;
+        });
+
+        // 3) Экранируем остаток и применяем разметку. Метки состоят из служебного
+        //    символа и цифр — ни экранирование, ни разметка их не трогают.
+        const out = escapeHtml(work)
             .replace(rx('**', '**'), '<b>$1</b>')
             .replace(rx('~~', '~~'), '<s>$1</s>')
             .replace(rx('`', '`'), '<code style="background:rgba(127,127,127,0.18);padding:0.05em 0.3em;border-radius:0.25em;font-size:0.92em;">$1</code>')
             // двойное подчёркивание разбираем ДО одинарного, иначе от него остались бы «хвосты»
             .replace(rx('__', '__'), '<u>$1</u>')
             .replace(rx('*', '*'), '<i>$1</i>')
-            .replace(rx('_', '_'), '<i>$1</i>')
-            // ссылка [текст](url) — пускаем только http(s) и внутренние /пути, иначе оставляем текстом
-            .replace(/\[([^\]\n]+)\]\((https?:\/\/[^\s)]+|\/[^\s)]*)\)/g,
-                '<a href="$2" target="_blank" rel="noopener nofollow">$1</a>');
-        return autoLink(out);
-    }
+            .replace(rx('_', '_'), '<i>$1</i>');
 
-    /**
-     * Голые ссылки и домены делаем кликабельными: люди редко пишут разметкой,
-     * а адрес в переписке должен открываться нажатием.
-     *
-     * Работает по УЖЕ собранному html, поэтому пропускаем то, что внутри тегов
-     * (<a href="…">) — иначе адрес внутри атрибута разорвало бы вложенной ссылкой.
-     */
-    function autoLink(html) {
-        if (!html || !/[.:@]/.test(html)) return html;
-        const parts = html.split(/(<[^>]+>)/);      // нечётные элементы — сами теги
-        let insideLink = 0;
-        for (let i = 0; i < parts.length; i++) {
-            const p = parts[i];
-            if (i % 2 === 1) {                       // это тег
-                if (/^<a\b/i.test(p)) insideLink++;
-                else if (/^<\/a>/i.test(p)) insideLink = Math.max(0, insideLink - 1);
-                continue;
-            }
-            if (insideLink) continue;                // внутри ссылки второй раз не оборачиваем
-            parts[i] = p
-                // полный адрес со схемой
-                .replace(/(^|[\s(])((?:https?:\/\/)[^\s<>()]+[^\s<>().,;:!?])/g,
-                    '$1<a href="$2" target="_blank" rel="noopener nofollow">$2</a>')
-                // домен без схемы: site.ru, www.site.com/path
-                .replace(/(^|[\s(])((?:www\.)?[a-zA-Zа-яА-Я0-9][-a-zA-Zа-яА-Я0-9]*(?:\.[-a-zA-Zа-яА-Я0-9]+)*\.(?:ru|рф|com|net|org|io|dev|me|pro|su|info|biz|online|site|store|app|ai)(?:\/[^\s<>()]*)?)(?=$|[\s).,;:!?])/g,
-                    function (m, pre, dom) {
-                        if (/@/.test(dom)) return m;             // это часть почты — не трогаем
-                        return pre + '<a href="https://' + dom + '" target="_blank" rel="noopener nofollow">' + dom + '</a>';
-                    })
-                // почта
-                .replace(/(^|[\s(])([^\s<>()@]+@[^\s<>()@]+\.[a-zA-Zа-яА-Я]{2,})(?=$|[\s).,;:!?])/g,
-                    '$1<a href="mailto:$2">$2</a>');
-        }
-        return parts.join('');
+        // 4) Возвращаем ссылки на место
+        return out.replace(/\u0001(\d+)\u0001/g, (m, i) => tokens[+i] || '');
     }
 
     // ── Блок-схемы ───────────────────────────────────────────────────────────────
@@ -277,6 +314,9 @@
     }
 
     global.formatPostText = formatPostText;
+    // Тем же правилом отрезает лишнее от адреса карточка ссылки в чате —
+    // чтобы адрес в карточке совпадал с тем, что стало ссылкой в тексте.
+    global.psyTrimUrlTail = trimUrlTail;
     global.psyDiagramSvg = diagramSvg;
     global.wrapPostSelection = wrapSelection;
     global.prefixPostLine = prefixLine;

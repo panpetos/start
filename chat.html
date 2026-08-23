@@ -3499,7 +3499,7 @@
     <script src="/js/api.js?v=20260821"></script>
     <script src="/js/auth.js?v=20260821"></script>
     <script src="/js/lightbox.js?v=3"></script>
-    <script src="/js/post-format.js?v=20260821"></script>
+    <script src="/js/post-format.js?v=20260823"></script>
     <script src="/js/header.js?v=20260821"></script>
     <script>
         const FAVORITES_ID = '__fav__'; // псевдо-собеседник «Избранное» (свой личный диалог)
@@ -8044,7 +8044,9 @@
         function firstLinkOf(text) {
             const m = String(text || '').match(LINK_RE);
             if (!m) return null;
-            const url = m[0].replace(/[.,;:!?)»]+$/, '');
+            // Отрезаем хвост тем же правилом, что и разбор текста (js/post-format.js):
+            // иначе в карточке оказался бы адрес с точкой предложения на конце.
+            const url = (typeof psyTrimUrlTail === 'function') ? psyTrimUrlTail(m[0]) : m[0].replace(/[.,;:!?)»]+$/, '');
             if (/telemost\.yandex\./i.test(url)) return null;    // для неё своя кнопка
             if (url.indexOf(location.origin) === 0) return null; // свои же страницы не поясняем
             return url;
