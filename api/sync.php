@@ -90,16 +90,29 @@ function syncRev(PDO $pdo, $sql, array $args) {
     } catch (Exception $e) { return null; }
 }
 
-/** Есть ли такая колонка — схемы у разных установок немного разные. */
+/**
+ * Есть ли такая колонка — схемы у разных установок немного разные.
+ *
+ * Раньше здесь был prepare("SHOW COLUMNS FROM `t` LIKE ?"). На боевой базе
+ * подготовка идёт на стороне сервера (emulate_prepares выключен), а MySQL не
+ * принимает подстановку в SHOW: запрос падал с ошибкой синтаксиса, catch её глушил,
+ * и функция ВСЕГДА отвечала «колонки нет». Здесь из-за этого в открытой переписке
+ * не отслеживалось время правки — исправленный текст не обновлялся у собеседника.
+ * Тот же приём стоил дороже в messages_page.php: оттуда молча пропадали вложения.
+ * Спрашиваем список колонок целиком, без подстановок, и запоминаем на запрос.
+ */
 function syncHasColumn(PDO $pdo, $table, $col) {
     static $memo = [];
-    $k = $table . '.' . $col;
-    if (isset($memo[$k])) return $memo[$k];
-    try {
-        $st = $pdo->prepare("SHOW COLUMNS FROM `$table` LIKE ?");
-        $st->execute([$col]);
-        return $memo[$k] = (bool)$st->fetch();
-    } catch (Exception $e) { return $memo[$k] = false; }
+    if (!isset($memo[$table])) {
+        $memo[$table] = [];
+        try {
+            foreach ($pdo->query("SHOW COLUMNS FROM `$table`")->fetchAll(PDO::FETCH_ASSOC) as $r) {
+                $name = $r['Field'] ?? ($r['field'] ?? null);
+                if ($name !== null) $memo[$table][] = (string)$name;
+            }
+        } catch (Exception $e) { $memo[$table] = []; }
+    }
+    return in_array($col, $memo[$table], true);
 }
 
 // ── 1. «Я здесь» и «я печатаю» ────────────────────────────────────────────────
