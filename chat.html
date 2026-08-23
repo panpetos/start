@@ -980,6 +980,103 @@
         body.dark .fav-tag span { background: rgba(255,255,255,0.12); }
         body.dark .fav-tag.on { background: #047857; border-color: #047857; color: #fff; }
 
+        /* ── Каталог психологов внутри чата ────────────────────────────────────── */
+        .psy-cat { padding: 0.75rem 0.9rem 2rem; max-width: 900px; margin: 0 auto; width: 100%; }
+        .psy-cat-wait { padding: 1.5rem 1rem; text-align: center; color: #9CA3AF; font-size: 0.92rem; line-height: 1.6; }
+        .psy-tools { display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 0.6rem; }
+        .psy-search {
+            width: 100%; padding: 0.6rem 0.8rem; font-family: inherit; font-size: 0.95rem;
+            border: 1.5px solid #E5E7EB; border-radius: 0.7rem; outline: none; background: #fff; color: #1A1A1A;
+        }
+        .psy-search:focus { border-color: #6EE7B7; }
+        .psy-chips { display: flex; gap: 0.35rem; flex-wrap: wrap; }
+        .psy-chip {
+            border: 1.5px solid #E5E7EB; background: #fff; color: #4B5563; font-family: inherit;
+            font-size: 0.8rem; font-weight: 600; padding: 0.3rem 0.7rem; border-radius: 2rem; cursor: pointer;
+        }
+        .psy-chip.on { background: #047857; border-color: #047857; color: #fff; }
+        .psy-count { color: #9CA3AF; font-size: 0.8rem; margin-bottom: 0.5rem; }
+        .psy-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr)); gap: 0.7rem; }
+        .psy-card {
+            background: #fff; border: 1px solid #EFF7F3; border-radius: 0.9rem;
+            padding: 0.85rem 0.9rem; display: flex; flex-direction: column; gap: 0.55rem;
+        }
+        .psy-head { display: flex; gap: 0.7rem; align-items: flex-start; }
+        .psy-ava {
+            width: 54px; height: 54px; flex-shrink: 0; border-radius: 50%; overflow: hidden;
+            background: linear-gradient(135deg, #047857, #059669); color: #fff;
+            display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 1.25rem;
+        }
+        .psy-ava img { width: 100%; height: 100%; object-fit: cover; display: block; cursor: zoom-in; }
+        .psy-who { min-width: 0; flex: 1; }
+        .psy-name { font-weight: 700; font-size: 0.98rem; display: flex; align-items: center; gap: 0.3rem; }
+        .psy-ok { color: #047857; font-size: 0.85rem; }
+        .psy-spec { color: #6B7280; font-size: 0.84rem; margin-top: 0.1rem; }
+        .psy-meta { display: flex; gap: 0.6rem; flex-wrap: wrap; color: #6B7280; font-size: 0.8rem; margin-top: 0.25rem; }
+        .psy-price { color: #047857; font-weight: 700; }
+        .psy-descr { color: #4B5563; font-size: 0.86rem; line-height: 1.5; }
+        .psy-fmts { display: flex; gap: 0.3rem; flex-wrap: wrap; }
+        .psy-fmt { background: #ECFDF5; color: #047857; border-radius: 0.45rem; padding: 0.15rem 0.45rem; font-size: 0.76rem; font-weight: 600; }
+        .psy-acts { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-top: 0.15rem; }
+        .psy-btn {
+            border: none; background: #047857; color: #fff; font-family: inherit; font-size: 0.85rem;
+            font-weight: 700; padding: 0.5rem 0.85rem; border-radius: 0.6rem; cursor: pointer;
+            text-decoration: none; display: inline-flex; align-items: center; gap: 0.3rem;
+        }
+        .psy-btn:disabled { background: #E5E7EB; color: #9CA3AF; cursor: default; }
+        .psy-btn.ghost { background: #fff; color: #047857; border: 1.5px solid #A7F3D0; }
+        .psy-btn.ghost:hover { background: #ECFDF5; }
+        body.dark .psy-card { background: #252525; border-color: #333; }
+        body.dark .psy-search, body.dark .psy-chip { background: #2A2A2A; border-color: #444; color: #C9C9C9; }
+        body.dark .psy-chip.on { background: #047857; border-color: #047857; color: #fff; }
+        body.dark .psy-descr { color: #C9C9C9; }
+        body.dark .psy-fmt { background: #10402F; color: #A7F3D0; }
+        body.dark .psy-btn.ghost { background: #2A2A2A; color: #6EE7B7; border-color: #17553E; }
+
+        /* ── Окно записи ───────────────────────────────────────────────────────── */
+        .bk-box {
+            background: #fff; border-radius: 1rem; max-width: 420px; width: 100%;
+            max-height: 90vh; display: flex; flex-direction: column; box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        .bk-head { padding: 0.9rem 1.1rem; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
+        .bk-head button { background: none; border: none; font-size: 1.2rem; cursor: pointer; color: #6B7280; }
+        .bk-body { padding: 0.8rem 1rem; overflow-y: auto; flex: 1; min-height: 0; }
+        .bk-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.6rem; }
+        .bk-nav b { text-transform: capitalize; font-size: 0.98rem; }
+        .bk-nav button {
+            width: 34px; height: 34px; border-radius: 50%; border: 1.5px solid #E5E7EB;
+            background: #fff; color: #4B5563; cursor: pointer; font-size: 1rem;
+        }
+        .bk-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
+        .bk-dow { text-align: center; font-size: 0.72rem; font-weight: 700; color: #9CA3AF; padding: 0.2rem 0; }
+        .bk-day {
+            aspect-ratio: 1; border: none; background: transparent; border-radius: 0.55rem;
+            font-family: inherit; font-size: 0.88rem; color: inherit; cursor: pointer; position: relative;
+        }
+        .bk-day:disabled { opacity: 0.3; cursor: default; }
+        .bk-day.out { opacity: 0.3; }
+        /* Точка под днём — единственный способ увидеть, куда вообще можно записаться,
+           не тыкая в каждый день по очереди. */
+        .bk-day.free::after {
+            content: ''; position: absolute; left: 50%; bottom: 5px; transform: translateX(-50%);
+            width: 5px; height: 5px; border-radius: 50%; background: #047857;
+        }
+        .bk-day.on { background: #047857; color: #fff; font-weight: 700; }
+        .bk-day.on::after { background: #fff; }
+        .bk-slots { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.8rem; }
+        .bk-slot {
+            border: 1.5px solid #A7F3D0; background: #fff; color: #047857; font-family: inherit;
+            font-size: 0.88rem; font-weight: 700; padding: 0.42rem 0.7rem; border-radius: 0.55rem; cursor: pointer;
+        }
+        .bk-slot.on { background: #047857; border-color: #047857; color: #fff; }
+        .bk-hint { color: #9CA3AF; font-size: 0.85rem; padding: 0.4rem 0; }
+        .bk-foot { padding: 0.85rem 1.1rem; border-top: 1px solid #eee; display: flex; gap: 0.6rem; align-items: center; }
+        .bk-sum { flex: 1; min-width: 0; font-size: 0.88rem; font-weight: 600; }
+        body.dark .bk-box { background: #1E1E1E; color: #E6E6E6; }
+        body.dark .bk-head, body.dark .bk-foot { border-color: #333; }
+        body.dark .bk-nav button, body.dark .bk-slot { background: #2A2A2A; border-color: #444; color: #C9C9C9; }
+        body.dark .bk-slot.on, body.dark .bk-day.on { background: #047857; color: #fff; }
+
         /* ── Конструктор блок-схем ─────────────────────────────────────────────── */
         .dg-box {
             background: #fff; border-radius: 1rem; max-width: 620px; width: 100%;
@@ -3591,6 +3688,23 @@
         </div>
     </div>
 
+    <!-- Запись к психологу прямо из чата: календарь и свободные окна.
+         Последний шаг (подтверждение и оплата) уходит на /book-confirm.html —
+         страница оплаты должна выглядеть страницей, а не окном в мессенджере. -->
+    <div id="bookModal" style="display:none;position:fixed;inset:0;background:rgba(18,42,34,0.6);z-index:1355;align-items:center;justify-content:center;padding:1rem;">
+        <div class="bk-box">
+            <div class="bk-head">
+                <b id="bkTitle">Запись</b>
+                <button onclick="closeBooking()" title="Закрыть">✕</button>
+            </div>
+            <div class="bk-body" id="bkBody"></div>
+            <div class="bk-foot" id="bkFoot">
+                <div class="bk-sum" id="bkSummary">Выберите дату и время</div>
+                <button type="button" class="psy-btn" id="bkGoBtn" onclick="bkGo()" disabled>Далее →</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Конструктор блок-схем: блоки и связи списком, рядом живой просмотр.
          Готовая схема уходит в сообщение обычным блоком ```схема — формат прежний. -->
     <div id="diagramModal" style="display:none;position:fixed;inset:0;background:rgba(18,42,34,0.6);z-index:1350;align-items:center;justify-content:center;padding:1rem;">
@@ -3806,6 +3920,20 @@
     <script>
         const FAVORITES_ID = '__fav__'; // псевдо-собеседник «Избранное» (свой личный диалог)
         const FEED_ID = '__feed__';     // раздел «Лента» — посты каналов, на которые подписан человек
+        // ══════════════════════════════════════════════════════════════════════════
+        //  КАТАЛОГ ПСИХОЛОГОВ ПРЯМО В ЧАТЕ
+        //
+        //  Клиент живёт в чате: пишет, звонит, читает ленту. А чтобы выбрать
+        //  специалиста и записаться, приходилось уходить на отдельные страницы и
+        //  возвращаться обратно. Теперь и выбор, и запись делаются здесь.
+        //
+        //  Что СОЗНАТЕЛЬНО осталось снаружи: оплата и юридические документы. Оплата
+        //  должна выглядеть обычной страницей — так спокойнее человеку и проще с
+        //  эквайрингом и возвратами. Сайт-витрина (/search, профиль психолога) тоже
+        //  никуда не делся: он открывается без входа, индексируется поиском, и
+        //  именно по этим ссылкам приходят новые люди.
+        // ══════════════════════════════════════════════════════════════════════════
+        const PSY_ID = '__psy__';       // раздел «Психологи» — каталог и запись
         // Потолок вложения. Было 5, потом 10 — и в 10 МБ не влезала ни съёмка с
         // телефона, ни сколько-нибудь длинное видео. Теперь гигабайт: файлы больше
         // порога уходят частями через api/upload_chunk.php, потому что одним
@@ -4686,6 +4814,300 @@
         // не покидая чат. Посты берём тем же запросом, что и страница ленты.
         let feedRowsCache = [];
 
+        // ══════════════════════════════════════════════════════════════════════════
+        //  РАЗДЕЛ «ПСИХОЛОГИ»: каталог, карточка, выбор времени
+        //
+        //  Данные берём из тех же эндпоинтов, что и страницы сайта
+        //  (psychologists.php?action=search и schedule.php?action=get) — никакой
+        //  второй правды о специалистах и расписании не заводим.
+        //
+        //  Последний шаг — оплата — уходит на /book-confirm.html. Это намеренно:
+        //  страница оплаты должна выглядеть страницей, а не окошком в мессенджере.
+        // ══════════════════════════════════════════════════════════════════════════
+        let psyList = [];          // весь каталог, как пришёл с сервера
+        let psyQuery = '';
+        let psyFormat = '';
+        let psyLoaded = false;
+
+        const PSY_FMT = { video: '📹 Видео', audio: '📞 Аудио', phone: '📞 Аудио', chat: '💬 Чат' };
+
+        async function openPsyCatalog() {
+            clearPinnedBar();
+            selectedUserId = PSY_ID;
+            syncChatUrl(selectedUserId);
+            leaveAiMode();
+            cancelEditMessage();
+            headerRenderedFor = PSY_ID;
+
+            document.getElementById('emptyState').style.display = 'none';
+            document.getElementById('chatContent').style.display = 'flex';
+            document.querySelector('.chat-container').classList.add('mobile-chat-open');
+            const inputBar = document.getElementById('chatInputBar');
+            if (inputBar) inputBar.style.display = 'none';    // в каталог не пишут
+            if (pollInterval) { clearInterval(pollInterval); pollInterval = null; }
+            dropRenderCache();
+
+            document.getElementById('chatHeader').innerHTML = `
+                <button class="chat-back-btn" onclick="goBackToList()" title="Назад к диалогам">←</button>
+                <div class="avatar" style="background:linear-gradient(135deg,#047857,#059669);"><span class="ava-ico">🧠</span></div>
+                <div style="flex:1;min-width:0;">
+                    <div class="name">Психологи</div>
+                    <div class="role">Выбрать специалиста и записаться, не выходя из чата</div>
+                </div>
+                ${headerActionsHtml([
+                    { icon: '🔄', label: 'Обновить список', run: () => { psyLoaded = false; loadPsyCatalog(); } },
+                    { icon: '✨', label: 'Подобрать за минуту', href: '/quiz.html' },
+                    { icon: '🔎', label: 'Открыть каталог на сайте', href: '/search.html' },
+                ], '')}`;
+            try { if (window.lucide) lucide.createIcons(); } catch (e) {}
+            refreshConversationList();
+            await loadPsyCatalog();
+        }
+        window.openPsyCatalog = openPsyCatalog;
+
+        async function loadPsyCatalog() {
+            const box = document.getElementById('messagesContainer');
+            if (!box) return;
+            if (!psyLoaded) {
+                box.innerHTML = '<div class="psy-cat-wait">Загружаем специалистов…</div>';
+                try {
+                    const r = await fetch('/api/psychologists.php?action=search', { credentials: 'include' });
+                    const d = await r.json();
+                    psyList = Array.isArray(d) ? d : [];
+                    psyLoaded = true;
+                } catch (e) {
+                    box.innerHTML = `<div class="psy-cat-wait">Не удалось загрузить список.
+                        <button class="psy-btn ghost" onclick="loadPsyCatalog()">Повторить</button></div>`;
+                    return;
+                }
+            }
+            if (selectedUserId !== PSY_ID) return;   // пока грузили, ушли в другой раздел
+            renderPsyCatalog();
+        }
+        window.loadPsyCatalog = loadPsyCatalog;
+
+        function psyMatches(p) {
+            if (psyFormat) {
+                const f = Array.isArray(p.formats) && p.formats.length ? p.formats : ['video'];
+                if (!f.includes(psyFormat)) return false;
+            }
+            if (!psyQuery) return true;
+            const hay = [p.first_name, p.last_name, p.specialization, p.description]
+                .map(x => String(x || '').toLowerCase()).join(' ');
+            return hay.includes(psyQuery);
+        }
+
+        function renderPsyCatalog() {
+            const box = document.getElementById('messagesContainer');
+            if (!box) return;
+            const rows = psyList.filter(psyMatches);
+            // Форматы собираем из самого списка: жёсткий перечень рано или поздно
+            // разойдётся с тем, что психологи и правда предлагают.
+            const allFmt = [...new Set(psyList.flatMap(p =>
+                (Array.isArray(p.formats) && p.formats.length ? p.formats : ['video'])))];
+
+            const chips = ['', ...allFmt].map(f => `
+                <button type="button" class="psy-chip${psyFormat === f ? ' on' : ''}"
+                        onclick="setPsyFormat('${escapeHtml(f)}')">${f ? escapeHtml(PSY_FMT[f] || f) : 'Все форматы'}</button>`).join('');
+
+            const cards = rows.map(psyCardHtml).join('') || `
+                <div class="psy-cat-wait">Никого не нашлось. Попробуйте снять фильтр или изменить запрос.</div>`;
+
+            box.innerHTML = `
+                <div class="psy-cat">
+                    <div class="psy-tools">
+                        <input id="psySearchInput" class="psy-search" type="search" placeholder="Имя, специализация, запрос…"
+                               value="${escapeHtml(psyQuery)}" oninput="setPsyQuery(this.value)">
+                        <div class="psy-chips">${chips}</div>
+                    </div>
+                    <div class="psy-count">${rows.length} ${plural(rows.length, 'специалист', 'специалиста', 'специалистов')}</div>
+                    <div class="psy-grid">${cards}</div>
+                </div>`;
+        }
+
+        function setPsyQuery(v) {
+            psyQuery = String(v || '').trim().toLowerCase();
+            // Перерисовываем только карточки: если перерисовать всё, поле поиска
+            // пересоздастся и потеряет курсор посреди слова.
+            const grid = document.querySelector('.psy-grid');
+            const count = document.querySelector('.psy-count');
+            if (!grid) { renderPsyCatalog(); return; }
+            const rows = psyList.filter(psyMatches);
+            grid.innerHTML = rows.map(psyCardHtml).join('') ||
+                '<div class="psy-cat-wait">Никого не нашлось. Попробуйте снять фильтр или изменить запрос.</div>';
+            if (count) count.textContent = rows.length + ' ' + plural(rows.length, 'специалист', 'специалиста', 'специалистов');
+        }
+        window.setPsyQuery = setPsyQuery;
+
+        function setPsyFormat(f) {
+            psyFormat = (psyFormat === f) ? '' : f;
+            renderPsyCatalog();
+        }
+        window.setPsyFormat = setPsyFormat;
+
+        function psyCardHtml(p) {
+            const name = ((p.first_name || '') + ' ' + (p.last_name || '')).trim() || 'Психолог';
+            const init = name.charAt(0).toUpperCase();
+            const rating = parseFloat(p.rating) || 0;
+            const price = parseFloat(p.price) || 0;
+            const exp = parseInt(p.experience, 10) || 0;
+            const fmts = (Array.isArray(p.formats) && p.formats.length ? p.formats : ['video'])
+                .map(f => `<span class="psy-fmt">${escapeHtml(PSY_FMT[f] || f)}</span>`).join('');
+            const spec = String(p.specialization || 'Психолог').trim();
+            const uid = p.user_id != null ? String(p.user_id) : '';
+            return `
+                <div class="psy-card">
+                    <div class="psy-head">
+                        <div class="psy-ava">${p.avatar ? `<img src="${escapeHtml(thumbUrl(p.avatar, 320))}" alt="" data-full="${escapeHtml(p.avatar)}" data-zoom>` : escapeHtml(init)}</div>
+                        <div class="psy-who">
+                            <div class="psy-name">${escapeHtml(name)}${String(p.is_approved) === '1' ? '<span class="psy-ok" title="Профиль проверен">✓</span>' : ''}</div>
+                            <div class="psy-spec">${escapeHtml(spec)}</div>
+                            <div class="psy-meta">
+                                ${rating ? `<span>★ ${rating.toFixed(1)}</span>` : ''}
+                                ${exp ? `<span>${exp} ${plural(exp, 'год', 'года', 'лет')} опыта</span>` : ''}
+                                ${price ? `<span class="psy-price">${price.toLocaleString('ru-RU')} ₽</span>` : ''}
+                            </div>
+                        </div>
+                    </div>
+                    ${p.description ? `<div class="psy-descr">${escapeHtml(String(p.description).slice(0, 220))}${String(p.description).length > 220 ? '…' : ''}</div>` : ''}
+                    <div class="psy-fmts">${fmts}</div>
+                    <div class="psy-acts">
+                        <button type="button" class="psy-btn" onclick="openPsyBooking('${escapeHtml(String(p.id))}')">📅 Записаться</button>
+                        ${uid ? `<button type="button" class="psy-btn ghost" onclick="writeToUser('${escapeHtml(uid)}')">✉️ Написать</button>` : ''}
+                        <a class="psy-btn ghost" href="/psychologist-profile.html?id=${encodeURIComponent(String(p.id))}">Профиль</a>
+                    </div>
+                </div>`;
+        }
+
+        // ── Запись: выбор дня и времени прямо в чате ─────────────────────────────
+        //  Расписание берём тем же запросом, что и страница записи, и по тем же
+        //  правилам (дни недели → часы). Держать вторую копию этих правил нельзя:
+        //  разойдутся — человек увидит окна, которых у психолога нет.
+        const PSY_WEEKDAYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
+        let bkPsy = null;        // выбранный специалист
+        let bkSchedule = null;   // его расписание
+        let bkMonth = null;      // какой месяц показываем
+        let bkDate = '';
+        let bkTime = '';
+
+        const bkPad = n => String(n).padStart(2, '0');
+        const bkKey = d => d.getFullYear() + '-' + bkPad(d.getMonth() + 1) + '-' + bkPad(d.getDate());
+
+        function bkSlots(dateStr) {
+            if (!bkSchedule) return [];
+            const d = new Date(dateStr + 'T12:00:00');
+            const times = (bkSchedule[PSY_WEEKDAYS[d.getDay()]] || []).slice().sort();
+            // Прошедшее время сегодня не предлагаем: записаться на «уже было» нельзя
+            const now = new Date();
+            const today = bkKey(now);
+            return times.filter(t => {
+                if (dateStr !== today) return true;
+                const [h, m] = t.split(':').map(Number);
+                return (h * 60 + m) > (now.getHours() * 60 + now.getMinutes() + 30);
+            });
+        }
+
+        async function openPsyBooking(psyId) {
+            bkPsy = psyList.find(p => String(p.id) === String(psyId)) || null;
+            if (!bkPsy) return;
+            bkSchedule = null; bkDate = ''; bkTime = '';
+            bkMonth = new Date();
+            document.getElementById('bookModal').style.display = 'flex';
+            document.getElementById('bkBody').innerHTML = '<div class="psy-cat-wait">Загружаем расписание…</div>';
+            document.getElementById('bkTitle').textContent =
+                ((bkPsy.first_name || '') + ' ' + (bkPsy.last_name || '')).trim() || 'Запись';
+            try {
+                const r = await fetch('/api/schedule.php?action=get&psychologist_id=' + encodeURIComponent(bkPsy.id),
+                                      { credentials: 'include' });
+                const d = await r.json();
+                if (d && d.ok && d.slots) bkSchedule = d.slots;
+            } catch (e) {}
+            renderBooking();
+        }
+        window.openPsyBooking = openPsyBooking;
+
+        function closeBooking() {
+            const m = document.getElementById('bookModal');
+            if (m) m.style.display = 'none';
+        }
+        window.closeBooking = closeBooking;
+
+        function bkShift(n) {
+            bkMonth = new Date(bkMonth.getFullYear(), bkMonth.getMonth() + n, 1);
+            bkDate = ''; bkTime = '';
+            renderBooking();
+        }
+        function bkPick(k) { bkDate = k; bkTime = ''; renderBooking(); }
+        function bkPickTime(t) { bkTime = t; renderBooking(); }
+        window.bkShift = bkShift; window.bkPick = bkPick; window.bkPickTime = bkPickTime;
+
+        function renderBooking() {
+            const box = document.getElementById('bkBody');
+            if (!box) return;
+            if (!bkSchedule) {
+                box.innerHTML = `<div class="psy-cat-wait">Этот специалист ещё не настроил расписание — запись пока недоступна.
+                    <br><br>Можно написать ему лично и договориться.
+                    ${bkPsy && bkPsy.user_id ? `<div style="margin-top:0.8rem;"><button class="psy-btn" onclick="closeBooking();writeToUser('${escapeHtml(String(bkPsy.user_id))}')">✉️ Написать</button></div>` : ''}</div>`;
+                document.getElementById('bkFoot').style.display = 'none';
+                return;
+            }
+            document.getElementById('bkFoot').style.display = 'flex';
+
+            const first = new Date(bkMonth.getFullYear(), bkMonth.getMonth(), 1);
+            const shift = (first.getDay() + 6) % 7;                  // неделя с понедельника
+            const start = new Date(first.getFullYear(), first.getMonth(), 1 - shift);
+            const todayKey = bkKey(new Date());
+
+            let days = ['пн','вт','ср','чт','пт','сб','вс'].map(d => `<div class="bk-dow">${d}</div>`).join('');
+            for (let i = 0; i < 42; i++) {
+                const d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
+                const k = bkKey(d);
+                const out = d.getMonth() !== bkMonth.getMonth();
+                const past = k < todayKey;
+                const free = !past && bkSlots(k).length > 0;
+                days += `<button type="button" class="bk-day${out ? ' out' : ''}${k === bkDate ? ' on' : ''}${free ? ' free' : ''}"
+                                 ${free ? `onclick="bkPick('${k}')"` : 'disabled'}>${d.getDate()}</button>`;
+            }
+
+            const slots = bkDate ? bkSlots(bkDate) : [];
+            const slotsHtml = !bkDate
+                ? '<div class="bk-hint">Выберите день — свободные дни отмечены точкой</div>'
+                : (slots.length
+                    ? slots.map(t => `<button type="button" class="bk-slot${t === bkTime ? ' on' : ''}" onclick="bkPickTime('${t}')">${t}</button>`).join('')
+                    : '<div class="bk-hint">В этот день свободных окон нет</div>');
+
+            const MONTHS_RU = ['январь','февраль','март','апрель','май','июнь','июль','август','сентябрь','октябрь','ноябрь','декабрь'];
+            box.innerHTML = `
+                <div class="bk-nav">
+                    <button type="button" onclick="bkShift(-1)" aria-label="Предыдущий месяц">‹</button>
+                    <b>${MONTHS_RU[bkMonth.getMonth()]} ${bkMonth.getFullYear()}</b>
+                    <button type="button" onclick="bkShift(1)" aria-label="Следующий месяц">›</button>
+                </div>
+                <div class="bk-grid">${days}</div>
+                <div class="bk-slots">${slotsHtml}</div>`;
+
+            const btn = document.getElementById('bkGoBtn');
+            btn.disabled = !(bkDate && bkTime);
+            document.getElementById('bkSummary').textContent = (bkDate && bkTime)
+                ? new Date(bkDate + 'T12:00:00').toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' }) + ', ' + bkTime
+                : 'Выберите дату и время';
+        }
+
+        /**
+         * Дальше — на страницу подтверждения и оплаты.
+         *
+         * Оплату сознательно НЕ вносим в чат: страница оплаты должна выглядеть
+         * страницей — так спокойнее человеку, и проще с эквайрингом, чеками и
+         * возвратами. Там же вводится промокод.
+         */
+        function bkGo() {
+            if (!bkPsy || !bkDate || !bkTime) return;
+            const iso = bkDate + 'T' + bkTime + ':00';
+            location.href = '/book-confirm.html?psychologist_id=' + encodeURIComponent(String(bkPsy.id))
+                          + '&datetime=' + encodeURIComponent(iso);
+        }
+        window.bkGo = bkGo;
+
         async function openFeedSection() {
             clearPinnedBar();
             selectedUserId = FEED_ID;
@@ -5476,6 +5898,7 @@
             if (k === FAVORITES_ID) { openFavorites(); return; }
             if (k.indexOf(GROUP_PREFIX) === 0) { openGroupChat(k.slice(GROUP_PREFIX.length)); return; }
             if (k === FEED_ID) { openFeedSection(); return; }
+            if (k === PSY_ID) { openPsyCatalog(); return; }
             if (k.indexOf(CHANNEL_PREFIX) === 0) { openChannel(k.slice(CHANNEL_PREFIX.length)); return; }
             if (k.indexOf(SUPPORT_PREFIX) === 0) { openSupportThread(k.slice(SUPPORT_PREFIX.length)); return; }
             openChat(k);
@@ -5606,6 +6029,7 @@
         function isConversationKey(k) {
             if (!k) return false;
             if (k === FEED_ID) return false;
+            if (k === PSY_ID) return false;
             if (k.indexOf(CHANNEL_PREFIX) === 0) return false;
             if (k.indexOf('blog:') === 0) return false;
             return true;
@@ -6257,7 +6681,7 @@
                 const container = document.getElementById('conversationsList');
 
                 if (!conversations || conversations.length === 0) {
-                    const rows = sortPinnedFirst(favoritesRows().concat(aiRows(), feedRows(), channelsRows(), groupsRows()));
+                    const rows = sortPinnedFirst(favoritesRows().concat(aiRows(), psyRows(), feedRows(), channelsRows(), groupsRows()));
                     container.innerHTML = channelsErrHtml() + groupsErrHtml() + rows.map(r => r.html).join('') + `
                         <div class="no-conversations">
                             <p>У вас пока нет диалогов</p>
@@ -9166,6 +9590,22 @@
         }
 
         /** Строка «Лента» — публикации каналов, на которые человек подписан. */
+        /** Строка «Психологи» в списке — рядом с «Лентой». */
+        function psyRows() {
+            // Психологу каталог коллег в списке чатов ни к чему
+            if (currentUser && currentUser.role === 'psychologist') return [];
+            if (!chatVisible('feed', PSY_ID, null)) return [];
+            return [{ key: PSY_ID, name: 'Психологи', html: `
+                <div class="conversation-item ${selectedUserId === PSY_ID ? 'active' : ''}" onclick="openPsyCatalog()" title="Психологи">
+                    <div class="conversation-avatar" style="background:linear-gradient(135deg,#047857,#059669);"><span class="ava-ico">🧠</span></div>
+                    <div class="conversation-info">
+                        <div class="conversation-name"><span class="cn-text">Психологи</span>${pinMarkHtml(PSY_ID)}</div>
+                        <div class="conversation-preview">Выбрать специалиста и записаться</div>
+                    </div>
+                    ${folderPickHtml(PSY_ID, 'feed', null, 'Психологи')}
+                </div>` }];
+        }
+
         function feedRows() {
             if (!chatVisible('feed', FEED_ID, null)) return [];
             return [{ key: FEED_ID, name: 'Лента', html: `
@@ -9209,6 +9649,7 @@
             const err = channelsErrHtml() + groupsErrHtml();   // сообщения об ошибках всегда сверху
             favoritesRows().filter(bySpecialQuery).forEach(r => rows.push(r));
             aiRows().filter(bySpecialQuery).forEach(r => rows.push(r));
+            psyRows().filter(bySpecialQuery).forEach(r => rows.push(r));
             feedRows().filter(bySpecialQuery).forEach(r => rows.push(r));
             channelsRows().filter(bySpecialQuery).forEach(r => rows.push(r));
             groupsRows().filter(bySpecialQuery).forEach(r => rows.push(r));
