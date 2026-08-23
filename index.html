@@ -8,9 +8,9 @@
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
   <title>psytalk.pro — психологи для тех, кто работает удалённо, и их семей</title>
   <meta name="description" content="Онлайн-психологи, которые понимают удалёнку. Помощь тем, кто работает из дома — в IT, дизайне, маркетинге, поддержке и любой другой сфере — и их близким: выгорание, синдром самозванца, стресс дедлайнов, баланс работы и личной жизни.">
-  <link rel="stylesheet" href="/css/styles.css?v=20260821">
+  <link rel="stylesheet" href="/css/styles.css?v=20260823">
   <script src="/js/netguard.js?v=20260821c"></script>
-  <script src="/js/layout.js?v=20260821c"></script>
+  <script src="/js/layout.js?v=20260823"></script>
     <script src="/js/lightbox.js?v=3"></script>
   <link rel="preconnect" href="https://unpkg.com">
     <script defer src="https://unpkg.com/lucide@latest"></script>
@@ -21,7 +21,7 @@
   <script>psyWriteHeader();</script>
 
   <!-- ═══════════════ HERO ═══════════════ -->
-  <section style="padding: 5rem 0 4rem; background: white; position: relative; overflow: hidden;">
+  <section class="idx-sec idx-sec-hero" style="background: white; position: relative; overflow: hidden;">
     <!-- Animated gradient blobs -->
     <div class="hero-blob-container">
       <div class="hero-blob hero-blob-brand"></div>
@@ -39,35 +39,28 @@
             Специалисты, которые понимают удалёнку
           </div>
 
-          <h1 class="font-bold mb-4" style="font-size: 3.25rem; line-height: 1.1; color: #1A1A1A; letter-spacing: -0.03em;" data-testid="text-hero-title">
+          <h1 class="font-bold mb-4 idx-h1" style="color: #1A1A1A;" data-testid="text-hero-title">
             Психологи для тех,<br>
             <span class="gradient-text">кто работает удалённо</span>
           </h1>
 
-          <p class="text-xl mb-6" style="color: #6B7280; line-height: 1.7; font-size: 1.125rem;" data-testid="text-hero-description">
+          <p class="mb-6 idx-lead" style="color:#6B7280;font-size:clamp(0.98rem,2.7vw,1.125rem);" data-testid="text-hero-description">
             Онлайн-консультации для всех, кто работает из дома — в IT, дизайне, маркетинге, поддержке и любой другой сфере — и их близких. Выгорание, синдром самозванца, стресс дедлайнов, баланс работы и жизни.
           </p>
 
           <!-- CTAs -->
-          <div style="display:flex;gap:1rem;flex-wrap:wrap;margin-bottom:1.5rem;">
-            <a href="/search.html"
-               data-testid="button-find-psychologist"
-               style="display:inline-flex;align-items:center;gap:0.625rem;padding:0.9rem 2.25rem;background:linear-gradient(135deg,#047857 0%,#059669 100%);color:#fff;text-decoration:none;border:none;border-radius:0.875rem;font-size:1.0625rem;font-weight:700;font-family:'Inter',-apple-system,sans-serif;box-shadow:0 4px 16px rgba(4,120,87,0.35);cursor:pointer;white-space:nowrap;transition:all 0.2s;"
-               onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 8px 24px rgba(4,120,87,0.45)'"
-               onmouseout="this.style.transform='';this.style.boxShadow='0 4px 16px rgba(4,120,87,0.35)'">
-              <i data-lucide="search" style="width:1.125rem;height:1.125rem;"></i>
+          <div class="idx-cta-row" style="margin-bottom:1.5rem;">
+            <a href="/search.html" class="idx-btn idx-btn-primary" data-testid="button-find-psychologist">
+              <i data-lucide="search" style="width:1.125rem;height:1.125rem;flex-shrink:0;"></i>
               Найти психолога
             </a>
-            <a href="#quizblock"
-               style="display:inline-flex;align-items:center;gap:0.625rem;padding:0.9rem 2.25rem;background:white;color:#047857;text-decoration:none;border:2px solid #047857;border-radius:0.875rem;font-size:1.0625rem;font-weight:700;font-family:'Inter',-apple-system,sans-serif;cursor:pointer;white-space:nowrap;transition:all 0.2s;"
-               onmouseover="this.style.background='#ECFDF5'"
-               onmouseout="this.style.background='white'">
-              ✨ Подобрать за минуту
+            <a href="#quizblock" class="idx-btn idx-btn-outline">
+              <span aria-hidden="true">✨</span> Подобрать за минуту
             </a>
           </div>
 
           <!-- Price badge -->
-          <div style="display: inline-flex; align-items: center; gap: 0.5rem; background: #F0FDF4; color: #16A34A; padding: 0.5rem 1.125rem; border-radius: 2rem; font-size: 0.875rem; font-weight: 600; border: 1px solid #BBF7D0; margin-bottom: 1.5rem;">
+          <div id="heroPriceBadge" style="display: inline-flex; align-items: center; gap: 0.5rem; background: #F0FDF4; color: #16A34A; padding: 0.5rem 1.125rem; border-radius: 2rem; font-size: 0.875rem; font-weight: 600; border: 1px solid #BBF7D0; margin-bottom: 1.25rem;">
             <i data-lucide="check-circle" style="width: 1rem; height: 1rem;"></i>
             <span id="heroPriceText">Первая консультация по специальной цене</span>
           </div>
@@ -144,19 +137,19 @@
   </section>
 
   <!-- ═══════════════ QUIZ BLOCK ═══════════════ -->
-  <section id="quizblock" style="padding: 5rem 0; background: white; scroll-margin-top: 80px;">
+  <section class="idx-sec" id="quizblock" style="background: white; scroll-margin-top: 80px;">
     <div class="container">
       <div style="display:grid;grid-template-columns:1.1fr 0.9fr;gap:2.5rem;align-items:center;background:linear-gradient(135deg,#D1FAE5 0%,#D1FAE5 100%);border-radius:1.75rem;overflow:hidden;border:1px solid #A7F3D0;" class="quiz-grid">
         <div style="padding:3rem;">
           <div style="display:inline-flex;align-items:center;gap:0.5rem;background:#fff;color:#047857;padding:0.375rem 1rem;border-radius:2rem;font-size:0.8125rem;font-weight:700;margin-bottom:1.25rem;">✨ Умный подбор</div>
-          <h2 style="font-size:2.1rem;color:#1A1A1A;letter-spacing:-0.03em;line-height:1.15;margin-bottom:1rem;">Не знаете, кого выбрать? Подберём за минуту</h2>
-          <p class="quiz-lead" style="font-size:1.0625rem;line-height:1.7;margin-bottom:1.5rem;">Ответьте на 4 коротких вопроса — покажем специалистов, которые подходят именно под ваш запрос, формат и бюджет.</p>
+          <h2 class="idx-h2" style="color:#1A1A1A;">Не знаете, кого выбрать? Подберём за минуту</h2>
+          <p class="quiz-lead idx-lead" style="margin-bottom:1.5rem;">Ответьте на 4 коротких вопроса — покажем специалистов, которые подходят именно под ваш запрос, формат и бюджет.</p>
           <div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:1.75rem;">
             <span style="background:#fff;border:1px solid #A7F3D0;border-radius:2rem;padding:0.4rem 1rem;font-size:0.875rem;font-weight:600;color:#047857;">🙂 Себе</span>
             <span style="background:#fff;border:1px solid #A7F3D0;border-radius:2rem;padding:0.4rem 1rem;font-size:0.875rem;font-weight:600;color:#047857;">💞 Паре</span>
             <span style="background:#fff;border:1px solid #A7F3D0;border-radius:2rem;padding:0.4rem 1rem;font-size:0.875rem;font-weight:600;color:#047857;">🧑‍🎓 Подростку</span>
           </div>
-          <a href="/quiz.html" style="display:inline-flex;align-items:center;gap:0.5rem;background:linear-gradient(135deg,#047857,#059669);color:#fff;text-decoration:none;padding:1rem 2.5rem;border-radius:0.875rem;font-weight:700;font-size:1.0625rem;box-shadow:0 6px 20px rgba(4,120,87,0.35);transition:all 0.2s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform=''">Подобрать психолога →</a>
+          <div class="idx-cta-row"><a href="/quiz.html" class="idx-btn idx-btn-primary">Подобрать психолога →</a></div>
         </div>
         <div style="height:100%;min-height:340px;background:url('/assets/quiz-custom.png') center/cover, url('/assets/quiz-hero.jpg') center/cover, linear-gradient(135deg,#047857,#059669);" class="quiz-img"></div>
       </div>
@@ -164,13 +157,13 @@
   </section>
 
   <!-- ═══════════════ ISSUES / SERVICES ═══════════════ -->
-  <section id="services" style="padding: 5rem 0; background: #FAFAFA;">
+  <section class="idx-sec" id="services" style="background: #FAFAFA;">
     <div class="container">
-      <div class="text-center mb-6" style="max-width: 600px; margin: 0 auto 3rem;">
-        <h2 style="font-size: 2.25rem; color: #1A1A1A; letter-spacing: -0.03em; margin-bottom: 0.75rem;" data-testid="text-how-title">
+      <div class="idx-head">
+        <h2 class="idx-h2" style="color: #1A1A1A; " data-testid="text-how-title">
           С чем мы помогаем
         </h2>
-        <p style="color: #6B7280; font-size: 1.0625rem; line-height: 1.6; margin: 0;">
+        <p class="idx-lead" style="color:#6B7280; line-height: 1.6; margin: 0;">
           Запросы, знакомые каждому, кто работает удалённо — и тем, кто рядом с ними
         </p>
       </div>
@@ -220,19 +213,19 @@
   </section>
 
   <!-- ═══════════════ STATS ═══════════════ -->
-  <section style="padding: 4rem 0; background: linear-gradient(135deg, #065F46 0%, #047857 50%, #059669 100%);">
+  <section class="idx-sec idx-sec-tight" style="background: linear-gradient(135deg, #065F46 0%, #047857 50%, #059669 100%);">
     <div class="container">
       <div class="idx-stats-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:1px;border-radius:1.25rem;overflow:hidden;">
         <div style="padding:2rem;text-align:center;background:rgba(255,255,255,0.08);">
-          <span style="display:block;font-size:2.75rem;font-weight:800;color:white;line-height:1;letter-spacing:-0.04em;margin-bottom:0.5rem;" data-count="200">0</span>
+          <span style="display:block;font-size:clamp(2rem,6.5vw,2.75rem);font-weight:800;color:white;line-height:1;letter-spacing:-0.04em;margin-bottom:0.5rem;" data-count="200">0</span>
           <span style="font-size:0.9375rem;color:rgba(255,255,255,0.8);font-weight:400;">психологов подключено к сервису</span>
         </div>
         <div style="padding:2rem;text-align:center;background:rgba(255,255,255,0.08);border-left:1px solid rgba(255,255,255,0.15);border-right:1px solid rgba(255,255,255,0.15);">
-          <span style="display:block;font-size:2.75rem;font-weight:800;color:white;line-height:1;letter-spacing:-0.04em;margin-bottom:0.5rem;" data-count="96">0</span>
+          <span style="display:block;font-size:clamp(2rem,6.5vw,2.75rem);font-weight:800;color:white;line-height:1;letter-spacing:-0.04em;margin-bottom:0.5rem;" data-count="96">0</span>
           <span style="font-size:0.9375rem;color:rgba(255,255,255,0.8);font-weight:400;">человек меняют жизнь прямо сейчас</span>
         </div>
         <div style="padding:2rem;text-align:center;background:rgba(255,255,255,0.08);">
-          <span style="display:block;font-size:2.75rem;font-weight:800;color:white;line-height:1;letter-spacing:-0.04em;margin-bottom:0.5rem;">2021</span>
+          <span style="display:block;font-size:clamp(2rem,6.5vw,2.75rem);font-weight:800;color:white;line-height:1;letter-spacing:-0.04em;margin-bottom:0.5rem;">2021</span>
           <span style="font-size:0.9375rem;color:rgba(255,255,255,0.8);font-weight:400;">год основания сервиса</span>
         </div>
       </div>
@@ -240,11 +233,11 @@
   </section>
 
   <!-- ═══════════════ FOR WHOM ═══════════════ -->
-  <section style="padding: 5rem 0; background: white;">
+  <section class="idx-sec" style="background: white;">
     <div class="container">
-      <div class="text-center mb-6" style="max-width: 600px; margin: 0 auto 3rem;">
-        <h2 style="font-size: 2.25rem; color: #1A1A1A; letter-spacing: -0.03em; margin-bottom: 0.75rem;">Для кого мы</h2>
-        <p style="color: #6B7280; font-size: 1.0625rem; margin: 0;">
+      <div class="idx-head">
+        <h2 class="idx-h2" style="color: #1A1A1A; ">Для кого мы</h2>
+        <p class="idx-lead" style="color:#6B7280; margin: 0;">
           psytalk.pro создан для людей, работающих удалённо, и тех, кто рядом с ними
         </p>
       </div>
@@ -284,11 +277,11 @@
   </section>
 
   <!-- ═══════════════ HOW IT WORKS ═══════════════ -->
-  <section style="padding: 5rem 0; background: #FAFAFA;">
+  <section class="idx-sec" style="background: #FAFAFA;">
     <div class="container">
-      <div class="text-center" style="max-width: 600px; margin: 0 auto 3.5rem;">
-        <h2 style="font-size: 2.25rem; color: #1A1A1A; letter-spacing: -0.03em; margin-bottom: 0.75rem;">Как это работает</h2>
-        <p style="color: #6B7280; font-size: 1.0625rem; margin: 0;">Три простых шага до первой сессии</p>
+      <div class="idx-head">
+        <h2 class="idx-h2" style="color: #1A1A1A; ">Как это работает</h2>
+        <p class="idx-lead" style="color:#6B7280; margin: 0;">Три простых шага до первой сессии</p>
       </div>
 
       <div class="idx-steps-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:2rem;position:relative;">
@@ -316,7 +309,7 @@
   </section>
 
   <!-- ═══════════════ СЕССИЯ ГДЕ УДОБНО (image) ═══════════════ -->
-  <section style="padding: 5rem 0; background: white;">
+  <section class="idx-sec" style="background: white;">
     <div class="container">
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:3rem;align-items:center;" class="sess-grid">
         <div style="position:relative;border-radius:1.5rem;overflow:hidden;aspect-ratio:16/9;background:linear-gradient(135deg,#059669,#6EE7B7);box-shadow:0 12px 40px rgba(4,120,87,0.15);" class="sess-img">
@@ -325,8 +318,8 @@
           </video>
         </div>
         <div>
-          <h2 style="font-size:2.1rem;color:#1A1A1A;letter-spacing:-0.03em;line-height:1.15;margin-bottom:1rem;">Сессия там, где вам удобно</h2>
-          <p style="color:#6B7280;font-size:1.0625rem;line-height:1.7;margin-bottom:1.5rem;">Дома, в дороге или в перерыве между задачами — подключайтесь с любого устройства. Никаких приложений: видео, аудио или чат прямо в браузере.</p>
+          <h2 class="idx-h2" style="color:#1A1A1A;">Сессия там, где вам удобно</h2>
+          <p class="idx-lead" style="color:#6B7280;line-height:1.7;margin-bottom:1.5rem;">Дома, в дороге или в перерыве между задачами — подключайтесь с любого устройства. Никаких приложений: видео, аудио или чат прямо в браузере.</p>
           <div style="display:flex;flex-direction:column;gap:1rem;">
             <div style="display:flex;gap:0.875rem;align-items:flex-start;"><div style="font-size:1.5rem;">🎥</div><div><b style="color:#1A1A1A;">Любой формат</b><div style="color:#6B7280;font-size:0.9375rem;">Видео, аудио или текстовый чат — выбираете при записи.</div></div></div>
             <div style="display:flex;gap:0.875rem;align-items:flex-start;"><div style="font-size:1.5rem;">🕐</div><div><b style="color:#1A1A1A;">Запись онлайн 24/7</b><div style="color:#6B7280;font-size:0.9375rem;">Бронируйте удобное время в реальном расписании специалиста.</div></div></div>
@@ -341,12 +334,12 @@
        Всё, что человек получает вместе с аккаунтом, собрано в одном месте:
        раньше про мессенджер и ассистента на главной не было ни слова, и люди
        узнавали о них только после регистрации. -->
-  <section id="superchat" style="padding: 5rem 0; background: #ECFDF5; scroll-margin-top: 80px;">
+  <section class="idx-sec" id="superchat" style="background: #ECFDF5; scroll-margin-top: 80px;">
     <div class="container">
-      <div style="text-align:center;max-width:720px;margin:0 auto 3rem;">
+      <div class="idx-head" style="max-width:720px;">
         <div style="display:inline-block;background:#D1FAE5;color:#047857;font-size:0.8125rem;font-weight:700;padding:0.4rem 0.9rem;border-radius:999px;margin-bottom:1rem;">Входит в аккаунт — без доплат</div>
-        <h2 style="font-size:2.25rem;color:#1A1A1A;letter-spacing:-0.03em;margin-bottom:0.75rem;line-height:1.15;">Не только сессии — целый мессенджер внутри</h2>
-        <p style="color:#6B7280;font-size:1.0625rem;line-height:1.7;">Между встречами вы не остаётесь одни. Внутри сайта — полноценный чат с психологом и ИИ-ассистент, который отвечает круглосуточно. Ставить ничего не нужно: всё работает в браузере и на телефоне.</p>
+        <h2 class="idx-h2" style="color:#1A1A1A;">Не только сессии — целый мессенджер внутри</h2>
+        <p class="idx-lead" style="color:#6B7280;line-height:1.7;">Между встречами вы не остаётесь одни. Внутри сайта — полноценный чат с психологом и ИИ-ассистент, который отвечает круглосуточно. Ставить ничего не нужно: всё работает в браузере и на телефоне.</p>
       </div>
 
       <div class="sc-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:1.5rem;">
@@ -394,18 +387,18 @@
       </div>
 
       <div style="text-align:center;margin-top:2.5rem;">
-        <a href="/login.html?tab=register" style="display:inline-block;background:linear-gradient(135deg,#047857,#059669);color:white;padding:1rem 2.25rem;border-radius:0.875rem;font-weight:700;text-decoration:none;font-size:1.0625rem;box-shadow:0 8px 24px rgba(4,120,87,0.25);">Создать аккаунт и попробовать</a>
+        <div class="idx-cta-row idx-cta-center"><a href="/login.html?tab=register" class="idx-btn idx-btn-primary">Создать аккаунт и попробовать</a></div>
         <div style="color:#6B7280;font-size:0.875rem;margin-top:0.75rem;">Ассистент и заметки открываются сразу после регистрации, чат — когда выберете специалиста.</div>
       </div>
     </div>
   </section>
 
   <!-- ═══════════════ ПОЧЕМУ ДОВЕРЯЮТ ═══════════════ -->
-  <section style="padding: 5rem 0; background: #FAFAFA;">
+  <section class="idx-sec" style="background: #FAFAFA;">
     <div class="container">
-      <div class="text-center" style="max-width: 620px; margin: 0 auto 3rem;">
-        <h2 style="font-size: 2.25rem; color: #1A1A1A; letter-spacing: -0.03em; margin-bottom: 0.75rem;">Почему нам доверяют</h2>
-        <p style="color: #6B7280; font-size: 1.0625rem; line-height: 1.6; margin: 0;">Мы сделали онлайн-терапию безопасной, удобной и предсказуемой</p>
+      <div class="idx-head">
+        <h2 class="idx-h2" style="color: #1A1A1A; ">Почему нам доверяют</h2>
+        <p class="idx-lead" style="color:#6B7280; line-height: 1.6; margin: 0;">Мы сделали онлайн-терапию безопасной, удобной и предсказуемой</p>
       </div>
       <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1.5rem;" class="why-grid">
         <div class="card anim-fade-up" style="padding:1.75rem;border-radius:1.25rem;text-align:center;">
@@ -433,11 +426,11 @@
   </section>
 
   <!-- ═══════════════ ОТЗЫВЫ ═══════════════ -->
-  <section style="padding: 5rem 0; background: white;">
+  <section class="idx-sec" style="background: white;">
     <div class="container">
-      <div class="text-center" style="max-width: 620px; margin: 0 auto 3rem;">
-        <h2 style="font-size: 2.25rem; color: #1A1A1A; letter-spacing: -0.03em; margin-bottom: 0.75rem;">Что говорят клиенты</h2>
-        <p style="color: #6B7280; font-size: 1.0625rem; line-height: 1.6; margin: 0;">Реальные истории тех, кто работает удалённо</p>
+      <div class="idx-head">
+        <h2 class="idx-h2" style="color: #1A1A1A; ">Что говорят клиенты</h2>
+        <p class="idx-lead" style="color:#6B7280; line-height: 1.6; margin: 0;">Реальные истории тех, кто работает удалённо</p>
       </div>
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1.5rem;" class="reviews-grid">
         <div class="card anim-fade-up" style="padding:1.75rem;border-radius:1.25rem;display:flex;flex-direction:column;gap:0.75rem;">
@@ -452,7 +445,7 @@
           <div style="color:#F59E0B;font-size:1.05rem;">★★★★★</div>
           <p style="color:#374151;font-size:0.9375rem;line-height:1.7;margin:0;flex:1;">«Синдром самозванца мешал расти. Проработали с психологом отношение к ошибкам и ревью — стало гораздо легче брать новые задачи и просить повышение.»</p>
           <div style="display:flex;align-items:center;gap:0.625rem;margin-top:0.25rem;">
-            <div style="width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,#0EA5E9,#0284C7);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;">М</div>
+            <div style="width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,#10B981,#34D399);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;">М</div>
             <div><div style="font-weight:600;color:#1A1A1A;font-size:0.875rem;">Мария</div><div style="color:#9CA3AF;font-size:0.8rem;">product manager</div></div>
           </div>
         </div>
@@ -469,36 +462,36 @@
   </section>
 
   <!-- ═══════════════ B2B ДЛЯ IT-КОМАНД ═══════════════ -->
-  <section style="padding: 5rem 0; background: #ECFDF5;">
+  <section class="idx-sec" style="background: #ECFDF5;">
     <div class="container">
       <div style="background:#fff;border-radius:1.5rem;padding:3rem;display:grid;grid-template-columns:1.2fr 1fr;gap:2.5rem;align-items:center;box-shadow:0 8px 40px rgba(4,120,87,0.1);border:1px solid #D1FAE5;" class="b2b-grid">
         <div>
           <div style="display:inline-flex;align-items:center;gap:0.5rem;background:#D1FAE5;color:#047857;padding:0.375rem 1rem;border-radius:2rem;font-size:0.8125rem;font-weight:600;margin-bottom:1.25rem;">🏢 Для бизнеса</div>
-          <h2 style="font-size:2rem;color:#1A1A1A;letter-spacing:-0.03em;margin-bottom:1rem;line-height:1.15;">Психологическая поддержка для удалённых команд</h2>
-          <p style="color:#6B7280;font-size:1.0625rem;line-height:1.7;margin-bottom:1.5rem;">Корпоративные пакеты консультаций для сотрудников: снижаем выгорание и текучку, повышаем вовлечённость. Прозрачная отчётность, гибкие условия под размер команды.</p>
+          <h2 class="idx-h2" style="color:#1A1A1A;">Психологическая поддержка для удалённых команд</h2>
+          <p class="idx-lead" style="color:#6B7280;line-height:1.7;margin-bottom:1.5rem;">Корпоративные пакеты консультаций для сотрудников: снижаем выгорание и текучку, повышаем вовлечённость. Прозрачная отчётность, гибкие условия под размер команды.</p>
           <ul style="list-style:none;padding:0;margin:0 0 1.75rem;display:flex;flex-direction:column;gap:0.6rem;">
             <li style="display:flex;gap:0.5rem;color:#374151;font-size:0.9375rem;"><span style="color:#047857;font-weight:700;">✓</span> Пакеты сессий для сотрудников</li>
             <li style="display:flex;gap:0.5rem;color:#374151;font-size:0.9375rem;"><span style="color:#047857;font-weight:700;">✓</span> Анонимная статистика по команде</li>
             <li style="display:flex;gap:0.5rem;color:#374151;font-size:0.9375rem;"><span style="color:#047857;font-weight:700;">✓</span> Психологи, понимающие удалённый формат</li>
           </ul>
-          <a href="mailto:support@psytalk.pro?subject=Корпоративная%20программа%20psytalk.pro&body=Здравствуйте!%20Хотим%20обсудить%20психологическую%20поддержку%20для%20нашей%20команды." class="btn" style="background:linear-gradient(135deg,#047857,#059669);color:#fff;border:none;padding:0.9rem 2rem;font-weight:700;border-radius:0.875rem;box-shadow:0 4px 16px rgba(4,120,87,0.3);text-decoration:none;display:inline-flex;align-items:center;gap:0.5rem;">✉️ Написать нам</a>
+          <div class="idx-cta-row"><a href="mailto:support@psytalk.pro?subject=Корпоративная%20программа%20psytalk.pro&body=Здравствуйте!%20Хотим%20обсудить%20психологическую%20поддержку%20для%20нашей%20команды." class="idx-btn idx-btn-primary"><span aria-hidden="true">✉️</span> Написать нам</a></div>
           <div style="margin-top:0.875rem;color:#6B7280;font-size:0.9rem;">или напишите на <a href="mailto:support@psytalk.pro" style="color:#047857;font-weight:600;">support@psytalk.pro</a> · <a href="tel:+79626815320" style="color:#047857;font-weight:600;">+7 (962) 681-53-20</a></div>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
           <div style="background:linear-gradient(135deg,#047857,#059669);border-radius:1.25rem;padding:1.5rem;color:#fff;text-align:center;">
-            <div style="font-size:2rem;font-weight:800;">-40%</div>
+            <div style="font-size:clamp(1.5rem,5vw,2rem);font-weight:800;">-40%</div>
             <div style="font-size:0.8rem;opacity:0.9;margin-top:0.25rem;">текучесть при поддержке</div>
           </div>
           <div style="background:#D1FAE5;border-radius:1.25rem;padding:1.5rem;text-align:center;">
-            <div style="font-size:2rem;font-weight:800;color:#047857;">24/7</div>
+            <div style="font-size:clamp(1.5rem,5vw,2rem);font-weight:800;color:#047857;">24/7</div>
             <div style="font-size:0.8rem;color:#6B7280;margin-top:0.25rem;">доступ к записи</div>
           </div>
           <div style="background:#F0FDF4;border-radius:1.25rem;padding:1.5rem;text-align:center;">
-            <div style="font-size:2rem;font-weight:800;color:#16A34A;">100%</div>
+            <div style="font-size:clamp(1.5rem,5vw,2rem);font-weight:800;color:#16A34A;">100%</div>
             <div style="font-size:0.8rem;color:#6B7280;margin-top:0.25rem;">анонимность</div>
           </div>
-          <div style="background:linear-gradient(135deg,#0EA5E9,#0284C7);border-radius:1.25rem;padding:1.5rem;color:#fff;text-align:center;">
-            <div style="font-size:2rem;font-weight:800;">200+</div>
+          <div style="background:linear-gradient(135deg,#059669,#34D399);border-radius:1.25rem;padding:1.5rem;color:#fff;text-align:center;">
+            <div style="font-size:clamp(1.5rem,5vw,2rem);font-weight:800;">200+</div>
             <div style="font-size:0.8rem;opacity:0.9;margin-top:0.25rem;">профильные психологи</div>
           </div>
         </div>
@@ -522,7 +515,9 @@
       .quiz-grid .quiz-img { display: none; }
       .quiz-grid > div:first-child { padding: 2rem !important; }
       .sess-grid { grid-template-columns: 1fr !important; }
-      .sess-grid .sess-img { min-height: 220px; }
+      /* min-height вместе с aspect-ratio:16/9 задавал ширину 220*16/9 = 391px —
+         на телефоне блок вылезал за правый край. Ограничиваем именно высоту. */
+      .sess-grid .sess-img { min-height: 0 !important; height: clamp(180px, 52vw, 260px); aspect-ratio: auto !important; }
       .sc-grid { grid-template-columns: 1fr !important; }
     }
     @media (max-width: 560px) {
@@ -530,13 +525,11 @@
       /* На 320px внутренние 2rem с двух сторон не оставляли места тексту — он вылезал за край. */
       .b2b-grid { padding: 1.25rem !important; gap: 1.5rem !important; }
       .quiz-grid > div:first-child { padding: 1.25rem !important; }
-      .b2b-grid h2 { font-size: 1.4rem !important; }
-      .sess-grid h2 { font-size: 1.6rem !important; }
     }
   </style>
 
   <!-- ═══════════════ CTA ═══════════════ -->
-  <section id="offers" style="padding: 5rem 0; background: linear-gradient(135deg, #065F46 0%, #047857 60%, #34D399 100%); position: relative; overflow: hidden;">
+  <section class="idx-sec" id="offers" style="background: linear-gradient(135deg, #065F46 0%, #047857 60%, #34D399 100%); position: relative; overflow: hidden;">
     <div style="position: absolute; top: -100px; right: -100px; width: 400px; height: 400px; background: rgba(255,255,255,0.05); border-radius: 50%;"></div>
     <div style="position: absolute; bottom: -80px; left: -80px; width: 300px; height: 300px; background: rgba(255,255,255,0.04); border-radius: 50%;"></div>
     <div class="container" style="position: relative; z-index: 1;">
@@ -545,25 +538,23 @@
           <i data-lucide="heart" style="width: 0.875rem; height: 0.875rem;"></i>
           Начните прямо сейчас
         </div>
-        <h2 style="font-size: 2.75rem; color: white; font-weight: 800; letter-spacing: -0.04em; margin-bottom: 1rem; line-height: 1.1;">
+        <h2 class="idx-h2-lg" style="color: white; font-weight: 800; ">
           Готовы начать путь к себе?
         </h2>
         <p style="font-size: 1.125rem; color: rgba(255,255,255,0.85); margin-bottom: 2rem; line-height: 1.6;" id="ctaPriceText">
           Первая консультация по специальной цене. Найдите своего психолога уже сегодня.
         </p>
-        <a href="/search.html" class="btn" style="background: white; color: #047857; border: none; padding: 1rem 3rem; font-weight: 700; font-size: 1.0625rem; border-radius: 0.875rem; box-shadow: 0 8px 30px rgba(0,0,0,0.2); transition: all 0.2s;" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 12px 40px rgba(0,0,0,0.3)';" onmouseout="this.style.transform=''; this.style.boxShadow='0 8px 30px rgba(0,0,0,0.2)';" data-testid="button-cta-find">
-          Найти психолога
-        </a>
+        <div class="idx-cta-row idx-cta-center"><a href="/search.html" class="idx-btn idx-btn-white" data-testid="button-cta-find">Найти психолога</a></div>
       </div>
     </div>
   </section>
 
   <!-- ═══════════════ FAQ ═══════════════ -->
-  <section id="blog" style="padding: 5rem 0; background: white;">
+  <section class="idx-sec" id="blog" style="background: white;">
     <div class="container" style="max-width: 780px;">
-      <div class="text-center" style="margin-bottom: 3rem;">
-        <h2 style="font-size: 2.25rem; color: #1A1A1A; letter-spacing: -0.03em; margin-bottom: 0.75rem;">Частые вопросы</h2>
-        <p style="color: #6B7280; font-size: 1.0625rem; margin: 0;">Всё, что вы хотели знать перед первой сессией</p>
+      <div class="idx-head">
+        <h2 class="idx-h2" style="color: #1A1A1A; ">Частые вопросы</h2>
+        <p class="idx-lead" style="color:#6B7280; margin: 0;">Всё, что вы хотели знать перед первой сессией</p>
       </div>
 
       <div style="display: flex; flex-direction: column; gap: 0.75rem;">
@@ -627,6 +618,65 @@
   <script>psyWriteFooter();</script>
 
   <style>
+    /* ═══════════ Единый масштаб главной страницы ═══════════════════════════
+       Было: у каждой секции свой padding (5rem даже на телефоне), у каждой
+       кнопки — свои padding и font-size, заголовки в 3.25rem не уменьшались.
+       Отсюда и жалобы: кнопки разной ширины, «перебольшие», уезжают за край,
+       у блоков огромные отступы. Теперь размеры берутся из одного набора
+       clamp()-значений: страница сама сжимается от 320px до десктопа. */
+
+    /* ── Вертикальный ритм секций ── */
+    .idx-sec       { padding: clamp(2.5rem, 6.5vw, 5rem) 0; }
+    .idx-sec-hero  { padding: clamp(1.5rem, 4.5vw, 5rem) 0 clamp(2.25rem, 6vw, 4rem); }
+    .idx-sec-tight { padding: clamp(2.25rem, 5.5vw, 4rem) 0; }
+
+    /* ── Типографика ── */
+    .idx-h1    { font-size: clamp(1.9rem, 6.6vw, 3.25rem); line-height: 1.1; letter-spacing: -0.03em; }
+    .idx-h2    { font-size: clamp(1.45rem, 4.6vw, 2.25rem); line-height: 1.18; letter-spacing: -0.03em; margin-bottom: 0.75rem; }
+    .idx-h2-lg { font-size: clamp(1.6rem, 5.4vw, 2.75rem); line-height: 1.12; letter-spacing: -0.035em; margin-bottom: 1rem; }
+    .idx-lead  { font-size: clamp(0.95rem, 2.4vw, 1.0625rem); line-height: 1.65; margin: 0; }
+    .idx-head  { max-width: 620px; margin: 0 auto clamp(1.75rem, 4vw, 3rem); text-align: center; }
+
+    /* ── Кнопки: одна геометрия на всю страницу ──
+       Раньше каждая кнопка объявляла свои padding/font-size инлайном, поэтому
+       «Найти психолога» и «Подобрать за минуту» стояли рядом разной ширины. */
+    .idx-btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem;
+      min-height: 52px; padding: 0.75rem 1.75rem;
+      font-family: inherit; font-size: 1rem; font-weight: 700; line-height: 1.25;
+      border-radius: 0.875rem; border: 2px solid transparent; text-decoration: none;
+      cursor: pointer; text-align: center;
+      transition: transform .18s ease, box-shadow .18s ease, background .18s ease;
+    }
+    .idx-btn-primary { background: linear-gradient(135deg,#047857,#059669); color:#fff; box-shadow: 0 4px 16px rgba(4,120,87,.28); }
+    .idx-btn-primary:hover { color:#fff; transform: translateY(-2px); box-shadow: 0 8px 24px rgba(4,120,87,.38); }
+    .idx-btn-outline { background:#fff; color:#047857; border-color:#047857; }
+    .idx-btn-outline:hover { background:#ECFDF5; color:#047857; transform: translateY(-2px); }
+    .idx-btn-white { background:#fff; color:#047857; box-shadow: 0 8px 28px rgba(0,0,0,.18); }
+    .idx-btn-white:hover { color:#047857; transform: translateY(-2px); box-shadow: 0 12px 36px rgba(0,0,0,.26); }
+    .idx-btn:focus-visible { outline: 3px solid #34D399; outline-offset: 2px; }
+    body.dark .idx-btn-outline { background: transparent; color:#6EE7B7; border-color:#34D399; }
+    body.dark .idx-btn-outline:hover { background: rgba(52,211,153,.14); color:#6EE7B7; }
+
+    .idx-cta-row { display:flex; flex-wrap: wrap; gap: 0.75rem; }
+    .idx-cta-center { justify-content: center; }
+
+    /* ── Телефон ── */
+    @media (max-width: 640px) {
+      /* Кнопки в колонку и во всю ширину — одинаковые по размеру и никуда не уезжают */
+      .idx-cta-row { flex-direction: column; align-items: stretch; }
+      .idx-cta-row .idx-btn { width: 100%; padding: 0.75rem 1rem; min-height: 50px; font-size: 1rem; }
+      /* Плашка с ценой на телефоне переносилась в две строки и читалась как ещё
+         одна (неактивная) кнопка — уводим её в размер подписи. */
+      #heroPriceBadge { font-size: 0.8125rem; padding: 0.4rem 0.85rem; align-items: flex-start; }
+      #heroPriceBadge i { margin-top: 2px; }
+      .trust-badges { gap: 0.45rem 0.9rem; margin-top: 0.9rem; }
+      /* Между карточками в колонку 1.5–2rem читаются как разрывы страницы */
+      .idx-services-grid, .idx-whom-grid, .idx-steps-grid,
+      .why-grid, .reviews-grid, .sc-grid { gap: 0.875rem !important; }
+      .idx-steps-grid > div > div:first-child { margin-bottom: 0.875rem !important; }
+    }
+
     @media (max-width: 900px) {
       .hero-main-grid { grid-template-columns: 1fr !important; gap: 2rem !important; }
       .hero-main-grid > div:last-child { display: none; }
@@ -637,9 +687,15 @@
       .sess-grid { grid-template-columns: 1fr !important; }
     }
     @media (max-width: 560px) {
+      /* 1.5rem с двух сторон на узком экране съедали десятую часть ширины */
+      .container { padding: 0 1rem; }
       .idx-services-grid { grid-template-columns: 1fr !important; }
       .idx-stats-grid { grid-template-columns: 1fr !important; }
-      .hero-main-grid h1 { font-size: 2rem !important; }
+      /* Карточки: 1.75–2rem внутреннего отступа на телефоне — это пустая рамка */
+      .idx-sec .card,
+      .idx-steps-grid > div,
+      .sc-grid > div { padding: 1.25rem !important; }
+      .idx-stats-grid > div { padding: 1.35rem !important; }
     }
   </style>
 

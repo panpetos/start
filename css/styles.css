@@ -1501,6 +1501,11 @@ details p {
 /* ============================================
    Navigation (Mobile)
    ============================================ */
+/* Строка «Личный кабинет» и подписи у кружков — только в мобильной шторке.
+   На ПК в шапке остаётся привычный ряд круглых кнопок справа. */
+.psy-nav-account { display: none; }
+.psy-act-label { display: none; }
+
 .burger-menu {
   display: none;
   flex-direction: column;
@@ -1664,32 +1669,71 @@ body.dark .accent-link { color: #6EE7B7 !important; }
   .nav-menu li > a.nav-link:active,
   .nav-menu li > a.nav-link:hover { background: #EFF7F3; }
 
-  /* Кружки действий — ряд внизу, отделённый воздухом и одной тонкой чертой.
-     ВАЖНО: правило выше не должно их растягивать — от width:100% круглая
-     аватарка превращалась в овал, и подсветка вокруг неё шла эллипсом. */
+  /* ── Вход в кабинет: подписанная строка вместо безымянного кружка ──────────
+     Было: внизу шторки стояли три зелёных кружка (чат, тема, вход). По иконке
+     человечка не понять, что это личный кабинет, — люди искали вход и не
+     находили. Теперь ЛК — первая строка меню с аватаром, именем и пояснением,
+     а «Сообщения» и «Тёмная тема» — такие же подписанные строки внизу. */
+  #navMenu .psy-nav-account {
+    display: block !important;
+    width: 100%;
+    margin: 0 0 0.5rem !important;
+  }
+  .psy-account-link {
+    display: flex; align-items: center; gap: 0.7rem; width: 100%;
+    padding: 0.6rem 0.7rem; border-radius: 0.75rem; text-decoration: none;
+    background: #F3FAF6; border: 1px solid #E3F2EA;
+    transition: background 0.14s;
+  }
+  .psy-account-link:active, .psy-account-link:hover { background: #E7F5EE; }
+  .psy-account-av {
+    width: 42px; height: 42px; flex: 0 0 42px; border-radius: 50%; overflow: hidden;
+    background: linear-gradient(135deg, #047857, #059669);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .psy-account-av img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .psy-account-av svg { width: 22px; height: 22px; }
+  .psy-account-ini { color: #fff; font-weight: 700; font-size: 1.05rem; }
+  .psy-account-txt { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+  .psy-account-title {
+    font-size: 0.95rem; font-weight: 600; color: #1F3D31; line-height: 1.25;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .psy-account-sub {
+    font-size: 0.775rem; color: #6B8A7C; line-height: 1.25; margin-top: 1px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .psy-account-go { color: #9DB8AC; font-size: 1.35rem; line-height: 1; flex-shrink: 0; }
+
+  /* Ряд действий стал колонкой из таких же строк, как пункты меню. */
   #navMenu #psyNavActions {
-    margin-top: 1rem !important;
-    padding-top: 0.9rem !important;
+    margin-top: 0.9rem !important;
+    padding-top: 0.8rem !important;
     border-top: 1px solid #EFF7F3 !important;
     display: flex;
-    gap: 0.6rem;
-    justify-content: flex-start;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 2px;
   }
-  /* Размеры кружков задаём явно. Сначала здесь стояло width:auto — и это
-     переломило по-другому: auto перебивал инлайновые 40px, кружок подстраивался
-     под пропорции фотографии и на неквадратном снимке становился эллипсом 72×40,
-     из-под которого лез фиолетовый фон. Фиксированные значения не зависят ни от
-     фотографии, ни от того, какое ещё правило захочет растянуть пункт меню. */
-  #navMenu #psyNavActions > * { min-height: 0 !important; }
-  #navMenu #psyNavActions #psyLoginCircle {
-    width: 40px !important; height: 40px !important; flex: 0 0 40px; border-radius: 50%; overflow: hidden;
-  }
+  #navMenu #psyNavActions > * { min-height: 0 !important; width: 100%; }
+  /* Кружок ЛК здесь больше не нужен — вход вынесен строкой наверх. */
+  #navMenu #psyNavActions #psyLoginCircle { display: none !important; }
   #navMenu #psyNavActions #psyChatLink,
   #navMenu #psyNavActions #psyThemeToggle {
-    width: 38px !important; height: 38px !important; flex: 0 0 38px; border-radius: 50%;
+    width: 100% !important; height: auto !important; min-height: 42px !important;
+    border: 0 !important; background: transparent !important; border-radius: 0.55rem !important;
+    justify-content: flex-start !important; gap: 0.6rem; padding: 0 0.7rem;
+    font-size: 0.95rem; font-weight: 500; color: #37352F;
   }
-  #navMenu #psyNavActions #psyLoginCircle img {
-    width: 100% !important; height: 100% !important; object-fit: cover; display: block;
+  #navMenu #psyNavActions #psyChatLink:active,
+  #navMenu #psyNavActions #psyChatLink:hover,
+  #navMenu #psyNavActions #psyThemeToggle:active,
+  #navMenu #psyNavActions #psyThemeToggle:hover { background: #EFF7F3 !important; }
+  #navMenu #psyNavActions .psy-act-label { display: inline; }
+  #navMenu #psyNavActions .psy-act-ico { font-size: 1.05rem; width: 1.3rem; text-align: center; }
+  /* Счётчик непрочитанных на широкой строке — справа, а не «на плече» иконки. */
+  #navMenu #psyNavActions #psyChatBadge {
+    position: static !important; margin-left: auto; box-shadow: none !important;
   }
 
   /* Затемнение под шторкой: без него меню висит поверх страницы без границы,
@@ -1706,6 +1750,17 @@ body.dark .accent-link { color: #6EE7B7 !important; }
   body.dark .nav-menu li > a.nav-link:active,
   body.dark .nav-menu li > a.nav-link:hover { background: #2A2831 !important; }
   body.dark #navMenu #psyNavActions { border-top-color: #2E2C36 !important; }
+  body.dark .psy-account-link { background: #2A2831; border-color: #34313D; }
+  body.dark .psy-account-link:active, body.dark .psy-account-link:hover { background: #322F3B; }
+  body.dark .psy-account-title { color: #DCEBE4; }
+  body.dark .psy-account-sub { color: #94AFA3; }
+  body.dark .psy-account-go { color: #6B7F76; }
+  body.dark #navMenu #psyNavActions #psyChatLink,
+  body.dark #navMenu #psyNavActions #psyThemeToggle { color: #DCEBE4 !important; }
+  body.dark #navMenu #psyNavActions #psyChatLink:active,
+  body.dark #navMenu #psyNavActions #psyChatLink:hover,
+  body.dark #navMenu #psyNavActions #psyThemeToggle:active,
+  body.dark #navMenu #psyNavActions #psyThemeToggle:hover { background: #2A2831 !important; }
 
   .hero-cta-buttons {
     flex-direction: column !important;

@@ -62,7 +62,8 @@ window.psyGuardPoll = window.psyGuardPoll || function (fn) { return fn; };
       '<a id="psyChatLink" href="/chat.html" aria-label="Сообщения" title="Сообщения" ' +
       'style="position:relative;width:38px;height:38px;min-width:38px;border-radius:50%;border:1.5px solid #E5E7EB;background:#fff;' +
       'display:inline-flex;align-items:center;justify-content:center;font-size:1.05rem;text-decoration:none;transition:transform .2s;" ' +
-      'onmouseover="this.style.transform=\'scale(1.05)\'" onmouseout="this.style.transform=\'scale(1)\'">💬' +
+      'onmouseover="this.style.transform=\'scale(1.05)\'" onmouseout="this.style.transform=\'scale(1)\'">' +
+        '<span class="psy-act-ico">💬</span><span class="psy-act-label">Сообщения</span>' +
         '<span id="psyChatBadge" style="display:none;position:absolute;top:-4px;right:-4px;min-width:18px;height:18px;padding:0 5px;' +
         'border-radius:9px;background:#EF4444;color:#fff;font-size:0.68rem;font-weight:700;line-height:18px;text-align:center;' +
         'box-shadow:0 0 0 2px #fff;"></span>' +
@@ -73,7 +74,9 @@ window.psyGuardPoll = window.psyGuardPoll || function (fn) { return fn; };
     '<span id="psyThemeToggleWrap" style="display:inline-flex;align-items:center;">' +
       '<button id="psyThemeToggle" aria-label="Светлая/тёмная тема" title="Светлая/тёмная тема" ' +
       'style="width:38px;height:38px;min-width:38px;border-radius:50%;border:1.5px solid #E5E7EB;background:#fff;cursor:pointer;font-size:1.05rem;display:inline-flex;align-items:center;justify-content:center;transition:transform .2s;" ' +
-      'onmouseover="this.style.transform=\'scale(1.05)\'" onmouseout="this.style.transform=\'scale(1)\'">🌙</button>' +
+      'onmouseover="this.style.transform=\'scale(1.05)\'" onmouseout="this.style.transform=\'scale(1)\'">' +
+        '<span class="psy-act-ico" id="psyThemeIco">🌙</span><span class="psy-act-label" id="psyThemeLabel">Тёмная тема</span>' +
+      '</button>' +
     '</span>';
 
   var actionsItem =
@@ -81,7 +84,26 @@ window.psyGuardPoll = window.psyGuardPoll || function (fn) { return fn; };
       chatIconInner + themeToggleInner + loginInner +
     '</li>';
 
-  var menu = links.map(function (l) {
+  // ── Вход в кабинет строкой, а не одним кружком ──────────────────────────────
+  // На телефоне в шторке ЛК был только зелёный кружок с человечком — по нему
+  // не понять, что это вход в личный кабинет. Добавляем подписанную строку
+  // (аватар + «Личный кабинет» + пояснение). На ПК она скрыта: там остаётся
+  // привычный кружок справа в шапке.
+  var accountItem =
+    // liReset здесь не подходит: в нём display:flex, и инлайн-стиль перебивал
+    // display:none — строка вылезала в шапку на ПК. Сбрасываем без display.
+    '<li id="psyNavAccount" class="psy-nav-account" style="list-style:none;margin:0;padding:0;border:0;">' +
+      '<a id="psyAccountLink" class="psy-account-link" href="/login.html">' +
+        '<span id="psyAccountAv" class="psy-account-av">' + personSvg + '</span>' +
+        '<span class="psy-account-txt">' +
+          '<span class="psy-account-title" id="psyAccountTitle">Личный кабинет</span>' +
+          '<span class="psy-account-sub" id="psyAccountSub">Войти или зарегистрироваться</span>' +
+        '</span>' +
+        '<span class="psy-account-go" aria-hidden="true">›</span>' +
+      '</a>' +
+    '</li>';
+
+  var menu = accountItem + links.map(function (l) {
     var st = active(l.href) ? 'color:#34C759;font-weight:600;' : '';
     return '<li style="' + liReset + '"><a href="' + l.href + '" class="nav-link" style="' + st + '">' + l.text + '</a></li>';
   }).join('') + actionsItem;
@@ -180,7 +202,17 @@ window.psyGuardPoll = window.psyGuardPoll || function (fn) { return fn; };
     // весит больше и разделитель остаётся: у обоих !important, решает специфичность.
     '#navMenu.nav-menu-slim #psyNavActions,#navMenu.nav-menu-slim li{border:none!important;' +
       'padding:0!important;margin:0!important;width:auto!important}' +
-    '#navMenu.nav-menu-slim #psyNavActions{gap:0.55rem!important}' +
+    '#navMenu.nav-menu-slim #psyNavActions{gap:0.55rem!important;flex-direction:row!important;align-items:center!important}' +
+    // В тонкой шапке кабинета шторки нет: подписанная строка ЛК и подписи у
+    // кружков там не нужны — иначе строка «Сообщения» растянет всю шапку.
+    '#navMenu.nav-menu-slim .psy-nav-account{display:none!important}' +
+    '#navMenu.nav-menu-slim .psy-act-label{display:none!important}' +
+    '#navMenu.nav-menu-slim #psyNavActions #psyLoginCircle{display:inline-flex!important;width:40px!important;height:40px!important;flex:0 0 40px;border-radius:50%;overflow:hidden}' +
+    '#navMenu.nav-menu-slim #psyNavActions>*{width:auto!important}' +
+    '#navMenu.nav-menu-slim #psyNavActions #psyChatLink,#navMenu.nav-menu-slim #psyNavActions #psyThemeToggle{' +
+      'width:38px!important;height:38px!important;min-height:0!important;flex:0 0 38px;border-radius:50%!important;' +
+      'border:1.5px solid #E5E7EB!important;background:#fff!important;justify-content:center!important;padding:0!important}' +
+    '#navMenu.nav-menu-slim #psyNavActions #psyChatBadge{position:absolute!important;top:-4px;right:-4px;margin:0!important;box-shadow:0 0 0 2px #fff!important}' +
     '.nav-menu-slim li{margin-left:0!important}' +
     'body.dark #psyChatLink{background:#2A2A2A!important;border-color:#444!important}' +
     'body.dark #psyChatBadge{box-shadow:0 0 0 2px #1E1E1E!important}';
@@ -199,7 +231,14 @@ window.psyGuardPoll = window.psyGuardPoll || function (fn) { return fn; };
   }
   function updateThemeToggleIcon() {
     var btn = document.getElementById('psyThemeToggle');
-    if (btn) btn.textContent = isDarkNow() ? '☀️' : '🌙';
+    if (!btn) return;
+    // Раньше здесь стоял btn.textContent — он стирал подпись «Тёмная тема»,
+    // которая нужна в мобильной шторке. Меняем только сам значок.
+    var ico = document.getElementById('psyThemeIco');
+    var lbl = document.getElementById('psyThemeLabel');
+    if (ico) ico.textContent = isDarkNow() ? '☀️' : '🌙';
+    else btn.textContent = isDarkNow() ? '☀️' : '🌙';
+    if (lbl) lbl.textContent = isDarkNow() ? 'Светлая тема' : 'Тёмная тема';
   }
   function toggleSiteTheme() {
     var dark = !isDarkNow();
@@ -471,7 +510,36 @@ window.psyGuardPoll = window.psyGuardPoll || function (fn) { return fn; };
     return '/client-dashboard.html';
   }
 
+  // Строка ЛК в мобильной шторке: имя вместо «Войти», фото вместо человечка.
+  function applyAccountRow(user) {
+    var link = document.getElementById('psyAccountLink');
+    if (!link) return;
+    var av = document.getElementById('psyAccountAv');
+    var title = document.getElementById('psyAccountTitle');
+    var sub = document.getElementById('psyAccountSub');
+    if (!user) {
+      link.href = '/login.html';
+      if (title) title.textContent = 'Личный кабинет';
+      if (sub) sub.textContent = 'Войти или зарегистрироваться';
+      return;
+    }
+    link.href = dashUrlFor(user);
+    var name = [user.first_name, user.last_name].filter(Boolean).join(' ').trim();
+    if (title) title.textContent = name || 'Личный кабинет';
+    if (sub) sub.textContent = name ? 'Личный кабинет' : 'Перейти в кабинет';
+    var avatar = user.avatar || user.avatar_url || user.photo || '';
+    if (av) {
+      if (avatar) {
+        av.innerHTML = '<img src="' + avatar + '" alt="" onerror="this.remove()">';
+      } else {
+        var initial = (user.first_name || user.email || '?').charAt(0).toUpperCase();
+        av.innerHTML = '<span class="psy-account-ini">' + initial + '</span>';
+      }
+    }
+  }
+
   function applyLoggedInCircle(user) {
+    applyAccountRow(user);
     var circle = document.getElementById('psyLoginCircle');
     if (!circle || !user) return;
     circle.href = dashUrlFor(user);
