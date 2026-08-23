@@ -105,6 +105,7 @@ jobs:
             put api/support.php -o api/support.php;
             put api/supervision.php -o api/supervision.php;
             put api/ai_chat.php -o api/ai_chat.php;
+            put api/ai_kb.php -o api/ai_kb.php;
             put api/ai_text.php -o api/ai_text.php;
             put api/msg_search.php -o api/msg_search.php;
             put api/messages_page.php -o api/messages_page.php;
