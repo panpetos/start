@@ -98,6 +98,48 @@ if ($sd && is_dir($sd)) {
     $r['session_files'] = ($cnt !== null && trim((string)$cnt) !== '') ? (int)trim($cnt) : null;
 }
 
+// 4b. ?msgcols=1 — почему из переписки могли пропасть вложения.
+//     messages_page.php выбирает поля по списку колонок. Если список не читается,
+//     из выборки молча выпадают attachment_url/type/name, и вместо фото, голосовых
+//     и кружков в чате остаётся одна служебная подпись. Здесь видно, читается ли
+//     список вообще и есть ли нужные колонки. Названий колонок наружу не отдаём —
+//     только да/нет и счётчики.
+if (isset($_GET['msgcols']) && isset($pdo) && $pdo) {
+    $m = [];
+    $names = [];
+    try {
+        foreach ($pdo->query("SHOW COLUMNS FROM messages")->fetchAll(PDO::FETCH_ASSOC) as $row) {
+            $names[] = (string)($row['Field'] ?? $row['field'] ?? '');
+        }
+        $m['show_columns'] = 'ok';
+        $m['count'] = count($names);
+    } catch (Exception $e) {
+        $m['show_columns'] = 'ошибка: ' . substr($e->getMessage(), 0, 120);
+        $m['count'] = 0;
+    }
+    foreach (['attachment_url', 'attachment_type', 'attachment_name', 'edited_at'] as $c) {
+        $m['has_' . $c] = in_array($c, $names, true);
+    }
+    // Тот самый запрос, что стоял в messages_page.php: работает ли подстановка в SHOW
+    try {
+        $st = $pdo->prepare("SHOW COLUMNS FROM messages LIKE ?");
+        $st->execute(['attachment_url']);
+        $m['prepared_like'] = $st->fetch() ? 'находит' : 'НЕ находит';
+    } catch (Exception $e) {
+        $m['prepared_like'] = 'ошибка: ' . substr($e->getMessage(), 0, 120);
+    }
+    try { $m['emulate_prepares'] = (bool)$pdo->getAttribute(PDO::ATTR_EMULATE_PREPARES); } catch (Exception $e) {}
+    // Сколько сообщений с вложением есть на самом деле — отправка ли сломалась или чтение
+    if (!empty($m['has_attachment_url'])) {
+        try {
+            $m['rows_with_attachment'] = (int)$pdo->query(
+                "SELECT COUNT(*) FROM messages WHERE attachment_url IS NOT NULL AND attachment_url <> ''"
+            )->fetchColumn();
+        } catch (Exception $e) {}
+    }
+    $r['messages_cols'] = $m;
+}
+
 // 5. ?bench=1 — сколько стоят типовые запросы сайта. Нужно, чтобы прикинуть,
 //    сколько людей хостинг вытянет, не устраивая проду настоящую нагрузку.
 //    Всё только на чтение, данные наружу не отдаются — одни тайминги.

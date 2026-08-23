@@ -1836,21 +1836,32 @@
             padding: 0.5rem 0.9rem; font-family: inherit; font-size: 0.85rem; font-weight: 700; cursor: pointer;
         }
 
-        /* Кнопки прижаты к низу и не залезают под системную полосу телефона */
+        /* Кнопки прижаты к низу и не залезают под системную полосу телефона.
+           Размеры считаются от ширины экрана. Раньше кружок был жёстко 62px, кнопка 72px,
+           промежуток 1.5rem — пять кнопок (динамик, микрофон, камера, смена камеры,
+           завершить) требовали 456px и на телефоне в строку не помещались. Уменьшающее
+           правило начиналось только с 380px, а типичный телефон — 390–430px, то есть
+           ровно те, где ряд и разъезжался. Теперь ширина берётся как min(предел, доля
+           экрана): на 320px ряд занимает 317px, на 390px — 386px, на планшете и ПК
+           остаются прежние крупные кружки. */
         .rtc-bar {
             position: absolute; left: 0; right: 0; bottom: 0; z-index: 6;
-            display: flex; align-items: flex-start; justify-content: center; gap: 1.5rem;
-            padding: 1rem 1rem calc(1rem + env(safe-area-inset-bottom));
+            display: flex; align-items: flex-start; justify-content: center;
+            gap: min(1.5rem, 2.5vw);
+            padding: 1rem min(1rem, 2vw) calc(1rem + env(safe-area-inset-bottom));
             background: linear-gradient(to top, rgba(0,0,0,0.55), rgba(0,0,0,0));
         }
         .rtc-btn {
-            display: flex; flex-direction: column; align-items: center; gap: 0.4rem;
+            display: flex; flex-direction: column; align-items: center; gap: 0.35rem;
             border: none; background: none; padding: 0; cursor: pointer;
-            font-family: inherit; color: #fff; width: 72px;
+            font-family: inherit; color: #fff;
+            width: min(72px, 17vw); min-width: 0; flex: 0 0 auto;
         }
         .rtc-ico {
-            width: 62px; height: 62px; border-radius: 50%; background: rgba(255,255,255,0.18);
-            display: flex; align-items: center; justify-content: center; font-size: 1.5rem;
+            width: min(62px, 14.6vw); height: min(62px, 14.6vw); aspect-ratio: 1;
+            border-radius: 50%; background: rgba(255,255,255,0.18);
+            display: flex; align-items: center; justify-content: center;
+            font-size: clamp(1.1rem, 3.7vw, 1.5rem);
             transition: background 0.15s, transform 0.1s;
         }
         .rtc-btn:hover .rtc-ico { background: rgba(255,255,255,0.3); }
@@ -1859,7 +1870,12 @@
         .rtc-btn.hang .rtc-ico { background: #DC2626; }
         .rtc-btn.hang:hover .rtc-ico { background: #B91C1C; }
         .rtc-btn.answer .rtc-ico { background: #047857; }
-        .rtc-lab { font-size: 0.72rem; opacity: 0.85; white-space: nowrap; }
+        .rtc-lab {
+            font-size: clamp(0.6rem, 2.5vw, 0.72rem); opacity: 0.85;
+            /* Была nowrap без ограничения ширины: длинная подпись («Фронтальная»)
+               растягивала кнопку и выдавливала соседние за край экрана. */
+            max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
 
         /* Кнопка «свернуть». Была безымянной галочкой «▾» в углу — никто не понимал,
            что она делает. Теперь это подписанная кнопка «В чат»: видно и что нажимать,
@@ -1972,14 +1988,12 @@
         .rtc-in-card .rtc-ava { margin: 0 auto 1rem; width: 96px; height: 96px; font-size: 2.2rem; }
         .rtc-in-name { font-size: 1.25rem; font-weight: 700; }
         .rtc-in-kind { font-size: 0.9rem; color: #A7F3D0; margin-top: 0.2rem; }
-        .rtc-in-actions { display: flex; gap: 2rem; justify-content: center; margin-top: 1.6rem; }
+        .rtc-in-actions { display: flex; gap: min(2rem, 6vw); justify-content: center; margin-top: 1.6rem; }
 
-        /* Тесный экран: кружки поменьше, своё видео ниже, подписи остаются */
+        /* Невысокий экран: аватар и своё видео поменьше. Ширину кнопок здесь уже
+           не трогаем — она считается от ширины экрана в самом правиле .rtc-btn. */
         @media (max-width: 380px), (max-height: 620px) {
             .rtc-ava { width: 104px; height: 104px; font-size: 2.4rem; }
-            .rtc-ico { width: 54px; height: 54px; font-size: 1.3rem; }
-            .rtc-btn { width: 64px; }
-            .rtc-bar { gap: 1.1rem; }
             .rtc-local { width: 84px; height: 112px; }
         }
         /* Телефон лёжа: невысокий экран — прячем подписи под кнопками и пометку о шифровании */
@@ -1992,6 +2006,15 @@
             .rtc-bar { gap: 1rem; padding: 0.6rem 1rem calc(0.6rem + env(safe-area-inset-bottom)); }
             .rtc-local { width: 96px; height: 72px; top: calc(env(safe-area-inset-top) + 48px); }
         }
+
+        /* Вложение не доехало: понятная плашка вместо служебной строки с именем файла */
+        .attach-lost {
+            display: inline-flex; align-items: center; gap: 0.35rem;
+            padding: 0.4rem 0.7rem; border-radius: 0.6rem;
+            background: rgba(220,38,38,0.10); border: 1px solid rgba(220,38,38,0.25);
+            color: #B91C1C; font-size: 0.82rem; line-height: 1.3;
+        }
+        body.dark .attach-lost { background: rgba(248,113,113,0.12); border-color: rgba(248,113,113,0.3); color: #FCA5A5; }
 
         /* ── Отложенная отправка ────────────────────────────────────────────────── */
         .sched-bar {
@@ -8213,10 +8236,11 @@
                 .replace(ALB_MARK, '')
                 // В списке чатов вместо «[Фото: IMG_6507.png]» — просто «Фото»:
                 // имя файла с телефона ничего не говорит о сообщении.
-                .replace(/^\[Фото:[^\]]*\]$/, '📷 Фото')
+                .replace(/^\[Фото(:[^\]]*)?\]$/, '📷 Фото')
                 .replace(/^\[Файл:\s*([^\]]*)\]$/, '📄 $1')
-                .replace(/^\[Голосовое сообщение:[^\]]*\]$/, '🎤 Голосовое')
-                .replace(/^\[Видеосообщение:[^\]]*\]$/, '⏺ Кружок')
+                .replace(/^\[Файл\]$/, '📄 Файл')
+                .replace(/^\[Голосовое(?: сообщение)?(:[^\]]*)?\]$/, '🎤 Голосовое')
+                .replace(/^\[Видеосообщение(:[^\]]*)?\]$/, '⏺ Кружок')
                 .replace(/\*\*|~~|__|`/g, '')
                 .replace(/([*_])(\S[^\n*_]*?\S|\S)\1/g, '$2')
                 .replace(/^\s*#{2,3}\s+/, '')
@@ -10005,7 +10029,11 @@
          * voiceKey нужен плееру голосовых: он должен быть уникален в пределах страницы.
          */
         function attachmentHtmlFor(m, voiceKey) {
-            if (!m || !m.attachment_url) return '';
+            if (!m) return '';
+            if (!m.attachment_url) {
+                const kind = attachPlaceholderKind(m);
+                return kind ? lostAttachmentHtml(kind) : '';
+            }
             // Под голосовым и кружком — кнопка расшифровки: она нужна и своим записям тоже,
             // например чтобы быстро перечитать сказанное вместо повторного прослушивания.
             if (isVideoNote(m)) return videoNoteHtml(m.attachment_url, m.attachment_name)
@@ -10669,7 +10697,11 @@
                     // Ответ: из текста вынимаем маркер [RE#id] и рисуем цитату отдельно
                     const rp = splitReply(m.content);
                     const quote = quoteHtml(rp.replyId);
-                    let content = isAttachmentPlaceholder(m) ? '' : msgText(rp.body);
+                    const phKind = attachPlaceholderKind({ content: rp.body });
+                    let content = phKind ? '' : msgText(rp.body);
+                    // Подпись есть, а вложения нет — значит оно потерялось по дороге.
+                    // Показать имя файла вместо снимка нельзя, поэтому говорим прямо.
+                    if (phKind && !m.attachment_url) attachmentHtml = lostAttachmentHtml(phKind);
                     // Права на действия собираем здесь, меню потом их читает
                     if (m.id) {
                         msgCaps[m.id] = {
@@ -12718,12 +12750,37 @@
          * В списке диалогов она полезна, а в самой переписке дублирует уже отрисованный
          * плеер или кружок, поэтому её не показываем.
          */
+        // «[Фото]», «[Фото: IMG_1.png]», «[Голосовое сообщение: 00:07]», «[Видеосообщение: 00:03]»,
+        // «[Файл: договор.pdf]» — всё это служебные подписи, а не текст человека.
+        const ATTACH_PLACEHOLDER_RE = /^\[(Фото|Файл|Голосовое сообщение|Голосовое|Видеосообщение)(:\s*[^\]]*)?\]$/;
+
+        /**
+         * Какая это служебная подпись — или пустая строка, если текст обычный.
+         *
+         * Проверку «есть вложение» здесь убрали намеренно. Она стояла как страховка,
+         * но обернулась против нас: когда вложение до переписки не доехало, страховка
+         * решала «значит, это обычный текст», и человек видел в пузыре голое
+         * «[Фото: IMG_6899.png]» вместо снимка. Подпись служебная в любом случае —
+         * показывать её нельзя, а про потерянное вложение честно скажем плашкой.
+         */
+        function attachPlaceholderKind(m) {
+            const text = String((m && m.content) || '').trim();
+            const mm = text.match(ATTACH_PLACEHOLDER_RE);
+            if (!mm) return '';
+            return mm[1].indexOf('Голосовое') === 0 ? 'Голосовое' : mm[1];
+        }
+
         function isAttachmentPlaceholder(m) {
-            const text = String(m.content || '');
-            if (!m.attachment_url || !text) return false;
-            // «Фото» сюда не входило, и над каждым снимком висела строка вида
-            // «[Фото: IMG_6507.png]» — имя файла с телефона, которое никому не нужно.
-            return /^\[(Фото|Файл|Голосовое|Видеосообщение)/.test(text);
+            return !!attachPlaceholderKind(m);
+        }
+
+        /** Вложение потерялось: вместо служебной строки — понятная плашка. */
+        function lostAttachmentHtml(kind) {
+            const ico = kind === 'Фото' ? '📷' : (kind === 'Голосовое' ? '🎤'
+                      : (kind === 'Видеосообщение' ? '⏺' : '📄'));
+            const word = kind === 'Голосовое' ? 'Голосовое сообщение'
+                       : (kind === 'Видеосообщение' ? 'Видеосообщение' : kind);
+            return `<div class="attach-lost">${ico} ${escapeHtml(word)} · не удалось загрузить</div>`;
         }
 
         /**
@@ -13928,8 +13985,11 @@
             renderAttachBar();
             for (let i = 0; i < items.length; i++) {
                 const a = items[i];
+                // Имя файла с телефона («IMG_6899.png») человеку ничего не говорит, а в
+                // переписке оно бросалось в глаза. У фото подпись теперь просто «[Фото]»,
+                // у документа имя оставляем: оно и есть его название, видно на самой ссылке.
                 const body = (i === 0 && caption) ? caption
-                    : `[${(a.isImage && !asFile) ? 'Фото' : 'Файл'}: ${a.name}]`;
+                    : ((a.isImage && !asFile) ? '[Фото]' : `[Файл: ${a.name}]`);
                 await sendAttachmentMessage({
                     content: album + body,
                     attachment_url: a.url,
@@ -14670,35 +14730,153 @@
          * Кнопку показываем только там, где камер и правда больше одной.
          */
         let rtcFacing = 'user';
+
+        /** Открыть камеру по набору ограничений и вернуть дорожку (остальное гасим). */
+        async function rtcOpenVideoTrack(video) {
+            const st = await navigator.mediaDevices.getUserMedia({ video });
+            const t = st.getVideoTracks()[0];
+            if (!t) { st.getTracks().forEach(x => { try { x.stop(); } catch (e) {} }); throw new Error('нет дорожки'); }
+            st.getTracks().forEach(x => { if (x !== t) { try { x.stop(); } catch (e) {} } });
+            return t;
+        }
+
+        /** Похоже ли название камеры на нужную сторону. Подписи у Android разные и на разных языках. */
+        function rtcCamMatches(label, want) {
+            const t = String(label || '').toLowerCase();
+            return want === 'environment'
+                ? /back|rear|environment|world|задн|основн|тыл/.test(t)
+                : /front|user|face|self|фронт|передн|селфи/.test(t);
+        }
+
+        function rtcTrackDeviceId(track) {
+            try { return (track && track.getSettings && track.getSettings().deviceId) || ''; } catch (e) { return ''; }
+        }
+
+        function rtcPaintFlip() {
+            const l = document.getElementById('rtcLocal');
+            // Своё изображение зеркалим только у фронтальной: основная камера
+            // показывает мир как есть, и зеркало сбивало бы с толку.
+            if (l) l.style.transform = (rtcFacing === 'user') ? 'scaleX(-1)' : 'none';
+            const lab = document.getElementById('rtcFlipLab');
+            if (lab) lab.textContent = rtcFacing === 'user' ? 'Фронт.' : 'Основная';
+        }
+
+        /**
+         * Переключить камеру: фронтальная ↔ основная (задача №73).
+         *
+         * Почему так сложно. Раньше здесь был один вызов getUserMedia с
+         * facingMode:{ideal:...} при живой старой дорожке. На iPhone это работает,
+         * на Android — почти никогда: система отдаёт камеру монопольно, и пока
+         * прежняя дорожка не остановлена, запрос либо падает (NotReadableError),
+         * либо молча возвращает ТУ ЖЕ камеру — кнопка нажимается, а картинка та же.
+         * Плюс «ideal» — пожелание, а не требование: телефон вправе его проигнорировать.
+         *
+         * Поэтому теперь по порядку:
+         *   1) просим саму дорожку развернуться (applyConstraints) — там, где умеют,
+         *      это мгновенно и без переоткрытия камеры;
+         *   2) иначе гасим старую дорожку и открываем нужную: сперва exact facingMode,
+         *      затем по конкретному deviceId (у Android их несколько и facingMode врёт),
+         *      затем без ограничений размера — они тоже бывают причиной отказа;
+         *   3) если не вышло вовсе — возвращаем прежнюю камеру, чтобы человек не
+         *      остался в звонке с чёрным окном.
+         * Дорожку в соединении подменяем (replaceTrack) — пересогласование не нужно.
+         */
         async function rtcFlipCamera() {
             if (!rtcLocalStream) return;
             const btn = document.getElementById('rtcFlipBtn');
             const old = rtcLocalStream.getVideoTracks()[0];
             if (!old) { rtcToggleCam(); return; }          // видео ещё не включали
             const want = rtcFacing === 'user' ? 'environment' : 'user';
+            const oldId = rtcTrackDeviceId(old);
             if (btn) btn.disabled = true;
             try {
-                const cam = await navigator.mediaDevices.getUserMedia({
-                    video: Object.assign({}, RTC_VIDEO, { facingMode: { ideal: want } }),
-                });
-                const track = cam.getVideoTracks()[0];
-                if (!track) throw new Error('камера не отдала картинку');
+                // 1) Самый дешёвый путь: попросить текущую дорожку смотреть в другую сторону.
+                try {
+                    if (old.applyConstraints) {
+                        await old.applyConstraints({ facingMode: { exact: want } });
+                        const got = (old.getSettings && old.getSettings().facingMode) || '';
+                        const newId = rtcTrackDeviceId(old);
+                        if (got === want || (newId && newId !== oldId)) {
+                            rtcFacing = want;
+                            rtcPaintFlip();
+                            await rtcTuneSenders();
+                            return;
+                        }
+                    }
+                } catch (e) { /* не умеет — идём длинным путём */ }
+
+                // 2) Список камер собираем ДО остановки: после неё подписи могут пропасть.
+                let cams = [];
+                try {
+                    cams = (await navigator.mediaDevices.enumerateDevices())
+                        .filter(d => d.kind === 'videoinput');
+                } catch (e) {}
+
+                // Android держит камеру монопольно — старую нужно погасить.
+                try { old.stop(); } catch (e) {}
+
+                const wanted = cams.filter(d => d.deviceId && d.deviceId !== oldId
+                                                && rtcCamMatches(d.label, want));
+                const others = cams.filter(d => d.deviceId && d.deviceId !== oldId
+                                                && wanted.indexOf(d) === -1);
+                const plans = [
+                    Object.assign({}, RTC_VIDEO, { facingMode: { exact: want } }),
+                    ...wanted.map(d => Object.assign({}, RTC_VIDEO, { deviceId: { exact: d.deviceId } })),
+                    ...wanted.map(d => ({ deviceId: { exact: d.deviceId } })),
+                    { facingMode: { exact: want } },
+                    ...others.map(d => ({ deviceId: { exact: d.deviceId } })),
+                ];
+
+                let track = null;
+                for (const plan of plans) {
+                    try {
+                        const t = await rtcOpenVideoTrack(plan);
+                        // Та же самая камера — не считается: кнопку нажали, а ничего не изменилось.
+                        if (cams.length > 1 && oldId && rtcTrackDeviceId(t) === oldId) {
+                            try { t.stop(); } catch (e) {}
+                            continue;
+                        }
+                        track = t;
+                        break;
+                    } catch (e) { /* следующий вариант */ }
+                }
+
+                if (!track) {
+                    // Ничего не открылось — возвращаем прежнюю камеру, звонок не должен ослепнуть.
+                    try {
+                        track = await rtcOpenVideoTrack(oldId
+                            ? { deviceId: { exact: oldId } }
+                            : Object.assign({}, RTC_VIDEO, { facingMode: { ideal: rtcFacing } }));
+                    } catch (e) {}
+                    if (track) {
+                        rtcSwapLocalVideoTrack(old, track);
+                        const sender0 = rtcPc && rtcPc.getSenders().find(x => x.track && x.track.kind === 'video');
+                        if (sender0) await sender0.replaceTrack(track);
+                        await rtcTuneSenders();
+                    }
+                    toast('Эта камера недоступна — телефон её не отдал');
+                    return;
+                }
+
                 const sender = rtcPc && rtcPc.getSenders().find(x => x.track && x.track.kind === 'video');
                 if (sender) await sender.replaceTrack(track);
-                rtcLocalStream.removeTrack(old);
-                try { old.stop(); } catch (e) {}
-                rtcLocalStream.addTrack(track);
-                const l = document.getElementById('rtcLocal');
-                if (l) l.srcObject = rtcLocalStream;
+                rtcSwapLocalVideoTrack(old, track);
                 rtcFacing = want;
-                // Своё изображение зеркалим только у фронтальной: основная камера
-                // показывает мир как есть, и зеркало сбивало бы с толку.
-                if (l) l.style.transform = (rtcFacing === 'user') ? 'scaleX(-1)' : 'none';
-                document.getElementById('rtcFlipLab').textContent = rtcFacing === 'user' ? 'Фронтальная' : 'Основная';
+                rtcPaintFlip();
                 await rtcTuneSenders();
             } catch (e) {
                 toast('Не удалось переключить камеру');
             } finally { if (btn) btn.disabled = false; }
+        }
+
+        /** Заменить видеодорожку в своём потоке и в своём окошке. */
+        function rtcSwapLocalVideoTrack(old, track) {
+            if (!rtcLocalStream) return;
+            try { if (old) rtcLocalStream.removeTrack(old); } catch (e) {}
+            try { if (old) old.stop(); } catch (e) {}
+            try { rtcLocalStream.addTrack(track); } catch (e) {}
+            const l = document.getElementById('rtcLocal');
+            if (l) l.srcObject = rtcLocalStream;
         }
         window.rtcFlipCamera = rtcFlipCamera;
 
@@ -14710,7 +14888,7 @@
             try {
                 const cams = (await navigator.mediaDevices.enumerateDevices())
                     .filter(d => d.kind === 'videoinput');
-                if (cams.length > 1) btn.style.display = 'flex';
+                if (cams.length > 1) { btn.style.display = 'flex'; rtcPaintFlip(); }
             } catch (e) {}
         }
 
@@ -15230,7 +15408,7 @@
             </button>
             <!-- Смена камеры: фронтальная ↔ основная (задача №73) -->
             <button type="button" class="rtc-btn" id="rtcFlipBtn" onclick="rtcFlipCamera()" aria-label="Сменить камеру" style="display:none;">
-                <span class="rtc-ico">🔄</span><span class="rtc-lab" id="rtcFlipLab">Фронтальная</span>
+                <span class="rtc-ico">🔄</span><span class="rtc-lab" id="rtcFlipLab">Фронт.</span>
             </button>
             <button type="button" class="rtc-btn hang" onclick="rtcHangUp('hangup')" aria-label="Завершить">
                 <span class="rtc-ico">📵</span><span class="rtc-lab">Завершить</span>

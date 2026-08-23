@@ -38,15 +38,31 @@ if (!$userId) { http_response_code(401); echo json_encode(['ok' => false, 'error
 
 function mpOut($d, $c = 200) { http_response_code($c); echo json_encode($d, JSON_UNESCAPED_UNICODE); exit; }
 
-/** Есть ли колонка — набор полей в таблице сообщений у разных установок разный. */
-function mpHasColumn(PDO $pdo, $col) {
-    static $memo = [];
-    if (isset($memo[$col])) return $memo[$col];
+/**
+ * Список колонок таблицы сообщений — набор полей у разных установок разный.
+ *
+ * ВАЖНО, почему не «SHOW COLUMNS FROM messages LIKE ?» через prepare, как было
+ * сначала: подстановка в SHOW проходит не везде, и на боевой базе такой запрос
+ * падал. Ошибка глушилась catch-ем, функция отвечала «колонки нет» — и из выборки
+ * молча пропадали attachment_url/type/name. Внешне это выглядело так, будто фото
+ * и файлы перестали приходить: в переписке оставалась одна служебная подпись.
+ * Теперь спрашиваем список целиком, без подстановок, и один раз на запрос.
+ */
+function mpColumns(PDO $pdo) {
+    static $cols = null;
+    if ($cols !== null) return $cols;
+    $cols = [];
     try {
-        $st = $pdo->prepare("SHOW COLUMNS FROM messages LIKE ?");
-        $st->execute([$col]);
-        return $memo[$col] = (bool)$st->fetch();
-    } catch (Exception $e) { return $memo[$col] = false; }
+        foreach ($pdo->query("SHOW COLUMNS FROM messages")->fetchAll(PDO::FETCH_ASSOC) as $r) {
+            $name = $r['Field'] ?? ($r['field'] ?? null);
+            if ($name !== null) $cols[] = (string)$name;
+        }
+    } catch (Exception $e) { $cols = []; }
+    return $cols;
+}
+
+function mpHasColumn(PDO $pdo, $col) {
+    return in_array($col, mpColumns($pdo), true);
 }
 
 $peer = trim((string)($_GET['with'] ?? ''));
@@ -54,12 +70,21 @@ if ($peer === '') mpOut(['ok' => false, 'error' => 'Не указан собес
 $limit = max(10, min(200, (int)($_GET['limit'] ?? 50)));
 $before = trim((string)($_GET['before'] ?? ''));
 
-// Отдаём только то, что человек и так видит: свою переписку с этим собеседником
-$cols = ['id', 'sender_id', 'receiver_id', 'content', 'created_at'];
-foreach (['attachment_url', 'attachment_type', 'attachment_name', 'edited_at'] as $c) {
-    if (mpHasColumn($pdo, $c)) $cols[] = $c;
+// Отдаём только то, что человек и так видит: свою переписку с этим собеседником.
+// Если список колонок получить не удалось — берём строку целиком (m.*). Лишние
+// поля дороже по трафику, но это несравнимо лучше, чем потерять вложения.
+$known = mpColumns($pdo);
+if (!$known) {
+    $sel = 'm.*';
+} else {
+    $cols = ['id', 'sender_id', 'receiver_id', 'content', 'created_at'];
+    foreach (['attachment_url', 'attachment_type', 'attachment_name', 'edited_at'] as $c) {
+        if (mpHasColumn($pdo, $c)) $cols[] = $c;
+    }
+    $cols = array_values(array_intersect($cols, $known));
+    // Обязательный минимум пропасть не должен: без id и created_at чат не соберёт ленту
+    $sel = $cols ? implode(', ', array_map(fn($c) => 'm.' . $c, $cols)) : 'm.*';
 }
-$sel = implode(', ', array_map(fn($c) => 'm.' . $c, $cols));
 
 $where = "((m.sender_id = ? AND m.receiver_id = ?) OR (m.sender_id = ? AND m.receiver_id = ?))";
 $args = [$userId, $peer, $peer, $userId];
