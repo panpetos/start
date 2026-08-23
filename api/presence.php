@@ -3,6 +3,7 @@
  * presence.php — «онлайн», «печатает…» и галочки доставки/прочтения.
  *
  * POST ?action=ping     {typing_to?}            — я здесь; и, возможно, печатаю кому-то
+ * GET  ?action=my-read &peer_id=X — когда я сам последний раз открывал эту переписку
  * GET  ?action=state&peers=a,b,c                — состояние собеседников + их отметки прочтения
  * POST ?action=read     {peer_id}               — я дочитал переписку до текущего момента
  *
@@ -132,6 +133,24 @@ if ($action === 'ping') {
         }
     }
     echo json_encode(['ok' => true, 'now' => $now]);
+    exit;
+}
+
+/**
+ * Когда я в последний раз открывал эту переписку.
+ *
+ * Нужно для черты «непрочитанные сообщения»: чат спрашивает это ДО того, как отметит
+ * текущий заход, иначе черта исчезала бы в тот же миг, что и появилась.
+ */
+if ($action === 'my-read') {
+    $peer = trim((string)($_GET['peer_id'] ?? ''));
+    if ($peer === '') { echo json_encode(['ok' => true, 'last_read_at' => null]); exit; }
+    try {
+        $st = $pdo->prepare("SELECT last_read_at FROM chat_reads WHERE user_id = ? AND peer_id = ? LIMIT 1");
+        $st->execute([$userId, $peer]);
+        $at = $st->fetchColumn();
+        echo json_encode(['ok' => true, 'last_read_at' => $at ?: null]);
+    } catch (Exception $e) { echo json_encode(['ok' => true, 'last_read_at' => null]); }
     exit;
 }
 

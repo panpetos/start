@@ -2501,6 +2501,24 @@
             color: #999;
         }
 
+        /* Ответ свайпом: пока тянут, под сообщением проступает стрелка «ответить» */
+        .message.swiping { position: relative; }
+        .message.swiping::before {
+            content: '↩'; position: absolute; left: -30px; top: 50%; transform: translateY(-50%);
+            font-size: 1.1rem; color: #047857; opacity: 0.85;
+        }
+
+        /* Черта «непрочитанные»: с какого места читать, когда накопилось */
+        .unread-sep {
+            display: flex; align-items: center; gap: 0.6rem; margin: 0.9rem 0 0.5rem;
+            color: #047857; font-size: 0.75rem; font-weight: 700; text-transform: none;
+        }
+        .unread-sep::before, .unread-sep::after {
+            content: ''; flex: 1; height: 1px; background: rgba(4,120,87,0.35);
+        }
+        body.dark .unread-sep { color: #6EE7B7; }
+        body.dark .unread-sep::before, body.dark .unread-sep::after { background: rgba(110,231,183,0.3); }
+
         .conv-draft { color: #DC2626; font-weight: 600; }
         body.dark .conv-draft { color: #FCA5A5; }
         .conv-muted { opacity: 0.55; font-size: 0.72rem; margin-left: 0.25rem; }
@@ -5762,6 +5780,7 @@
         const DM_PAGE = 50;
         let dmState = { peer: null, list: [], cursor: null, hasMore: false, loading: false };
         let dmKeepScroll = 0;        // высота прокрутки до вставки старых — чтобы не «прыгнуло»
+        let dmFirstPaintDone = {};   // к черте «непрочитанные» прокручиваем один раз на заход
 
         /** Склеить свежую порцию с тем, что уже показано, без повторов. */
         function dmMerge(fresh) {
@@ -8169,6 +8188,65 @@
         }
 
         // ── Ответ ──
+        // ── ОТВЕТ СВАЙПОМ ──────────────────────────────────────────────────────────
+        //  Самый частый жест в мессенджерах: потянул сообщение вправо — отвечаешь на
+        //  него. Раньше для этого приходилось открывать меню у каждого сообщения.
+        //  Работает только пальцем и только по горизонтали: вертикальное движение —
+        //  это прокрутка переписки, её перехватывать нельзя.
+        (function wireSwipeReply() {
+            const REPLY_AT = 60;             // столько тянуть, чтобы ответ сработал
+            let el = null, startX = 0, startY = 0, dx = 0, decided = null, id = null;
+
+            const reset = (animate) => {
+                if (el) {
+                    if (animate) el.style.transition = 'transform 0.16s ease';
+                    el.style.transform = '';
+                    const node = el;
+                    setTimeout(() => { node.style.transition = ''; node.classList.remove('swiping'); }, 180);
+                }
+                el = null; dx = 0; decided = null; id = null;
+            };
+
+            document.addEventListener('touchstart', (e) => {
+                if (e.touches.length !== 1) return;
+                const box = document.getElementById('messagesContainer');
+                if (!box || !box.contains(e.target)) return;
+                const msg = e.target.closest && e.target.closest('[data-msg-id], [data-fav-id]');
+                if (!msg) return;
+                id = msg.getAttribute('data-msg-id') || msg.getAttribute('data-fav-id');
+                if (!id || !msgCaps[id]) { id = null; return; }
+                el = msg; startX = e.touches[0].clientX; startY = e.touches[0].clientY;
+                dx = 0; decided = null;
+            }, { passive: true });
+
+            document.addEventListener('touchmove', (e) => {
+                if (!el || e.touches.length !== 1) return;
+                const mx = e.touches[0].clientX - startX;
+                const my = e.touches[0].clientY - startY;
+                // Первое заметное движение решает, что это: ответ или прокрутка
+                if (decided === null) {
+                    if (Math.abs(mx) < 8 && Math.abs(my) < 8) return;
+                    decided = Math.abs(mx) > Math.abs(my) * 1.4 && mx > 0 ? 'reply' : 'scroll';
+                    if (decided === 'reply') el.classList.add('swiping');
+                }
+                if (decided !== 'reply') { reset(false); return; }
+                dx = Math.max(0, Math.min(90, mx));
+                el.style.transform = 'translateX(' + dx + 'px)';
+            }, { passive: true });
+
+            document.addEventListener('touchend', () => {
+                if (!el) return;
+                const go = decided === 'reply' && dx >= REPLY_AT;
+                const msgId = id;
+                reset(true);
+                if (go && msgId) {
+                    try { if (navigator.vibrate) navigator.vibrate(12); } catch (e) {}
+                    startReply(null, msgId);
+                }
+            }, { passive: true });
+            document.addEventListener('touchcancel', () => reset(true), { passive: true });
+        })();
+
         function startReply(evt, id) {
             if (evt) evt.stopPropagation();
             closeFolderPicker();
@@ -9644,6 +9722,7 @@
 
         async function openChat(userId) {
             saveDraft();                 // недописанное в прошлой переписке не теряем
+            delete dmFirstPaintDone[userId];   // заново встанем на первое непрочитанное
             selectedUserId = userId;
             restoreDraft(userId);        // а в этой — возвращаем на место
             // СРАЗУ показываем новую переписку — шапку и сообщения с прошлого раза.
@@ -9652,6 +9731,15 @@
             showChatFromCache(userId);
             syncChatUrl(selectedUserId);
             // Открыли переписку — значит прочитали: у собеседника появится вторая галочка
+            // Момент последнего прочтения запоминаем ДО отметки о текущем заходе:
+            // иначе черта «непрочитанные» исчезла бы в тот же миг.
+            try {
+                const r = await fetch('/api/presence.php?action=my-read&peer_id=' + encodeURIComponent(userId),
+                                      { credentials: 'include' });
+                const d = await r.json();
+                unreadFrom[userId] = (d && d.ok && d.last_read_at)
+                    ? new Date(String(d.last_read_at).replace(' ', 'T')).getTime() : 0;
+            } catch (e) { unreadFrom[userId] = 0; }
             presenceMarkRead();
             if (!syncOn) presenceRefresh();   // при сводном опросе состояние и так придёт
             mentionMembers = [];                           // список прошлого чата больше не годится
@@ -10297,8 +10385,9 @@
                 const olderHint = dmState.hasMore
                     ? `<div class="dm-older" onclick="loadOlderMessages()">${dmState.loading ? 'Загружаю…' : '↑ Показать более ранние'}</div>`
                     : '';
+                const unreadState = { since: unreadFrom[peerAtStart] || 0, done: false };
                 const dmHtml = olderHint + foldAlbums(messages).map(m => {
-                    const sep = daySepHtml(m.created_at, dmDay);
+                    const sep = daySepHtml(m.created_at, dmDay) + unreadSepHtml(m, unreadState);
                     // Для админа: сообщения от support тоже считаются "своими"
                     const isMine = String(m.sender_id) === String(currentUser.id) ||
                         (isAdminMode && (m.sender_id === 'support' || m.sender_first_name === 'Техподдержка'));
@@ -10416,7 +10505,10 @@
                 repaintAllVoice();
                 restoreVideoNote();
                 restoreFlash();
-                if (dmKeepScroll) {
+                // Первая отрисовка этой переписки — встаём на первое непрочитанное
+                if (!dmFirstPaintDone[peerAtStart] && scrollToUnread(container)) {
+                    dmFirstPaintDone[peerAtStart] = true;
+                } else if (dmKeepScroll) {
                     // Вставили порцию старых сверху — сдвигаем прокрутку ровно на её
                     // высоту, чтобы человек остался на том же сообщении.
                     container.scrollTop += (container.scrollHeight - dmKeepScroll);
@@ -11000,6 +11092,33 @@
                 : { day: 'numeric', month: 'long', year: 'numeric' });
         }
         /** Плашка перед сообщением, если день сменился. prevKey передаётся по ссылке через объект. */
+        // ── «Непрочитанные сообщения» ──────────────────────────────────────────────
+        //  Открываешь чат, где накопилось десять сообщений, — и непонятно, с какого
+        //  места читать. Ставим черту перед первым непрочитанным и сразу к ней
+        //  прокручиваем, как в мессенджерах.
+        //
+        //  Что считать прочитанным, знает сервер присутствия: он хранит момент, когда
+        //  переписку открывали в последний раз (chat_reads). Берём его ДО того, как
+        //  отметим текущий заход, — иначе черта пропала бы сразу же.
+        let unreadFrom = {};        // ключ переписки -> время последнего прочтения
+
+        function unreadSepHtml(m, state) {
+            if (!state.since || state.done) return '';
+            if (String(m.sender_id) === String(currentUser && currentUser.id)) return '';   // свои не считаем
+            const at = new Date(String(m.created_at || '').replace(' ', 'T')).getTime();
+            if (!at || at <= state.since) return '';
+            state.done = true;
+            return '<div class="unread-sep" id="unreadSep"><span>Непрочитанные сообщения</span></div>';
+        }
+
+        /** Прокрутить к черте, если она есть. Иначе — вниз, как обычно. */
+        function scrollToUnread(container) {
+            const sep = document.getElementById('unreadSep');
+            if (!sep) return false;
+            try { sep.scrollIntoView({ block: 'center' }); } catch (e) { return false; }
+            return true;
+        }
+
         function daySepHtml(dateStr, state) {
             const k = dayKey(dateStr);
             if (!k || k === state.prev) return '';
