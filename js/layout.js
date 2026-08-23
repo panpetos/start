@@ -444,7 +444,7 @@ window.psyGuardPoll = window.psyGuardPoll || function (fn) { return fn; };
       if (window.psyLightbox) return;
       if (document.querySelector('script[src*="/js/lightbox.js"]')) return;
       var lb = document.createElement('script');
-      lb.src = '/js/lightbox.js?v=5';
+      lb.src = '/js/lightbox.js?v=6';
       lb.async = true;
       document.head.appendChild(lb);
     } catch (e) {}

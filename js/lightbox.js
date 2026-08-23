@@ -26,6 +26,13 @@
     // просто выходит — кто успел первым, тот и работает.
     if (global.psyLightbox) return;
 
+    // Вторая линия защиты — от СТАРОЙ копии, у которой этой проверки нет.
+    // Такая копия могла остаться в кэше браузера (js отдаётся с кэшем на 45 дней)
+    // и подключиться вместе с новой: тогда по фото открывалось сразу два окна
+    // просмотра, и закрывать приходилось оба. Свою коробку помечаем, чужие —
+    // убираем в момент открытия. Кто новее, тот и показывает.
+    var MARK = 'psyLbOwn';
+
     const IMG_RE = /\.(jpe?g|png|gif|webp|avif|bmp|svg)(\?|#|$)/i;
     const MIN_SIDE = 90;   // меньше — это иконка или аватарка, не фото
 
@@ -39,6 +46,7 @@
         if (box) return box;
         box = document.createElement('div');
         box.id = 'psyLightbox';
+        box.dataset[MARK] = '1';
         box.setAttribute('role', 'dialog');
         box.setAttribute('aria-label', 'Просмотр изображения');
         box.innerHTML =
@@ -415,7 +423,17 @@
      * src/alt — то, что показать сразу. gal (необязательно) — вся группа [{src, alt}],
      * idx — позиция src внутри неё. Без gal группа состоит из одного этого изображения.
      */
+    /** Убрать окна просмотра, созданные другой (старой) копией скрипта. */
+    function dropForeignBoxes() {
+        try {
+            document.querySelectorAll('#psyLightbox').forEach(function (el) {
+                if (el !== box && !el.dataset[MARK]) el.remove();
+            });
+        } catch (e) {}
+    }
+
     function open(src, alt, gal, idx, node) {
+        dropForeignBoxes();
         if (!src) return;
         gallery = (gal && gal.length) ? gal : [{ src: src, alt: alt, node: node || null }];
         galleryIdx = Math.max(0, Math.min(gallery.length - 1, idx || 0));

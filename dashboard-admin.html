@@ -7,9 +7,9 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
     <title>Админка — psytalk.pro</title>
-    <link rel="stylesheet" href="/css/styles.css?v=20260823">
+    <link rel="stylesheet" href="/css/styles.css?v=20260823d">
     <script src="/js/netguard.js?v=20260821c"></script>
-    <script src="/js/layout.js?v=20260823"></script>
+    <script src="/js/layout.js?v=20260823d"></script>
     <!-- Одно меню в кабинете. Разделы сайта живут в боковом меню («Сайт»), поэтому
          бургер шапки здесь лишний: на телефоне рядом оказывались два меню, и человек
          не понимал, в какое жать. Правило дублирует логику layout.js намеренно —
@@ -19,7 +19,7 @@
       @media (max-width:768px){#navMenu.nav-menu:not(.nav-menu-slim){display:none!important}}
 
 </style>
-    <script src="/js/lightbox.js?v=5"></script>
+    <script src="/js/lightbox.js?v=6"></script>
     <script src="/js/api.js?v=20260821"></script>
     <script src="/js/auth.js?v=20260821"></script>
     <link rel="preconnect" href="https://unpkg.com">
@@ -391,12 +391,15 @@
                     <div class="sidebar-group-label">Система</div>
                     <!-- Свои чаты — отдельным пунктом: раньше в переписки попадали только
                          через раздел поддержки, то есть «через кого-то». -->
-                    <a class="sidebar-item" href="/chat.html" style="text-decoration:none;">
+                    <!-- Раздел «Поддержка» убран: обращения и так видны в чате отдельными
+                         строками с пометкой 🆘, и отвечать там удобнее — те же вложения,
+                         голосовые, поиск по переписке. Держать вторую, урезанную копию
+                         той же переписки незачем. Счётчик непрочитанных переехал сюда,
+                         на «Чаты», а звук и всплывающая подсказка о новом обращении
+                         работают как работали. -->
+                    <a class="sidebar-item" id="adminChatsLink" href="/chat.html" style="text-decoration:none;">
                         <span class="sidebar-item-icon">💬</span> Чаты
                     </a>
-                    <button class="sidebar-item" data-tab="support" onclick="switchTab('support')">
-                        <span class="sidebar-item-icon">🛟</span> Поддержка
-                    </button>
                     <button class="sidebar-item" data-tab="devtasks" onclick="switchTab('devtasks')">
                         <span class="sidebar-item-icon">🤖</span> Задачи Клоду
                     </button>
@@ -1816,7 +1819,11 @@
             }
             notif.innerHTML = '<div style="font-weight:600;font-size:0.78rem;color:#047857;margin-bottom:0.15rem;">💬 Новое сообщение</div>' + esc(text.length > 100 ? text.slice(0,100) + '...' : text);
             notif.style.display = 'block';
-            notif.onclick = function() { notif.style.display = 'none'; };
+            // По подсказке раньше просто закрывали её. Теперь она ведёт в чат — туда,
+            // где обращение и лежит: иначе после исчезновения раздела «Поддержка»
+            // непонятно, куда идти отвечать.
+            notif.onclick = function() { notif.style.display = 'none'; location.href = '/chat.html'; };
+            notif.title = 'Открыть чат';
             setTimeout(() => { notif.style.display = 'none'; }, 6000);
         }
 
@@ -1859,7 +1866,9 @@
         }
 
         function updateSupportBadge(count) {
-            const btn = document.querySelector('[data-tab="support"]');
+            // Раздела «Поддержка» больше нет — число вешаем на «Чаты», куда и ведёт
+            // работа с обращениями.
+            const btn = document.getElementById('adminChatsLink') || document.querySelector('[data-tab="support"]');
             if (!btn) return;
             let badge = btn.querySelector('.sup-badge');
             if (count > 0) {
@@ -1928,7 +1937,17 @@
             } catch(e) {}
             return { unread: 0, preview: '' };
         }
+        /**
+         * Раздел «Поддержка» упразднён — обращения живут в чате.
+         * Функция оставлена как перенаправление: у кого-то в закладках или в истории
+         * остался адрес ?tab=support, и пустой экран там был бы хуже перехода.
+         */
         async function renderSupport(){
+            location.href = '/chat.html';
+            return;
+        }
+
+        async function renderSupportLegacy(){
             if (supMsgPollTimer) { clearInterval(supMsgPollTimer); supMsgPollTimer = null; }
             let res;
             try { res = await (await fetch('/api/support.php?action=threads', { credentials:'include' })).json(); }
