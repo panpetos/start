@@ -132,6 +132,7 @@ window.psyGuardPoll = window.psyGuardPoll || function (fn) { return fn; };
         '<a href="/refund.html">Возврат средств</a>' +
         '<a href="/payment-info.html">Оплата и безопасность</a>' +
         '<a href="/install.html">Приложение</a>' +
+        '<a href="/invite.html">Пригласить друга</a>' +
         '<a href="/consent.html">Согласие на обработку ПД</a>' +
         '<a href="/consent-health.html">Согласие на данные о здоровье</a>' +
         '<a href="/">Главная</a>' +
@@ -423,6 +424,20 @@ window.psyGuardPoll = window.psyGuardPoll || function (fn) { return fn; };
   // отдельным файлом. Два перехватчика кликов открывали по фото два окна просмотра сразу,
   // и закрывать их приходилось по очереди. Ждём конца разбора страницы и смотрим на факт:
   // если lightbox уже поднялся (есть window.psyLightbox) — второй не нужен.
+  // Приглашения по ссылке psytalk.pro/i/КОД: код надо поймать на любой странице,
+  // потому что короткий адрес отдаёт главную, а зарегистрироваться человек может
+  // и через час с совсем другой страницы.
+  function ensureReferral() {
+    try {
+      if (window.psyReferral) return;
+      if (document.querySelector('script[src*="/js/referral.js"]')) return;
+      var rf = document.createElement('script');
+      rf.src = '/js/referral.js?v=1';
+      rf.async = true;
+      document.head.appendChild(rf);
+    } catch (e) {}
+  }
+
   function ensureLightbox() {
     try {
       if (window.psyLightbox) return;
@@ -434,9 +449,9 @@ window.psyGuardPoll = window.psyGuardPoll || function (fn) { return fn; };
     } catch (e) {}
   }
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', ensureLightbox);
+    document.addEventListener('DOMContentLoaded', function () { ensureLightbox(); ensureReferral(); });
   } else {
-    ensureLightbox();
+    ensureLightbox(); ensureReferral();
   }
 
   var sbCss = document.createElement('style');
@@ -554,6 +569,9 @@ window.psyGuardPoll = window.psyGuardPoll || function (fn) { return fn; };
 
   function applyLoggedInCircle(user) {
     applyAccountRow(user);
+    // Вошёл — если в браузере лежит код приглашения, самое время его засчитать.
+    // Действие идемпотентное, поэтому звать можно на каждой странице.
+    try { if (window.psyReferral && !applyLoggedInCircle._ref) { applyLoggedInCircle._ref = 1; psyReferral.claim(); } } catch (e) {}
     var circle = document.getElementById('psyLoginCircle');
     if (!circle || !user) return;
     circle.href = dashUrlFor(user);
