@@ -30,6 +30,7 @@ header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store');
 
 require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/settings_lib.php';
 if (!function_exists('getDB') && !function_exists('getDbConnection') && !function_exists('getPDO')) {
     require_once __DIR__ . '/db.php';
 }
@@ -44,13 +45,14 @@ if (!$userId) { http_response_code(401); echo json_encode(['error' => 'Треб�
 
 function pbOut($d, $c = 200) { http_response_code($c); echo json_encode($d, JSON_UNESCAPED_UNICODE); exit; }
 
+/**
+ * Настройка из таблицы настроек. Колонки ищет settings_lib.php: на этом хостинге
+ * они называются `k`/`v`, а не `key_name`/`value`, и жёсткий запрос падал с
+ * «Unknown column 'value'». Ошибку глушил catch — и промокод, сколько бы админ
+ * его ни сохранял, всегда читался пустым, то есть функция считалась выключенной.
+ */
 function pbSetting(PDO $pdo, $key, $default = '') {
-    try {
-        $st = $pdo->prepare("SELECT value FROM settings WHERE key_name = ? LIMIT 1");
-        $st->execute([$key]);
-        $v = $st->fetchColumn();
-        return ($v === false || $v === null) ? $default : (string)$v;
-    } catch (Exception $e) { return $default; }
+    return psySetting($pdo, (string)$key, (string)$default);
 }
 
 function pbEnsure(PDO $pdo) {
@@ -126,6 +128,16 @@ try { pbEnsure($pdo); } catch (Exception $e) { pbOut(['error' => 'Не удал�
 
 $action = $_GET['action'] ?? '';
 $body = json_decode(file_get_contents('php://input'), true) ?: [];
+
+/**
+ * Включена ли функция вообще. Нужно странице записи: пока код не задан в
+ * админке, показывать клиенту поле промокода незачем — он вводит код и
+ * получает «сейчас отключено», что выглядит поломкой. Сам код не отдаём,
+ * и неудачную попытку это не засчитывает.
+ */
+if ($action === 'enabled') {
+    pbOut(['ok' => true, 'enabled' => pbNorm(pbSetting($pdo, 'free_promo_code', '')) !== '']);
+}
 
 if ($action === 'check') {
     list($ok, $why) = pbCheckCode($pdo, $userId, $body['code'] ?? '');

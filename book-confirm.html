@@ -284,6 +284,7 @@
                 }
 
                 psychologistData = data;
+                await loadPromoEnabled();
                 renderBookingForm();
 
                 if (typeof lucide !== 'undefined') {
@@ -345,7 +346,7 @@
                            <i data-lucide="credit-card" style="width: 20px; height: 20px;"></i> Перейти к оплате
                        </button>`);
             // Промокод — только для обычной записи: по абонементу и так без оплаты
-            const promoBlock = isPackage ? '' : `
+            const promoBlock = (isPackage || !promoEnabled) ? '' : `
                 <div class="promo-box">
                     <label class="promo-label" for="promoInput">Промокод</label>
                     <div class="promo-row">
@@ -447,6 +448,18 @@
         //  только показываем результат.
         let promoOk = false;
         let promoCode = '';
+        // Задана ли вообще бесплатная запись по промокоду. Пока админ не задал код,
+        // поле не показываем: иначе клиент вводит код и получает «сейчас отключено»,
+        // а выглядит это как поломка страницы.
+        let promoEnabled = false;
+
+        async function loadPromoEnabled() {
+            try {
+                const r = await fetch('/api/promo_booking.php?action=enabled', { credentials: 'include' });
+                const d = await r.json();
+                promoEnabled = !!(d && d.enabled);
+            } catch (e) { promoEnabled = false; }
+        }
 
         function promoReset() {
             if (!promoOk) return;

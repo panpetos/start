@@ -143,10 +143,10 @@ if (isset($_GET['msgcols']) && isset($pdo) && $pdo) {
 
 // 4c. ?promo=1 — почему промокод бесплатной записи «не срабатывает».
 //     Здесь две стороны, которые обязаны сойтись: админка ПИШЕТ настройку через
-//     admin_ext.php (таблицу и колонки он определяет сам), а promo_booking.php
-//     ЧИТАЕТ её жёстко из settings(key_name, value). Если это разные места —
-//     код сохраняется, но проверка его не видит. Значение наружу не отдаём:
-//     только куда пишем, куда читаем и пусто там или нет.
+//     admin_ext.php, а promo_booking.php её ЧИТАЕТ. Ровно тут и была поломка:
+//     на этом хостинге колонки называются k/v, а чтение шло по key_name/value.
+//     Обе стороны теперь определяют колонки одинаково — это видно ниже.
+//     Значение наружу не отдаём: только куда пишем, куда читаем и пусто там или нет.
 if (isset($_GET['promo']) && isset($pdo) && $pdo) {
     $p = [];
 
@@ -167,38 +167,25 @@ if (isset($_GET['promo']) && isset($pdo) && $pdo) {
         if ($k && $v) { $writeTable = $table; $writeKey = $k; $writeVal = $v; break; }
     }
     $p['admin_writes_to'] = $writeTable ? "$writeTable($writeKey, $writeVal)" : 'таблица настроек не найдена';
-    $p['promo_reads_from'] = 'settings(key_name, value)';
-    $p['same_place'] = ($writeTable === 'settings' && strtolower((string)$writeKey) === 'key_name'
-                        && strtolower((string)$writeVal) === 'value');
+    // Сторона чтения — тот же resolver, которым теперь пользуется promo_booking.php
+    require_once __DIR__ . '/settings_lib.php';
+    list($rt, $rk, $rv) = psySettingsCols($pdo);
+    $p['promo_reads_from'] = $rt ? "$rt($rk, $rv)" : 'таблица настроек не найдена';
+    $p['same_place'] = ($writeTable === $rt && $writeKey === $rk && $writeVal === $rv);
 
-    // Ровно тот запрос, которым читает promo_booking.php
-    try {
-        $st = $pdo->prepare("SELECT value FROM settings WHERE key_name = ? LIMIT 1");
-        $st->execute(['free_promo_code']);
-        $v = $st->fetchColumn();
-        $p['row_exists'] = ($v !== false);
-        $p['value_empty'] = ($v === false || $v === null || trim((string)$v) === '');
-        $p['value_len'] = ($v === false || $v === null) ? 0 : strlen(trim((string)$v));
-    } catch (Exception $e) {
-        $p['read_error'] = substr($e->getMessage(), 0, 140);
+    $code = psySetting($pdo, 'free_promo_code', '');
+    $p['row_exists'] = ($code !== '');
+    $p['value_empty'] = (trim($code) === '');
+    $p['value_len'] = strlen(trim($code));
+    $p['limit_value'] = psySetting($pdo, 'free_promo_limit', '(нет строки)');
+    // Соседний ключ из той же формы «Тарифы» — если он читается, а промокод нет,
+    // значит форма сохраняется, а терялся именно ключ промокода.
+    $p['price_self_exists'] = (psySetting($pdo, 'price_self', '') !== '');
+
+    if ($rt) {
+        try { $p['settings_rows'] = (int)$pdo->query("SELECT COUNT(*) FROM `$rt`")->fetchColumn(); }
+        catch (Exception $e) { $p['settings_rows'] = 'ошибка: ' . substr($e->getMessage(), 0, 80); }
     }
-    try {
-        $st = $pdo->prepare("SELECT value FROM settings WHERE key_name = ? LIMIT 1");
-        $st->execute(['free_promo_limit']);
-        $lim = $st->fetchColumn();
-        $p['limit_value'] = ($lim === false) ? '(нет строки)' : (string)$lim;
-    } catch (Exception $e) {}
-
-    // Сколько ключей вообще лежит в таблице — если ноль, настройки не сохраняются вовсе
-    try { $p['settings_rows'] = (int)$pdo->query("SELECT COUNT(*) FROM settings")->fetchColumn(); }
-    catch (Exception $e) { $p['settings_rows'] = 'ошибка: ' . substr($e->getMessage(), 0, 80); }
-    // Соседний ключ из той же формы «Тарифы» — он был в белом списке всегда.
-    // Если он есть, а free_promo_code нет — значит форма сохраняется, а ключ терялся.
-    try {
-        $st = $pdo->prepare("SELECT value FROM settings WHERE key_name = ? LIMIT 1");
-        $st->execute(['price_self']);
-        $p['price_self_exists'] = ($st->fetchColumn() !== false);
-    } catch (Exception $e) {}
     try { $p['promo_bookings'] = (int)$pdo->query("SELECT COUNT(*) FROM promo_bookings")->fetchColumn(); }
     catch (Exception $e) { $p['promo_bookings'] = '(таблицы ещё нет)'; }
 

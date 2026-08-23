@@ -16,6 +16,7 @@ header('Access-Control-Allow-Headers: Content-Type');
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') { http_response_code(204); exit; }
 
 require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/settings_lib.php';
 if (!function_exists('getDB') && !function_exists('getDbConnection') && !function_exists('getPDO')) {
     require_once __DIR__ . '/db.php';
 }
@@ -34,9 +35,10 @@ if (!$userId) {
 }
 
 // ── Mock mode guard ──────────────────────────────────────────────────────────
-$stmt = $pdo->prepare("SELECT value FROM settings WHERE key_name = 'mock_payment_enabled' LIMIT 1");
-$stmt->execute();
-$mockEnabled = $stmt->fetchColumn();
+// Колонки таблицы настроек определяет settings_lib.php. Здесь стоял жёсткий
+// запрос по key_name/value — на этом хостинге колонки называются k/v, prepare
+// падал с «Unknown column 'value'», и тестовая оплата не включалась никогда.
+$mockEnabled = psySetting($pdo, 'mock_payment_enabled', '');
 
 if ($mockEnabled !== '1') {
     http_response_code(403);

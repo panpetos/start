@@ -19,7 +19,8 @@
 
 ## Соглашения по коду
 - API-эндпоинты — самостоятельные PHP-файлы: подключают `config.php` (+ `db.php` через function_exists-резолвер `getDB/getDbConnection/getPDO`), всё в try/catch, `CREATE TABLE IF NOT EXISTS` для своих таблиц.
-- Таблица настроек: **`settings(key_name, value)`**. Комиссия платформы — `platform_commission` (%). Цены — `price_self/couple/teen`, промо — `promo_*`.
+- Таблица настроек: **`settings`**, но колонки на проде называются **`k`/`v`**, а НЕ `key_name`/`value`. Никогда не писать запрос по именам колонок напрямую — читать через `psySetting($pdo,$key,$default)` из **`api/settings_lib.php`** (он же определяет таблицу и колонки). Жёсткий `SELECT value ... WHERE key_name = ?` падает с «Unknown column 'value'»: где ошибку глушил try/catch, настройка молча читалась пустой, где не глушил — эндпоинт падал целиком. Комиссия платформы — `platform_commission` (%). Цены — `price_self/couple/teen`, промо — `promo_*`, промокод бесплатной записи — `free_promo_code`/`free_promo_limit`.
+- Ключи настроек, которые админка вправе сохранять, перечислены в `allowedSettingKeys()` в `api/admin_ext.php`. **Новую настройку обязательно добавить туда**, иначе `save-settings` молча её выбросит, а админка покажет «Сохранено».
 - Таблицы: `users(id,role,first_name,last_name,email,...)`, `psychologists(id,user_id,price,is_approved,...)`, `appointments(id[UUID],client_id,psychologist_id,date_time,duration,format,status,price)`, `payments(id[UUID],appointment_id,amount,status,paid_at)`.
 - Стиль/бренд: фиолетовый `#7C3AED`, шрифт Inter. Единая шапка/подвал — `js/layout.js` (`psyWriteHeader()`, `psyWriteFooter()`).
 - Каждый коммит заканчивать трейлерами Co-Authored-By и Claude-Session (как в истории).

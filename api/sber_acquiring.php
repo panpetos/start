@@ -35,6 +35,7 @@ header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store');
 
 require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/settings_lib.php';
 if (!function_exists('getDB') && !function_exists('getDbConnection') && !function_exists('getPDO')) {
     require_once __DIR__ . '/db.php';
 }
@@ -182,11 +183,9 @@ if ($action === 'init' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $orderNumber = 'psy-' . date('Ymd') . '-' . bin2hex(random_bytes(5));
 
     // Комиссия платформы: остальное принадлежит исполнителю
-    $commissionPct = 0;
-    try {
-        $st = $pdo->query("SELECT value FROM settings WHERE key_name = 'platform_commission'");
-        $commissionPct = (float)($st ? $st->fetchColumn() : 0);
-    } catch (Exception $e) {}
+    // Колонки таблицы настроек ищет settings_lib.php: жёсткий запрос по
+    // key_name/value на этом хостинге падал, и комиссия всегда считалась нулевой.
+    $commissionPct = (float)psySetting($pdo, 'platform_commission', '0');
     $commission = (int)round($amount * $commissionPct / 100);
 
     $sup = sberSupplier($pdo, $psychId);
