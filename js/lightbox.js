@@ -447,13 +447,30 @@
         else if (e.key === '0') resetZoom();
     });
 
+    /**
+     * Полноразмерный адрес картинки.
+     *
+     * В переписке <img> показывает уменьшенную копию (быстрее грузится), а
+     * оригинал лежит в data-full. Открывать во весь экран и скачивать нужно
+     * именно оригинал — иначе увеличение упиралось бы в качество превью.
+     */
+    function fullSrcOf(node) {
+        if (!node) return '';
+        const img = node.tagName === 'IMG' ? node : (node.querySelector ? node.querySelector('img') : null);
+        const full = img && img.getAttribute && img.getAttribute('data-full');
+        if (full) return full;
+        if (node.tagName === 'A') return node.getAttribute('href') || '';
+        return (img && (img.currentSrc || img.src)) || '';
+    }
+
     /** Собрать группу из всех элементов страницы с тем же data-group, в порядке DOM. */
     function collectGroup(groupId, clickedHref) {
         const nodes = document.querySelectorAll('[data-group="' + CSS.escape(groupId) + '"]');
         const items = [];
         let idx = 0;
         nodes.forEach(function (node) {
-            const href = node.tagName === 'A' ? node.getAttribute('href') : (node.currentSrc || node.src);
+            const href = fullSrcOf(node) ||
+                (node.tagName === 'A' ? node.getAttribute('href') : (node.currentSrc || node.src));
             if (!href || !isImageUrl(href)) return;
             if (href === clickedHref) idx = items.length;
             const img = node.tagName === 'IMG' ? node : node.querySelector('img');
@@ -494,11 +511,13 @@
             if (r.width < MIN_SIDE || r.height < MIN_SIDE) return;   // аватарка/иконка
         }
         e.preventDefault();
+        // data-full — оригинал; сам src в переписке указывает на уменьшенную копию
+        const full = img.getAttribute('data-full') || img.currentSrc || img.src;
         if (groupId) {
-            const g = collectGroup(groupId, img.currentSrc || img.src);
-            if (g.items.length > 1) { open(img.currentSrc || img.src, img.alt, g.items, g.idx); return; }
+            const g = collectGroup(groupId, full);
+            if (g.items.length > 1) { open(full, img.alt, g.items, g.idx); return; }
         }
-        open(img.currentSrc || img.src, img.alt, null, 0, img);
+        open(full, img.alt, null, 0, img);
     });
 
     global.psyLightbox = open;

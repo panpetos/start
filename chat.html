@@ -1576,6 +1576,25 @@
             margin-top: 8px;
         }
 
+        /* Пока копия едет — мягкое мерцание на её месте: без него в пузыре
+           зияла пустота, а когда картинка приезжала, вёрстка прыгала. */
+        .img-wrap { display: inline-block; position: relative; border-radius: 8px; line-height: 0; }
+        .img-wrap.loading { min-width: 180px; min-height: 130px; background: rgba(128,128,128,0.14); }
+        .img-wrap.loading::after {
+            content: ''; position: absolute; inset: 0; border-radius: 8px;
+            background: linear-gradient(100deg, rgba(255,255,255,0) 20%, rgba(255,255,255,0.45) 50%, rgba(255,255,255,0) 80%);
+            background-size: 220% 100%;
+            animation: psyShimmer 1.15s ease-in-out infinite;
+        }
+        body.dark .img-wrap.loading::after {
+            background: linear-gradient(100deg, rgba(255,255,255,0) 20%, rgba(255,255,255,0.12) 50%, rgba(255,255,255,0) 80%);
+            background-size: 220% 100%;
+        }
+        @keyframes psyShimmer { from { background-position: 140% 0; } to { background-position: -40% 0; } }
+        .img-wrap.loading img { opacity: 0; }
+        .img-wrap img { opacity: 1; transition: opacity 0.22s ease; }
+        @media (prefers-reduced-motion: reduce) { .img-wrap.loading::after { animation: none; } }
+
         .message-attachment img {
             /* Было 250×200 — снимок с телефона превращался в марку, на которой
                ничего не разобрать, и открывать во весь экран приходилось всегда. */
@@ -3606,7 +3625,7 @@
 
     <script src="/js/api.js?v=20260821"></script>
     <script src="/js/auth.js?v=20260821"></script>
-    <script src="/js/lightbox.js?v=4"></script>
+    <script src="/js/lightbox.js?v=5"></script>
     <script src="/js/post-format.js?v=20260823"></script>
     <script src="/js/header.js?v=20260821"></script>
     <script>
@@ -8222,6 +8241,55 @@
         }
 
         /** Сетка альбома: первое вложение уже нарисовано обычным способом, добавляем остальные. */
+        // ══════════════════════════════════════════════════════════════════════════
+        //  ПРЕВЬЮ ФОТО
+        //
+        //  В чат приходят снимки прямо с телефона: несколько мегабайт, 4000 пикселей
+        //  по длинной стороне. Браузер честно тянул каждый оригинал и рисовал их по
+        //  мере загрузки — отсюда «фото подгружаются медленно, то справа налево, то
+        //  сверху вниз». Показывать оригинал в ленте незачем: пузырь всё равно шириной
+        //  несколько сотен пикселей.
+        //
+        //  Теперь в переписке стоит уменьшенная копия (api/thumb.php), а оригинал
+        //  остаётся нетронутым — он открывается при увеличении и скачивается как есть.
+        //  Пока копия едет, на её месте мягкое мерцание вместо пустоты и скачка вёрстки.
+        // ══════════════════════════════════════════════════════════════════════════
+        const THUMB_W = 900;
+
+        /** Адрес уменьшенной копии. Чужие адреса не трогаем — их уменьшать нечем. */
+        function thumbUrl(url, w) {
+            const u = String(url || '');
+            if (!u || u.indexOf('/uploads/') !== 0) return u;
+            return '/api/thumb.php?u=' + encodeURIComponent(u) + '&w=' + (w || THUMB_W);
+        }
+
+        /**
+         * Картинка в переписке: показываем копию, но лайтбоксу и скачиванию отдаём
+         * оригинал (data-full). Отсюда же берётся полноразмерный снимок при увеличении.
+         */
+        function chatImgHtml(url, alt, extraAttr) {
+            const full = String(url || '');
+            return `<span class="img-wrap loading">
+                <img src="${escapeHtml(thumbUrl(full))}" data-full="${escapeHtml(full)}"
+                     alt="${escapeHtml(alt || 'Изображение')}" loading="lazy" decoding="async" data-zoom${extraAttr || ''}
+                     onload="imgReady(this)" onerror="imgFallback(this)">
+            </span>`;
+        }
+
+        /** Копия приехала — гасим мерцание. */
+        function imgReady(img) {
+            const w = img.closest('.img-wrap');
+            if (w) w.classList.remove('loading');
+        }
+        /** Копию сделать не вышло — честно показываем оригинал. */
+        function imgFallback(img) {
+            const full = img.getAttribute('data-full');
+            if (full && img.getAttribute('src') !== full) { img.src = full; return; }
+            imgReady(img);
+        }
+        window.imgReady = imgReady;
+        window.imgFallback = imgFallback;
+
         function albumExtraHtml(m) {
             if (!m.__extra || !m.__extra.length) return '';
             // Та же метка группы, что и у первого фото альбома — вместе они образуют
@@ -8234,7 +8302,7 @@
                 const isImg = a.type !== 'file'
                     && (a.type === 'image' || /\.(png|jpe?g|gif|webp|bmp)(\?|$)/i.test(String(a.url || '')));
                 return isImg
-                    ? `<a href="${escapeHtml(a.url)}" target="_blank"${groupAttr}><img src="${escapeHtml(a.url)}" loading="lazy" alt="" data-zoom></a>`
+                    ? `<a href="${escapeHtml(a.url)}" target="_blank"${groupAttr}>${chatImgHtml(a.url, a.name)}</a>`
                     : `<a class="album-file" href="${escapeHtml(a.url)}" target="_blank" download>📄 ${escapeHtml(a.name || 'файл')}</a>`;
             }).join('') + '</div>';
         }
@@ -10084,7 +10152,7 @@
                         attachmentHtml = isVideoNote(m)
                             ? videoNoteHtml(m.attachment_url, m.attachment_name)
                             : (isImg
-                                ? `<div class="message-attachment"><img src="${m.attachment_url}" alt="${escapeHtml(m.attachment_name || 'Изображение')}" loading="lazy" data-zoom></div>`
+                                ? `<div class="message-attachment">${chatImgHtml(m.attachment_url, m.attachment_name)}</div>`
                                 : `<div class="message-attachment"><a href="${m.attachment_url}" target="_blank" download="${m.attachment_name || 'file'}">📄 ${m.attachment_name || 'Скачать файл'}</a></div>`);
                     }
                     const content = m.body ? escapeHtml(m.body) : '';
@@ -10190,7 +10258,7 @@
             if (isImageAttachment(m)) {
                 // Без <a target="_blank">: раньше клик по фото открывал и лайтбокс, и оригинал
                 // отдельной вкладкой одновременно (та же причина, что и в постах канала/ленты).
-                return `<div class="message-attachment"><img src="${m.attachment_url}" alt="${escapeHtml(m.attachment_name || 'Изображение')}" loading="lazy" data-zoom></div>`;
+                return `<div class="message-attachment">${chatImgHtml(m.attachment_url, m.attachment_name)}</div>`;
             }
             return `<div class="message-attachment"><a href="${m.attachment_url}" target="_blank" download="${escapeHtml(m.attachment_name || 'file')}">📄 ${escapeHtml(m.attachment_name || 'Скачать файл')}</a></div>`;
         }
@@ -10810,7 +10878,7 @@
                             const groupAttr = m.__album ? ` data-group="${escapeHtml(m.__album)}"` : '';
                             attachmentHtml = `
                                 <div class="message-attachment">
-                                    <img src="${m.attachment_url}" alt="${escapeHtml(m.attachment_name || 'Изображение')}" loading="lazy" data-zoom${groupAttr}>
+                                    ${chatImgHtml(m.attachment_url, m.attachment_name, groupAttr)}
                                 </div>
                             `;
                         } else {
