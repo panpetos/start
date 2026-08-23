@@ -942,6 +942,37 @@
         /* Нажатая кнопка подсвечивается: видно, что сейчас включено */
         .cmp-tool.on { background: #047857; color: #fff; }
         body.dark .cmp-tool.on { background: #059669; }
+        /* ── Категории в «Избранном» ───────────────────────────────────────────── */
+        .fav-tags {
+            display: flex; flex-wrap: wrap; gap: 0.35rem;
+            padding: 0.2rem 0 0.6rem; align-self: stretch;
+        }
+        .fav-tag {
+            border: 1.5px solid #E5E7EB; background: #fff; color: #4B5563;
+            font-family: inherit; font-size: 0.8rem; font-weight: 600;
+            padding: 0.3rem 0.7rem; border-radius: 2rem; cursor: pointer;
+            display: inline-flex; align-items: center; gap: 0.3rem;
+        }
+        .fav-tag span {
+            background: rgba(0,0,0,0.08); border-radius: 1rem;
+            padding: 0 0.35rem; font-size: 0.72rem;
+        }
+        .fav-tag:hover { border-color: #6EE7B7; color: #047857; }
+        .fav-tag.on { background: #047857; border-color: #047857; color: #fff; }
+        .fav-tag.on span { background: rgba(255,255,255,0.25); }
+        .fav-tag-mark {
+            display: inline-flex; align-items: center; gap: 0.25rem;
+            background: rgba(255,255,255,0.22); border: none; color: inherit;
+            font-family: inherit; font-size: 0.72rem; font-weight: 700;
+            padding: 0.15rem 0.45rem; border-radius: 0.45rem; cursor: pointer;
+            margin-bottom: 0.3rem; opacity: 0.95;
+        }
+        .fav-tag-mark:hover { background: rgba(255,255,255,0.34); }
+        .fav-tag-picker { max-height: 60vh; overflow-y: auto; }
+        body.dark .fav-tag { background: #2A2A2A; border-color: #444; color: #C9C9C9; }
+        body.dark .fav-tag span { background: rgba(255,255,255,0.12); }
+        body.dark .fav-tag.on { background: #047857; border-color: #047857; color: #fff; }
+
         /* ── Конструктор блок-схем ─────────────────────────────────────────────── */
         .dg-box {
             background: #fff; border-radius: 1rem; max-width: 620px; width: 100%;
@@ -8614,6 +8645,10 @@
             let html = row('😊', 'Реакция', `openReactionPicker('${id}')`);
             html += row('↩', 'Ответить', `startReply(null,'${id}')`);
             html += row('☑', 'Выделить', `enterSelectMode('${id}')`);
+            if (cap.kind === 'fav') {
+                html += row('🏷', cap.tagName ? 'Категория: ' + escapeHtml(cap.tagName) : 'Добавить категорию',
+                            `openFavTagPicker('${id}')`);
+            }
             if (cap.voiceUrl) {
                 // Копировать «[Голосовое сообщение: 00:05]» бессмысленно — копируем сказанное.
                 html += row('📋', 'Скопировать расшифровку', `copyVoiceTranscript('${id}')`);
@@ -10354,17 +10389,114 @@
         }
 
         // ── Заметки для себя (личное «Избранное») ──
+        // ── Категории в «Избранном» ───────────────────────────────────────────────
+        //  Заметок за полгода набирается сотня, и найти нужную можно только
+        //  прокруткой. Метка — смайл плюс короткое название («📚 Книги», «🧘 Упражнения») —
+        //  превращает свалку в разделы: полоса сверху показывает все категории,
+        //  нажатие оставляет только их.
+        let favTags = [];        // [{name, emoji, count}]
+        let favTagFilter = '';   // пустая строка — показывать всё
+
+        const FAV_TAG_PRESETS = [
+            { emoji: '📚', name: 'Книги' },
+            { emoji: '🧘', name: 'Упражнения' },
+            { emoji: '💡', name: 'Идеи' },
+            { emoji: '📝', name: 'Заметки' },
+            { emoji: '🔗', name: 'Ссылки' },
+            { emoji: '❤️', name: 'Важное' },
+            { emoji: '🎯', name: 'Цели' },
+            { emoji: '💼', name: 'Работа' },
+        ];
+
+        function favTagBarHtml() {
+            if (!favTags.length) return '';
+            const chip = (t, active) =>
+                `<button type="button" class="fav-tag${active ? ' on' : ''}"
+                         onclick="setFavTagFilter('${escapeHtml(t.name).replace(/'/g, "\\'")}')">
+                    ${escapeHtml(t.emoji || '🏷')} ${escapeHtml(t.name)}<span>${t.count}</span></button>`;
+            return `<div class="fav-tags">
+                <button type="button" class="fav-tag${favTagFilter ? '' : ' on'}" onclick="setFavTagFilter('')">Все</button>
+                ${favTags.map(t => chip(t, favTagFilter === t.name)).join('')}
+            </div>`;
+        }
+
+        function setFavTagFilter(name) {
+            favTagFilter = (favTagFilter === name) ? '' : name;
+            dropRenderCache();       // фильтр сменился — разметка та же, а показать надо другое
+            loadFavoritesMessages();
+        }
+        window.setFavTagFilter = setFavTagFilter;
+
+        /** Поставить или сменить метку у записи «Избранного». */
+        function openFavTagPicker(id) {
+            closeFolderPicker();
+            const cur = (favMessagesCache.find(m => String(m.id) === String(id)) || {});
+            const menu = document.createElement('div');
+            menu.className = 'folder-picker fav-tag-picker';
+            menu.id = 'folderPicker';
+            const used = favTags.map(t => ({ emoji: t.emoji, name: t.name }));
+            const seen = new Set(used.map(t => t.name));
+            const list = used.concat(FAV_TAG_PRESETS.filter(t => !seen.has(t.name)));
+            menu.innerHTML =
+                list.map(t => `<button class="folder-picker-row" onclick="event.stopPropagation();closeFolderPicker();setFavTag('${id}','${escapeHtml(t.emoji)}','${escapeHtml(t.name).replace(/'/g, "\\'")}')">
+                    <span class="fp-mark">${escapeHtml(t.emoji || '🏷')}</span>${escapeHtml(t.name)}</button>`).join('')
+                + `<button class="folder-picker-row" onclick="event.stopPropagation();closeFolderPicker();askFavTag('${id}')">
+                    <span class="fp-mark">＋</span>Своя категория</button>`
+                + (cur.tag_name ? `<button class="folder-picker-row" onclick="event.stopPropagation();closeFolderPicker();setFavTag('${id}','','')">
+                    <span class="fp-mark">✕</span>Убрать метку</button>` : '');
+            document.body.appendChild(menu);
+            const el = document.querySelector(`[data-fav-id="${id}"]`);
+            const r = (el || document.body).getBoundingClientRect();
+            const mh = menu.getBoundingClientRect().height;
+            menu.style.left = Math.max(8, Math.min(r.left, window.innerWidth - menu.offsetWidth - 8)) + 'px';
+            menu.style.top = (r.top - mh - 6 > 0 ? r.top - mh - 6 : r.bottom + 4) + 'px';
+            setTimeout(() => document.addEventListener('click', closeFolderPicker, { once: true }), 0);
+        }
+        window.openFavTagPicker = openFavTagPicker;
+
+        function askFavTag(id) {
+            const name = (prompt('Название категории (до 40 символов):') || '').trim();
+            if (!name) return;
+            const emoji = (prompt('Смайл для категории (можно оставить пустым):', '🏷') || '').trim();
+            setFavTag(id, emoji, name);
+        }
+        window.askFavTag = askFavTag;
+
+        async function setFavTag(id, emoji, name) {
+            try {
+                const r = await fetch('/api/favorites.php?action=tag', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+                    body: JSON.stringify({ id: Number(id), tag_emoji: emoji, tag_name: name })
+                });
+                const d = await r.json().catch(() => ({}));
+                if (!r.ok || d.error) throw new Error(d.error || 'сервер отказал');
+                dropRenderCache();
+                await loadFavoritesMessages();
+                toast(name ? 'Категория: ' + name : 'Метка убрана');
+            } catch (e) {
+                toast('Не удалось поставить метку: ' + (e.message || 'нет связи'));
+            }
+        }
+        window.setFavTag = setFavTag;
+
         async function loadFavoritesMessages() {
             try {
                 const r = await fetch('/api/favorites.php?action=list', { credentials: 'include' });
                 const d = await r.json();
-                const rows = (d && d.data) || [];
-                favMessagesCache = rows;
+                const all = (d && d.data) || [];
+                favTags = (d && d.tags) || [];
+                // Фильтр указывает на категорию, которой больше нет — сбрасываем,
+                // иначе экран остался бы пустым без объяснений.
+                if (favTagFilter && !favTags.some(t => t.name === favTagFilter)) favTagFilter = '';
+                const rows = favTagFilter ? all.filter(m => (m.tag_name || '') === favTagFilter) : all;
+                favMessagesCache = all;
                 const container = document.getElementById('messagesContainer');
                 const wasScrolledToBottom = container.scrollHeight - container.scrollTop <= container.clientHeight + 50;
-                const favHtml = rows.length
+                const favHtml = favTagBarHtml() + (rows.length
                     ? rows.map(favMessageBubbleHtml).join('')
-                    : `<div class="empty-state"><div><p style="color:#9CA3AF;">⭐ Тут будут ваши заметки, файлы и пересланные сообщения — видны только вам</p></div></div>`;
+                    : (favTagFilter
+                        ? `<div class="empty-state"><div><p style="color:#9CA3AF;">В категории «${escapeHtml(favTagFilter)}» пока пусто</p></div></div>`
+                        : `<div class="empty-state"><div><p style="color:#9CA3AF;">⭐ Тут будут ваши заметки, файлы и пересланные сообщения — видны только вам</p></div></div>`));
                 renderIfChanged(container, favHtml);
                 rememberChatHtml(FAVORITES_ID, favHtml);
                 repaintAllVoice();
@@ -10404,17 +10536,24 @@
             const time = formatTime(m.created_at);
             const attachmentHtml = attachmentHtmlFor(m, 'fav-' + m.id);
             const sourceLine = m.source_label ? `<div style="font-size:0.72rem;font-weight:700;opacity:0.85;margin-bottom:0.25rem;">${escapeHtml(m.source_label)}</div>` : '';
+            // Метка видна прямо на записи: иначе о категории можно узнать только
+            // через меню, и полоса фильтров выглядела бы взявшейся ниоткуда.
+            const tagLine = m.tag_name
+                ? `<button type="button" class="fav-tag-mark" onclick="event.stopPropagation();openFavTagPicker('${m.id}')"
+                           title="Сменить категорию">${escapeHtml(m.tag_emoji || '🏷')} ${escapeHtml(m.tag_name)}</button>`
+                : '';
             const fav = splitReply(m.content);
             const content = (m.content && !isAttachmentPlaceholder(m)) ? `<div>${msgText(fav.body)}</div>` : '';
             favMsgCache[String(m.id)] = { content: m.content };
             msgCaps[String(m.id)] = {
-                kind: 'fav', author: 'Заметка', text: fav.body,
+                kind: 'fav', author: 'Заметка', text: fav.body, tagName: m.tag_name || '',
                 // Как и в личных чатах и группах: править можно только текст, у вложения править нечего.
                 // Закрепления в «Избранном» тоже работают: ключ разговора — __fav__, он свой у каждого.
                 canForward: true, canPin: true, canEdit: !m.attachment_url, canDelete: true,
             };
             return `
                 <div class="message mine${(isVideoNote(m) && !content) ? ' vn-only' : ''}" data-fav-id="${m.id}">
+                    ${tagLine}
                     ${sourceLine}
                     ${quoteHtml(fav.replyId)}
                     <div id="fav-body-${m.id}">${content}</div>

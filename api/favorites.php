@@ -43,6 +43,40 @@ function ensureFavoritesTable(PDO $pdo) {
         created_at DATETIME NOT NULL,
         INDEX idx_user (user_id)
     ) DEFAULT CHARSET=utf8mb4");
+    // Метка записи: смайл + название категории (как «теги» в Telegram). Добавляем
+    // отдельно, а не в CREATE TABLE: у тех, у кого таблица уже есть, CREATE ничего
+    // не сделает — новые колонки так и не появились бы.
+    $have = [];
+    try {
+        foreach ($pdo->query("SHOW COLUMNS FROM favorite_messages")->fetchAll(PDO::FETCH_ASSOC) as $r) {
+            $have[] = (string)($r['Field'] ?? '');
+        }
+    } catch (Exception $e) { return; }
+    if ($have && !in_array('tag_name', $have, true)) {
+        try { $pdo->exec("ALTER TABLE favorite_messages ADD COLUMN tag_emoji VARCHAR(16) NULL, ADD COLUMN tag_name VARCHAR(40) NULL"); }
+        catch (Exception $e) { /* нет прав на ALTER — метки просто не будут работать */ }
+    }
+}
+
+/** Есть ли в таблице колонки меток: без них старые установки должны продолжать работать. */
+function favHasTags(PDO $pdo) {
+    static $has = null;
+    if ($has !== null) return $has;
+    $has = false;
+    try {
+        foreach ($pdo->query("SHOW COLUMNS FROM favorite_messages")->fetchAll(PDO::FETCH_ASSOC) as $r) {
+            if ((string)($r['Field'] ?? '') === 'tag_name') { $has = true; break; }
+        }
+    } catch (Exception $e) { $has = false; }
+    return $has;
+}
+
+/** Метка: смайл до 2 символов и короткое название. Пустое название = метки нет. */
+function favTagFrom($body) {
+    $emoji = trim((string)($body['tag_emoji'] ?? ''));
+    $name  = trim((string)($body['tag_name'] ?? ''));
+    if ($name === '') return [null, null];
+    return [mb_substr($emoji, 0, 2) ?: null, mb_substr($name, 0, 40)];
 }
 
 $action = $_GET['action'] ?? '';
@@ -52,11 +86,40 @@ try { ensureFavoritesTable($pdo); } catch (Exception $e) {}
 
 if ($action === 'list') {
     try {
-        $st = $pdo->prepare("SELECT id, content, attachment_url, attachment_type, attachment_name, source_label, created_at
+        $tagCols = favHasTags($pdo) ? ', tag_emoji, tag_name' : '';
+        $st = $pdo->prepare("SELECT id, content, attachment_url, attachment_type, attachment_name, source_label, created_at$tagCols
                               FROM favorite_messages WHERE user_id = ? ORDER BY created_at ASC, id ASC LIMIT 1000");
         $st->execute([$userId]);
-        echo json_encode(['ok' => true, 'data' => $st->fetchAll(PDO::FETCH_ASSOC)]);
-    } catch (Exception $e) { echo json_encode(['ok' => true, 'data' => []]); }
+        $rows = $st->fetchAll(PDO::FETCH_ASSOC);
+        // Список категорий собираем здесь же: отдельный запрос ради этого не нужен,
+        // а чату нужен готовый набор для полосы фильтров.
+        $tags = [];
+        foreach ($rows as $r) {
+            $n = trim((string)($r['tag_name'] ?? ''));
+            if ($n === '') continue;
+            if (!isset($tags[$n])) $tags[$n] = ['name' => $n, 'emoji' => (string)($r['tag_emoji'] ?? ''), 'count' => 0];
+            $tags[$n]['count']++;
+        }
+        usort($tags, function ($a, $b) { return $b['count'] <=> $a['count'] ?: strcmp($a['name'], $b['name']); });
+        echo json_encode(['ok' => true, 'data' => $rows, 'tags' => array_values($tags)], JSON_UNESCAPED_UNICODE);
+    } catch (Exception $e) { echo json_encode(['ok' => true, 'data' => [], 'tags' => []]); }
+    exit;
+}
+
+/** Поставить или снять метку у записи. */
+if ($action === 'tag' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    $id = (int)($body['id'] ?? 0);
+    if (!$id) { http_response_code(400); echo json_encode(['error' => 'id обязателен']); exit; }
+    if (!favHasTags($pdo)) { http_response_code(400); echo json_encode(['error' => 'Метки недоступны в этой установке']); exit; }
+    list($emoji, $name) = favTagFrom($body);
+    try {
+        $chk = $pdo->prepare("SELECT id FROM favorite_messages WHERE id = ? AND user_id = ? LIMIT 1");
+        $chk->execute([$id, $userId]);
+        if (!$chk->fetchColumn()) { http_response_code(404); echo json_encode(['error' => 'Запись не найдена']); exit; }
+        $pdo->prepare("UPDATE favorite_messages SET tag_emoji = ?, tag_name = ? WHERE id = ? AND user_id = ?")
+            ->execute([$emoji, $name, $id, $userId]);
+        echo json_encode(['ok' => true, 'tag_emoji' => $emoji, 'tag_name' => $name], JSON_UNESCAPED_UNICODE);
+    } catch (Exception $e) { http_response_code(500); echo json_encode(['error' => 'Не удалось сохранить метку']); }
     exit;
 }
 
@@ -70,9 +133,16 @@ if ($action === 'add' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($content === '' && !$attachmentUrl) { http_response_code(400); echo json_encode(['error' => 'Пустая запись']); exit; }
 
     try {
-        $st = $pdo->prepare("INSERT INTO favorite_messages (user_id, content, attachment_url, attachment_type, attachment_name, source_label, created_at)
-                              VALUES (?, ?, ?, ?, ?, ?, NOW())");
-        $st->execute([$userId, $content !== '' ? $content : null, $attachmentUrl, $attachmentType, $attachmentName, $sourceLabel]);
+        if (favHasTags($pdo)) {
+            list($emoji, $name) = favTagFrom($body);
+            $st = $pdo->prepare("INSERT INTO favorite_messages (user_id, content, attachment_url, attachment_type, attachment_name, source_label, tag_emoji, tag_name, created_at)
+                                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())");
+            $st->execute([$userId, $content !== '' ? $content : null, $attachmentUrl, $attachmentType, $attachmentName, $sourceLabel, $emoji, $name]);
+        } else {
+            $st = $pdo->prepare("INSERT INTO favorite_messages (user_id, content, attachment_url, attachment_type, attachment_name, source_label, created_at)
+                                  VALUES (?, ?, ?, ?, ?, ?, NOW())");
+            $st->execute([$userId, $content !== '' ? $content : null, $attachmentUrl, $attachmentType, $attachmentName, $sourceLabel]);
+        }
         echo json_encode(['ok' => true, 'id' => $pdo->lastInsertId()]);
     } catch (Exception $e) { http_response_code(500); echo json_encode(['error' => 'Не удалось сохранить']); }
     exit;
