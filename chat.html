@@ -2501,6 +2501,10 @@
             color: #999;
         }
 
+        .conv-draft { color: #DC2626; font-weight: 600; }
+        body.dark .conv-draft { color: #FCA5A5; }
+        .conv-muted { opacity: 0.55; font-size: 0.72rem; margin-left: 0.25rem; }
+
         /* «Выше есть ещё»: и подсказка, и кнопка — если прокрутка не сработала */
         .dm-older {
             margin: 0.6rem auto 0.4rem; width: fit-content; cursor: pointer;
@@ -3721,6 +3725,7 @@
         let groupIsOwner = false; // владелец текущей открытой группы (может модерировать и переименовывать)
 
         async function openGroupChat(groupId) {
+            saveDraft(); restoreDraft(GROUP_PREFIX + groupId);   // черновики не теряются при переключении
             showChatFromCache(GROUP_PREFIX + groupId);   // мгновенно, до ответа сервера
             clearPinnedBar();
             loadMentionMembers(groupId);   // чтобы подсказка по @ знала, кого предлагать
@@ -5588,14 +5593,18 @@
         function checkUnreadForSound(conversations) {
             const total = (conversations || []).reduce((s, c) => s + (c.unread_count || 0), 0);
             if (lastKnownUnreadTotal >= 0 && total > lastKnownUnreadTotal) {
-                chatPlayBeep();
                 const withUnread = (conversations || []).find(c => (c.unread_count || 0) > 0);
+                const noisyKey = withUnread
+                    ? (withUnread._support ? (SUPPORT_PREFIX + withUnread._threadId) : String(withUnread.user_id || withUnread.id))
+                    : null;
+                if (!noisyKey || !isMuted(noisyKey)) chatPlayBeep();
                 if (withUnread) {
                     const name = `${withUnread.first_name || ''} ${withUnread.last_name || ''}`.trim() || 'Пользователь';
                     const key = withUnread._support ? (SUPPORT_PREFIX + withUnread._threadId) : String(withUnread.user_id || withUnread.id);
                     const text = previewText(withUnread.last_message || '');
-                    // Пока смотришь именно этот диалог, дёргать уведомлением не за что
-                    if (String(selectedUserId) !== key || document.hidden) {
+                    // Пока смотришь именно этот диалог, дёргать уведомлением не за что.
+                    // Беззвучные переписки не звучат и не всплывают — счётчик остаётся.
+                    if ((String(selectedUserId) !== key || document.hidden) && !isMuted(key)) {
                         chatShowToast(name + ': ' + text, key);
                         notifyNewMessage(name, text, key);
                     }
@@ -5686,6 +5695,70 @@
         //  переписку вверх — как в любом мессенджере. Уже подгруженное не теряется:
         //  очередной опрос приносит только свежий кусок и склеивается с тем, что есть.
         // ══════════════════════════════════════════════════════════════════════════
+        // ── ЧЕРНОВИКИ ──────────────────────────────────────────────────────────────
+        //  Начал писать, переключился уточнить что-то в другом чате — и текст пропал.
+        //  Теперь недописанное остаётся за каждой перепиской и возвращается, когда
+        //  в неё заходишь. Храним у себя в браузере: черновик — дело личное, на сервер
+        //  ему незачем.
+        const DRAFT_KEY = 'psy-drafts';
+        let drafts = {};
+        try { drafts = JSON.parse(localStorage.getItem(DRAFT_KEY) || '{}') || {}; } catch (e) { drafts = {}; }
+
+        // Сохраняем на каждом изменении, но не чаще раза в полсекунды: писать в
+        // хранилище на каждую букву незачем.
+        let draftTimer = null;
+        function saveDraftSoon() {
+            if (draftTimer) clearTimeout(draftTimer);
+            draftTimer = setTimeout(saveDraft, 500);
+        }
+        document.addEventListener('DOMContentLoaded', () => {
+            const inp = document.getElementById('messageInput');
+            if (inp) inp.addEventListener('input', saveDraftSoon);
+            // Закрыли вкладку на полуслове — черновик всё равно сохранится
+            window.addEventListener('pagehide', saveDraft);
+            document.addEventListener('visibilitychange', () => { if (document.hidden) saveDraft(); });
+        });
+
+        function saveDraft() {
+            const inp = document.getElementById('messageInput');
+            if (!inp || !selectedUserId) return;
+            const text = inp.value;
+            // Правку сообщения черновиком не считаем: это не новое письмо, а исправление
+            if (editingMessageId) return;
+            if (text.trim()) drafts[selectedUserId] = text;
+            else delete drafts[selectedUserId];
+            try { localStorage.setItem(DRAFT_KEY, JSON.stringify(drafts)); } catch (e) {}
+        }
+
+        function restoreDraft(key) {
+            const inp = document.getElementById('messageInput');
+            if (!inp) return;
+            const text = drafts[key] || '';
+            inp.value = text;
+            try { inp.dispatchEvent(new Event('input', { bubbles: true })); } catch (e) {}
+        }
+
+        function clearDraft(key) {
+            delete drafts[key || selectedUserId];
+            try { localStorage.setItem(DRAFT_KEY, JSON.stringify(drafts)); } catch (e) {}
+        }
+
+        // ── БЕЗЗВУЧНЫЙ РЕЖИМ ПО ЧАТУ ───────────────────────────────────────────────
+        //  Групповой чат может писать без остановки, а сессия идёт. Отключаем звук и
+        //  всплывающие уведомления по конкретной переписке, счётчик при этом остаётся.
+        const MUTE_KEY = 'psy-muted-chats';
+        let mutedChats = {};
+        try { mutedChats = JSON.parse(localStorage.getItem(MUTE_KEY) || '{}') || {}; } catch (e) { mutedChats = {}; }
+        function isMuted(key) { return !!mutedChats[key]; }
+        function toggleChatMute(key) {
+            if (mutedChats[key]) delete mutedChats[key]; else mutedChats[key] = 1;
+            try { localStorage.setItem(MUTE_KEY, JSON.stringify(mutedChats)); } catch (e) {}
+            closeFolderPicker();
+            toast(mutedChats[key] ? 'Уведомления отключены' : 'Уведомления включены');
+            refreshConversationList();
+        }
+        window.toggleChatMute = toggleChatMute;
+
         const DM_PAGE = 50;
         let dmState = { peer: null, list: [], cursor: null, hasMore: false, loading: false };
         let dmKeepScroll = 0;        // высота прокрутки до вставки старых — чтобы не «прыгнуло»
@@ -8287,6 +8360,9 @@
             menu.id = 'folderPicker';
             let html = `<button class="folder-picker-row" onclick="event.stopPropagation();toggleChatPin('${esc}')">
                     <span class="fp-mark">📌</span>${isPinned ? 'Открепить диалог' : 'Закрепить диалог'}
+                </button>
+                <button class="folder-picker-row" onclick="event.stopPropagation();toggleChatMute('${esc}')">
+                    <span class="fp-mark">${isMuted(chatKey) ? '🔔' : '🔕'}</span>${isMuted(chatKey) ? 'Включить уведомления' : 'Отключить уведомления'}
                 </button>`;
             if (kind === 'group' && extraId) {
                 html += `<button class="folder-picker-row" onclick="event.stopPropagation();closeFolderPicker();openAddGroupMembers(${extraId})">
@@ -8460,10 +8536,18 @@
                 const initial = name.charAt(0).toUpperCase();
                 const isNew = !!c._isNew;
                 const isSupport = !!c._support;
-                const lastMsg = previewText((c.last_message || '').replace(/^\[ORDER#\d+\]\s*/, ''));
+                let lastMsg = previewText((c.last_message || '').replace(/^\[ORDER#\d+\]\s*/, ''));
+                // Недописанное показываем прямо в списке, как в мессенджерах: видно,
+                // где остался незаконченный ответ. Обрезаем текст ДО добавления пометки,
+                // иначе обрезка съела бы саму разметку.
+                const draft = drafts[String(c.user_id)];
+                const showDraft = draft && String(selectedUserId) !== String(c.user_id);
+                const cut = (t) => (String(t).length > 40 ? String(t).substring(0, 40) + '...' : String(t));
                 const preview = isNew
                     ? `<span style="color:#047857;">${c.role === 'psychologist' ? 'Психолог' : 'Клиент'} · начать переписку</span>`
-                    : (isSupport ? c.last_message : (c.is_mine ? `Вы: ${lastMsg}` : lastMsg));
+                    : (showDraft
+                        ? `<span class="conv-draft">Черновик:</span> ${escapeHtml(cut(previewText(draft)))}`
+                        : (isSupport ? c.last_message : (c.is_mine ? `Вы: ${cut(lastMsg)}` : cut(lastMsg))));
                 const time = isNew ? '' : formatTime(c.last_message_time);
                 const clickHandler = isSupport ? `openSupportThread('${c._threadId}')` : (isNew ? `startNewChat('${c.id}')` : `openChat('${c.user_id}')`);
                 const activeId = isNew ? c.id : c.user_id;
@@ -8476,8 +8560,8 @@
                             ${c.avatar ? `<img src="${c.avatar}" alt="${name}">` : (isSupport ? '🆘' : initial)}
                         </div>
                         <div class="conversation-info">
-                            <div class="conversation-name"><span class="cn-text">${name}</span>${pinMarkHtml(String(activeId))}</div>
-                            <div class="conversation-preview">${isNew ? preview : (preview.substring(0, 40) + (preview.length > 40 ? '...' : ''))}</div>
+                            <div class="conversation-name"><span class="cn-text">${name}</span>${pinMarkHtml(String(activeId))}${isMuted(String(activeId)) ? '<span class="conv-muted" title="Уведомления отключены">🔕</span>' : ''}</div>
+                            <div class="conversation-preview">${preview}</div>
                         </div>
                         <div class="conversation-meta">
                             <div class="conversation-time">${time}</div>
@@ -9450,6 +9534,7 @@
         }
 
         async function openFavorites() {
+            saveDraft(); restoreDraft(FAVORITES_ID);   // черновики не теряются при переключении
             showChatFromCache(FAVORITES_ID);             // мгновенно, до ответа сервера
             clearPinnedBar();
             selectedUserId = FAVORITES_ID;
@@ -9558,7 +9643,9 @@
         }
 
         async function openChat(userId) {
+            saveDraft();                 // недописанное в прошлой переписке не теряем
             selectedUserId = userId;
+            restoreDraft(userId);        // а в этой — возвращаем на место
             // СРАЗУ показываем новую переписку — шапку и сообщения с прошлого раза.
             // Без этого на экране до ответа сервера висела предыдущая переписка, и это
             // читалось как «приложение подвисло».
@@ -10766,6 +10853,7 @@
                 const caption = input.value.trim();
                 const files = pendingAttachments.splice(0);
                 input.value = '';
+                clearDraft();          // отправили — черновика больше нет
                 resetInputHeight();
                 renderAttachBar();
                 await sendToAi(caption, files);
@@ -10776,6 +10864,7 @@
             if (pendingAttachments.length && selectedUserId) {
                 const caption = input.value.trim();
                 input.value = '';
+                clearDraft();          // отправили — черновика больше нет
                 resetInputHeight();
                 updateMicButton();
                 cancelReply();
@@ -10790,6 +10879,7 @@
             if (isAiMode()) {
                 const text = input.value.trim();
                 input.value = '';
+                clearDraft();          // отправили — черновика больше нет
                 resetInputHeight();
                 await sendToAi(text);
                 return;
@@ -10797,6 +10887,7 @@
 
             if (typeof selectedUserId === 'string' && selectedUserId.indexOf(GROUP_PREFIX) === 0) {
                 input.value = '';
+                clearDraft();          // отправили — черновика больше нет
                 resetInputHeight();
                 const d = await groupApi('send', { group_id: selectedUserId.slice(GROUP_PREFIX.length), content });
                 if (!d.ok) {
@@ -10815,6 +10906,7 @@
 
             if (isSupportMode()) {
                 input.value = '';
+                clearDraft();          // отправили — черновика больше нет
                 resetInputHeight();
                 try {
                     await fetch('/api/support.php?action=reply', {
@@ -10830,6 +10922,7 @@
 
             if (selectedUserId === FAVORITES_ID) {
                 input.value = '';
+                clearDraft();          // отправили — черновика больше нет
                 resetInputHeight();
                 try {
                     await fetch('/api/favorites.php?action=add', {
