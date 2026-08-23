@@ -6062,8 +6062,14 @@
         }
 
         function clearDraft(key) {
+            // Отложенное сохранение могло быть уже назначено на момент отправки.
+            // Не сняв его, мы удалили бы черновик и тут же записали его заново.
+            if (draftTimer) { clearTimeout(draftTimer); draftTimer = null; }
             delete drafts[key || selectedUserId];
             try { localStorage.setItem(DRAFT_KEY, JSON.stringify(drafts)); } catch (e) {}
+            // Строка в списке ещё показывает «Черновик:» — обновим её сразу,
+            // не дожидаясь следующей перерисовки списка.
+            try { refreshConversationList(); } catch (e) {}
         }
 
         // ── БЕЗЗВУЧНЫЙ РЕЖИМ ПО ЧАТУ ───────────────────────────────────────────────
@@ -6200,6 +6206,28 @@
             loadConversations().catch(() => {});
         }
 
+        /**
+         * Подменить счётчики непрочитанного своими.
+         *
+         * Трогаем только личные переписки: у групп, каналов и поддержки счёт свой
+         * и живёт в других таблицах.
+         */
+        async function applyUnreadCounts(conversations) {
+            try {
+                const r = await fetch('/api/unread.php?action=counts', { credentials: 'include' });
+                const d = await r.json();
+                if (!d || !d.ok || d.supported === false) return;
+                const map = d.data || {};
+                (conversations || []).forEach(c => {
+                    const id = String(c.user_id != null ? c.user_id : (c.id != null ? c.id : ''));
+                    if (!id || id === FAVORITES_ID || id === AI_ID) return;
+                    if (id.indexOf(GROUP_PREFIX) === 0 || id.indexOf(CHANNEL_PREFIX) === 0
+                        || id.indexOf(SUPPORT_PREFIX) === 0) return;
+                    c.unread_count = Number(map[id] || 0);
+                });
+            } catch (e) { /* не ответил — остаются числа из messages.php */ }
+        }
+
         async function loadConversations() {
             try {
                 const response = await fetch('/api/messages.php?action=conversations', {
@@ -6207,6 +6235,12 @@
                 });
                 let conversations = await response.json();
                 if (!Array.isArray(conversations)) conversations = [];
+                // Числа непрочитанного берём из api/unread.php — они считаются по тому
+                // же признаку (messages.is_read), по которому переписка и отмечается
+                // прочитанной. Раньше отметку ставил один код, а число присылал другой,
+                // считавший по-своему: сообщение прочитано, а «1» продолжала висеть.
+                // Если сервер такой счёт не поддерживает, оставляем как было.
+                await applyUnreadCounts(conversations);
                 // Держим список под рукой: из него берётся шапка открытой переписки.
                 // Раньше при каждом открытии чата список запрашивался ЗАНОВО, только
                 // чтобы найти в нём имя собеседника, — лишний круг к серверу.
@@ -12277,6 +12311,11 @@
             }
 
             input.value = '';
+            // Это самая частая ветка отправки, и именно в ней не хватало clearDraft():
+            // поле очищалось, а сохранённый черновик оставался. Стоило переписке
+            // перерисоваться (или открыть её заново) — restoreDraft() возвращал текст
+            // обратно, и в списке горела пометка «Черновик:» об уже отправленном.
+            clearDraft();
             resetInputHeight();
 
             try {

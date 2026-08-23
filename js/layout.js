@@ -629,6 +629,17 @@ window.psyGuardPoll = window.psyGuardPoll || function (fn) { return fn; };
   async function refreshChatBadge() {
     if (location.pathname.indexOf('/chat.html') === 0) return;   // в самом чате незачем
     var total = 0, seen = false;
+    // Считаем по тому же признаку, по которому переписка отмечается прочитанной
+    // (messages.is_read). Раньше число приходило из messages.php, который считает
+    // его по-своему, и счётчик в шапке продолжал висеть после прочтения.
+    try {
+      var ru = await fetch('/api/unread.php?action=total', { credentials: 'include' });
+      var du = await ru.json();
+      if (du && du.ok && du.supported !== false) {
+        paintChatBadge(parseInt(du.total, 10) || 0);
+        return;
+      }
+    } catch (e) { /* нет такого счёта — считаем по-старому */ }
     try {
       var r = await fetch('/api/messages.php?action=conversations', { credentials: 'include' });
       var d = await r.json();
