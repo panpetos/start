@@ -942,6 +942,13 @@
         /* Нажатая кнопка подсвечивается: видно, что сейчас включено */
         .cmp-tool.on { background: #047857; color: #fff; }
         body.dark .cmp-tool.on { background: #059669; }
+        /* Метка «у этого человека несколько обращений» в списке поддержки */
+        .sup-dup {
+            display: inline-block; background: #FEF3C7; color: #92400E;
+            border-radius: 0.35rem; padding: 0 0.3rem; font-size: 0.72rem; font-weight: 700;
+        }
+        body.dark .sup-dup { background: #4A3410; color: #FCD34D; }
+
         /* ── Категории в «Избранном» ───────────────────────────────────────────── */
         .fav-tags {
             display: flex; flex-wrap: wrap; gap: 0.35rem;
@@ -6037,7 +6044,10 @@
                     last_name: '',
                     email: t.email || '',
                     avatar: null,
-                    last_message: (t.last_sender === 'admin' ? 'Вы: ' : '') + (t.last_message || ''),
+                    // «ещё N обращений» — подсказка про старые раздвоившиеся обращения
+                    // одного человека: без неё непонятно, почему сообщение «пропало».
+                    last_message: (t.same_user ? `<span class="sup-dup" title="У этого человека ${t.same_user} обращения — сообщение могло прийти в другое">×${t.same_user}</span> ` : '')
+                                + (t.last_sender === 'admin' ? 'Вы: ' : '') + escapeHtml(t.last_message || ''),
                     is_mine: t.last_sender === 'admin',
                     last_message_time: t.last_at,
                     unread_count: t.unread || 0

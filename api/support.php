@@ -129,6 +129,22 @@ if ($action === 'start') {
     }
 
     $thread = threadByToken($pdo, $token);
+    // ВАЖНО. Раньше обращение искалось ТОЛЬКО по токену из localStorage браузера.
+    // У вошедшего человека это давало вот что: написал с телефона — одно обращение,
+    // потом с ноутбука — ВТОРОЕ, потому что токена в том браузере нет. У админа
+    // появлялись две строки на одного и того же человека, и новое сообщение уходило
+    // в ту, которую он не открывал: счётчик показывал «+1», а в открытом диалоге
+    // ничего не появлялось. Теперь у вошедшего сначала ищем его же обращение.
+    if (!$thread && $userId) {
+        try {
+            $st = $pdo->prepare("SELECT * FROM support_threads WHERE user_id = ? ORDER BY last_at DESC, id DESC LIMIT 1");
+            $st->execute([$userId]);
+            $thread = $st->fetch(PDO::FETCH_ASSOC) ?: null;
+            // Подхватили прежнее обращение — отдаём его токен, чтобы этот браузер
+            // дальше писал туда же, а не заводил третье.
+            if ($thread) $token = (string)$thread['token'];
+        } catch (Exception $e) { $thread = null; }
+    }
     $isNewThread = !$thread;
     if ($isNewThread) {
         $token = bin2hex(random_bytes(16));
@@ -178,13 +194,18 @@ if ($action === 'poll') {
     $token = trim((string)($_GET['token'] ?? ''));
     $thread = threadByToken($pdo, $token);
     if (!$thread) { echo json_encode(['ok' => true, 'data' => [], 'unread' => 0]); exit; }
+    $msgs = [];
     try {
         $st = $pdo->prepare("SELECT id, sender, body, attachment_url, attachment_type, attachment_name, created_at FROM support_messages WHERE thread_id = ? ORDER BY id ASC");
         $st->execute([(int)$thread['id']]);
-        $msgs = $st->fetchAll(PDO::FETCH_ASSOC);
+        $msgs = $st->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    } catch (Exception $e) { $msgs = []; }
+    // Та же осторожность, что и у админа: неудачная отметка «прочитано» не должна
+    // опустошать переписку в виджете.
+    try {
         $pdo->prepare("UPDATE support_threads SET user_read_at = NOW() WHERE id = ?")->execute([(int)$thread['id']]);
-        echo json_encode(['ok' => true, 'data' => $msgs]);
-    } catch (Exception $e) { echo json_encode(['ok' => true, 'data' => []]); }
+    } catch (Exception $e) {}
+    echo json_encode(['ok' => true, 'data' => $msgs]);
     exit;
 }
 
@@ -248,6 +269,21 @@ if ($action === 'threads') {
         } catch (Exception $e) { $t['unread'] = 0; }
         $t['registered'] = !empty($t['user_id']);
     }
+    unset($t);
+    // Сколько обращений у одного и того же человека. Раньше такие раздваивались
+    // (см. пояснение в action=start), и админ мог смотреть в одну строку, пока
+    // сообщение лежало в другой. Причину устранили, но старые дубли остались —
+    // пусть будут видны, а не молча путают.
+    $byUser = [];
+    foreach ($rows as $t) {
+        $u = (string)($t['user_id'] ?? '');
+        if ($u !== '') $byUser[$u] = ($byUser[$u] ?? 0) + 1;
+    }
+    foreach ($rows as &$t) {
+        $u = (string)($t['user_id'] ?? '');
+        $t['same_user'] = ($u !== '' && ($byUser[$u] ?? 0) > 1) ? (int)$byUser[$u] : 0;
+    }
+    unset($t);
     echo json_encode(['ok' => true, 'data' => $rows]);
     exit;
 }
@@ -255,15 +291,22 @@ if ($action === 'threads') {
 if ($action === 'messages') {
     $tid = $_GET['thread_id'] ?? null;
     if (!$tid) { http_response_code(400); echo json_encode(['error' => 'thread_id обязателен']); exit; }
+    $thread = null; $msgs = [];
     try {
         $info = $pdo->prepare("SELECT * FROM support_threads WHERE id = ? LIMIT 1");
         $info->execute([$tid]);
-        $thread = $info->fetch(PDO::FETCH_ASSOC);
+        $thread = $info->fetch(PDO::FETCH_ASSOC) ?: null;
         $st = $pdo->prepare("SELECT id, sender, body, attachment_url, attachment_type, attachment_name, created_at FROM support_messages WHERE thread_id = ? ORDER BY id ASC");
         $st->execute([$tid]);
-        $msgs = $st->fetchAll(PDO::FETCH_ASSOC);
-        $pdo->prepare("UPDATE support_threads SET admin_read_at = NOW() WHERE id = ?")->execute([$tid]);
+        $msgs = $st->fetchAll(PDO::FETCH_ASSOC) ?: [];
     } catch (Exception $e) { $thread = null; $msgs = []; }
+    // Отметка «прочитано» — ОТДЕЛЬНО и после. Раньше она стояла внутри того же try,
+    // и её падение (блокировка, нехватка прав) уносило с собой уже прочитанные
+    // сообщения: админ видел пустой диалог, а счётчик непрочитанных так и горел,
+    // потому что admin_read_at не обновился. Переписка важнее отметки.
+    try {
+        $pdo->prepare("UPDATE support_threads SET admin_read_at = NOW() WHERE id = ?")->execute([$tid]);
+    } catch (Exception $e) { /* не отметилось — покажем ещё раз, это не страшно */ }
     echo json_encode(['ok' => true, 'thread' => $thread, 'data' => $msgs]);
     exit;
 }
