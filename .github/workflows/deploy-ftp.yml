@@ -34,6 +34,7 @@ jobs:
             put .user.ini -o .user.ini;
             put index.html;
             put invite.html;
+            put calendar.html;
             put search.html;
             put book.html;
             put book-confirm.html;
@@ -115,6 +116,7 @@ jobs:
             put api/ai_file.php -o api/ai_file.php;
             put api/thumb.php -o api/thumb.php;
             put api/referrals.php -o api/referrals.php;
+            put api/calendar.php -o api/calendar.php;
             put api/ai_chat_config.sample.php -o api/ai_chat_config.sample.php;
             put api/credentials.php -o api/credentials.php;
             put api/inn_check.php -o api/inn_check.php;

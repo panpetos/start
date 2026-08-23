@@ -133,6 +133,7 @@ window.psyGuardPoll = window.psyGuardPoll || function (fn) { return fn; };
         '<a href="/payment-info.html">Оплата и безопасность</a>' +
         '<a href="/install.html">Приложение</a>' +
         '<a href="/invite.html">Пригласить друга</a>' +
+        '<a href="/calendar.html">Календарь</a>' +
         '<a href="/consent.html">Согласие на обработку ПД</a>' +
         '<a href="/consent-health.html">Согласие на данные о здоровье</a>' +
         '<a href="/">Главная</a>' +
