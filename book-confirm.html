@@ -62,6 +62,29 @@
         .detail-row:last-child { border-bottom: none; }
         .detail-label { color: #6B7280; display: flex; align-items: center; gap: 0.5rem; font-size: 0.9375rem; }
         .detail-value { font-weight: 600; color: #1A1A1A; }
+        /* Промокод бесплатной записи */
+        .promo-box {
+            border: 1.5px dashed #A7F3D0; border-radius: 0.9rem;
+            padding: 0.85rem 1rem; margin: 1rem 0 0.5rem; background: #F7FDFA;
+        }
+        .promo-label { display: block; font-size: 0.8rem; font-weight: 700; color: #047857; margin-bottom: 0.45rem; }
+        .promo-row { display: flex; gap: 0.5rem; }
+        .promo-row input {
+            flex: 1; min-width: 0; padding: 0.6rem 0.75rem; font-family: inherit; font-size: 0.95rem;
+            border: 1.5px solid #E5E7EB; border-radius: 0.6rem; outline: none;
+            text-transform: uppercase; letter-spacing: 0.04em;
+        }
+        .promo-row input:focus { border-color: #6EE7B7; }
+        .promo-row input:disabled { background: #ECFDF5; border-color: #A7F3D0; color: #065F46; }
+        .promo-row button {
+            flex-shrink: 0; border: none; border-radius: 0.6rem; padding: 0 1rem; cursor: pointer;
+            background: #047857; color: #fff; font-family: inherit; font-weight: 700; font-size: 0.9rem;
+        }
+        .promo-row button:disabled { opacity: 0.6; cursor: default; }
+        .promo-msg { font-size: 0.82rem; margin-top: 0.45rem; color: #6B7280; min-height: 1.1em; }
+        .promo-msg.ok { color: #16A34A; font-weight: 600; }
+        .promo-msg.err { color: #DC2626; font-weight: 600; }
+
         .total-row {
             background: linear-gradient(135deg, #047857 0%, #059669 100%);
             color: white; padding: 1.125rem 1.25rem; border-radius: 1rem;
@@ -249,20 +272,46 @@
                        <span class="total-label">По абонементу</span>
                        <span class="total-value" style="font-size:1.25rem;">Бесплатно · −1 сессия</span>
                    </div>`
-                : `<div class="total-row">
-                       <span class="total-label">К оплате</span>
-                       <span class="total-value">${new Intl.NumberFormat('ru-RU').format(p.price || 0)} ₽</span>
-                   </div>`;
+                : (promoOk
+                    ? `<div class="total-row" style="background:linear-gradient(135deg,#16A34A,#22C55E);">
+                           <span class="total-label">По промокоду</span>
+                           <span class="total-value" style="font-size:1.25rem;">
+                               <s style="opacity:0.65;font-size:0.9rem;font-weight:500;">${new Intl.NumberFormat('ru-RU').format(p.price || 0)} ₽</s>
+                               &nbsp;0 ₽</span>
+                       </div>`
+                    : `<div class="total-row">
+                           <span class="total-label">К оплате</span>
+                           <span class="total-value">${new Intl.NumberFormat('ru-RU').format(p.price || 0)} ₽</span>
+                       </div>`);
             const payButton = isPackage
                 ? `<button class="btn-pay" id="payBtn" onclick="proceedPackageBooking()" style="background:linear-gradient(135deg,#16A34A,#22C55E);">
                        <i data-lucide="ticket" style="width: 20px; height: 20px;"></i> Записаться по абонементу
                    </button>`
-                : `<button class="btn-pay" id="payBtn" onclick="proceedToPayment()">
-                       <i data-lucide="credit-card" style="width: 20px; height: 20px;"></i> Перейти к оплате
-                   </button>`;
+                : (promoOk
+                    ? `<button class="btn-pay" id="payBtn" onclick="proceedPromoBooking()" style="background:linear-gradient(135deg,#16A34A,#22C55E);">
+                           <i data-lucide="check" style="width: 20px; height: 20px;"></i> Записаться бесплатно
+                       </button>`
+                    : `<button class="btn-pay" id="payBtn" onclick="proceedToPayment()">
+                           <i data-lucide="credit-card" style="width: 20px; height: 20px;"></i> Перейти к оплате
+                       </button>`);
+            // Промокод — только для обычной записи: по абонементу и так без оплаты
+            const promoBlock = isPackage ? '' : `
+                <div class="promo-box">
+                    <label class="promo-label" for="promoInput">Промокод</label>
+                    <div class="promo-row">
+                        <input id="promoInput" type="text" placeholder="Введите промокод" autocomplete="off"
+                               maxlength="40" value="${promoOk ? promoCode.replace(/"/g, '&quot;') : ''}"
+                               ${promoOk ? 'disabled' : ''} oninput="promoReset()"
+                               onkeydown="if(event.key==='Enter'){event.preventDefault();applyPromo();}">
+                        <button type="button" id="promoBtn" onclick="applyPromo()" ${promoOk ? 'style="display:none;"' : ''}>Применить</button>
+                    </div>
+                    <div id="promoMsg" class="promo-msg${promoOk ? ' ok' : ''}">${promoOk ? '✓ Промокод принят — запись без оплаты' : ''}</div>
+                </div>`;
             const secureBlock = isPackage
                 ? `<div class="secure-badge"><i data-lucide="ticket" style="width: 18px; height: 18px;"></i> Сессия из вашего абонемента — повторная оплата не нужна</div>`
-                : `<div class="secure-badge"><i data-lucide="shield-check" style="width: 18px; height: 18px;"></i> Безопасная оплата через Robokassa</div>`;
+                : (promoOk
+                    ? `<div class="secure-badge"><i data-lucide="check" style="width: 18px; height: 18px;"></i> Запись по промокоду — платить не нужно</div>`
+                    : `<div class="secure-badge"><i data-lucide="shield-check" style="width: 18px; height: 18px;"></i> Безопасная оплата через Robokassa</div>`);
 
             document.getElementById('bookingCard').innerHTML = `
                 <div class="booking-heading">
@@ -313,6 +362,7 @@
                     </div>
                 </div>
 
+                ${promoBlock}
                 ${totalBlock}
 
                 <div id="errorMsg"></div>
@@ -338,6 +388,88 @@
             element.classList.add('selected');
             bookingData.format = format;
         }
+
+        // ── Промокод бесплатной записи ────────────────────────────────────────
+        //  Пока приём платежей не настроен, а проверить весь путь «клиент записался →
+        //  психолог увидел → созвонились» нужно уже сейчас. Общий тумблер «тестовая
+        //  оплата» для этого не годится: он делает бесплатным всё и для всех.
+        //  Код знает только тот, кому его дали, и проверяется он на сервере — здесь
+        //  только показываем результат.
+        let promoOk = false;
+        let promoCode = '';
+
+        function promoReset() {
+            if (!promoOk) return;
+            promoOk = false; promoCode = '';
+            renderBookingForm();   // вернём обычную цену и кнопку оплаты
+        }
+        window.promoReset = promoReset;
+
+        async function applyPromo() {
+            const inp = document.getElementById('promoInput');
+            const msg = document.getElementById('promoMsg');
+            const btn = document.getElementById('promoBtn');
+            const code = (inp.value || '').trim();
+            if (!code) { msg.className = 'promo-msg err'; msg.textContent = 'Введите промокод'; return; }
+            btn.disabled = true; msg.className = 'promo-msg'; msg.textContent = 'Проверяем…';
+            try {
+                const r = await fetch('/api/promo_booking.php?action=check', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include', body: JSON.stringify({ code })
+                });
+                const d = await r.json();
+                if (d && d.valid) {
+                    promoOk = true; promoCode = code;
+                    renderBookingForm();
+                    const m2 = document.getElementById('promoMsg');
+                    if (m2) { m2.className = 'promo-msg ok'; m2.textContent = '✓ Промокод принят — запись без оплаты'; }
+                    const i2 = document.getElementById('promoInput');
+                    if (i2) { i2.value = code; i2.disabled = true; }
+                    const b2 = document.getElementById('promoBtn');
+                    if (b2) b2.style.display = 'none';
+                } else {
+                    msg.className = 'promo-msg err';
+                    msg.textContent = (d && d.error) || 'Промокод не подошёл';
+                    btn.disabled = false;
+                }
+            } catch (e) {
+                msg.className = 'promo-msg err'; msg.textContent = 'Не удалось проверить промокод';
+                btn.disabled = false;
+            }
+        }
+        window.applyPromo = applyPromo;
+
+        async function proceedPromoBooking() {
+            const btn = document.getElementById('payBtn');
+            btn.disabled = true;
+            btn.textContent = 'Записываем…';
+            try {
+                const r = await fetch('/api/promo_booking.php?action=book', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({
+                        code: promoCode,
+                        psychologistId: psychologistData.id,
+                        dateTime: bookingData.datetime,
+                        format: bookingData.format
+                    })
+                });
+                const d = await r.json();
+                if (d && d.ok && d.appointment_id) {
+                    window.location.href = `/payment-success.html?appointment_id=${d.appointment_id}&promo=1`;
+                    return;
+                }
+                document.getElementById('errorMsg').innerHTML =
+                    `<div class="error">${(d && d.error) || 'Не удалось записаться'}</div>`;
+            } catch (e) {
+                document.getElementById('errorMsg').innerHTML =
+                    '<div class="error">Ошибка записи. Попробуйте позже.</div>';
+            }
+            btn.disabled = false;
+            btn.innerHTML = '<i data-lucide="check" style="width: 20px; height: 20px;"></i> Записаться бесплатно';
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+        }
+        window.proceedPromoBooking = proceedPromoBooking;
 
         async function proceedToPayment() {
             const btn = document.getElementById('payBtn');

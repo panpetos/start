@@ -1499,6 +1499,29 @@
 
             document.getElementById('content').innerHTML = `
               <div class="note">💡 Базовые цены тарифов видны клиентам на страницах «Пакеты и цены» и в подборе. Комиссия и налоги используются только для расчёта дохода — клиенту проценты не показываются.</div>
+              <div class="panel" style="margin-bottom:1.25rem;">
+                <div class="panel-head"><h2>Промокод бесплатной записи</h2></div>
+                <div style="padding:1.1rem 1.25rem;">
+                  <div class="note" style="margin-bottom:0.9rem;">
+                    Для проверки сервиса, пока приём платежей не настроен. Клиент вводит код на странице
+                    подтверждения записи — запись создаётся без оплаты, с ценой 0 ₽.
+                    <b>Пустое поле выключает функцию целиком</b>: никакой код не подойдёт.
+                    Код проверяется на сервере, подобрать его нельзя — после 10 неудачных попыток в сутки
+                    человеку отказывают.
+                  </div>
+                  <div style="display:flex;gap:0.9rem;flex-wrap:wrap;align-items:flex-end;">
+                    <label style="font-size:0.82rem;color:var(--a-text-sec);font-weight:600;">Код<br>
+                      <input id="free_promo_code" type="text" maxlength="40" placeholder="например TEST2026"
+                             value="${esc(sGet('free_promo_code',''))}"
+                             style="width:220px;margin-top:0.3rem;padding:0.55rem 0.7rem;border:1.5px solid var(--a-input-border);border-radius:0.6rem;font-family:inherit;font-size:0.95rem;background:var(--a-input-bg);color:var(--a-text);text-transform:uppercase;"></label>
+                    <label style="font-size:0.82rem;color:var(--a-text-sec);font-weight:600;">Записей на человека<br>
+                      <input id="free_promo_limit" type="number" min="0" step="1"
+                             value="${esc(sGet('free_promo_limit','5'))}"
+                             style="width:120px;margin-top:0.3rem;padding:0.55rem 0.7rem;border:1.5px solid var(--a-input-border);border-radius:0.6rem;font-family:inherit;font-size:0.95rem;background:var(--a-input-bg);color:var(--a-text);"></label>
+                    <span style="color:var(--a-text-muted);font-size:0.8rem;">0 — без ограничения</span>
+                  </div>
+                </div>
+              </div>
               <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;align-items:start;" id="tariffGrid">
                 <div class="panel">
                   <div class="panel-head"><h2>Базовые цены тарифов</h2></div>
@@ -1708,6 +1731,11 @@
                 payload['promo_'+k+'_duration'] = document.getElementById('promo_'+k+'_duration').value.trim();
                 payload['promo_'+k+'_deadline'] = document.getElementById('promo_'+k+'_deadline').value.trim();
             });
+            // Промокод бесплатной записи: пустое значение = функция выключена
+            const fpc = document.getElementById('free_promo_code');
+            if (fpc) payload.free_promo_code = fpc.value.trim().toUpperCase();
+            const fpl = document.getElementById('free_promo_limit');
+            if (fpl) payload.free_promo_limit = String(parseInt(fpl.value, 10) || 0);
             const msg = document.getElementById('saveMsg');
             btn.disabled = true; if(msg){ msg.textContent='Сохраняем...'; msg.style.color='var(--a-text-sec)'; }
             const res = await apiPost('save-settings', { settings: payload });

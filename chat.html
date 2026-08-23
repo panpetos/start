@@ -2664,7 +2664,9 @@
             box-shadow: 0 4px 12px rgba(0, 200, 83, 0.4);
         }
 
-        /* Кнопка учёта времени сессии (видна психологу) */
+        /* Общий вид небольших кнопок-действий в шапках (канал, запись, «Написать»).
+           Класс остался от кнопки учёта времени сессии, которой больше нет:
+           звонок сам пишет длительность в переписку. Стиль переиспользуется. */
         .session-btn {
             padding: 0.5rem 0.9rem; border-radius: 0.75rem; border: none;
             background: #15803D; color: #fff; font-weight: 700; font-size: 0.8rem;
@@ -2672,7 +2674,6 @@
             transition: background 0.2s, transform 0.2s;
         }
         .session-btn:hover { transform: translateY(-1px); }
-        .session-btn.session-active { background: #DC2626; }
 
         /* Video Call Modal */
         .video-modal {
@@ -2930,7 +2931,7 @@
             .chat-header .avatar { width: 38px; height: 38px; }
             .chat-header .name { font-size: 0.95rem; }
             .chat-header .role { font-size: 0.78rem; }
-            /* Кнопки действий (сессия/счёт/заметки/видео/кабинет) — компактнее и переносятся на новую строку, не толкая экран вправо */
+            /* Кнопки действий — компактнее и переносятся на новую строку, не толкая экран вправо */
             .chat-header .session-btn,
             .chat-header .video-call-btn {
                 font-size: 0.72rem;
@@ -2944,7 +2945,7 @@
                 justify-content: flex-end;
                 gap: 0.3rem;
             }
-            /* Кнопка сессии на телефоне короче: подпись прячем, время видно */
+            /* Кнопки-чипы в шапке на телефоне короче */
             .chat-header-actions .session-btn { padding: 0.4rem 0.55rem; font-size: 0.78rem; }
             /* Длинные подписи чипов («Написать», «Оформление», «Мой канал») на телефоне
                прятали шапку в две строки и уезжали вправо — оставляем только значок,
@@ -4354,9 +4355,16 @@
                 const kick = (isOwner && m.role !== 'owner')
                     ? `<button onclick="event.stopPropagation();kickGroupMember('${m.user_id}')" title="Исключить" style="border:none;background:none;color:#DC2626;cursor:pointer;font-size:0.95rem;">✕</button>`
                     : '';
-                // По участнику можно нажать — откроется его карточка, как в шапке чата
+                // По участнику можно нажать — откроется его карточка, как в шапке чата.
+                // Плюс отдельная кнопка «написать»: найти человека в группе и захотеть
+                // написать ему лично — обычное дело, а раньше это был тупик, потому что
+                // и в карточке такой кнопки не было.
                 const me = currentUser && String(currentUser.id) === String(m.user_id);
                 const open = me ? '' : `onclick="closeGroupInfo();openUserCard('${escapeHtml(String(m.user_id))}')"`;
+                const write = me ? '' :
+                    `<button onclick="event.stopPropagation();closeGroupInfo();writeToUser('${escapeHtml(String(m.user_id))}')"
+                             title="Написать лично" aria-label="Написать лично"
+                             style="border:none;background:#ECFDF5;color:#047857;cursor:pointer;border-radius:0.55rem;padding:0.35rem 0.55rem;font-size:0.95rem;line-height:1;">✉️</button>`;
                 return `<div class="gi-member" ${open} style="display:flex;align-items:center;gap:0.6rem;padding:0.5rem 0;border-bottom:1px solid #f0f0f0;${me ? '' : 'cursor:pointer;'}"
                              title="${me ? 'Это вы' : 'Открыть карточку'}">
                     <div class="conversation-avatar" style="width:42px;height:42px;font-size:0.95rem;">${m.avatar ? `<img src="${escapeHtml(m.avatar)}" alt="">` : escapeHtml(nm.charAt(0).toUpperCase())}</div>
@@ -4364,6 +4372,7 @@
                         <div style="font-weight:600;font-size:0.88rem;">${escapeHtml(nm)}${m.role === 'owner' ? ' <span style="color:#047857;font-size:0.72rem;font-weight:700;">владелец</span>' : ''}${me ? ' <span style="color:#9CA3AF;font-size:0.72rem;">— вы</span>' : ''}</div>
                         <div style="color:#9CA3AF;font-size:0.75rem;">${roleLabel}</div>
                     </div>
+                    ${write}
                     ${kick}
                 </div>`;
             }).join('') || '<div style="color:#9CA3AF;font-size:0.85rem;">Нет участников</div>';
@@ -5006,11 +5015,11 @@
             chatPeerInfo = { id: other.id || selectedUserId, name, avatar: other.avatar || '' };
             const roleText = other.role === 'psychologist' ? 'Психолог' : 'Клиент';
             const isPsy = currentUser && currentUser.role === 'psychologist';
-            // Видеовстречу создаёт и сессию ведёт психолог; клиент только присоединяется по ссылке
-            const sessionBtn = isPsy
-                ? `<button id="sessionBtn" class="session-btn" onclick="toggleSession()" title="Засечь реальное время консультации"><span id="sessionBtnText">▶ Начать сессию</span></button>`
-                : '';
-            // Кнопка сессии остаётся на виду: в ней бежит время консультации, в меню его не видно
+            // Кнопок «Начать сессию» / «Завершить» здесь больше нет. Они появились,
+            // когда звонка внутри сайта не было и время консультации приходилось
+            // отмечать руками. Теперь звонок сам пишет в переписку строку вида
+            // «Звонок · 3 мин 28 с» (api/rtc_lib.php), и та же работа делается без
+            // лишних двух нажатий, которые к тому же легко забыть.
             const actions = [
                 // Свои звонки: звук и видео идут напрямую между браузерами, минуя сайт.
                 // Доступны обеим сторонам — раньше встречу мог начать только психолог.
@@ -5036,7 +5045,7 @@
                     <div class="name">${name}</div>
                     <div class="role" id="chatPeerStatus" data-role="${escapeHtml(roleText)}">${roleText}</div>
                 </div>
-                ${headerActionsHtml(actions, sessionBtn)}`;
+                ${headerActionsHtml(actions, '')}`;
         }
 
         // ── Мини-карточка собеседника (клик по аватару/имени в шапке чата) ──
@@ -5076,6 +5085,7 @@
                         <!-- Раньше здесь было две кнопки, ведущие по сути в одно место.
                              Оставили запись, а вторая кнопка открывает канал прямо в чате. -->
                         <div style="display:flex;gap:0.6rem;margin-top:1.2rem;flex-wrap:wrap;" id="userCardActions">
+                            <button class="session-btn" onclick="closeUserCard();writeToUser('${escapeHtml(String(userId))}')" title="Написать лично">✉️ Написать</button>
                             <a href="/book.html?id=${encodeURIComponent(c.psychologist_id)}" class="session-btn" style="background:#15803D;text-decoration:none;" title="Записаться на консультацию">📅 Записаться</a>
                         </div>`;
                     // Каналы подгружаем отдельно: их может не быть вовсе, и тогда кнопки нет
@@ -5089,6 +5099,9 @@
                                 <div style="color:#6B7280;font-size:0.85rem;">Клиент${since ? ' · на платформе с ' + since : ''}</div>
                                 <div style="font-size:0.82rem;margin-top:0.2rem;" data-presence-for="${escapeHtml(String(userId))}">${presenceLabelHtml(userId)}</div>
                             </div>
+                        </div>
+                        <div style="display:flex;gap:0.6rem;margin-top:1.2rem;flex-wrap:wrap;">
+                            <button class="session-btn" onclick="closeUserCard();writeToUser('${escapeHtml(String(userId))}')" title="Написать лично">✉️ Написать</button>
                         </div>`;
                 }
             } catch (e) { body.innerHTML = '<div style="padding:2rem;text-align:center;color:#DC2626;">Не удалось загрузить карточку</div>'; }
@@ -5128,36 +5141,24 @@
 
         function closeUserCard() { document.getElementById('userCardModal').style.display = 'none'; }
 
-        // ── Учёт реального времени консультации (логируется в /api/calls.php) ──
-        let sessionCallId = null;
-        let sessionForUser = null;
-        let sessionStartMs = 0;
-        let sessionInterval = null;
-
-        function fmtDur(sec) {
-            const m = Math.floor(sec / 60).toString().padStart(2, '0');
-            const s = (sec % 60).toString().padStart(2, '0');
-            return m + ':' + s;
+        /**
+         * Открыть личную переписку с человеком.
+         *
+         * Если он уже есть в списке диалогов — открываем как обычно. Если переписки
+         * ещё не было (нашли в группе, в поиске, в карточке) — заводим её: раньше в
+         * этом месте было некуда нажать, и человека приходилось искать заново.
+         */
+        async function writeToUser(userId) {
+            if (!userId) return;
+            const id = String(userId);
+            if (currentUser && id === String(currentUser.id)) { openFavorites(); return; }
+            const known = (allConversations || []).some(c => String(c.user_id) === id);
+            if (known) await openChat(id);
+            else await startNewChat(id);
+            const inp = document.getElementById('messageInput');
+            if (inp && !isPhoneLayout()) inp.focus();
         }
-
-        function updateSessionButton() {
-            const el = document.getElementById('sessionBtnText');
-            if (!el) return;
-            const btn = document.getElementById('sessionBtn');
-            if (sessionCallId && sessionForUser === selectedUserId) {
-                const sec = Math.floor((Date.now() - sessionStartMs) / 1000);
-                el.textContent = '⏹ Завершить · ' + fmtDur(sec);
-                if (btn) btn.classList.add('session-active');
-            } else {
-                el.textContent = '▶ Начать сессию';
-                if (btn) btn.classList.remove('session-active');
-            }
-        }
-
-        async function toggleSession() {
-            if (sessionCallId) await endSession();
-            else await startSession();
-        }
+        window.writeToUser = writeToUser;
 
         // ── Приватные заметки по клиенту (только у психолога) ──
         function escNote(s){ const d=document.createElement('div'); d.textContent=(s==null?'':String(s)); return d.innerHTML; }
@@ -5322,55 +5323,6 @@
                 });
                 await refreshNotesView();
             } catch (e) {}
-        }
-
-        async function startSession() {
-            if (!selectedUserId) return;
-            if (sessionCallId) { alert('Сессия уже идёт. Сначала завершите текущую.'); return; }
-            sessionForUser = selectedUserId;
-            sessionStartMs = Date.now();
-            try {
-                const r = await fetch('/api/calls.php?action=start', {
-                    method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
-                    body: JSON.stringify({ participant_id: selectedUserId, room_name: 'session-' + Date.now() })
-                });
-                const d = await r.json();
-                sessionCallId = d.call_id || ('local-' + Date.now());
-            } catch (e) { sessionCallId = 'local-' + Date.now(); }
-            // Системная отметка в чате — видит клиент, остаётся в истории (аудит)
-            try {
-                await fetch('/api/messages.php?action=send', {
-                    method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
-                    body: JSON.stringify({ receiver_id: selectedUserId, content: '▶️ Психолог начал сессию' })
-                });
-            } catch (e) {}
-            updateSessionButton();
-            if (sessionInterval) clearInterval(sessionInterval);
-            sessionInterval = setInterval(updateSessionButton, 1000);
-            await loadMessages();
-        }
-
-        async function endSession() {
-            if (sessionInterval) { clearInterval(sessionInterval); sessionInterval = null; }
-            const dur = Math.floor((Date.now() - sessionStartMs) / 1000);
-            const target = sessionForUser;
-            const cid = sessionCallId;
-            sessionCallId = null;
-            sessionForUser = null;
-            try {
-                await fetch('/api/calls.php?action=end', {
-                    method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
-                    body: JSON.stringify({ call_id: cid })
-                });
-            } catch (e) {}
-            try {
-                await fetch('/api/messages.php?action=send', {
-                    method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
-                    body: JSON.stringify({ receiver_id: target, content: '⏹️ Сессия завершена. Длительность: ' + fmtDur(dur) })
-                });
-            } catch (e) {}
-            updateSessionButton();
-            await loadMessages();
         }
 
         async function init() {
@@ -5999,7 +5951,6 @@
                 if (userData && !result.error) {
                     document.getElementById('chatHeader').innerHTML = renderChatHeader(userData);
                     headerRenderedFor = selectedUserId;
-                    updateSessionButton();
                     try { if (window.lucide) lucide.createIcons(); } catch(e) {}
                 }
             } catch (error) {
@@ -6219,7 +6170,6 @@
                 try {
                     document.getElementById('chatHeader').innerHTML = renderChatHeader(other);
                     headerRenderedFor = key;
-                    updateSessionButton();
                     if (window.lucide) lucide.createIcons();
                 } catch (e) {}
             } else {
@@ -11057,7 +11007,6 @@
                 if (otherUser && headerRenderedFor !== selectedUserId) {
                     document.getElementById('chatHeader').innerHTML = renderChatHeader(otherUser);
                     headerRenderedFor = selectedUserId;
-                    updateSessionButton();
                     try { if (window.lucide) lucide.createIcons(); } catch(e) {}
                 }
 
@@ -11082,10 +11031,21 @@
 
                 let messages;
                 // Сервер снял непрочитанность — счётчик в списке диалогов устарел.
-                // Раньше это делал прежний путь чтения, и список обновлялся заодно с ним;
-                // теперь просим обновить его ровно тогда, когда есть что обновлять.
                 if (page && page.marked_read) {
-                    try { refreshConversationList(); } catch (e) {}
+                    // ВАЖНО: refreshConversationList() только ПЕРЕРИСОВЫВАЕТ то, что уже
+                    // лежит в памяти, и с сервера ничего не перечитывает. Из-за этого
+                    // счётчик оставался прежним: сервер отметил прочитанным, а строка
+                    // по-прежнему рисовалась со старым числом — «прочитал, а не прочтено».
+                    // Гасим число в памяти сразу (чтобы не ждать ответа сервера)…
+                    try {
+                        [allConversations, convCache].forEach(list => {
+                            const row = (list || []).find(c => String(c.user_id) === String(peerAtStart));
+                            if (row) row.unread_count = 0;
+                        });
+                        refreshConversationList();
+                    } catch (e) {}
+                    // …и следом перечитываем список — чтобы в памяти было то же, что в базе.
+                    try { loadConversations(); } catch (e) {}
                     try { if (window.psyRefreshChatBadge) psyRefreshChatBadge(); } catch (e) {}
                 }
                 if (page && page.ok && Array.isArray(page.data)) {
@@ -11116,7 +11076,6 @@
                     if (otherUser) {
                         document.getElementById('chatHeader').innerHTML = renderChatHeader(otherUser);
                         headerRenderedFor = selectedUserId;
-                        updateSessionButton();
                         try { if (window.lucide) lucide.createIcons(); } catch(e) {}
                     }
                 }

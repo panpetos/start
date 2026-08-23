@@ -228,7 +228,8 @@ function rtcLogCall(PDO $pdo, $callId) {
         $reason = (string)($call['end_reason'] ?? '');
         if ($reason === 'replaced') return;       // технический перезапуск, человеку не событие
 
-        if (!empty($call['answered_at'])) {
+        $answered = !empty($call['answered_at']);
+        if ($answered) {
             $sec = strtotime((string)($call['ended_at'] ?: 'now')) - strtotime((string)$call['answered_at']);
             $text = '☎️ Звонок · ' . rtcDurWords($sec);
         } else {
@@ -240,7 +241,8 @@ function rtcLogCall(PDO $pdo, $callId) {
                 default:         $text = '☎️ Звонок не состоялся';
             }
         }
-        rtcSendDm($pdo, $call['from_id'], $call['to_id'], $text);
+        // Разговор состоялся — оба были на связи, «непрочитанным» это делать незачем.
+        rtcSendDm($pdo, $call['from_id'], $call['to_id'], $text, $answered);
     } catch (Exception $e) { /* переписка без записи — не повод ронять звонок */ }
 }
 
@@ -259,8 +261,17 @@ function rtcDurWords($sec) {
  * разных установках ключ то автоинкрементный, то строковый: спрашиваем у базы, а не
  * гадаем (тот же приём, что в api/stories.php).
  */
-function rtcSendDm(PDO $pdo, $from, $to, $content) {
+/**
+ * Запись о звонке в переписку.
+ *
+ * $read — считать ли её сразу прочитанной. Для СОСТОЯВШЕГОСЯ разговора это
+ * правильно: оба только что были на связи, и счётчик «+1 новое» сразу после
+ * того, как положили трубку, только сбивает с толку. Пропущенный, отклонённый и
+ * отменённый звонок, наоборот, остаются непрочитанными — это и есть новость.
+ */
+function rtcSendDm(PDO $pdo, $from, $to, $content, $read = false) {
     static $auto = null;
+    static $hasRead = null;
     if ($auto === null) {
         $auto = false;
         try {
@@ -269,14 +280,30 @@ function rtcSendDm(PDO $pdo, $from, $to, $content) {
             $auto = $c && stripos((string)($c['Extra'] ?? ''), 'auto_increment') !== false;
         } catch (Exception $e) {}
     }
+    if ($hasRead === null) {
+        // Список колонок целиком, без подстановки: prepare("SHOW ... LIKE ?") на
+        // боевой базе падает с ошибкой синтаксиса (подстановка в SHOW не проходит).
+        $hasRead = false;
+        try {
+            foreach ($pdo->query("SHOW COLUMNS FROM messages")->fetchAll(PDO::FETCH_ASSOC) as $c) {
+                if ((string)($c['Field'] ?? '') === 'is_read') { $hasRead = true; break; }
+            }
+        } catch (Exception $e) {}
+    }
     $now = date('Y-m-d H:i:s');
+    $rd = $hasRead ? ', is_read' : '';
+    $rv = $hasRead ? ', ?' : '';
     try {
         if ($auto) {
-            $pdo->prepare("INSERT INTO messages (sender_id, receiver_id, content, created_at) VALUES (?, ?, ?, ?)")
-                ->execute([$from, $to, $content, $now]);
+            $args = [$from, $to, $content, $now];
+            if ($hasRead) $args[] = $read ? 1 : 0;
+            $pdo->prepare("INSERT INTO messages (sender_id, receiver_id, content, created_at$rd) VALUES (?, ?, ?, ?$rv)")
+                ->execute($args);
         } else {
-            $pdo->prepare("INSERT INTO messages (id, sender_id, receiver_id, content, created_at) VALUES (?, ?, ?, ?, ?)")
-                ->execute([bin2hex(random_bytes(16)), $from, $to, $content, $now]);
+            $args = [bin2hex(random_bytes(16)), $from, $to, $content, $now];
+            if ($hasRead) $args[] = $read ? 1 : 0;
+            $pdo->prepare("INSERT INTO messages (id, sender_id, receiver_id, content, created_at$rd) VALUES (?, ?, ?, ?, ?$rv)")
+                ->execute($args);
         }
     } catch (Exception $e) {}
 }
