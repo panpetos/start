@@ -14,6 +14,7 @@
  *   <user_id> | channel:<psy_id> | group:<id> | support:<thread> | __fav__
  *
  * GET  ?action=list                  — мои скрытые диалоги: [{chat_key, hidden_at}]
+ * POST ?action=hide   {chat_key, kind}  — kind: deleted (по умолчанию) или archived
  * POST ?action=hide    {chat_key}    — скрыть (повторный вызов обновляет момент скрытия)
  * POST ?action=unhide  {chat_key}    — вернуть в список
  */
@@ -51,6 +52,10 @@ try {
     ) DEFAULT CHARSET=utf8mb4");
     // Новые таблицы создаются в utf8mb4_0900_ai_ci, а users/psychologists — в utf8mb4_unicode_ci;
     // без выравнивания любой JOIN падает с ошибкой 1267 (см. schema_util.php).
+    // Архив — то же скрытие, но с другим смыслом: диалог убран с глаз, но не удалён и
+    // НЕ возвращается сам при новом сообщении (иначе архив терял бы смысл). Держим в
+    // той же таблице отдельной пометкой: заводить вторую ради одного столбца незачем.
+    try { $pdo->exec("ALTER TABLE chat_hidden ADD COLUMN kind VARCHAR(12) NOT NULL DEFAULT 'deleted'"); } catch (Exception $e) {}
     psy_align_collation($pdo, ['chat_hidden']);
 } catch (Exception $e) {
     $initError = $e->getMessage();
@@ -69,7 +74,8 @@ try {
     if ($action === 'list') {
         // Скрытие — удобство: если таблицы нет, список чатов должен работать как раньше.
         if ($initError) out(['ok' => true, 'data' => []]);
-        $st = $pdo->prepare("SELECT chat_key, hidden_at FROM chat_hidden WHERE user_id = ? ORDER BY hidden_at DESC");
+        $st = $pdo->prepare("SELECT chat_key, hidden_at, COALESCE(kind, 'deleted') AS kind
+                               FROM chat_hidden WHERE user_id = ? ORDER BY hidden_at DESC");
         $st->execute([$userId]);
         out(['ok' => true, 'data' => $st->fetchAll(PDO::FETCH_ASSOC)]);
     }
@@ -78,14 +84,16 @@ try {
         if ($initError) out(['ok' => false, 'error' => 'Удаление диалога недоступно: ' . $initError], 500);
         $chatKey = chatKeyFrom($body['chat_key'] ?? '');
         if ($chatKey === '') out(['ok' => false, 'error' => 'Некорректный чат'], 400);
+        // kind=archived — «в архив», всё остальное — прежнее «удалить у себя»
+        $kind = (($body['kind'] ?? '') === 'archived') ? 'archived' : 'deleted';
         $st = $pdo->prepare("SELECT 1 FROM chat_hidden WHERE user_id = ? AND chat_key = ?");
         $st->execute([$userId, $chatKey]);
         if ($st->fetchColumn()) {
-            $pdo->prepare("UPDATE chat_hidden SET hidden_at = NOW() WHERE user_id = ? AND chat_key = ?")
-                ->execute([$userId, $chatKey]);
+            $pdo->prepare("UPDATE chat_hidden SET hidden_at = NOW(), kind = ? WHERE user_id = ? AND chat_key = ?")
+                ->execute([$kind, $userId, $chatKey]);
         } else {
-            $pdo->prepare("INSERT INTO chat_hidden (user_id, chat_key, hidden_at) VALUES (?, ?, NOW())")
-                ->execute([$userId, $chatKey]);
+            $pdo->prepare("INSERT INTO chat_hidden (user_id, chat_key, hidden_at, kind) VALUES (?, ?, NOW(), ?)")
+                ->execute([$userId, $chatKey, $kind]);
         }
         $now = $pdo->prepare("SELECT hidden_at FROM chat_hidden WHERE user_id = ? AND chat_key = ?");
         $now->execute([$userId, $chatKey]);

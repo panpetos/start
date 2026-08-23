@@ -2550,6 +2550,11 @@
         .conv-draft { color: #DC2626; font-weight: 600; }
         body.dark .conv-draft { color: #FCA5A5; }
         .conv-muted { opacity: 0.55; font-size: 0.72rem; margin-left: 0.25rem; }
+        /* Ручная отметка «не прочитано» — та же точка, что у настоящих непрочитанных */
+        .conv-unread-dot {
+            width: 10px; height: 10px; border-radius: 50%; background: #047857;
+            flex-shrink: 0; align-self: center; margin-left: 0.35rem;
+        }
 
         /* «Выше есть ещё»: и подсказка, и кнопка — если прокрутка не сработала */
         .dm-older {
@@ -3756,6 +3761,7 @@
                             <div class="conversation-name"><span class="cn-text">${escapeHtml(g.name)}</span><span style="color:#9CA3AF;font-weight:400;font-size:0.78rem;flex-shrink:0;">· ${g.members_count}</span>${pinMarkHtml(activeId)}</div>
                             <div class="conversation-preview">${escapeHtml(lastMsg)}</div>
                         </div>
+                        ${isMarkedUnread(String(activeId)) ? '<span class="conv-unread-dot" title="Отмечено непрочитанным"></span>' : ''}
                         <div class="conversation-meta">
                             <div class="conversation-time">${time}</div>
                             ${g.unread_count > 0 ? `<span class="unread-badge">${g.unread_count}</span>` : ''}
@@ -6431,7 +6437,9 @@
         // Стирать переписку целиком нельзя: она принадлежит обоим. Поэтому «удалить диалог» =
         // убрать его из своего списка (как в Telegram). Придёт новое сообщение — вернётся сам.
         let hiddenChats = {};        // chat_key -> hidden_at ('YYYY-MM-DD HH:MM:SS')
+        let archivedChats = {};      // chat_key -> когда убрали в архив
         let showHidden = false;      // показывать ли удалённые (режим «корзина»)
+        let showArchive = false;     // показывать ли архив
 
         async function hiddenApi(action, payload) {
             const url = '/api/chat_hidden.php?action=' + action;
@@ -6446,10 +6454,49 @@
         async function loadHiddenChats() {
             try {
                 const d = await hiddenApi('list');
-                hiddenChats = {};
-                (d.data || []).forEach(r => { hiddenChats[r.chat_key] = r.hidden_at; });
-            } catch (e) { hiddenChats = {}; }   // удобство: список чатов работает и без этого
+                hiddenChats = {}; archivedChats = {};
+                (d.data || []).forEach(r => {
+                    if (r.kind === 'archived') archivedChats[r.chat_key] = r.hidden_at;
+                    else hiddenChats[r.chat_key] = r.hidden_at;
+                });
+            } catch (e) { hiddenChats = {}; archivedChats = {}; }   // удобство: список чатов работает и без этого
         }
+
+        // ── АРХИВ ──────────────────────────────────────────────────────────────────
+        //  «Удалить диалог» убирает его из списка, но новое сообщение возвращает —
+        //  и правильно: важное не должно теряться. Архив — про другое: переписка
+        //  закончена, глаза мозолить не должна, и возвращаться сама тоже не должна.
+        //  Поэтому лежит там же, но с другой пометкой.
+        async function archiveConversation(chatKey) {
+            closeFolderPicker();
+            try {
+                await hiddenApi('hide', { chat_key: chatKey, kind: 'archived' });
+                archivedChats[chatKey] = new Date().toISOString().slice(0, 19).replace('T', ' ');
+                delete hiddenChats[chatKey];
+                if (String(selectedUserId) === String(chatKey)) closeCurrentChat();
+                toast('Диалог в архиве');
+                refreshConversationList();
+            } catch (e) { toast('Не удалось убрать в архив'); }
+        }
+        window.archiveConversation = archiveConversation;
+
+        async function unarchiveConversation(chatKey) {
+            closeFolderPicker();
+            try {
+                await hiddenApi('unhide', { chat_key: chatKey });
+                delete archivedChats[chatKey];
+                toast('Диалог возвращён в список');
+                refreshConversationList();
+            } catch (e) { toast('Не удалось вернуть'); }
+        }
+        window.unarchiveConversation = unarchiveConversation;
+
+        function toggleShowArchive() {
+            showArchive = !showArchive;
+            if (showArchive) showHidden = false;   // два режима сразу не бывает
+            refreshConversationList();
+        }
+        window.toggleShowArchive = toggleShowArchive;
 
         /** Момент времени из строки БД или ISO — в миллисекунды, с запасом на разные форматы. */
         function timeMs(v) {
@@ -6473,6 +6520,11 @@
         /** Единый фильтр строки списка: и папка, и «удалённые». */
         function chatVisible(kind, chatKey, lastActivity) {
             if (!folderAllows(kind, chatKey)) return false;
+            const archived = !!archivedChats[chatKey];
+            // Архив показываем только в режиме архива — и наоборот. В отличие от
+            // удалённых, новое сообщение архивный диалог обратно не вытаскивает.
+            if (showArchive) return archived;
+            if (archived) return false;
             const hidden = isChatHidden(chatKey, lastActivity);
             return showHidden ? hidden : !hidden;
         }
@@ -6610,16 +6662,56 @@
 
         function toggleShowHidden() {
             showHidden = !showHidden;
+            if (showHidden) showArchive = false;
+            refreshConversationList();
+        }
+
+        // ── ОТМЕТКА «НЕ ПРОЧИТАНО» ─────────────────────────────────────────────────
+        //  Открыл переписку, понял, что ответить сейчас не сможешь, — и она уже
+        //  «прочитана», в списке ничего не выделяется, про неё забываешь. Отметка
+        //  возвращает точку непрочитанного: напоминание себе, что сюда надо вернуться.
+        //  Держим у себя в браузере — это личная пометка, собеседнику её видеть незачем,
+        //  и на счётчик доставки она не влияет.
+        const UNREAD_KEY = 'psy-marked-unread';
+        let markedUnread = {};
+        try { markedUnread = JSON.parse(localStorage.getItem(UNREAD_KEY) || '{}') || {}; } catch (e) { markedUnread = {}; }
+
+        function isMarkedUnread(key) { return !!markedUnread[key]; }
+
+        function markChatUnread(key) {
+            markedUnread[key] = 1;
+            try { localStorage.setItem(UNREAD_KEY, JSON.stringify(markedUnread)); } catch (e) {}
+            closeFolderPicker();
+            if (String(selectedUserId) === String(key)) closeCurrentChat();
+            toast('Отмечено как непрочитанное');
+            refreshConversationList();
+        }
+        window.markChatUnread = markChatUnread;
+
+        /** Зашли в переписку — пометка снимается сама, она своё дело сделала. */
+        function clearMarkedUnread(key) {
+            if (!markedUnread[key]) return;
+            delete markedUnread[key];
+            try { localStorage.setItem(UNREAD_KEY, JSON.stringify(markedUnread)); } catch (e) {}
             refreshConversationList();
         }
 
         /** Плашка «Удалённые диалоги (N)» / «Вернуться к списку» под списком чатов. */
         function hiddenFooterHtml() {
             const n = Object.keys(hiddenChats).length;
-            if (!n && !showHidden) return '';
-            return `<button class="hidden-chats-btn" onclick="toggleShowHidden()">
-                        ${showHidden ? '← Вернуться к списку' : `🗑 Удалённые диалоги (${n})`}
-                    </button>`;
+            const a = Object.keys(archivedChats).length;
+            let html = '';
+            if (a || showArchive) {
+                html += `<button class="hidden-chats-btn" onclick="toggleShowArchive()">
+                            ${showArchive ? '← Вернуться к списку' : `📥 Архив (${a})`}
+                         </button>`;
+            }
+            if ((n || showHidden) && !showArchive) {
+                html += `<button class="hidden-chats-btn" onclick="toggleShowHidden()">
+                            ${showHidden ? '← Вернуться к списку' : `🗑 Удалённые диалоги (${n})`}
+                         </button>`;
+            }
+            return html;
         }
 
         /** Закрыть открытую переписку — например, когда её удалили из списка. */
@@ -8533,6 +8625,18 @@
             let html = `<button class="folder-picker-row" onclick="event.stopPropagation();toggleChatPin('${esc}')">
                     <span class="fp-mark">📌</span>${isPinned ? 'Открепить диалог' : 'Закрепить диалог'}
                 </button>
+                ${isMarkedUnread(chatKey)
+                    ? ''
+                    : `<button class="folder-picker-row" onclick="event.stopPropagation();markChatUnread('${esc}')">
+                            <span class="fp-mark">🔵</span>Отметить непрочитанным
+                       </button>`}
+                ${archivedChats[chatKey]
+                    ? `<button class="folder-picker-row" onclick="event.stopPropagation();unarchiveConversation('${esc}')">
+                            <span class="fp-mark">📤</span>Вернуть из архива
+                       </button>`
+                    : `<button class="folder-picker-row" onclick="event.stopPropagation();archiveConversation('${esc}')">
+                            <span class="fp-mark">📥</span>В архив
+                       </button>`}
                 <button class="folder-picker-row" onclick="event.stopPropagation();toggleChatMute('${esc}')">
                     <span class="fp-mark">${isMuted(chatKey) ? '🔔' : '🔕'}</span>${isMuted(chatKey) ? 'Включить уведомления' : 'Отключить уведомления'}
                 </button>`;
@@ -8735,6 +8839,7 @@
                             <div class="conversation-name"><span class="cn-text">${name}</span>${pinMarkHtml(String(activeId))}${isMuted(String(activeId)) ? '<span class="conv-muted" title="Уведомления отключены">🔕</span>' : ''}</div>
                             <div class="conversation-preview">${preview}</div>
                         </div>
+                        ${isMarkedUnread(String(activeId)) ? '<span class="conv-unread-dot" title="Отмечено непрочитанным"></span>' : ''}
                         <div class="conversation-meta">
                             <div class="conversation-time">${time}</div>
                             ${!isNew && c.unread_count > 0 ? `<span class="unread-badge">${c.unread_count}</span>` : ''}
@@ -9817,6 +9922,7 @@
         async function openChat(userId) {
             saveDraft();                 // недописанное в прошлой переписке не теряем
             delete dmFirstPaintDone[userId];   // заново встанем на первое непрочитанное
+            clearMarkedUnread(userId);         // ручная пометка «не прочитано» своё дело сделала
             selectedUserId = userId;
             restoreDraft(userId);        // а в этой — возвращаем на место
             // СРАЗУ показываем новую переписку — шапку и сообщения с прошлого раза.
