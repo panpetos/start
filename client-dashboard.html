@@ -123,6 +123,23 @@
         .appointment-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: stretch; }
         .appointment-actions .btn { min-height: 38px; justify-content: center; white-space: nowrap; }
         .appt-chat { order: -1; }
+        /* Отмена — не кнопка-заливка, а красная надпись: действие редкое и
+           разрушающее, ему незачем спорить по заметности с «Начать диалог».
+           Гасим и наследуемый от .btn ховер с тенью и подскоком. */
+        .appointment-actions .btn.btn-danger {
+            background: none; border: none; box-shadow: none; color: #B91C1C;
+            padding-left: 0.35rem; padding-right: 0.35rem; min-height: 34px;
+        }
+        /* Оттенки красного разные по темам не для красоты. Обычный #EF4444 на тёмной
+           карточке даёт контраст 4.1 при норме WCAG AA 4.5 — и авто-контраст в
+           layout.js честно перекрашивал текст в серый, то есть «красная надпись»
+           переставала быть красной. Светлый #F87171 проходит с запасом (5.6), и
+           скрипту нечего исправлять; в светлой теме, наоборот, нужен тёмный. */
+        body.dark .appointment-actions .btn.btn-danger { color: #F87171; }
+        .appointment-actions .btn.btn-danger:hover {
+            background: none; box-shadow: none; transform: none;
+            text-decoration: underline;
+        }
         .btn-small { padding: 0.4rem 0.875rem; font-size: 0.8125rem; }
         .btn-danger { background: linear-gradient(135deg, #ef4444, #dc2626); box-shadow: none; }
         .btn-outline {
@@ -176,14 +193,14 @@
             .header-left h1 { font-size: 1.25rem !important; }
             .cards { grid-template-columns: 1fr !important; }
             .appointment-item { flex-direction: column; align-items: flex-start; gap: 0.5rem; }
-            /* На телефоне: чат — во всю ширину (главное действие), остальные ровно
-               пополам. Так они одинаковые, а не «какая шире, какая уже». */
-            .appointment-actions { width: 100%; }
-            .appointment-actions .appt-chat { flex: 1 1 100%; }
-            .appointment-actions .btn:not(.appt-chat) { flex: 1 1 calc(50% - 0.25rem); min-width: 0; }
-            /* Отмена — действие разрушающее, ей незачем растягиваться во всю строку
-               и спорить по заметности с «Начать диалог». Ширина по тексту. */
-            .appointment-actions .btn.btn-danger:not(.appt-chat) { flex: 0 0 auto; }
+            /* На телефоне — в столбик. Две колонки давали 94–129px на кнопку, а
+               «Записаться ещё» требует ~127px вместе со значком: текст упирался
+               в края, а на узких экранах и вовсе вылезал за них. В столбик
+               ширины хватает всегда и отступы по краям остаются человеческими. */
+            .appointment-actions { width: 100%; flex-direction: column; align-items: stretch; }
+            .appointment-actions .btn { width: 100%; }
+            /* Кроме отмены: это надпись, а не кнопка — прижимаем влево по тексту. */
+            .appointment-actions .btn.btn-danger { width: auto; align-self: flex-start; }
         }
     </style>
     <script>(function(){ if (localStorage.getItem('psy-theme') === 'dark' || (!localStorage.getItem('psy-theme') && window.matchMedia('(prefers-color-scheme:dark)').matches)) document.documentElement.style.colorScheme = 'dark'; })();</script>
