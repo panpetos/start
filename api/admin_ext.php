@@ -544,14 +544,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             } catch (Exception $e) { /* нет прав на information_schema — идём дальше */ }
 
-            // 2. Таблицы без внешнего ключа, но с ссылкой по смыслу.
-            foreach (['payments', 'promo_bookings', 'free_intro_bookings', 'calls', 'rtc_calls',
-                      'session_orders', 'reviews', 'transcripts', 'notify_queue', 'notify_log',
-                      'session_packages_usage', 'appointment_notes'] as $t) {
-                foreach (['appointment_id', 'appt_id'] as $c) {
-                    if (isset($seen[$t . '.' . $c])) continue;
-                    $wipe($t, $c);
+            // 2. Таблицы БЕЗ внешнего ключа, но со ссылкой по смыслу. Их тоже не
+            //    перечисляем руками, а находим по имени колонки: так в список сам
+            //    попал robokassa_invoices.appointment_id, которого в моём перечне
+            //    не было — именно такие строки и оставались сиротами.
+            $byCol = [];
+            try {
+                $rows = $pdo->query("SELECT TABLE_NAME, COLUMN_NAME FROM information_schema.COLUMNS
+                                      WHERE TABLE_SCHEMA = DATABASE()
+                                        AND COLUMN_NAME IN ('appointment_id','appt_id')")->fetchAll(PDO::FETCH_ASSOC);
+                foreach ($rows as $row) {
+                    $t = (string)($row['TABLE_NAME'] ?? ''); $c = (string)($row['COLUMN_NAME'] ?? '');
+                    if ($t === '' || $c === '' || $t === 'appointments') continue;
+                    $byCol[] = [$t, $c];
                 }
+            } catch (Exception $e) { /* нет доступа к information_schema — ниже запасной список */ }
+            if (!$byCol) {
+                // Запасной путь, если information_schema закрыта.
+                foreach (['payments', 'promo_bookings', 'free_intro_bookings', 'reviews',
+                          'robokassa_invoices', 'calls', 'session_orders'] as $t) {
+                    $byCol[] = [$t, 'appointment_id'];
+                }
+            }
+            foreach ($byCol as $pair) {
+                if (isset($seen[$pair[0] . '.' . $pair[1]])) continue;
+                $wipe($pair[0], $pair[1]);
             }
 
             $pdo->prepare("DELETE FROM appointments WHERE id = ?")->execute([$aid]);
