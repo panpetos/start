@@ -2150,6 +2150,41 @@
             text-align: center; background: rgba(0,0,0,0.28);
             border-radius: 999px; padding: 0.4rem 0.9rem; margin-top: 0.2rem;
         }
+        /* Игра в ожидании ответа: маленькие крестики-нолики поверх постера звонка.
+           Показываются только пока не пошло видео (см. .has-video правило ниже). */
+        .rtc-game-toggle {
+            margin-top: 0.6rem; border: none; border-radius: 999px; cursor: pointer;
+            background: rgba(255,255,255,0.16); color: #fff; font-size: 0.8rem; font-weight: 600;
+            padding: 0.4rem 0.9rem; font-family: inherit;
+        }
+        .rtc-game-toggle:hover { background: rgba(255,255,255,0.26); }
+        .rtc-screen.has-video:not(.audio-only) .rtc-game-toggle,
+        .rtc-screen.has-video:not(.audio-only) .rtc-game { display: none !important; }
+        .rtc-game {
+            display: none; margin-top: 0.7rem; background: rgba(0,0,0,0.32); border-radius: 1rem;
+            padding: 0.9rem; width: 216px;
+        }
+        .rtc-game.open { display: block; }
+        .rtc-game-score { text-align: center; color: #A7F3D0; font-size: 0.85rem; font-weight: 700; margin-bottom: 0.5rem; }
+        .rtc-game-board {
+            display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin: 0 auto;
+        }
+        .rtc-game-board button {
+            width: 56px; height: 56px; border-radius: 0.6rem; border: none; cursor: pointer;
+            background: rgba(255,255,255,0.14); color: #fff; font-size: 1.6rem; font-weight: 800;
+            font-family: inherit; display: flex; align-items: center; justify-content: center;
+        }
+        .rtc-game-board button:disabled { cursor: default; }
+        .rtc-game-board button:not(:disabled):hover { background: rgba(255,255,255,0.24); }
+        .rtc-game-msg { text-align: center; color: #fff; font-size: 0.8rem; min-height: 1.2em; margin-top: 0.5rem; }
+        .rtc-game-actions { display: flex; gap: 0.5rem; justify-content: center; margin-top: 0.4rem; }
+        .rtc-game-actions button {
+            border: none; border-radius: 999px; cursor: pointer; font-family: inherit;
+            background: rgba(255,255,255,0.16); color: #fff; font-size: 0.75rem; font-weight: 600;
+            padding: 0.35rem 0.75rem;
+        }
+        .rtc-game-actions button:hover { background: rgba(255,255,255,0.26); }
+
         /* Своя картинка — в ВЕРХНЕМ углу и зеркально, как в зеркале. Снизу она
            накладывалась на подпись о шифровании, пока идёт дозвон. */
         .rtc-local {
@@ -4358,6 +4393,12 @@
                 ${headerActionsHtml([
                     { icon: 'ℹ️', label: 'Участники и настройки', run: () => openGroupInfo(groupId) },
                     { icon: '👥', label: 'Добавить участников', run: () => openAddGroupMembers(groupId) },
+                    // Групповой звонок сразу со всеми участниками (просьба из задачи №77,
+                    // «как в Zoom/Телеграме») — своя P2P-система умеет только разговор
+                    // вдвоём, поэтому для группы встречу создаём в Телемосте (он уже
+                    // используется как запасной путь для личных звонков) и рассылаем
+                    // ссылку одним сообщением всем участникам сразу.
+                    { icon: '📹', label: 'Групповой видеозвонок', run: () => startGroupVideoCall(groupId) },
                     { icon: '🔎', label: 'Поиск по переписке', run: () => openChatSearch() },
                     { icon: 'A', label: 'Форматирование текста', run: () => openComposer() },
                     { icon: '🎨', label: 'Обои переписки', run: () => openWallpaperPicker() },
@@ -8173,6 +8214,7 @@
                         <button type="button" onclick="closeStoryComposer()" title="Закрыть">✕</button></div>
                     <div class="cs-group-title">Кому показать</div>
                     ${row('contacts', '👥', 'Все контакты', 'все, с кем у вас есть переписка')}
+                    ${row('everyone', '🌍', 'Всем в psytalk.pro', 'вся аудитория платформы, а не только контакты')}
                     ${hasChannel ? row('subscribers', '📢', 'Подписчикам канала', 'только те, кто подписан на ваш канал') : ''}
                     ${row('selected', '✅', 'Выбранным людям', 'отметьте вручную, кому она будет видна')}
                     <div id="storyPeople" class="sa-people" style="display:${storyAudience === 'selected' ? 'block' : 'none'};">
@@ -8330,7 +8372,8 @@
                     toast(storyAudience === 'selected'
                         ? `История опубликована — видна ${storyAllowed.size} чел.`
                         : (storyAudience === 'subscribers' ? 'История опубликована — видна подписчикам'
-                                                           : 'История опубликована — видна вашим контактам'));
+                          : (storyAudience === 'everyone' ? 'История опубликована — видна всем в psytalk.pro'
+                                                           : 'История опубликована — видна вашим контактам')));
                     await loadStoriesRow();
                 } catch (e) { alert('Не удалось опубликовать историю: ' + e.message); }
             }
@@ -15728,6 +15771,14 @@
             rtcInitFlipBtn();
             rtcKeepAwake(rtcKind === 'video');   // при видео экран держим, при звуке — нет
             rtcDimArm();                         // защита от касаний щекой в разговоре без видео
+            rtcGameResetForCall();
+            const screenBtn = document.getElementById('rtcScreenBtn');
+            if (screenBtn) {
+                screenBtn.style.display = rtcScreenSupported() ? 'flex' : 'none';
+                screenBtn.classList.remove('off');
+            }
+            const screenLab = document.getElementById('rtcScreenLab');
+            if (screenLab) screenLab.textContent = 'Экран';
         }
 
         function rtcCloseScreen() {
@@ -15751,6 +15802,8 @@
             rtcPc = null;
             try { if (rtcLocalStream) rtcLocalStream.getTracks().forEach(t => t.stop()); } catch (e) {}
             rtcLocalStream = null;
+            try { if (rtcScreenTrack) rtcScreenTrack.stop(); } catch (e) {}
+            rtcScreenTrack = null; rtcScreenSender = null;
             const r = document.getElementById('rtcRemote'), l = document.getElementById('rtcLocal');
             if (r) r.srcObject = null;
             if (l) l.srcObject = null;
@@ -16487,6 +16540,97 @@
         }
 
         /**
+         * Демонстрация экрана (просьба из задачи №77): показать собеседнику свой
+         * экран вместо камеры, в хорошем качестве. Работает и с ПК, и с телефона —
+         * поддержку решает сам браузер (getDisplayMedia), на устройствах без неё
+         * кнопка просто честно говорит, что нельзя.
+         *
+         * Дорожку подменяем в уже идущем видео-слоте (replaceTrack) — так же, как
+         * при смене камеры: пересогласование не требуется, собеседник просто видит
+         * другую картинку. Если звонок был чисто звуковым и видео-слота ещё нет —
+         * добавляем дорожку и досогласовываем соединение, как при первом включении
+         * камеры. Свою камеру на время показа не выключаем совсем, а гасим (enabled
+         * = false): после показа она включится обратно тем же кадром, без повторного
+         * запроса разрешения.
+         */
+        let rtcScreenTrack = null;
+        let rtcScreenSender = null;
+
+        function rtcScreenSupported() {
+            return !!(navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia);
+        }
+
+        async function rtcToggleScreenShare() {
+            if (!rtcPc) return;
+            if (rtcScreenTrack) { await rtcStopScreenShare(); return; }
+            if (!rtcScreenSupported()) { toast('Демонстрация экрана не поддерживается этим устройством'); return; }
+            const btn = document.getElementById('rtcScreenBtn');
+            if (btn) btn.disabled = true;
+            try {
+                const disp = await navigator.mediaDevices.getDisplayMedia({
+                    video: { frameRate: { ideal: 30, max: 30 }, width: { ideal: 1920 }, height: { ideal: 1080 } },
+                    audio: false
+                });
+                const track = disp.getVideoTracks()[0];
+                if (!track) throw new Error('нет дорожки');
+                rtcScreenTrack = track;
+
+                const camTrack = rtcLocalStream ? rtcLocalStream.getVideoTracks()[0] : null;
+                if (camTrack) camTrack.enabled = false;
+
+                const existing = rtcPc.getSenders().find(x => (x.track && x.track.kind === 'video') || x.__kind === 'video');
+                if (existing) {
+                    rtcScreenSender = existing;
+                    await existing.replaceTrack(track);
+                } else {
+                    rtcScreenSender = rtcPc.addTrack(track, new MediaStream([track]));
+                    rtcScreenSender.__kind = 'video';
+                    await rtcRenegotiate();
+                }
+                rtcKind = 'video';
+                document.getElementById('rtcScreen').classList.remove('audio-only');
+                const l = document.getElementById('rtcLocal');
+                if (l) { l.srcObject = new MediaStream([track]); l.style.transform = 'none'; l.style.display = 'block'; }
+                await rtcTuneSenders();
+                // Человек нажал «Стоп» в системной панели браузера, а не на нашей кнопке
+                track.onended = () => rtcStopScreenShare();
+                if (btn) btn.classList.add('off');
+                const lab = document.getElementById('rtcScreenLab');
+                if (lab) lab.textContent = 'Стоп показ';
+            } catch (e) {
+                if (e && e.name !== 'NotAllowedError') toast('Не удалось начать демонстрацию экрана');
+            } finally {
+                if (btn) btn.disabled = false;
+            }
+        }
+        window.rtcToggleScreenShare = rtcToggleScreenShare;
+
+        async function rtcStopScreenShare() {
+            if (!rtcScreenTrack) return;
+            const track = rtcScreenTrack;
+            rtcScreenTrack = null;
+            try { track.stop(); } catch (e) {}
+
+            const camTrack = rtcLocalStream ? rtcLocalStream.getVideoTracks()[0] : null;
+            if (rtcScreenSender) {
+                try { await rtcScreenSender.replaceTrack(camTrack || null); } catch (e) {}
+            }
+            rtcScreenSender = null;
+            if (camTrack) camTrack.enabled = true;
+
+            const l = document.getElementById('rtcLocal');
+            if (l) l.srcObject = rtcLocalStream;
+            rtcPaintFlip();
+            const btn = document.getElementById('rtcScreenBtn');
+            if (btn) btn.classList.remove('off');
+            const lab = document.getElementById('rtcScreenLab');
+            if (lab) lab.textContent = 'Экран';
+            rtcSyncCamButton();
+            await rtcTuneSenders();
+        }
+        window.rtcStopScreenShare = rtcStopScreenShare;
+
+        /**
          * Присматриваем за качеством связи и честно говорим, если оно просело.
          * Человеку важно понимать, что «плохо слышно» — это сеть, а не сервис.
          */
@@ -16624,8 +16768,161 @@
                                 rtcPendingIce.push(cand);
                             }
                         }
+                    } else if (s.kind === 'game') {
+                        rtcGameApplyRemote(data);
                     }
                 } catch (e) {}
+            }
+        }
+
+        // ── Игра в ожидании ответа (крестики-нолики) ────────────────────────────
+        //  Пока идёт дозвон или разговор без камеры, скучно ждать молча — тут же,
+        //  поверх экрана звонка, можно сыграть партию с собеседником. Ходы летят тем
+        //  же каналом сигналов, что и WebRTC-переговоры (api/rtc_calls.php,
+        //  kind: 'game'), поэтому отдельного опроса не нужно — им уже пользуется
+        //  rtcTick. Свой символ определяет роль в звонке: звонивший — «X» и ходит
+        //  первым, кому звонили — «O».
+        let rtcGameBoard = null;      // 9 клеток либо null, пока игра не начата
+        let rtcGameTurn = 'X';
+        let rtcGameOver = false;
+        let rtcGameScore = { me: 0, opp: 0 };
+        const RTC_GAME_LINES = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+
+        function rtcGameMySymbol() { return rtcRole === 'caller' ? 'X' : 'O'; }
+
+        function rtcGameScoreKey() {
+            if (!currentUser || !rtcPeer) return null;
+            const ids = [String(currentUser.id), String(rtcPeer.id)].sort();
+            return 'psy-ttt-score-' + ids.join(':');
+        }
+
+        function rtcGameLoadScore() {
+            rtcGameScore = { me: 0, opp: 0 };
+            const key = rtcGameScoreKey();
+            if (!key) return;
+            try {
+                const raw = localStorage.getItem(key);
+                if (raw) rtcGameScore = Object.assign({ me: 0, opp: 0 }, JSON.parse(raw));
+            } catch (e) {}
+        }
+
+        function rtcGameSaveScore() {
+            const key = rtcGameScoreKey();
+            if (!key) return;
+            try { localStorage.setItem(key, JSON.stringify(rtcGameScore)); } catch (e) {}
+        }
+
+        /** Сброс игры при открытии нового звонка — панель прячем, счёт подгружаем заново. */
+        function rtcGameResetForCall() {
+            rtcGameBoard = null; rtcGameTurn = 'X'; rtcGameOver = false;
+            const panel = document.getElementById('rtcGamePanel');
+            if (panel) panel.classList.remove('open');
+            const toggle = document.getElementById('rtcGameToggle');
+            if (toggle) toggle.style.display = '';
+            rtcGameLoadScore();
+            rtcGameUpdateScoreLabel();
+        }
+
+        function rtcGameToggle() {
+            const panel = document.getElementById('rtcGamePanel');
+            if (!panel) return;
+            const opening = !panel.classList.contains('open');
+            panel.classList.toggle('open', opening);
+            if (opening && !rtcGameBoard) rtcGameStartRound(true);
+        }
+        window.rtcGameToggle = rtcGameToggle;
+
+        function rtcGameStartRound(announce) {
+            rtcGameBoard = Array(9).fill('');
+            rtcGameTurn = 'X';
+            rtcGameOver = false;
+            rtcGameRender();
+            if (announce && rtcCallId) {
+                callsApi('signal', { call_id: rtcCallId, kind: 'game', payload: JSON.stringify({ type: 'reset' }) }).catch(() => {});
+            }
+        }
+
+        function rtcGameNewRound() { rtcGameStartRound(true); }
+        window.rtcGameNewRound = rtcGameNewRound;
+
+        function rtcGameCheckWinner(board) {
+            for (const [a, b, c] of RTC_GAME_LINES) {
+                if (board[a] && board[a] === board[b] && board[a] === board[c]) return board[a];
+            }
+            return board.every(Boolean) ? 'draw' : null;
+        }
+
+        function rtcGameUpdateScoreLabel() {
+            const el = document.getElementById('rtcGameScore');
+            if (el) el.textContent = 'Счёт ' + rtcGameScore.me + ' : ' + rtcGameScore.opp;
+        }
+
+        function rtcGameRender() {
+            const board = document.getElementById('rtcGameBoard');
+            const msg = document.getElementById('rtcGameMsg');
+            if (!board) return;
+            if (!rtcGameBoard) { board.innerHTML = ''; if (msg) msg.textContent = ''; return; }
+            const my = rtcGameMySymbol();
+            const myTurn = !rtcGameOver && rtcGameTurn === my;
+            board.innerHTML = rtcGameBoard.map((v, i) =>
+                `<button type="button" ${v || !myTurn ? 'disabled' : ''} onclick="rtcGameMove(${i})">${v || ''}</button>`
+            ).join('');
+            if (msg) {
+                msg.textContent = rtcGameOver
+                    ? (msg.dataset.result || '')
+                    : (myTurn ? 'Ваш ход' : 'Ход собеседника…');
+            }
+        }
+
+        function rtcGameMove(i) {
+            const my = rtcGameMySymbol();
+            if (!rtcGameBoard || rtcGameOver || rtcGameBoard[i] || rtcGameTurn !== my) return;
+            rtcGameBoard[i] = my;
+            rtcGameApplyResult(my);
+            if (rtcCallId) {
+                callsApi('signal', { call_id: rtcCallId, kind: 'game',
+                                     payload: JSON.stringify({ type: 'move', i, symbol: my }) }).catch(() => {});
+            }
+        }
+        window.rtcGameMove = rtcGameMove;
+
+        function rtcGameApplyResult(justMoved) {
+            const my = rtcGameMySymbol();
+            const winner = rtcGameCheckWinner(rtcGameBoard);
+            if (winner) {
+                rtcGameOver = true;
+                const msg = document.getElementById('rtcGameMsg');
+                if (winner === 'draw') {
+                    if (msg) msg.dataset.result = 'Ничья 🤝';
+                } else if (winner === my) {
+                    rtcGameScore.me++; rtcGameSaveScore(); rtcGameUpdateScoreLabel();
+                    if (msg) msg.dataset.result = 'Вы выиграли! 🎉';
+                } else {
+                    rtcGameScore.opp++; rtcGameSaveScore(); rtcGameUpdateScoreLabel();
+                    if (msg) msg.dataset.result = 'Собеседник выиграл';
+                }
+            } else {
+                rtcGameTurn = rtcGameTurn === 'X' ? 'O' : 'X';
+            }
+            rtcGameRender();
+        }
+
+        /** Ход или сброс, пришедшие от собеседника. */
+        function rtcGameApplyRemote(data) {
+            if (!data || !data.type) return;
+            if (data.type === 'reset') {
+                rtcGameStartRound(false);
+                const panel = document.getElementById('rtcGamePanel');
+                if (panel) panel.classList.add('open');
+                return;
+            }
+            if (data.type === 'move') {
+                if (!rtcGameBoard) rtcGameStartRound(false);
+                const i = Number(data.i);
+                const sym = data.symbol === 'X' ? 'X' : 'O';
+                if (!Number.isInteger(i) || i < 0 || i > 8 || rtcGameBoard[i]) return;
+                rtcGameBoard[i] = sym;
+                rtcGameApplyResult(sym);
             }
         }
 
@@ -16728,11 +17025,15 @@
         // Телемост нельзя встроить в iframe, поэтому встреча создаётся в Телемосте,
         // а ссылка отправляется собеседнику в чат (он присоединяется одним кликом).
 
+        // Если задано — окно ссылки отправляет её не собеседнику, а сообщением в группу
+        let videoModalGroupId = null;
+
         function startVideoCall() {
             if (!selectedUserId) {
                 alert('Выберите собеседника для звонка');
                 return;
             }
+            videoModalGroupId = null;
             // Открываем Телемост в новой вкладке — там хост создаёт встречу
             window.open('https://telemost.yandex.ru/', '_blank', 'noopener');
             // Показываем окно для вставки ссылки
@@ -16743,6 +17044,19 @@
             document.getElementById('videoModal').style.display = 'flex';
             setTimeout(function () { if (input) input.focus(); }, 100);
         }
+
+        /** То же самое, но встреча создаётся сразу для всей группы — со всеми участниками разом. */
+        function startGroupVideoCall(groupId) {
+            videoModalGroupId = groupId;
+            window.open('https://telemost.yandex.ru/', '_blank', 'noopener');
+            const err = document.getElementById('telemostError');
+            if (err) err.style.display = 'none';
+            const input = document.getElementById('telemostLinkInput');
+            if (input) input.value = '';
+            document.getElementById('videoModal').style.display = 'flex';
+            setTimeout(function () { if (input) input.focus(); }, 100);
+        }
+        window.startGroupVideoCall = startGroupVideoCall;
 
         function closeVideoModal() {
             document.getElementById('videoModal').style.display = 'none';
@@ -16883,19 +17197,28 @@
                 return;
             }
 
-            const msg = { receiver_id: selectedUserId, content: '📹 Видеовстреча в Телемост: ' + link };
-            if (isAdminMode) msg.as_support = true;
-
+            const groupId = videoModalGroupId;
             try {
-                await fetch('/api/messages.php?action=send', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include',
-                    body: JSON.stringify(msg)
-                });
-                pokePush(selectedUserId);
-                closeVideoModal();
-                await loadMessages();
+                if (groupId) {
+                    const d = await groupApi('send', { group_id: groupId,
+                        content: '📹 Групповая видеовстреча в Телемост — присоединяйтесь: ' + link });
+                    if (!d || !d.ok) throw new Error((d && d.error) || 'сервер отказал');
+                    closeVideoModal();
+                    videoModalGroupId = null;
+                    if (String(selectedUserId) === GROUP_PREFIX + groupId) await loadGroupMessages();
+                } else {
+                    const msg = { receiver_id: selectedUserId, content: '📹 Видеовстреча в Телемост: ' + link };
+                    if (isAdminMode) msg.as_support = true;
+                    await fetch('/api/messages.php?action=send', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        credentials: 'include',
+                        body: JSON.stringify(msg)
+                    });
+                    pokePush(selectedUserId);
+                    closeVideoModal();
+                    await loadMessages();
+                }
                 // Хосту тоже открываем встречу
                 window.open(link, '_blank', 'noopener');
             } catch (e) {
@@ -16916,6 +17239,17 @@
             <div class="rtc-name" id="rtcName">Собеседник</div>
             <div class="rtc-state" id="rtcState">Соединяем…</div>
             <div class="rtc-secure" title="Разговор шифруется между браузерами, сервер его не слышит"><span aria-hidden="true">🔒</span><span>Разговор зашифрован</span></div>
+            <!-- Игра, пока ждём ответа собеседника или пока идёт звонок без камеры -->
+            <button type="button" class="rtc-game-toggle" id="rtcGameToggle" onclick="rtcGameToggle()">🎮 Крестики-нолики, пока ждём</button>
+            <div class="rtc-game" id="rtcGamePanel">
+                <div class="rtc-game-score" id="rtcGameScore">Счёт 0 : 0</div>
+                <div class="rtc-game-board" id="rtcGameBoard"></div>
+                <div class="rtc-game-msg" id="rtcGameMsg"></div>
+                <div class="rtc-game-actions">
+                    <button type="button" onclick="rtcGameNewRound()">Новый раунд</button>
+                    <button type="button" onclick="rtcGameToggle()">Скрыть</button>
+                </div>
+            </div>
         </div>
         <!-- Верхняя строка: с кем говорим и сколько идёт разговор -->
         <div class="rtc-top">
@@ -16961,6 +17295,10 @@
             <!-- Смена камеры: фронтальная ↔ основная (задача №73) -->
             <button type="button" class="rtc-btn" id="rtcFlipBtn" onclick="rtcFlipCamera()" aria-label="Сменить камеру" style="display:none;">
                 <span class="rtc-ico">🔄</span><span class="rtc-lab" id="rtcFlipLab">Фронт.</span>
+            </button>
+            <!-- Демонстрация экрана (задача №77) — кнопку прячем там, где браузер её не умеет -->
+            <button type="button" class="rtc-btn" id="rtcScreenBtn" onclick="rtcToggleScreenShare()" aria-label="Демонстрация экрана" style="display:none;">
+                <span class="rtc-ico">🖥️</span><span class="rtc-lab" id="rtcScreenLab">Экран</span>
             </button>
             <button type="button" class="rtc-btn hang" onclick="rtcHangUp('hangup')" aria-label="Завершить">
                 <span class="rtc-ico">📵</span><span class="rtc-lab">Завершить</span>

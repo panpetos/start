@@ -119,6 +119,7 @@ jobs:
             put api/calendar.php -o api/calendar.php;
             put api/settings_lib.php -o api/settings_lib.php;
             put api/promo_booking.php -o api/promo_booking.php;
+            put api/free_intro.php -o api/free_intro.php;
             put api/unread.php -o api/unread.php;
             put api/ai_chat_config.sample.php -o api/ai_chat_config.sample.php;
             put api/credentials.php -o api/credentials.php;

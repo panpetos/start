@@ -222,6 +222,8 @@
         };
         let mockMode = false;
         let packageId = null; // если запись по абонементу — id пакета
+        let introEligible = false; // положена ли клиенту бесплатная вводная у этого психолога
+        let sessionType = 'full'; // 'full' | 'intro' — выбор клиента, когда вводная доступна
 
         const FORMAT_NAMES = {
             'video': '📹 Видео',
@@ -285,6 +287,7 @@
 
                 psychologistData = data;
                 await loadPromoEnabled();
+                await loadFreeIntroEligibility();
                 renderBookingForm();
 
                 if (typeof lucide !== 'undefined') {
@@ -318,12 +321,33 @@
 
             // По абонементу — без оплаты, списывается одна сессия
             const isPackage = !!packageId;
+            const isIntro = !isPackage && introEligible && sessionType === 'intro';
+
+            // Выбор типа сессии — только когда клиенту вообще положена бесплатная вводная
+            const sessionTypeBlock = (isPackage || !introEligible) ? '' : `
+                <div class="format-select">
+                    <label>Тип сессии</label>
+                    <div class="format-options">
+                        <label class="format-option ${isIntro ? 'selected' : ''}" onclick="selectSessionType('intro')">
+                            🎁 Вводная 20 мин — бесплатно
+                        </label>
+                        <label class="format-option ${!isIntro ? 'selected' : ''}" onclick="selectSessionType('full')">
+                            Полная 50 мин — ${new Intl.NumberFormat('ru-RU').format(p.price || 0)} ₽
+                        </label>
+                    </div>
+                </div>`;
+
             const totalBlock = isPackage
                 ? `<div class="total-row" style="background:linear-gradient(135deg,#16A34A,#22C55E);">
                        <span class="total-label">По абонементу</span>
                        <span class="total-value" style="font-size:1.25rem;">Бесплатно · −1 сессия</span>
                    </div>`
-                : (promoOk
+                : (isIntro
+                    ? `<div class="total-row" style="background:linear-gradient(135deg,#16A34A,#22C55E);">
+                           <span class="total-label">Вводная сессия 20 мин</span>
+                           <span class="total-value" style="font-size:1.25rem;">Бесплатно</span>
+                       </div>`
+                    : promoOk
                     ? `<div class="total-row" style="background:linear-gradient(135deg,#16A34A,#22C55E);">
                            <span class="total-label">По промокоду</span>
                            <span class="total-value" style="font-size:1.25rem;">
@@ -338,15 +362,19 @@
                 ? `<button class="btn-pay" id="payBtn" onclick="proceedPackageBooking()" style="background:linear-gradient(135deg,#16A34A,#22C55E);">
                        <i data-lucide="ticket" style="width: 20px; height: 20px;"></i> Записаться по абонементу
                    </button>`
-                : (promoOk
+                : (isIntro
+                    ? `<button class="btn-pay" id="payBtn" onclick="proceedFreeIntro()" style="background:linear-gradient(135deg,#16A34A,#22C55E);">
+                           <i data-lucide="gift" style="width: 20px; height: 20px;"></i> Записаться на вводную бесплатно
+                       </button>`
+                    : promoOk
                     ? `<button class="btn-pay" id="payBtn" onclick="proceedPromoBooking()" style="background:linear-gradient(135deg,#16A34A,#22C55E);">
                            <i data-lucide="check" style="width: 20px; height: 20px;"></i> Записаться бесплатно
                        </button>`
                     : `<button class="btn-pay" id="payBtn" onclick="proceedToPayment()">
                            <i data-lucide="credit-card" style="width: 20px; height: 20px;"></i> Перейти к оплате
                        </button>`);
-            // Промокод — только для обычной записи: по абонементу и так без оплаты
-            const promoBlock = (isPackage || !promoEnabled) ? '' : `
+            // Промокод — только для обычной платной записи: по абонементу и вводной и так без оплаты
+            const promoBlock = (isPackage || isIntro || !promoEnabled) ? '' : `
                 <div class="promo-box">
                     <label class="promo-label" for="promoInput">Промокод</label>
                     <div class="promo-row">
@@ -360,7 +388,9 @@
                 </div>`;
             const secureBlock = isPackage
                 ? `<div class="secure-badge"><i data-lucide="ticket" style="width: 18px; height: 18px;"></i> Сессия из вашего абонемента — повторная оплата не нужна</div>`
-                : (promoOk
+                : (isIntro
+                    ? `<div class="secure-badge"><i data-lucide="gift" style="width: 18px; height: 18px;"></i> Вводная сессия положена один раз у каждого психолога — платить не нужно</div>`
+                    : promoOk
                     ? `<div class="secure-badge"><i data-lucide="check" style="width: 18px; height: 18px;"></i> Запись по промокоду — платить не нужно</div>`
                     : `<div class="secure-badge"><i data-lucide="shield-check" style="width: 18px; height: 18px;"></i> Безопасная оплата через Robokassa</div>`);
 
@@ -397,9 +427,11 @@
                             <i data-lucide="clock" style="width: 18px; height: 18px;"></i>
                             Длительность
                         </span>
-                        <span class="detail-value">50 минут</span>
+                        <span class="detail-value">${isIntro ? '20 минут' : '50 минут'}</span>
                     </div>
                 </div>
+
+                ${sessionTypeBlock}
 
                 <div class="format-select">
                     <label>Формат консультации</label>
@@ -465,6 +497,28 @@
                 if (d && d.ok) promoEnabled = !!d.enabled;
             } catch (e) { /* оставляем поле показанным */ }
         }
+
+        // ── Бесплатная вводная сессия (20 минут) ────────────────────────────────
+        // Положена один раз каждому клиенту у каждого психолога — узнаём у сервера,
+        // не бронировал ли клиент этого специалиста раньше. По умолчанию выбираем
+        // вводную, если она положена и это не запись по абонементу.
+        async function loadFreeIntroEligibility() {
+            if (packageId) return;
+            try {
+                const r = await fetch('/api/free_intro.php?action=eligible&psychologist_id=' + encodeURIComponent(psychologistData.id), { credentials: 'include' });
+                const d = await r.json();
+                if (d && d.ok) {
+                    introEligible = !!d.eligible;
+                    if (introEligible) sessionType = 'intro';
+                }
+            } catch (e) { /* нет вводной — работаем как раньше */ }
+        }
+
+        function selectSessionType(type) {
+            sessionType = type;
+            renderBookingForm();
+        }
+        window.selectSessionType = selectSessionType;
 
         function promoReset() {
             if (!promoOk) return;
@@ -538,6 +592,37 @@
             if (typeof lucide !== 'undefined') lucide.createIcons();
         }
         window.proceedPromoBooking = proceedPromoBooking;
+
+        async function proceedFreeIntro() {
+            const btn = document.getElementById('payBtn');
+            btn.disabled = true;
+            btn.textContent = 'Записываем…';
+            try {
+                const r = await fetch('/api/free_intro.php?action=book', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({
+                        psychologistId: psychologistData.id,
+                        dateTime: bookingData.datetime,
+                        format: bookingData.format
+                    })
+                });
+                const d = await r.json();
+                if (d && d.ok && d.appointment_id) {
+                    window.location.href = `/payment-success.html?appointment_id=${d.appointment_id}&intro=1`;
+                    return;
+                }
+                document.getElementById('errorMsg').innerHTML =
+                    `<div class="error">${(d && d.error) || 'Не удалось записаться'}</div>`;
+            } catch (e) {
+                document.getElementById('errorMsg').innerHTML =
+                    '<div class="error">Ошибка записи. Попробуйте позже.</div>';
+            }
+            btn.disabled = false;
+            btn.innerHTML = '<i data-lucide="gift" style="width: 20px; height: 20px;"></i> Записаться на вводную бесплатно';
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+        }
+        window.proceedFreeIntro = proceedFreeIntro;
 
         async function proceedToPayment() {
             const btn = document.getElementById('payBtn');

@@ -237,6 +237,7 @@
         '<p class="section-sub">Выберите удобный день и время</p>' +
         (pkg ? '<div style="background:#F0FDF4;border:1.5px solid #BBF7D0;border-radius:1rem;padding:0.9rem 1.25rem;margin-bottom:1.5rem;color:#16A34A;font-weight:600;font-size:0.9375rem;">🎟 Запись по абонементу — без повторной оплаты, спишется одна сессия.</div>' : '') +
 
+        (pkg ? '' : '<div style="background:#F0FDF4;border:1.5px solid #BBF7D0;border-radius:1rem;padding:0.75rem 1.125rem;margin-bottom:1rem;color:#16A34A;font-weight:600;font-size:0.875rem;display:flex;align-items:center;gap:0.5rem;">🎁 Вводная сессия 20 минут бесплатно — если ещё не записывались к этому специалисту</div>') +
         '<div class="psych-card">' +
           '<div class="psych-avatar" style="background:' + (p.color || '#047857') + ';">' + initials(p.name) + '</div>' +
           '<div class="psych-info" style="flex:1;min-width:0;">' +

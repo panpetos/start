@@ -61,8 +61,8 @@
 
           <!-- Price badge -->
           <div id="heroPriceBadge" style="display: inline-flex; align-items: center; gap: 0.5rem; background: #F0FDF4; color: #16A34A; padding: 0.5rem 1.125rem; border-radius: 2rem; font-size: 0.875rem; font-weight: 600; border: 1px solid #BBF7D0; margin-bottom: 1.25rem;">
-            <i data-lucide="check-circle" style="width: 1rem; height: 1rem;"></i>
-            <span id="heroPriceText">Первая консультация по специальной цене</span>
+            <span aria-hidden="true">🎁</span>
+            <span id="heroPriceText">Вводная сессия 20 минут — бесплатно у каждого психолога</span>
           </div>
 
           <!-- Trust badges -->
@@ -542,7 +542,7 @@
           Готовы начать путь к себе?
         </h2>
         <p style="font-size: 1.125rem; color: rgba(255,255,255,0.85); margin-bottom: 2rem; line-height: 1.6;" id="ctaPriceText">
-          Первая консультация по специальной цене. Найдите своего психолога уже сегодня.
+          Вводная сессия 20 минут — бесплатно у каждого психолога. Найдите своего психолога уже сегодня.
         </p>
         <div class="idx-cta-row idx-cta-center"><a href="/search.html" class="idx-btn idx-btn-white" data-testid="button-cta-find">Найти психолога</a></div>
       </div>
@@ -747,32 +747,15 @@
     // Also observe stats section
     document.querySelectorAll('.stat-item').forEach(el => statObserver.observe(el));
 
-    // Load first session price
+    // Цена дальнейших сессий (после бесплатной вводной) — для CTA-блока внизу страницы
     (async function loadFirstSessionPrice() {
       try {
         const res = await fetch('/api/settings.php?action=public');
         const s = await res.json();
         const rub = n => { const v = parseInt(n, 10); return isNaN(v) ? null : v.toLocaleString('ru-RU') + ' ₽'; };
-
-        const enabled = String(s.promo_self_enabled || '0') === '1';
-        const raw = (s.promo_self_deadline || '').trim();
-        const iso = raw && raw.length <= 16 ? raw + ':00+03:00' : raw;
-        const deadline = raw ? new Date(iso) : null;
-        const valid = deadline && !isNaN(deadline.getTime()) && deadline > new Date();
-        const promoForSelf = enabled && valid && s.promo_self_price;
-
         const basePrice = rub(s.price_self) || '3 000 ₽';
-        const heroEl = document.getElementById('heroPriceText');
         const ctaEl = document.getElementById('ctaPriceText');
-
-        if (promoForSelf) {
-          const p = rub(s.promo_self_price);
-          if (heroEl) heroEl.textContent = 'Первая сессия всего ' + p;
-          if (ctaEl) ctaEl.textContent = 'Первая сессия всего ' + p + '. Найдите своего психолога уже сегодня.';
-        } else {
-          if (heroEl) heroEl.textContent = 'Первая сессия — ' + basePrice;
-          if (ctaEl) ctaEl.textContent = 'Сессия от ' + basePrice + '. Найдите своего психолога уже сегодня.';
-        }
+        if (ctaEl) ctaEl.textContent = 'Вводная сессия 20 минут бесплатно, дальше — от ' + basePrice + '. Найдите своего психолога уже сегодня.';
       } catch (e) { /* keep static text */ }
     })();
   </script>

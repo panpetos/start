@@ -27,7 +27,7 @@
  * GET  ?action=ice                        — какие STUN/TURN отдавать браузеру
  * GET  ?action=poll[&after=N]             — входящие звонки и новые сигналы
  * POST ?action=start   {to, kind}         — позвонить (kind: audio|video)
- * POST ?action=signal  {call_id, kind, payload}  — offer/answer/ice
+ * POST ?action=signal  {call_id, kind, payload}  — offer/answer/ice/game
  * POST ?action=accept  {call_id}
  * POST ?action=decline {call_id}
  * POST ?action=end     {call_id, reason}
@@ -115,7 +115,9 @@ try {
     if ($action === 'signal' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         $callId = (int)($body['call_id'] ?? 0);
         $kind = (string)($body['kind'] ?? '');
-        if (!in_array($kind, ['offer', 'answer', 'ice'], true)) out(['ok' => false, 'error' => 'Неизвестный сигнал'], 400);
+        // 'game' — необязательные ходы игры в ожидании ответа (см. rtcGame* в chat.html),
+        // летят тем же каналом сигналов, сервер их просто передаёт дальше не глядя внутрь.
+        if (!in_array($kind, ['offer', 'answer', 'ice', 'game'], true)) out(['ok' => false, 'error' => 'Неизвестный сигнал'], 400);
         $payload = (string)($body['payload'] ?? '');
         if (strlen($payload) > SIGNAL_MAX) out(['ok' => false, 'error' => 'Слишком большой сигнал'], 400);
         $call = loadCall($pdo, $callId);

@@ -22,6 +22,7 @@
  *   contacts    — все, с кем есть переписка (по умолчанию)
  *   subscribers — подписчики моего канала (для психологов)
  *   selected    — только выбранные люди, список в story_audience
+ *   everyone    — все пользователи системы, а не только контакты
  */
 
 header('Content-Type: application/json; charset=utf-8');
@@ -173,7 +174,7 @@ function maySeeStory(PDO $pdo, $story, $userId) {
         } catch (Exception $e) { return false; }
     }
     if ($aud === 'subscribers') return in_array((string)$userId, array_map('strval', subscriberIds($pdo, $author)), true);
-    return true;    // contacts — выборку по контактам делает сам запрос
+    return true;    // contacts/everyone — выборку делает сам запрос
 }
 
 function userLabel(PDO $pdo, $ids) {
@@ -192,18 +193,20 @@ try {
         $ids = contactIds($pdo, $userId);
         $ids[] = $userId;
         $ids = array_values(array_unique($ids));
-        if (!$ids) out(['ok' => true, 'data' => [], 'mine' => []]);
+        // «Все, кто есть в системе» (audience = everyone) — публикация, которую видят
+        // не только контакты, поэтому её нельзя ограничивать условием user_id IN ($ids):
+        // автора-не-контакта запрос просто не нашёл бы. Добавляем её отдельным условием.
         $in = implode(',', array_fill(0, count($ids), '?'));
         $st = $pdo->prepare("SELECT s.*, (SELECT COUNT(*) FROM story_views v WHERE v.story_id = s.id AND v.viewer_id = ?) AS seen
                               FROM stories s
-                              WHERE s.user_id IN ($in) AND s.expires_at > NOW()
+                              WHERE s.expires_at > NOW() AND (s.user_id IN ($in) OR s.audience = 'everyone')
                               ORDER BY s.user_id, s.created_at ASC");
         $st->execute(array_merge([$userId], $ids));
-        // Аудитория проверяется здесь, а не в SQL: правил три, и в запросе они
+        // Аудитория проверяется здесь, а не в SQL: правил четыре, и в запросе они
         // превратились бы в нечитаемое условие с подзапросами на каждую строку.
         $rows = array_values(array_filter($st->fetchAll(PDO::FETCH_ASSOC),
                                           fn($r) => maySeeStory($pdo, $r, $userId)));
-        $labels = userLabel($pdo, $ids);
+        $labels = userLabel($pdo, array_values(array_unique(array_merge($ids, array_column($rows, 'user_id')))));
         $likes = storyLikeMap($pdo, array_map(fn($r) => (int)$r['id'], $rows), $userId);
 
         $byUser = [];
@@ -265,7 +268,7 @@ try {
         $cnt->execute([$userId]);
         if ((int)$cnt->fetchColumn() >= 20) out(['ok' => false, 'error' => 'Слишком много активных историй — подождите, пока старые истекут'], 400);
         $aud = (string)($body['audience'] ?? 'contacts');
-        if (!in_array($aud, ['contacts', 'subscribers', 'selected'], true)) $aud = 'contacts';
+        if (!in_array($aud, ['contacts', 'subscribers', 'selected', 'everyone'], true)) $aud = 'contacts';
         $allowed = array_values(array_filter(array_map('strval', (array)($body['allowed'] ?? []))));
         // «Выбранные» без списка показали бы историю никому — честнее вернуть ошибку,
         // чем молча опубликовать то, чего никто не увидит.
