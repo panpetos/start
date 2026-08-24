@@ -1040,8 +1040,82 @@
                     const st = c.status ? `<span class="badge b-gray">${esc(c.status)}</span>` : '';
                     return `<tr><td>${fmtDateTime(c.created_at||c.started_at||c.start_time)}</td><td>${esc(c.from_name||'—')}</td><td>${esc(c.to_name||'—')}</td><td>${fmtDur(dur)}</td><td>${st}</td></tr>`;
                 }).join('') + '</tbody></table>';
-            document.getElementById('content').innerHTML = panel('Звонки / сессии ('+rows.length+')','sCalls',body);
+            document.getElementById('content').innerHTML =
+                `<div class="panel" style="margin-bottom:1.25rem;">
+                   <div class="panel-head"><h2>Проверка связи для звонков</h2></div>
+                   <div style="padding:1.1rem 1.25rem;">
+                     <div class="note" style="margin-bottom:0.9rem;">
+                       Показывает, какие пути соединения доступны. Главное — строка «Ретранслятор TURN»:
+                       без него звонок не встанет у тех, кто в мобильной или офисной сети,
+                       и именно это выглядит как «работает только с VPN».
+                     </div>
+                     <button class="btn-sm btn-brand" style="padding:0.55rem 1.1rem;" onclick="runCallCheck(this)">Проверить</button>
+                     <div id="callCheckOut" style="margin-top:0.9rem;"></div>
+                   </div>
+                 </div>`
+                + panel('Звонки / сессии ('+rows.length+')','sCalls',body);
         }
+
+        // ── Проверка звонков ────────────────────────────────────────────────
+        //  «У некоторых не проходит без VPN» — жалоба, которую нельзя проверить
+        //  на глаз. Здесь браузер сам собирает ICE-кандидатов и показывает, что
+        //  именно доступно: srflx означает, что работает STUN, relay — что есть
+        //  живой ретранслятор (TURN). Без relay часть пар не соединится никогда,
+        //  сколько ни чини код: у мобильных операторов симметричный NAT.
+        async function runCallCheck(btn){
+            const box = document.getElementById('callCheckOut');
+            btn.disabled = true; box.innerHTML = '<div class="loading">Проверяем…</div>';
+            let ice = [], hasTurn = false;
+            try {
+                const r = await fetch('/api/rtc_calls.php?action=ice', { credentials:'include' });
+                const d = await r.json();
+                ice = (d && d.ice_servers) || []; hasTurn = !!(d && d.has_turn);
+            } catch(e) {}
+
+            const found = { host:0, srflx:0, relay:0 };
+            let err = '';
+            try {
+                const pc = new RTCPeerConnection({ iceServers: ice });
+                pc.createDataChannel('probe');
+                pc.onicecandidate = e => {
+                    if (!e.candidate) return;
+                    const m = /typ (host|srflx|relay)/.exec(e.candidate.candidate || '');
+                    if (m) found[m[1]]++;
+                };
+                pc.onicecandidateerror = ev => { if (!err) err = 'код ' + ev.errorCode + ' ' + (ev.errorText || ''); };
+                await pc.setLocalDescription(await pc.createOffer());
+                await new Promise(r => setTimeout(r, 7000));
+                pc.close();
+            } catch(e) { err = String(e && e.message || e); }
+
+            const row = (ok, t) => `<div style="display:flex;gap:0.5rem;align-items:baseline;margin-bottom:0.35rem;">
+                <span style="color:${ok?'#16A34A':'#DC2626'};font-weight:700;">${ok?'✓':'✕'}</span><span>${t}</span></div>`;
+            let verdict;
+            if (found.relay) {
+                verdict = `<div class="note" style="background:#F0FDF4;border-color:#BBF7D0;color:#166534;">
+                    Ретранслятор отвечает — звонки должны проходить и там, где прямое соединение невозможно.</div>`;
+            } else if (found.srflx) {
+                verdict = `<div class="note" style="background:#FFF8EC;border-color:#F0D9A8;color:#B45309;">
+                    <b>Ретранслятора нет.</b> Прямые звонки работают, но у части людей — в мобильных сетях и
+                    в офисах с «строгим» NAT — соединение не встанет в принципе. Это и есть «работает только
+                    с VPN». Лечится своим TURN: адрес и пароль вписываются в <code>api/rtc_calls_config.php</code>,
+                    код менять не нужно.</div>`;
+            } else {
+                verdict = `<div class="note" style="background:#FFF1F2;border-color:#FECDD3;color:#BE123C;">
+                    Не удалось собрать даже базовые кандидаты — похоже, сеть этого браузера режет WebRTC.
+                    Проверьте с другого подключения.</div>`;
+            }
+            box.innerHTML = `
+                ${row(true, 'Локальные адреса (host): ' + found.host)}
+                ${row(!!found.srflx, 'Внешний адрес через STUN (srflx): ' + found.srflx)}
+                ${row(!!found.relay, 'Ретранслятор TURN (relay): ' + found.relay)}
+                <div style="font-size:0.8rem;color:var(--a-text-sec);margin:0.5rem 0;">
+                    Серверов в выдаче: ${ice.length}; платформа считает, что TURN ${hasTurn?'настроен':'не настроен'}.
+                    ${err ? '<br>Замечание браузера: ' + esc(err) : ''}</div>
+                ${verdict}`;
+            btn.disabled = false;
+        }
+        window.runCallCheck = runCallCheck;
 
         // ── Payments ────────────────────────────────────────────────────────
         async function renderPayments(){

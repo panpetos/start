@@ -85,7 +85,6 @@ try {
         ]]];
 
         $ownTurn = false;
-        $publicTurn = true;   // запасной включён, пока свой не появился
         $cfg = __DIR__ . '/rtc_calls_config.php';
         if (file_exists($cfg)) {
             $turn = include $cfg;
@@ -97,30 +96,22 @@ try {
                     $servers[] = $one;
                     $ownTurn = true;
                 }
-                if (array_key_exists('use_public_turn', $turn)) $publicTurn = (bool)$turn['use_public_turn'];
             }
         }
 
-        // Общедоступный ретранслятор. Нужен, чтобы звонки работали уже сейчас, а не
-        // после покупки сервера. Важно понимать цену: это чужой сервис без гарантий
-        // доступности. Сама запись разговора через него не утекает — WebRTC шифрует
-        // media между собеседниками (DTLS-SRTP), ретранслятор видит только шифрованные
-        // пакеты и ip-адреса. Выключается строкой 'use_public_turn' => false.
-        if ($publicTurn) {
-            $servers[] = [
-                // 80 и 443 не случайны: где режут всё нестандартное, эти порты обычно живы
-                'urls' => [
-                    'turn:openrelay.metered.ca:80',
-                    'turn:openrelay.metered.ca:443',
-                    'turn:openrelay.metered.ca:443?transport=tcp',
-                ],
-                'username' => 'openrelayproject',
-                'credential' => 'openrelayproject',
-            ];
-        }
-
+        // ЗДЕСЬ БЫЛ ОБЩЕДОСТУПНЫЙ РЕТРАНСЛЯТОР — И ЕГО ПРИШЛОСЬ УБРАТЬ.
+        // Сначала сюда был вписан бесплатный openrelay.metered.ca, чтобы звонки
+        // начали проходить не дожидаясь своего сервера. Проверка показала, что имя
+        // openrelay.metered.ca больше не резолвится (Google STUN и psytalk.pro с того
+        // же резолвера находятся, то есть дело не в проверяющей стороне) — сервис
+        // закрыт. Мёртвый TURN в списке хуже, чем никакого: браузер честно тратит
+        // на него время при каждом дозвоне, а has_turn врал бы, что ретранслятор есть.
+        //
+        // Поэтому: своего TURN нет — так и говорим. Как только он появится в
+        // rtc_calls_config.php, всё заработает без правок кода. Любой сторонний
+        // сервис вписывается туда же, в turn_urls.
         out(['ok' => true, 'ice_servers' => $servers,
-             'has_turn' => $ownTurn || $publicTurn, 'own_turn' => $ownTurn, 'public_turn' => $publicTurn]);
+             'has_turn' => $ownTurn, 'own_turn' => $ownTurn, 'public_turn' => false]);
     }
 
     if ($action === 'poll') {
