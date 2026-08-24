@@ -501,6 +501,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
     }
 
+    if ($action === 'delete-appointment') {
+        // Удалить одну запись (и связанные с ней оплаты). Нужно для чистки тестовых
+        // записей: раньше удалить запись можно было только вместе со всем аккаунтом.
+        $aid = trim((string)($body['id'] ?? $body['appointment_id'] ?? ''));
+        if ($aid === '') { http_response_code(400); echo json_encode(['error' => 'Нужен id записи']); exit; }
+        try {
+            $st = $pdo->prepare("SELECT id FROM appointments WHERE id = ? LIMIT 1");
+            $st->execute([$aid]);
+            if (!$st->fetchColumn()) { http_response_code(404); echo json_encode(['error' => 'Запись не найдена']); exit; }
+            // Оплаты, привязанные к записи, убираем заодно — иначе останутся сиротами.
+            try { $pdo->prepare("DELETE FROM payments WHERE appointment_id = ?")->execute([$aid]); } catch (Exception $e) {}
+            // И бесплатные записи по промокоду (аудит), если такая есть.
+            try { $pdo->prepare("DELETE FROM promo_bookings WHERE appointment_id = ?")->execute([$aid]); } catch (Exception $e) {}
+            $pdo->prepare("DELETE FROM appointments WHERE id = ?")->execute([$aid]);
+            echo json_encode(['ok' => true, 'deleted' => $aid]);
+        } catch (Exception $e) {
+            http_response_code(500); echo json_encode(['error' => 'Не удалось удалить запись']);
+        }
+        exit;
+    }
+
     if ($action === 'set-price') {
         $pid = $body['psychologist_id'] ?? null;
         $price = isset($body['price']) ? (float)$body['price'] : null;

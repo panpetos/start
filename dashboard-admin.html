@@ -898,13 +898,30 @@
             if (!rows.length) return empty('Нет записей');
             const stMap = { scheduled:['b-brand','запланировано'], completed:['b-green','завершено'], cancelled:['b-red','отменено'] };
             const body = `<table id="dataTable"><thead><tr>
-                <th>Дата/время</th><th>Клиент</th><th>Психолог</th><th>Формат</th><th>Цена</th><th>Статус</th></tr></thead><tbody>` +
+                <th>Дата/время</th><th>Клиент</th><th>Психолог</th><th>Формат</th><th>Цена</th><th>Статус</th><th></th></tr></thead><tbody>` +
                 rows.map(a => {
                     const s = stMap[a.status] || ['b-gray', a.status||'—'];
-                    return `<tr><td>${fmtDateTime(a.date_time)}</td><td>${esc(a.client_name||'—')}</td><td>${esc(a.psychologist_name||'—')}</td><td>${esc(a.format||'—')}</td><td>${fmtMoney(a.price)} ₽</td><td><span class="badge ${s[0]}">${esc(s[1])}</span></td></tr>`;
+                    const cn = (a.client_name||'').replace(/'/g,"\\'");
+                    const pn = (a.psychologist_name||'').replace(/'/g,"\\'");
+                    return `<tr><td>${fmtDateTime(a.date_time)}</td><td>${esc(a.client_name||'—')}</td><td>${esc(a.psychologist_name||'—')}</td><td>${esc(a.format||'—')}</td><td>${fmtMoney(a.price)} ₽</td><td><span class="badge ${s[0]}">${esc(s[1])}</span></td>`
+                        + `<td><button class="btn-sm btn-danger" style="padding:0.3rem 0.6rem;" onclick="deleteAppt('${esc(String(a.id))}','${esc(cn)}','${esc(pn)}',this)" title="Удалить запись">🗑</button></td></tr>`;
                 }).join('') + '</tbody></table>';
             document.getElementById('content').innerHTML = panel('Записи ('+rows.length+')','sAppt',body);
         }
+
+        async function deleteAppt(id, clientName, psychName, btn){
+            if (!confirm(`Удалить запись?\n\nКлиент: ${clientName||'—'}\nПсихолог: ${psychName||'—'}\n\nВосстановить нельзя. Оплата по этой записи (если была) тоже удалится.`)) return;
+            if (btn) { btn.disabled = true; btn.textContent = '…'; }
+            const res = await apiPost('delete-appointment', { id });
+            if (res && res.ok) {
+                const tr = btn && btn.closest('tr');
+                if (tr) tr.remove();
+            } else {
+                alert('⚠️ ' + ((res && res.error) || 'Не удалось удалить запись'));
+                if (btn) { btn.disabled = false; btn.textContent = '🗑'; }
+            }
+        }
+        window.deleteAppt = deleteAppt;
 
         // ── Calls ───────────────────────────────────────────────────────────
         async function renderCalls(){
