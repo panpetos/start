@@ -11,7 +11,7 @@
 
 ## Проверка на бою
 - reg.ru кэширует — проверяй с обходом кэша: `curl -s "https://psytalk.pro/<файл>?x=$RANDOM"`.
-- Пути вида `admin*` защищены анти-ботом reg.ru (кука RCPC) — curl’ом не пройти, это нормально; единая админка — `dashboard-admin.html`.
+- Пути вида `admin*` защищены анти-ботом reg.ru (кука RCPC). **Голым curl не пройти, но с браузерным User-Agent — проходит:** `curl -s -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36" "https://psytalk.pro/dashboard-admin.html?x=$RANDOM"`. Так что правки в админке проверяемы на бою — не списывай их в «непроверяемо». Единая админка — `dashboard-admin.html`.
 
 ## Секреты и server-only файлы (ИХ НЕТ В РЕПО — не пытайся читать/деплоить)
 - `api/config.php`, `api/db.php`, `api/auth.php`, `api/messages.php`, `api/payment.php`, `api/settings.php`, `api/users.php` — живут только на сервере.
