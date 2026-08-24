@@ -216,6 +216,14 @@ if (isset($_GET['appt']) && isset($pdo) && $pdo) {
         foreach ($rows as $r) $a['by_column'][] = ($r['TABLE_NAME'] ?? '?') . '.' . ($r['COLUMN_NAME'] ?? '?');
     } catch (Exception $e) { $a['col_error'] = substr($e->getMessage(), 0, 160); }
     try {
+        // Разбивка по статусам: в админке часть строк показывалась как «—», то есть
+        // статус пустой. Видно, какой путь записи его не проставляет.
+        foreach ($pdo->query("SELECT COALESCE(NULLIF(status,''),'(пусто)') AS s, COUNT(*) AS n
+                                FROM appointments GROUP BY s")->fetchAll(PDO::FETCH_ASSOC) as $row) {
+            $a['by_status'][(string)$row['s']] = (int)$row['n'];
+        }
+    } catch (Exception $e) { $a['status_error'] = substr($e->getMessage(), 0, 160); }
+    try {
         $a['appointments_rows'] = (int)$pdo->query("SELECT COUNT(*) FROM appointments")->fetchColumn();
         $a['engine'] = (string)$pdo->query("SELECT ENGINE FROM information_schema.TABLES
                                              WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'appointments'")->fetchColumn();

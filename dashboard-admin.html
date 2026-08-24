@@ -896,7 +896,11 @@
             if (!res.ok) return fail();
             const rows = res.data || [];
             if (!rows.length) return empty('Нет записей');
-            const stMap = { scheduled:['b-brand','запланировано'], completed:['b-green','завершено'], cancelled:['b-red','отменено'] };
+            // Статусы, которые реально проставляет код: robokassa.php пишет
+            // 'pending_payment', и без него в таблице висела сырая английская строка.
+            const stMap = { scheduled:['b-brand','запланировано'], completed:['b-green','завершено'],
+                            cancelled:['b-red','отменено'], pending_payment:['b-amber','ждёт оплаты'],
+                            pending:['b-amber','ждёт оплаты'], no_show:['b-gray','не пришёл'] };
             const body = `<table id="dataTable"><thead><tr>
                 <th>Дата/время</th><th>Клиент</th><th>Психолог</th><th>Формат</th><th>Цена</th><th>Статус</th><th></th></tr></thead><tbody>` +
                 rows.map(a => {
