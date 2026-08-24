@@ -6602,26 +6602,62 @@
         }
 
         // Начать новый чат с пользователем (даже если нет истории)
+        /** Данные пользователя для шапки чата, либо null, если такого пользователя нет. */
+        async function fetchUserForHeader(userId) {
+            try {
+                const response = await fetch(`/api/users.php?action=get&id=${encodeURIComponent(userId)}`, {
+                    credentials: 'include'
+                });
+                const result = await response.json();
+                if (!result || result.error || result.ok === false) return null;
+                const userData = result.data || result; // Поддержка обоих форматов
+                return (userData && (userData.id || userData.user_id)) ? userData : null;
+            } catch (error) {
+                console.error('Error loading user data:', error);
+                return null;
+            }
+        }
+
+        /**
+         * id профиля психолога (psychologists.id) → id пользователя (users.id).
+         * Ссылка «написать психологу» из личного кабинета приходила с id ПРОФИЛЯ:
+         * в записи нет поля psychologist_user_id, и кнопка подставляла profile-id.
+         * Такого пользователя не существует — чат открывался пустым и не отправлялся.
+         */
+        async function psychProfileToUserId(profileId) {
+            if (!profileId) return null;
+            try {
+                const r = await fetch(`/api/psychologists.php?action=get&id=${encodeURIComponent(profileId)}`,
+                                      { credentials: 'include' });
+                const d = await r.json();
+                const rec = (d && d.data) ? d.data : d;
+                const uid = rec && (rec.user_id || rec.userId);
+                return uid ? String(uid) : null;
+            } catch (e) { return null; }
+        }
+
         async function startNewChat(userId) {
             selectedUserId = userId;
             leaveAiMode();
             cancelEditMessage();
 
             // Получить информацию о пользователе
-            try {
-                const response = await fetch(`/api/users.php?action=get&id=${userId}`, {
-                    credentials: 'include'
-                });
-                const result = await response.json();
-                const userData = result.data || result; // Поддержка обоих форматов
-
-                if (userData && !result.error) {
-                    document.getElementById('chatHeader').innerHTML = renderChatHeader(userData);
-                    headerRenderedFor = selectedUserId;
-                    try { if (window.lucide) lucide.createIcons(); } catch(e) {}
+            let userData = await fetchUserForHeader(userId);
+            // Пользователь не найден — вероятно, это id профиля психолога (из ЛК).
+            // Разрешаем его в настоящий user_id и открываем чат уже с ним.
+            if (!userData) {
+                const uid = await psychProfileToUserId(bookPsychId || userId);
+                if (uid && uid !== userId) {
+                    userId = uid;
+                    selectedUserId = userId;
+                    userData = await fetchUserForHeader(userId);
+                    syncChatUrl(selectedUserId);   // и в адресной строке — верный id
                 }
-            } catch (error) {
-                console.error('Error loading user data:', error);
+            }
+            if (userData) {
+                document.getElementById('chatHeader').innerHTML = renderChatHeader(userData);
+                headerRenderedFor = selectedUserId;
+                try { if (window.lucide) lucide.createIcons(); } catch(e) {}
             }
 
             document.getElementById('emptyState').style.display = 'none';
@@ -6835,6 +6871,11 @@
             if (!isDm) {
                 const cachedOther = chatHtmlCache[key];
                 container.innerHTML = cachedOther || CHAT_SKELETON_HTML;
+                // dataset должен совпадать с тем, что реально лежит в контейнере, иначе
+                // renderIfChanged примет скелет за уже отрисованную переписку и не заменит
+                // его (пустой чат так и «грузился» вечно).
+                container.dataset.rendered = cachedOther || CHAT_SKELETON_HTML;
+                container.dataset.renderedChat = key;
                 if (cachedOther) { container.scrollTop = container.scrollHeight; repaintAllVoice(); restoreVideoNote(); restoreFlash(); }
                 return;
             }
@@ -6850,6 +6891,10 @@
             }
             const cached = chatHtmlCache[key];
             container.innerHTML = cached || CHAT_SKELETON_HTML;
+            // См. коммент выше: держим dataset в согласии с содержимым контейнера,
+            // чтобы пустая переписка не осталась на «скелете».
+            container.dataset.rendered = cached || CHAT_SKELETON_HTML;
+            container.dataset.renderedChat = key;
             if (cached) {
                 container.scrollTop = container.scrollHeight;
                 repaintAllVoice(); restoreVideoNote(); restoreFlash();
