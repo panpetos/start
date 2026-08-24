@@ -65,21 +65,62 @@ $body = ($_SERVER['REQUEST_METHOD'] === 'POST') ? (json_decode(file_get_contents
 
 try {
     if ($action === 'ice') {
-        // Свой TURN, если он у платформы появится, кладётся в calls_config.php.
-        // Без него остаётся STUN — его достаточно, пока хотя бы один из собеседников
-        // не за «строгим» NAT.
-        $servers = [['urls' => ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302']]];
+        // ── ПОЧЕМУ У ЧАСТИ ЛЮДЕЙ ЗВОНОК НЕ ВСТАЁТ БЕЗ VPN ───────────────────
+        // STUN только подсказывает браузеру его внешний адрес. Этого хватает,
+        // пока хотя бы один собеседник за «мягким» NAT. У мобильных операторов
+        // и в офисных сетях NAT симметричный: внешний порт свой на каждого
+        // адресата, поэтому предсказать его нельзя и прямое соединение не встаёт
+        // в принципе. VPN иногда «чинит» это случайно — просто уводит человека
+        // в сеть с другим NAT. Единственное настоящее решение — TURN:
+        // ретранслятор, через который media идёт, когда напрямую нельзя.
+        //
+        // Порядок ниже осмысленный: сначала STUN (дёшево и быстро), затем свой
+        // TURN платформы, затем общедоступный запасной. Браузер всё равно
+        // предпочтёт прямой путь и уйдёт на ретранслятор, только если иначе никак.
+        $servers = [['urls' => [
+            'stun:stun.l.google.com:19302',
+            'stun:stun1.l.google.com:19302',
+            'stun:stun2.l.google.com:19302',
+            'stun:stun.cloudflare.com:3478',
+        ]]];
+
+        $ownTurn = false;
+        $publicTurn = true;   // запасной включён, пока свой не появился
         $cfg = __DIR__ . '/rtc_calls_config.php';
         if (file_exists($cfg)) {
             $turn = include $cfg;
-            if (is_array($turn) && !empty($turn['turn_urls'])) {
-                $one = ['urls' => $turn['turn_urls']];
-                if (!empty($turn['turn_username'])) $one['username'] = $turn['turn_username'];
-                if (!empty($turn['turn_credential'])) $one['credential'] = $turn['turn_credential'];
-                $servers[] = $one;
+            if (is_array($turn)) {
+                if (!empty($turn['turn_urls'])) {
+                    $one = ['urls' => $turn['turn_urls']];
+                    if (!empty($turn['turn_username'])) $one['username'] = $turn['turn_username'];
+                    if (!empty($turn['turn_credential'])) $one['credential'] = $turn['turn_credential'];
+                    $servers[] = $one;
+                    $ownTurn = true;
+                }
+                if (array_key_exists('use_public_turn', $turn)) $publicTurn = (bool)$turn['use_public_turn'];
             }
         }
-        out(['ok' => true, 'ice_servers' => $servers, 'has_turn' => count($servers) > 1]);
+
+        // Общедоступный ретранслятор. Нужен, чтобы звонки работали уже сейчас, а не
+        // после покупки сервера. Важно понимать цену: это чужой сервис без гарантий
+        // доступности. Сама запись разговора через него не утекает — WebRTC шифрует
+        // media между собеседниками (DTLS-SRTP), ретранслятор видит только шифрованные
+        // пакеты и ip-адреса. Выключается строкой 'use_public_turn' => false.
+        if ($publicTurn) {
+            $servers[] = [
+                // 80 и 443 не случайны: где режут всё нестандартное, эти порты обычно живы
+                'urls' => [
+                    'turn:openrelay.metered.ca:80',
+                    'turn:openrelay.metered.ca:443',
+                    'turn:openrelay.metered.ca:443?transport=tcp',
+                ],
+                'username' => 'openrelayproject',
+                'credential' => 'openrelayproject',
+            ];
+        }
+
+        out(['ok' => true, 'ice_servers' => $servers,
+             'has_turn' => $ownTurn || $publicTurn, 'own_turn' => $ownTurn, 'public_turn' => $publicTurn]);
     }
 
     if ($action === 'poll') {

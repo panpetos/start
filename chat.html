@@ -15674,7 +15674,14 @@
         let rtcTimer = null, rtcStartedAt = 0;
         let rtcPollTimer = null;
         let rtcRing = null;            // источник звука вызова
-        let rtcIceServers = [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] }];
+        // Стартовый список — на случай, если ответ ?action=ice ещё не пришёл.
+        // Настоящий, с TURN, приезжает с сервера (см. rtc_calls.php?action=ice).
+        let rtcIceServers = [{ urls: [
+            'stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302',
+            'stun:stun2.l.google.com:19302', 'stun:stun.cloudflare.com:3478',
+        ] }];
+        let rtcHasTurn = false;      // знает ли платформа хоть один ретранслятор
+        let rtcIceRetried = false;   // перезапуск ICE делаем один раз за звонок
         let rtcIceOut = [];            // кандидаты, ждущие отправки пачкой
         let rtcIceFlushTimer = null;
         let rtcMakingOffer = false;    // мы прямо сейчас формируем предложение
@@ -15857,7 +15864,7 @@
             const r = document.getElementById('rtcRemote'), l = document.getElementById('rtcLocal');
             if (r) r.srcObject = null;
             if (l) l.srcObject = null;
-            rtcCallId = null; rtcRole = null; rtcPeer = null;
+            rtcCallId = null; rtcRole = null; rtcPeer = null; rtcIceRetried = false;
             rtcAfter = 0; rtcPendingIce = []; rtcStartedAt = 0;
             rtcIceOut = [];
             if (rtcIceFlushTimer) { clearTimeout(rtcIceFlushTimer); rtcIceFlushTimer = null; }
@@ -16002,9 +16009,25 @@
                         }, 1000);
                     }
                 } else if (st === 'failed') {
-                    // Ровно тот случай, когда нужен TURN: прямой путь не нашёлся
+                    // Прежде чем сдаться — одна пересборка маршрута. Часть срывов
+                    // разовые: кандидат протух, сеть моргнула, телефон переключился
+                    // с Wi-Fi на сотовую. restartIce() собирает кандидатов заново,
+                    // уже зная про TURN, и нередко со второго раза встаёт.
+                    if (!rtcIceRetried && rtcPc.restartIce) {
+                        rtcIceRetried = true;
+                        rtcSetState('Пересобираем соединение…');
+                        try {
+                            rtcPc.restartIce();
+                            // Инициатор обязан переотправить offer — иначе перезапуск
+                            // ни к чему не приведёт: второй стороне нечего принимать.
+                            if (rtcRole === 'caller') rtcRenegotiate();
+                            return;
+                        } catch (e) {}
+                    }
                     rtcSetState('Не удалось соединиться');
-                    rtcShowFallback('Прямое соединение не установилось — так бывает, когда оба в мобильной или рабочей сети.');
+                    rtcShowFallback(rtcHasTurn
+                        ? 'Связь не установилась. Похоже, сеть блокирует звонки — попробуйте другой Wi-Fi или мобильный интернет.'
+                        : 'Прямое соединение не установилось — так бывает, когда оба в мобильной или рабочей сети.');
                 } else if (st === 'disconnected') {
                     rtcSetState('Связь прервалась, восстанавливаем…');
                 }
@@ -16177,6 +16200,7 @@
             try {
                 const d = await callsApi('ice');
                 if (d.ice_servers && d.ice_servers.length) rtcIceServers = d.ice_servers;
+                rtcHasTurn = !!d.has_turn;
             } catch (e) {}
         }
 
