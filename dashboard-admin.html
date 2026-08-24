@@ -1074,6 +1074,29 @@
 
             const found = { host:0, srflx:0, relay:0 };
             let err = '';
+            // Проверяем КАЖДЫЙ сервер отдельно: если у провайдера порезан Google,
+            // общая проверка это скроет (сработает другой), а знать нужно именно
+            // про блокировку — из-за неё звонок и «идёт только с VPN».
+            const perServer = [];
+            const urlsFlat = [];
+            ice.forEach(g => (Array.isArray(g.urls) ? g.urls : [g.urls]).forEach(u => u && urlsFlat.push({ u, g })));
+            for (const { u, g } of urlsFlat.slice(0, 8)) {
+                let ok = false;
+                try {
+                    const one = { urls: u };
+                    if (g.username) { one.username = g.username; one.credential = g.credential; }
+                    const p2 = new RTCPeerConnection({ iceServers: [one] });
+                    p2.createDataChannel('x');
+                    p2.onicecandidate = e => {
+                        if (e.candidate && /typ (srflx|relay)/.test(e.candidate.candidate || '')) ok = true;
+                    };
+                    await p2.setLocalDescription(await p2.createOffer());
+                    await new Promise(r => setTimeout(r, 3000));
+                    p2.close();
+                } catch (e) {}
+                perServer.push({ u, ok });
+            }
+
             try {
                 const pc = new RTCPeerConnection({ iceServers: ice });
                 pc.createDataChannel('probe');
@@ -1105,6 +1128,16 @@
                     Не удалось собрать даже базовые кандидаты — похоже, сеть этого браузера режет WebRTC.
                     Проверьте с другого подключения.</div>`;
             }
+            const perList = perServer.length ? `
+                <div style="margin:0.6rem 0;">
+                  <div style="font-size:0.8rem;font-weight:700;color:var(--a-text-sec);margin-bottom:0.3rem;">По серверам:</div>
+                  ${perServer.map(x => `<div style="font-size:0.8rem;margin-bottom:0.15rem;">
+                      <span style="color:${x.ok?'#16A34A':'#DC2626'};font-weight:700;">${x.ok?'✓':'✕'}</span>
+                      <span style="color:var(--a-text-sec);">${esc(x.u)}</span></div>`).join('')}
+                  ${perServer.some(x=>!x.ok) ? `<div style="font-size:0.78rem;color:#B45309;margin-top:0.3rem;">
+                      Отмеченные ✕ недоступны из этой сети. Если это Google, а российский сервер отвечает —
+                      значит провайдер режет Google, и раньше именно это выглядело как «звонки только с VPN».</div>` : ''}
+                </div>` : '';
             box.innerHTML = `
                 ${row(true, 'Локальные адреса (host): ' + found.host)}
                 ${row(!!found.srflx, 'Внешний адрес через STUN (srflx): ' + found.srflx)}
@@ -1112,6 +1145,7 @@
                 <div style="font-size:0.8rem;color:var(--a-text-sec);margin:0.5rem 0;">
                     Серверов в выдаче: ${ice.length}; платформа считает, что TURN ${hasTurn?'настроен':'не настроен'}.
                     ${err ? '<br>Замечание браузера: ' + esc(err) : ''}</div>
+                ${perList}
                 ${verdict}`;
             btn.disabled = false;
         }
