@@ -327,6 +327,10 @@
         <script src="/js/auth.js?v=20260821"></script>
         <script src="/js/header.js?v=20260821"></script>
         <script>
+            // ?as=client — единственный способ для психолога открыть КЛИЕНТСКИЙ кабинет.
+            // Без него его отсюда сразу уводит в собственный (см. ниже).
+            const CLIENT_VIEW_FORCED = new URLSearchParams(location.search).get('as') === 'client';
+
             // Update User Info in Dashboard Header (Legacy/Custom support)
             window.addEventListener('load', async () => {
                 if (window.Auth) {
@@ -377,17 +381,26 @@
                         return;
                     }
 
-                    // Психолог тоже может быть клиентом: показываем его клиентские записи здесь,
-                    // с быстрым переходом в кабинет специалиста.
+                    // Психолог попадает сразу в СВОЙ кабинет. Раньше он сначала видел
+                    // клиентский, а поверх — плашку «перейти в кабинет психолога»:
+                    // лишний шаг на каждом входе и ощущение, что вошёл не туда.
+                    // Клиентские записи специалиста никуда не делись — они по
+                    // явной ссылке ?as=client (её даёт кабинет психолога).
+                    if (user.role === 'psychologist' && !CLIENT_VIEW_FORCED) {
+                        window.location.replace('/psychologist-dashboard.html');
+                        return;
+                    }
+                    // Пришёл сюда осознанно (?as=client) — говорим, чей это экран,
+                    // и как вернуться к себе.
                     if (user.role === 'psychologist') {
                         const switchBanner = document.createElement('div');
                         switchBanner.style.cssText = 'background:var(--d-accent-bg,#D1FAE5);border:1.5px solid var(--d-border-accent,#6EE7B7);border-radius:1rem;padding:0.875rem 1.25rem;margin-bottom:1.25rem;display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;';
                         switchBanner.innerHTML = `
                             <span style="display:flex;align-items:center;gap:0.5rem;color:var(--d-accent,#065F46);font-weight:600;font-size:0.9375rem;">
-                                👤 Вы просматриваете записи как клиент
+                                👤 Ваши записи как клиента
                             </span>
                             <a href="/psychologist-dashboard.html" style="display:inline-flex;align-items:center;gap:0.375rem;padding:0.5rem 1rem;background:linear-gradient(135deg,#047857,#059669);color:white;text-decoration:none;border-radius:0.625rem;font-size:0.875rem;font-weight:600;">
-                                Перейти в кабинет психолога →
+                                ← В кабинет психолога
                             </a>`;
                         document.querySelector('.cards').parentNode.insertBefore(switchBanner, document.querySelector('.cards'));
                     }

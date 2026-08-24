@@ -25,6 +25,10 @@
                 { href: '/psychologist-blog.html', icon: '✍️', label: 'Мой блог' },
             ]},
             { group: 'Профиль', items: [
+                // Психолог и сам может записаться к коллеге. Раньше его клиентские
+                // записи открывались тем, что он попадал в клиентский кабинет по
+                // умолчанию; теперь туда ведёт только эта явная ссылка.
+                { href: '/client-dashboard.html?as=client', icon: '👤', label: 'Я как клиент' },
                 { href: '/notify-settings.html', icon: '🔔', label: 'Уведомления' },
                 { href: '/edit-profile.html', icon: '⚙️', label: 'Настройки' },
             ]},
