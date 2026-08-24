@@ -516,6 +516,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             try { $pdo->prepare("DELETE FROM payments WHERE appointment_id = ?")->execute([$aid]); } catch (Exception $e) {}
             // И бесплатные записи по промокоду (аудит), если такая есть.
             try { $pdo->prepare("DELETE FROM promo_bookings WHERE appointment_id = ?")->execute([$aid]); } catch (Exception $e) {}
+            // И отметку о бесплатной вводной — иначе останется строка на удалённую запись.
+            try { $pdo->prepare("DELETE FROM free_intro_bookings WHERE appointment_id = ?")->execute([$aid]); } catch (Exception $e) {}
             $pdo->prepare("DELETE FROM appointments WHERE id = ?")->execute([$aid]);
             echo json_encode(['ok' => true, 'deleted' => $aid]);
         } catch (Exception $e) {
