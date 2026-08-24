@@ -912,12 +912,27 @@
         async function deleteAppt(id, clientName, psychName, btn){
             if (!confirm(`Удалить запись?\n\nКлиент: ${clientName||'—'}\nПсихолог: ${psychName||'—'}\n\nВосстановить нельзя. Оплата по этой записи (если была) тоже удалится.`)) return;
             if (btn) { btn.disabled = true; btn.textContent = '…'; }
-            const res = await apiPost('delete-appointment', { id });
-            if (res && res.ok) {
+            // Через fetch напрямую, а не apiPost: при сбое нужно показать КОД ОТВЕТА и
+            // сырой текст. Раньше в окне было просто «Не удалось удалить запись», и по
+            // нему нельзя было понять, ответил так сервер или это запасной текст в JS.
+            let ok = false, msg = '';
+            try {
+                const r = await fetch(`${API}?action=delete-appointment`, {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include', body: JSON.stringify({ id })
+                });
+                const raw = await r.text();
+                let d = null; try { d = JSON.parse(raw); } catch (e) {}
+                ok = !!(d && d.ok);
+                if (!ok) msg = (d && d.error) ? d.error : `HTTP ${r.status}: ${raw.slice(0, 300) || '(пустой ответ)'}`;
+            } catch (e) {
+                msg = 'Сеть: ' + (e.message || 'запрос не ушёл');
+            }
+            if (ok) {
                 const tr = btn && btn.closest('tr');
                 if (tr) tr.remove();
             } else {
-                alert('⚠️ ' + ((res && res.error) || 'Не удалось удалить запись'));
+                alert('⚠️ ' + msg);
                 if (btn) { btn.disabled = false; btn.textContent = '🗑'; }
             }
         }

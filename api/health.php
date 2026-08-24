@@ -192,6 +192,37 @@ if (isset($_GET['promo']) && isset($pdo) && $pdo) {
     $r['promo'] = $p;
 }
 
+// 4d. ?appt=1 — почему не удаляется запись из админки.
+//     Удаление падало с «Не удалось удалить запись», а какая именно связь мешает —
+//     снаружи не видно. Здесь перечислены таблицы, ссылающиеся на appointments
+//     внешним ключом, и таблицы с колонкой appointment_id без ключа. Данных не
+//     отдаём — только имена таблиц и колонок.
+if (isset($_GET['appt']) && isset($pdo) && $pdo) {
+    $a = ['fk' => [], 'by_column' => []];
+    try {
+        $rows = $pdo->query("SELECT TABLE_NAME, COLUMN_NAME, CONSTRAINT_NAME
+                               FROM information_schema.KEY_COLUMN_USAGE
+                              WHERE REFERENCED_TABLE_NAME = 'appointments'
+                                AND TABLE_SCHEMA = DATABASE()")->fetchAll(PDO::FETCH_ASSOC);
+        foreach ($rows as $r) {
+            $a['fk'][] = ($r['TABLE_NAME'] ?? '?') . '.' . ($r['COLUMN_NAME'] ?? '?')
+                       . ' [' . ($r['CONSTRAINT_NAME'] ?? '') . ']';
+        }
+    } catch (Exception $e) { $a['fk_error'] = substr($e->getMessage(), 0, 160); }
+    try {
+        $rows = $pdo->query("SELECT TABLE_NAME, COLUMN_NAME FROM information_schema.COLUMNS
+                              WHERE TABLE_SCHEMA = DATABASE()
+                                AND COLUMN_NAME IN ('appointment_id','appt_id')")->fetchAll(PDO::FETCH_ASSOC);
+        foreach ($rows as $r) $a['by_column'][] = ($r['TABLE_NAME'] ?? '?') . '.' . ($r['COLUMN_NAME'] ?? '?');
+    } catch (Exception $e) { $a['col_error'] = substr($e->getMessage(), 0, 160); }
+    try {
+        $a['appointments_rows'] = (int)$pdo->query("SELECT COUNT(*) FROM appointments")->fetchColumn();
+        $a['engine'] = (string)$pdo->query("SELECT ENGINE FROM information_schema.TABLES
+                                             WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'appointments'")->fetchColumn();
+    } catch (Exception $e) {}
+    $r['appointments'] = $a;
+}
+
 // 5. ?bench=1 — сколько стоят типовые запросы сайта. Нужно, чтобы прикинуть,
 //    сколько людей хостинг вытянет, не устраивая проду настоящую нагрузку.
 //    Всё только на чтение, данные наружу не отдаются — одни тайминги.

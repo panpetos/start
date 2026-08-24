@@ -504,24 +504,63 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if ($action === 'delete-appointment') {
-        // Удалить одну запись (и связанные с ней оплаты). Нужно для чистки тестовых
-        // записей: раньше удалить запись можно было только вместе со всем аккаунтом.
+        // Удалить одну запись со всем, что на неё ссылается.
+        //
+        // ПОЧЕМУ НЕ СПИСКОМ ИМЁН ТАБЛИЦ. Сначала здесь стояли три знакомых таблицы
+        // (payments, promo_bookings, free_intro_bookings) — и удаление падало с
+        // «Не удалось удалить запись»: на appointments ссылается кто-то ещё, а какой
+        // именно внешний ключ мешает, угадывать бессмысленно. Теперь зависимые
+        // таблицы спрашиваем у самой базы (information_schema) и чистим их все.
+        // Что не нашлось по внешним ключам — добиваем по известным именам колонок.
         $aid = trim((string)($body['id'] ?? $body['appointment_id'] ?? ''));
         if ($aid === '') { http_response_code(400); echo json_encode(['error' => 'Нужен id записи']); exit; }
         try {
             $st = $pdo->prepare("SELECT id FROM appointments WHERE id = ? LIMIT 1");
             $st->execute([$aid]);
             if (!$st->fetchColumn()) { http_response_code(404); echo json_encode(['error' => 'Запись не найдена']); exit; }
-            // Оплаты, привязанные к записи, убираем заодно — иначе останутся сиротами.
-            try { $pdo->prepare("DELETE FROM payments WHERE appointment_id = ?")->execute([$aid]); } catch (Exception $e) {}
-            // И бесплатные записи по промокоду (аудит), если такая есть.
-            try { $pdo->prepare("DELETE FROM promo_bookings WHERE appointment_id = ?")->execute([$aid]); } catch (Exception $e) {}
-            // И отметку о бесплатной вводной — иначе останется строка на удалённую запись.
-            try { $pdo->prepare("DELETE FROM free_intro_bookings WHERE appointment_id = ?")->execute([$aid]); } catch (Exception $e) {}
+
+            $cleared = [];
+            $wipe = function ($table, $col) use ($pdo, $aid, &$cleared) {
+                try {
+                    $st = $pdo->prepare("DELETE FROM `$table` WHERE `$col` = ?");
+                    $st->execute([$aid]);
+                    if ($st->rowCount() > 0) $cleared[] = $table . ':' . $st->rowCount();
+                    return true;
+                } catch (Exception $e) { return false; }
+            };
+
+            // 1. Всё, что связано внешним ключом — узнаём у базы, а не гадаем.
+            $seen = [];
+            try {
+                $fk = $pdo->query("SELECT TABLE_NAME, COLUMN_NAME
+                                     FROM information_schema.KEY_COLUMN_USAGE
+                                    WHERE REFERENCED_TABLE_NAME = 'appointments'
+                                      AND TABLE_SCHEMA = DATABASE()")->fetchAll(PDO::FETCH_ASSOC);
+                foreach ($fk as $row) {
+                    $t = (string)($row['TABLE_NAME'] ?? ''); $c = (string)($row['COLUMN_NAME'] ?? '');
+                    if ($t === '' || $c === '') continue;
+                    $seen[$t . '.' . $c] = true;
+                    $wipe($t, $c);
+                }
+            } catch (Exception $e) { /* нет прав на information_schema — идём дальше */ }
+
+            // 2. Таблицы без внешнего ключа, но с ссылкой по смыслу.
+            foreach (['payments', 'promo_bookings', 'free_intro_bookings', 'calls', 'rtc_calls',
+                      'session_orders', 'reviews', 'transcripts', 'notify_queue', 'notify_log',
+                      'session_packages_usage', 'appointment_notes'] as $t) {
+                foreach (['appointment_id', 'appt_id'] as $c) {
+                    if (isset($seen[$t . '.' . $c])) continue;
+                    $wipe($t, $c);
+                }
+            }
+
             $pdo->prepare("DELETE FROM appointments WHERE id = ?")->execute([$aid]);
-            echo json_encode(['ok' => true, 'deleted' => $aid]);
+            echo json_encode(['ok' => true, 'deleted' => $aid, 'cleared' => $cleared], JSON_UNESCAPED_UNICODE);
         } catch (Exception $e) {
-            http_response_code(500); echo json_encode(['error' => 'Не удалось удалить запись']);
+            // Текст ошибки отдаём как есть: это админский эндпоинт, и без настоящей
+            // причины («такой-то внешний ключ») чинить нечего — видно только «не удалось».
+            http_response_code(500);
+            echo json_encode(['error' => 'Не удалось удалить запись: ' . $e->getMessage()], JSON_UNESCAPED_UNICODE);
         }
         exit;
     }
