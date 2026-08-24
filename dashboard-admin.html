@@ -1642,9 +1642,13 @@
                       <input id="free_promo_limit" type="number" min="0" step="1"
                              value="${esc(sGet('free_promo_limit','5'))}"
                              style="width:120px;margin-top:0.3rem;padding:0.55rem 0.7rem;border:1.5px solid var(--a-input-border);border-radius:0.6rem;font-family:inherit;font-size:0.95rem;background:var(--a-input-bg);color:var(--a-text);"></label>
+                    <label style="font-size:0.82rem;color:var(--a-text-sec);font-weight:600;">Действует до<br>
+                      <input id="free_promo_expires" type="datetime-local"
+                             value="${esc(String(sGet('free_promo_expires','')).replace(' ','T').slice(0,16))}"
+                             style="margin-top:0.3rem;padding:0.55rem 0.7rem;border:1.5px solid var(--a-input-border);border-radius:0.6rem;font-family:inherit;font-size:0.95rem;background:var(--a-input-bg);color:var(--a-text);"></label>
                     <label style="font-size:0.82rem;color:var(--a-text-sec);font-weight:600;">Неудачных попыток в сутки<br>
                       <input id="free_promo_fail_limit" type="number" min="0" step="1"
-                             value="${esc(sGet('free_promo_fail_limit','10'))}"
+                             value="${esc(sGet('free_promo_fail_limit','0'))}"
                              style="width:150px;margin-top:0.3rem;padding:0.55rem 0.7rem;border:1.5px solid var(--a-input-border);border-radius:0.6rem;font-family:inherit;font-size:0.95rem;background:var(--a-input-bg);color:var(--a-text);"></label>
                     <span style="color:var(--a-text-muted);font-size:0.8rem;">0 — без ограничения</span>
                   </div>
@@ -1654,8 +1658,11 @@
                     <span id="promoAttemptsMsg" style="font-size:0.83rem;color:var(--a-text-sec);"></span>
                   </div>
                   <div class="note" style="margin-top:0.8rem;">
-                    Защита от подбора кода: после стольких неудач в сутки человеку отказывают до завтра.
-                    <b>Администратора она не касается вовсе</b> — свой код вы проверяете без ограничений.
+                    <b>«Действует до»</b> — основная защита: после этого момента код перестаёт работать,
+                    даже если утечёт. Пусто — без срока.<br>
+                    <b>«Неудачных попыток»</b> по умолчанию <b>0, то есть выключено</b>: этот счётчик
+                    запирал на сутки любого, кто просто ошибся, — включая проверку сервиса своим же
+                    клиентским аккаунтом. Включайте, только если код действительно начнут подбирать.
                   </div>
                 </div>
               </div>
@@ -1889,6 +1896,8 @@
             if (wm) payload.welcome_message = wm.value.trim();
             const fpf = document.getElementById('free_promo_fail_limit');
             if (fpf) payload.free_promo_fail_limit = String(parseInt(fpf.value, 10) || 0);
+            const fpe = document.getElementById('free_promo_expires');
+            if (fpe) payload.free_promo_expires = fpe.value.trim().replace('T', ' ');
             const msg = document.getElementById('saveMsg');
             btn.disabled = true; if(msg){ msg.textContent='Сохраняем...'; msg.style.color='var(--a-text-sec)'; }
             const res = await apiPost('save-settings', { settings: payload });

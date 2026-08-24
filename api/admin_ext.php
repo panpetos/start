@@ -141,7 +141,7 @@ function allowedSettingKeys(): array {
              // Промокод бесплатной записи (api/promo_booking.php). Без этих двух ключей
              // админка показывала «Сохранено», а значение молча не доходило до settings —
              // и промокод не срабатывал никогда.
-             'free_promo_code', 'free_promo_limit', 'free_promo_fail_limit',
+             'free_promo_code', 'free_promo_limit', 'free_promo_fail_limit', 'free_promo_expires',
              // Текст автоприветствия новому пользователю (api/welcome.php)
              'welcome_message'];
     foreach (['self', 'couple', 'teen'] as $t) {

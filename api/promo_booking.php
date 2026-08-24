@@ -113,9 +113,19 @@ function pbCountFail(PDO $pdo, $userId) {
 function pbCheckCode(PDO $pdo, $userId, $code) {
     $set = pbNorm(pbSetting($pdo, 'free_promo_code', ''));
     if ($set === '') return [false, 'Бесплатная запись по промокоду сейчас отключена'];
-    // Порог настраивается в админке (free_promo_fail_limit); 0 — защита выключена.
-    // Администратора не ограничиваем вовсе.
-    $failLimit = (int)pbSetting($pdo, 'free_promo_fail_limit', '10');
+    // Срок действия кода. Он и есть основная защита: код живёт ограниченное время,
+    // а не запирает человека после десяти опечаток. Пусто — без срока.
+    $until = trim(pbSetting($pdo, 'free_promo_expires', ''));
+    if ($until !== '') {
+        $ts = strtotime(str_replace('T', ' ', $until));
+        // Дата без времени означает «включительно весь этот день»
+        if ($ts && preg_match('/^\d{4}-\d{2}-\d{2}$/', $until)) $ts += 86399;
+        if ($ts && time() > $ts) return [false, 'Срок действия промокода истёк'];
+    }
+    // Порог неудачных попыток. По умолчанию ВЫКЛЮЧЕН (0): он запирал на сутки тех,
+    // кто просто ошибся, включая проверку сервиса своим же клиентским аккаунтом.
+    // Роль защиты от подбора взял на себя срок действия выше.
+    $failLimit = (int)pbSetting($pdo, 'free_promo_fail_limit', '0');
     $guard = ($failLimit > 0 && !pbIsAdmin($pdo, $userId));
     if ($guard && pbFails($pdo, $userId) >= $failLimit) {
         return [false, 'Слишком много попыток. Попробуйте завтра'];
