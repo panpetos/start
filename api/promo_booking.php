@@ -75,6 +75,21 @@ function pbEnsure(PDO $pdo) {
 
 function pbNorm($s) { return strtoupper(trim(preg_replace('/\s+/', '', (string)$s))); }
 
+/**
+ * Администратор. Его защита от перебора не касается: свой же код он проверяет
+ * на своём же сайте, а упереться в «попробуйте завтра» посреди проверки —
+ * это блокировать себя, а не злоумышленника.
+ */
+function pbIsAdmin(PDO $pdo, $userId) {
+    static $is = null;
+    if ($is !== null) return $is;
+    try {
+        $st = $pdo->prepare("SELECT role FROM users WHERE id = ? LIMIT 1");
+        $st->execute([$userId]);
+        return $is = ((string)$st->fetchColumn() === 'admin');
+    } catch (Exception $e) { return $is = false; }
+}
+
 /** Сколько раз сегодня не угадали. Защита от перебора кода. */
 function pbFails(PDO $pdo, $userId) {
     try {
@@ -98,10 +113,16 @@ function pbCountFail(PDO $pdo, $userId) {
 function pbCheckCode(PDO $pdo, $userId, $code) {
     $set = pbNorm(pbSetting($pdo, 'free_promo_code', ''));
     if ($set === '') return [false, 'Бесплатная запись по промокоду сейчас отключена'];
-    if (pbFails($pdo, $userId) >= 10) return [false, 'Слишком много попыток. Попробуйте завтра'];
+    // Порог настраивается в админке (free_promo_fail_limit); 0 — защита выключена.
+    // Администратора не ограничиваем вовсе.
+    $failLimit = (int)pbSetting($pdo, 'free_promo_fail_limit', '10');
+    $guard = ($failLimit > 0 && !pbIsAdmin($pdo, $userId));
+    if ($guard && pbFails($pdo, $userId) >= $failLimit) {
+        return [false, 'Слишком много попыток. Попробуйте завтра'];
+    }
     $given = pbNorm($code);
     if ($given === '' || !hash_equals($set, $given)) {
-        pbCountFail($pdo, $userId);
+        if ($guard) pbCountFail($pdo, $userId);
         return [false, 'Промокод не подошёл'];
     }
     $limit = (int)pbSetting($pdo, 'free_promo_limit', '5');
@@ -137,6 +158,26 @@ $body = json_decode(file_get_contents('php://input'), true) ?: [];
  */
 if ($action === 'enabled') {
     pbOut(['ok' => true, 'enabled' => pbNorm(pbSetting($pdo, 'free_promo_code', '')) !== '']);
+}
+
+/**
+ * Сбросить счётчик неудачных попыток. Только администратор: себе — чтобы не
+ * ждать суток посреди проверки, клиенту — если он честно ошибся десять раз.
+ * POST ?action=reset-attempts {user_id?} — без user_id сбрасывает себе.
+ */
+if ($action === 'reset-attempts') {
+    if (!pbIsAdmin($pdo, $userId)) pbOut(['error' => 'Только для администратора'], 403);
+    $target = trim((string)($body['user_id'] ?? ''));
+    try {
+        if ($target === '') {
+            $pdo->prepare("DELETE FROM promo_attempts WHERE user_id = ?")->execute([$userId]);
+        } elseif ($target === 'all') {
+            $pdo->exec("DELETE FROM promo_attempts");
+        } else {
+            $pdo->prepare("DELETE FROM promo_attempts WHERE user_id = ?")->execute([$target]);
+        }
+        pbOut(['ok' => true]);
+    } catch (Exception $e) { pbOut(['error' => 'Не удалось сбросить: ' . $e->getMessage()], 500); }
 }
 
 if ($action === 'check') {

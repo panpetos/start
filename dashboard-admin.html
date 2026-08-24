@@ -1642,7 +1642,20 @@
                       <input id="free_promo_limit" type="number" min="0" step="1"
                              value="${esc(sGet('free_promo_limit','5'))}"
                              style="width:120px;margin-top:0.3rem;padding:0.55rem 0.7rem;border:1.5px solid var(--a-input-border);border-radius:0.6rem;font-family:inherit;font-size:0.95rem;background:var(--a-input-bg);color:var(--a-text);"></label>
+                    <label style="font-size:0.82rem;color:var(--a-text-sec);font-weight:600;">Неудачных попыток в сутки<br>
+                      <input id="free_promo_fail_limit" type="number" min="0" step="1"
+                             value="${esc(sGet('free_promo_fail_limit','10'))}"
+                             style="width:150px;margin-top:0.3rem;padding:0.55rem 0.7rem;border:1.5px solid var(--a-input-border);border-radius:0.6rem;font-family:inherit;font-size:0.95rem;background:var(--a-input-bg);color:var(--a-text);"></label>
                     <span style="color:var(--a-text-muted);font-size:0.8rem;">0 — без ограничения</span>
+                  </div>
+                  <div style="margin-top:0.9rem;display:flex;gap:0.6rem;align-items:center;flex-wrap:wrap;">
+                    <button class="btn-sm" style="padding:0.5rem 0.9rem;" onclick="resetPromoAttempts('me',this)">Сбросить блокировку себе</button>
+                    <button class="btn-sm" style="padding:0.5rem 0.9rem;" onclick="resetPromoAttempts('all',this)">Сбросить всем</button>
+                    <span id="promoAttemptsMsg" style="font-size:0.83rem;color:var(--a-text-sec);"></span>
+                  </div>
+                  <div class="note" style="margin-top:0.8rem;">
+                    Защита от подбора кода: после стольких неудач в сутки человеку отказывают до завтра.
+                    <b>Администратора она не касается вовсе</b> — свой код вы проверяете без ограничений.
                   </div>
                 </div>
               </div>
@@ -1874,6 +1887,8 @@
             if (fpl) payload.free_promo_limit = String(parseInt(fpl.value, 10) || 0);
             const wm = document.getElementById('welcome_message');
             if (wm) payload.welcome_message = wm.value.trim();
+            const fpf = document.getElementById('free_promo_fail_limit');
+            if (fpf) payload.free_promo_fail_limit = String(parseInt(fpf.value, 10) || 0);
             const msg = document.getElementById('saveMsg');
             btn.disabled = true; if(msg){ msg.textContent='Сохраняем...'; msg.style.color='var(--a-text-sec)'; }
             const res = await apiPost('save-settings', { settings: payload });
@@ -1893,6 +1908,27 @@
                 if(msg){ msg.textContent = '⚠️ ' + ((res&&res.error)||'Не удалось сохранить'); msg.style.color='#DC2626'; }
             }
         }
+
+        /** Сбросить счётчик неудачных попыток промокода — себе или всем. */
+        async function resetPromoAttempts(who, btn){
+            const msg = document.getElementById('promoAttemptsMsg');
+            if (who === 'all' && !confirm('Сбросить счётчик неудачных попыток ВСЕМ пользователям?')) return;
+            btn.disabled = true; if (msg) { msg.style.color = 'var(--a-text-sec)'; msg.textContent = 'Сбрасываем…'; }
+            try {
+                const r = await fetch('/api/promo_booking.php?action=reset-attempts', {
+                    method:'POST', headers:{'Content-Type':'application/json'}, credentials:'include',
+                    body: JSON.stringify(who === 'all' ? { user_id:'all' } : {})
+                });
+                const raw = await r.text();
+                let d = null; try { d = JSON.parse(raw); } catch(e){}
+                if (d && d.ok) { if (msg) { msg.style.color = '#16A34A'; msg.textContent = '✅ Готово, можно проверять промокод'; } }
+                else if (msg) { msg.style.color = '#DC2626'; msg.textContent = '⚠️ ' + ((d && d.error) || `HTTP ${r.status}: ${raw.slice(0,160)}`); }
+            } catch(e) {
+                if (msg) { msg.style.color = '#DC2626'; msg.textContent = '⚠️ Сеть: ' + (e.message || 'запрос не ушёл'); }
+            }
+            btn.disabled = false;
+        }
+        window.resetPromoAttempts = resetPromoAttempts;
 
         // ── Support ─────────────────────────────────────────────────────────
         let supportThreadId = null;
