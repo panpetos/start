@@ -535,21 +535,32 @@
                         const psychName = `${a.psychologist_first_name || ''} ${a.psychologist_last_name || ''}`.trim() || 'Психолог';
                         const fmt = a.format ? (fmtLabels[a.format] || a.format) : '';
 
+                        // Пустой статус считаем «запланировано»: в базе такие записи есть
+                        // (часть создана до того, как статус стали проставлять), и раньше
+                        // выходило противоречие — плашка показывала «Запланировано», а
+                        // отменить запись было нельзя, потому что проверка требовала
+                        // строгого равенства 'scheduled'.
+                        const st = a.status || 'scheduled';
+
                         let statusClass = 'status-scheduled';
                         let statusText = 'Запланировано';
-                        if (a.status === 'completed') {
+                        if (st === 'completed') {
                             statusClass = 'status-completed';
                             statusText = 'Завершено';
-                        } else if (a.status === 'cancelled') {
+                        } else if (st === 'cancelled') {
                             statusClass = 'status-cancelled';
                             statusText = 'Отменено';
+                        } else if (st === 'pending_payment' || st === 'pending') {
+                            statusClass = 'status-scheduled';
+                            statusText = 'Ждёт оплаты';
                         }
 
-                        const canCancel = a.status === 'scheduled' && new Date(a.date_time) > new Date();
+                        const canCancel = (st === 'scheduled' || st === 'pending_payment' || st === 'pending')
+                            && new Date(a.date_time) > new Date();
                         const hoursUntil = (new Date(a.date_time) - new Date()) / 36e5;
                         const lateCancel = hoursUntil < 24;
-                        const canReview = a.status === 'completed';
-                        const canChat   = a.status !== 'cancelled';
+                        const canReview = st === 'completed';
+                        const canChat   = st !== 'cancelled';
 
                         return `
                         <div class="appointment-item">

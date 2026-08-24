@@ -549,10 +549,12 @@
                     if (Array.isArray(appointments)) {
                         appointments.forEach(a => {
                             const date = new Date(a.date_time);
-                            if (a.status === 'scheduled' && date > now) {
+                            // Пустой статус считаем «запланировано» — см. пояснение ниже.
+                            const st = a.status || 'scheduled';
+                            if ((st === 'scheduled' || st === 'pending_payment' || st === 'pending') && date > now) {
                                 upcoming++;
                             }
-                            if (a.status === 'completed' && date >= monthStart) {
+                            if (st === 'completed' && date >= monthStart) {
                                 completedThisMonth++;
                                 // Доход психолога = цена клиента минус комиссия платформы
                                 const gross = parseFloat(a.price) || 0;
@@ -587,19 +589,28 @@
                         const dateStr = `${date.getDate()} ${MONTHS[date.getMonth()]}, ${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
                         const clientName = `${a.client_first_name || ''} ${a.client_last_name || ''}`.trim() || a.client_email || 'Клиент';
 
+                        // Пустой статус считаем «запланировано»: такие записи в базе есть,
+                        // и раньше получалось противоречие — плашка показывала
+                        // «Запланировано», а ни отменить, ни отметить проведённой было
+                        // нельзя, потому что проверки требовали строгого 'scheduled'.
+                        const st = a.status || 'scheduled';
+                        const active = (st === 'scheduled' || st === 'pending_payment' || st === 'pending');
+
                         let statusClass = 'status-scheduled';
                         let statusText = 'Запланировано';
-                        if (a.status === 'completed') {
+                        if (st === 'completed') {
                             statusClass = 'status-completed';
                             statusText = 'Завершено';
-                        } else if (a.status === 'cancelled') {
+                        } else if (st === 'cancelled') {
                             statusClass = 'status-cancelled';
                             statusText = 'Отменено';
+                        } else if (st === 'pending_payment' || st === 'pending') {
+                            statusText = 'Ждёт оплаты';
                         }
 
                         const isPast = date < now;
-                        const canComplete = a.status === 'scheduled' && isPast;
-                        const canCancel = a.status === 'scheduled' && !isPast;
+                        const canComplete = active && isPast;
+                        const canCancel = active && !isPast;
 
                         return `
                         <div class="appointment-item">
