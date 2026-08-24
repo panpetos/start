@@ -33,6 +33,8 @@ require_once __DIR__ . '/config.php';
 if (!function_exists('getDB') && !function_exists('getDbConnection') && !function_exists('getPDO')) {
     require_once __DIR__ . '/db.php';
 }
+// rtcSendDm — уведомления в чат о переносе/переназначении записи
+@include_once __DIR__ . '/rtc_lib.php';
 $pdo = function_exists('getDB') ? getDB()
      : (function_exists('getDbConnection') ? getDbConnection()
      : (function_exists('getPDO') ? getPDO() : null));
@@ -500,6 +502,143 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             http_response_code(500);
             echo json_encode(['error' => 'Не удалось удалить пользователя — остались связанные записи. Сообщите разработчику.']);
         }
+        exit;
+    }
+
+    if ($action === 'update-appointment') {
+        // Переназначить / перенести / отменить запись — то, что нужно техподдержке.
+        // Раньше «замена психолога» была только очередью заявок (replacement_requests):
+        // клиент просил, админ помечал статус, а сама запись оставалась у прежнего
+        // специалиста и в прежнем времени. Здесь запись меняется по-настоящему.
+        //
+        // Меняем только то, что прислали: пустое поле — «не трогать».
+        $aid = trim((string)($body['id'] ?? ''));
+        if ($aid === '') { http_response_code(400); echo json_encode(['error' => 'Нужен id записи']); exit; }
+
+        try {
+            $st = $pdo->prepare("SELECT * FROM appointments WHERE id = ? LIMIT 1");
+            $st->execute([$aid]);
+            $appt = $st->fetch(PDO::FETCH_ASSOC);
+        } catch (Exception $e) { $appt = null; }
+        if (!$appt) { http_response_code(404); echo json_encode(['error' => 'Запись не найдена']); exit; }
+
+        $oldPsyId = (string)($appt['psychologist_id'] ?? '');
+        $oldWhen  = (string)($appt['date_time'] ?? '');
+        $clientId = (string)($appt['client_id'] ?? '');
+
+        $newPsyId = trim((string)($body['psychologist_id'] ?? ''));
+        $newWhenIn = trim((string)($body['date_time'] ?? ''));
+        $newFormat = trim((string)($body['format'] ?? ''));
+        $newStatus = trim((string)($body['status'] ?? ''));
+
+        // Новый психолог должен существовать
+        if ($newPsyId !== '' && $newPsyId !== $oldPsyId) {
+            try {
+                $st = $pdo->prepare("SELECT id FROM psychologists WHERE id = ? LIMIT 1");
+                $st->execute([$newPsyId]);
+                if (!$st->fetchColumn()) { http_response_code(400); echo json_encode(['error' => 'Такого психолога нет']); exit; }
+            } catch (Exception $e) { http_response_code(500); echo json_encode(['error' => 'Не удалось проверить психолога']); exit; }
+        }
+
+        // Время принимаем и с «T», и с пробелом — из datetime-local приходит с «T»
+        $newWhen = '';
+        if ($newWhenIn !== '') {
+            $dt = DateTime::createFromFormat('Y-m-d H:i:s', $newWhenIn)
+               ?: DateTime::createFromFormat('Y-m-d\TH:i:s', $newWhenIn)
+               ?: DateTime::createFromFormat('Y-m-d\TH:i', $newWhenIn)
+               ?: DateTime::createFromFormat('Y-m-d H:i', $newWhenIn);
+            if (!$dt) { http_response_code(400); echo json_encode(['error' => 'Не понял дату и время']); exit; }
+            $newWhen = $dt->format('Y-m-d H:i:s');
+        }
+
+        if ($newStatus !== '' && !in_array($newStatus, ['scheduled', 'completed', 'cancelled', 'pending_payment', 'no_show'], true)) {
+            http_response_code(400); echo json_encode(['error' => 'Неизвестный статус']); exit;
+        }
+        if ($newFormat !== '' && !in_array($newFormat, ['video', 'audio', 'chat'], true)) {
+            http_response_code(400); echo json_encode(['error' => 'Неизвестный формат']); exit;
+        }
+
+        // Занятость: у КОНЕЧНОГО психолога в КОНЕЧНОЕ время не должно быть другой записи.
+        $checkPsy  = $newPsyId !== '' ? $newPsyId : $oldPsyId;
+        $checkWhen = $newWhen  !== '' ? $newWhen  : $oldWhen;
+        $finalStatus = $newStatus !== '' ? $newStatus : (string)($appt['status'] ?? '');
+        if ($finalStatus !== 'cancelled' && $checkPsy !== '' && $checkWhen !== '') {
+            try {
+                $st = $pdo->prepare("SELECT id FROM appointments
+                                      WHERE psychologist_id = ? AND date_time = ?
+                                        AND status != 'cancelled' AND id != ? LIMIT 1");
+                $st->execute([$checkPsy, $checkWhen, $aid]);
+                if ($st->fetchColumn()) { http_response_code(409); echo json_encode(['error' => 'У этого психолога уже занято это время']); exit; }
+            } catch (Exception $e) {}
+        }
+
+        // Собираем UPDATE только из присланных полей
+        $set = []; $args = [];
+        if ($newPsyId !== '' && $newPsyId !== $oldPsyId) { $set[] = 'psychologist_id = ?'; $args[] = $newPsyId; }
+        if ($newWhen  !== '' && $newWhen  !== $oldWhen)  { $set[] = 'date_time = ?';       $args[] = $newWhen; }
+        if ($newFormat !== '') { $set[] = 'format = ?'; $args[] = $newFormat; }
+        if ($newStatus !== '') { $set[] = 'status = ?'; $args[] = $newStatus; }
+        if (!$set) { echo json_encode(['ok' => true, 'changed' => false]); exit; }
+
+        $args[] = $aid;
+        try {
+            $pdo->prepare("UPDATE appointments SET " . implode(', ', $set) . " WHERE id = ?")->execute($args);
+        } catch (Exception $e) {
+            http_response_code(500);
+            echo json_encode(['error' => 'Не удалось изменить запись: ' . $e->getMessage()], JSON_UNESCAPED_UNICODE);
+            exit;
+        }
+
+        // ── Уведомления в чат ────────────────────────────────────────────────
+        // Человек не должен узнавать о переносе, случайно заглянув в кабинет.
+        $notified = [];
+        if (!empty($body['notify'])) {
+            $pm = psychMap($pdo);          // profile id => user_id
+            $um = usersMap($pdo);
+            $nameOf = function ($psyId) use ($pm, $um) {
+                $uid = $pm[$psyId] ?? '';
+                return $um[$uid]['name'] ?? 'специалист';
+            };
+            $whenHuman = function ($sqlDt) {
+                if ($sqlDt === '') return '';
+                $ts = strtotime($sqlDt);
+                return $ts ? date('d.m.Y H:i', $ts) : $sqlDt;
+            };
+            $lines = [];
+            if ($newPsyId !== '' && $newPsyId !== $oldPsyId) {
+                $lines[] = 'специалист: ' . $nameOf($oldPsyId) . ' → ' . $nameOf($newPsyId);
+            }
+            if ($newWhen !== '' && $newWhen !== $oldWhen) {
+                $lines[] = 'время: ' . $whenHuman($oldWhen) . ' → ' . $whenHuman($newWhen);
+            }
+            if ($newStatus === 'cancelled') $lines[] = 'запись отменена';
+            elseif ($newStatus !== '') $lines[] = 'статус: ' . $newStatus;
+            if ($newFormat !== '') $lines[] = 'формат: ' . $newFormat;
+
+            if ($lines) {
+                $text = "🛠 Изменение по вашей записи
+
+• " . implode("
+• ", $lines)
+                      . "
+
+Изменение внесла поддержка psytalk.pro. Если что-то не так — ответьте на это сообщение.";
+                if (function_exists('rtcSendDm')) {
+                    // Клиенту
+                    if ($clientId !== '') { rtcSendDm($pdo, $userId, $clientId, $text, false); $notified[] = 'client'; }
+                    // Прежнему специалисту — если его сняли с записи
+                    if ($newPsyId !== '' && $newPsyId !== $oldPsyId) {
+                        $oldUid = $pm[$oldPsyId] ?? '';
+                        if ($oldUid !== '') { rtcSendDm($pdo, $userId, $oldUid, $text, false); $notified[] = 'old_psy'; }
+                    }
+                    // Конечному специалисту
+                    $newUid = $pm[$checkPsy] ?? '';
+                    if ($newUid !== '') { rtcSendDm($pdo, $userId, $newUid, $text, false); $notified[] = 'psy'; }
+                }
+            }
+        }
+
+        echo json_encode(['ok' => true, 'changed' => true, 'notified' => $notified], JSON_UNESCAPED_UNICODE);
         exit;
     }
 

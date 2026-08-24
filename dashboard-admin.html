@@ -908,10 +908,95 @@
                     const cn = (a.client_name||'').replace(/'/g,"\\'");
                     const pn = (a.psychologist_name||'').replace(/'/g,"\\'");
                     return `<tr><td>${fmtDateTime(a.date_time)}</td><td>${esc(a.client_name||'—')}</td><td>${esc(a.psychologist_name||'—')}</td><td>${esc(a.format||'—')}</td><td>${fmtMoney(a.price)} ₽</td><td><span class="badge ${s[0]}">${esc(s[1])}</span></td>`
-                        + `<td><button class="btn-sm btn-danger" style="padding:0.3rem 0.6rem;" onclick="deleteAppt('${esc(String(a.id))}','${esc(cn)}','${esc(pn)}',this)" title="Удалить запись">🗑</button></td></tr>`;
+                        + `<td style="white-space:nowrap;">`
+                        + `<button class="btn-sm" style="padding:0.3rem 0.6rem;margin-right:0.3rem;" onclick='openApptEdit(${JSON.stringify(a).replace(/'/g,"&#39;")})' title="Переназначить или перенести">✏️</button>`
+                        + `<button class="btn-sm btn-danger" style="padding:0.3rem 0.6rem;" onclick="deleteAppt('${esc(String(a.id))}','${esc(cn)}','${esc(pn)}',this)" title="Удалить запись">🗑</button>`
+                        + `</td></tr>`;
                 }).join('') + '</tbody></table>';
             document.getElementById('content').innerHTML = panel('Записи ('+rows.length+')','sAppt',body);
         }
+
+        // ── Переназначение / перенос записи ────────────────────────────────
+        //  Техподдержке мало «отменить»: если специалист заболел или не подошёл,
+        //  запись надо передать другому и/или сдвинуть время, а не обнулять.
+        let apptEditing = null;
+        let apptPsychList = null;   // грузим один раз
+
+        async function openApptEdit(a){
+            apptEditing = a;
+            if (!apptPsychList) {
+                const r = await apiGet('psychologists');
+                apptPsychList = (r && r.ok) ? (r.data || []) : [];
+            }
+            const cur = String(a.psychologist_id || '');
+            const opts = apptPsychList.map(p => {
+                const nm = (p.name || '').trim() || p.email || ('id ' + p.id);
+                const appr = String(p.is_approved) === '1' ? '' : ' (не одобрен)';
+                return `<option value="${esc(String(p.id))}" ${String(p.id)===cur?'selected':''}>${esc(nm)}${appr}</option>`;
+            }).join('');
+            // date_time из базы приходит как «YYYY-MM-DD HH:MM:SS» — input хочет «T»
+            const dtLocal = String(a.date_time || '').replace(' ', 'T').slice(0, 16);
+            const fld = 'width:100%;padding:0.5rem 0.65rem;border:1.5px solid var(--a-input-border);border-radius:0.55rem;font-family:inherit;font-size:0.92rem;background:var(--a-input-bg);color:var(--a-text);';
+            document.getElementById('apptEditBody').innerHTML = `
+                <div style="display:grid;gap:0.85rem;">
+                  <label style="font-size:0.82rem;font-weight:600;color:var(--a-text-sec);">Психолог<br>
+                    <select id="apptPsych" style="${fld}margin-top:0.3rem;">${opts}</select></label>
+                  <label style="font-size:0.82rem;font-weight:600;color:var(--a-text-sec);">Дата и время<br>
+                    <input id="apptWhen" type="datetime-local" value="${esc(dtLocal)}" style="${fld}margin-top:0.3rem;"></label>
+                  <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;">
+                    <label style="font-size:0.82rem;font-weight:600;color:var(--a-text-sec);">Формат<br>
+                      <select id="apptFormat" style="${fld}margin-top:0.3rem;">
+                        ${['video','audio','chat'].map(f=>`<option value="${f}" ${String(a.format)===f?'selected':''}>${f}</option>`).join('')}
+                      </select></label>
+                    <label style="font-size:0.82rem;font-weight:600;color:var(--a-text-sec);">Статус<br>
+                      <select id="apptStatus" style="${fld}margin-top:0.3rem;">
+                        ${[['scheduled','запланировано'],['pending_payment','ждёт оплаты'],['completed','завершено'],['cancelled','отменено'],['no_show','не пришёл']]
+                          .map(([v,t])=>`<option value="${v}" ${String(a.status)===v?'selected':''}>${t}</option>`).join('')}
+                      </select></label>
+                  </div>
+                  <label style="display:flex;align-items:center;gap:0.5rem;font-size:0.85rem;color:var(--a-text);">
+                    <input type="checkbox" id="apptNotify" checked>
+                    Написать клиенту и психологу в чат, что изменилось</label>
+                  <div id="apptEditMsg" style="font-size:0.85rem;min-height:1.2em;"></div>
+                </div>`;
+            document.getElementById('apptEditModal').style.display = 'flex';
+        }
+        function closeApptEdit(){ document.getElementById('apptEditModal').style.display = 'none'; apptEditing = null; }
+        window.openApptEdit = openApptEdit; window.closeApptEdit = closeApptEdit;
+
+        async function saveApptEdit(btn){
+            if (!apptEditing) return;
+            const msg = document.getElementById('apptEditMsg');
+            const payload = {
+                id: apptEditing.id,
+                psychologist_id: document.getElementById('apptPsych').value,
+                date_time: document.getElementById('apptWhen').value,
+                format: document.getElementById('apptFormat').value,
+                status: document.getElementById('apptStatus').value,
+                notify: document.getElementById('apptNotify').checked ? 1 : 0
+            };
+            btn.disabled = true; msg.style.color = 'var(--a-text-sec)'; msg.textContent = 'Сохраняем…';
+            try {
+                const r = await fetch(`${API}?action=update-appointment`, {
+                    method:'POST', headers:{'Content-Type':'application/json'},
+                    credentials:'include', body: JSON.stringify(payload)
+                });
+                const raw = await r.text();
+                let d = null; try { d = JSON.parse(raw); } catch(e){}
+                if (d && d.ok) {
+                    msg.style.color = '#16A34A';
+                    msg.textContent = d.changed ? '✅ Сохранено' : 'Ничего не изменилось';
+                    setTimeout(() => { closeApptEdit(); renderAppointments(); }, 700);
+                } else {
+                    msg.style.color = '#DC2626';
+                    msg.textContent = '⚠️ ' + ((d && d.error) || `HTTP ${r.status}: ${raw.slice(0,200)}`);
+                }
+            } catch(e) {
+                msg.style.color = '#DC2626'; msg.textContent = '⚠️ Сеть: ' + (e.message || 'запрос не ушёл');
+            }
+            btn.disabled = false;
+        }
+        window.saveApptEdit = saveApptEdit;
 
         async function deleteAppt(id, clientName, psychName, btn){
             if (!confirm(`Удалить запись?\n\nКлиент: ${clientName||'—'}\nПсихолог: ${psychName||'—'}\n\nВосстановить нельзя. Оплата по этой записи (если была) тоже удалится.`)) return;
@@ -3486,6 +3571,22 @@
         try { if (window.lucide) lucide.createIcons(); } catch(e){}
         init();
     </script>
+    <!-- Переназначение / перенос записи (техподдержка) -->
+    <div id="apptEditModal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.45);align-items:center;justify-content:center;padding:1rem;"
+         onclick="if(event.target===this)closeApptEdit()">
+      <div style="background:var(--a-panel);border-radius:1.25rem;max-width:460px;width:100%;max-height:90vh;overflow-y:auto;padding:1.5rem;box-shadow:0 16px 48px rgba(0,0,0,0.18);">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;">
+          <h2 style="font-size:1.1rem;font-weight:700;color:var(--a-text);margin:0;">Изменить запись</h2>
+          <button onclick="closeApptEdit()" style="background:none;border:none;font-size:1.4rem;cursor:pointer;color:var(--a-text-sec);line-height:1;">&times;</button>
+        </div>
+        <div id="apptEditBody"></div>
+        <div style="display:flex;gap:0.6rem;margin-top:1.25rem;">
+          <button class="btn-sm btn-brand" style="padding:0.6rem 1.2rem;font-size:0.92rem;" onclick="saveApptEdit(this)">Сохранить</button>
+          <button class="btn-sm" style="padding:0.6rem 1.2rem;font-size:0.92rem;" onclick="closeApptEdit()">Отмена</button>
+        </div>
+      </div>
+    </div>
+
     <div id="psychModal" onclick="if(event.target===this)closePsychModal()">
         <div class="pm-card" id="psychModalContent"></div>
     </div>
