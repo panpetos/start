@@ -118,6 +118,7 @@ jobs:
             put api/referrals.php -o api/referrals.php;
             put api/calendar.php -o api/calendar.php;
             put api/settings_lib.php -o api/settings_lib.php;
+            put api/welcome.php -o api/welcome.php;
             put api/promo_booking.php -o api/promo_booking.php;
             put api/free_intro.php -o api/free_intro.php;
             put api/unread.php -o api/unread.php;

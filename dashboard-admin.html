@@ -1542,6 +1542,18 @@
                   </div>
                 </div>
               </div>
+              <div class="panel" style="margin-bottom:1.25rem;">
+                <div class="panel-head"><h2>Приветствие новому пользователю</h2></div>
+                <div style="padding:1.1rem 1.25rem;">
+                  <div class="note" style="margin-bottom:0.9rem;">
+                    Отправляется в чат от вашего имени, когда человек впервые открывает чат
+                    и ещё ни с кем не переписывался. Каждому — один раз.
+                    <b>Пусто — используется текст по умолчанию.</b>
+                  </div>
+                  <textarea id="welcome_message" rows="5" placeholder="Оставьте пустым — будет текст по умолчанию"
+                            style="width:100%;padding:0.6rem 0.75rem;border:1.5px solid var(--a-input-border);border-radius:0.6rem;font-family:inherit;font-size:0.92rem;line-height:1.5;background:var(--a-input-bg);color:var(--a-text);resize:vertical;">${esc(sGet('welcome_message',''))}</textarea>
+                </div>
+              </div>
               <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;align-items:start;" id="tariffGrid">
                 <div class="panel">
                   <div class="panel-head"><h2>Базовые цены тарифов</h2></div>
@@ -1756,6 +1768,8 @@
             if (fpc) payload.free_promo_code = fpc.value.trim().toUpperCase();
             const fpl = document.getElementById('free_promo_limit');
             if (fpl) payload.free_promo_limit = String(parseInt(fpl.value, 10) || 0);
+            const wm = document.getElementById('welcome_message');
+            if (wm) payload.welcome_message = wm.value.trim();
             const msg = document.getElementById('saveMsg');
             btn.disabled = true; if(msg){ msg.textContent='Сохраняем...'; msg.style.color='var(--a-text-sec)'; }
             const res = await apiPost('save-settings', { settings: payload });

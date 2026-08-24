@@ -6032,6 +6032,11 @@
             const themeToggle = document.getElementById('chatThemeToggle');
             if (themeToggle) themeToggle.textContent = document.body.classList.contains('dark') ? '☀️' : '🌙';
 
+            // Приветствие новичку. Шаблон client.welcome был заведён, но его никто не
+            // отправлял — новый человек видел пустой чат, и у админа в диалоге с ним
+            // тоже было пусто. Сервер сам решит, новичок это или нет.
+            try { await fetch('/api/welcome.php?action=ensure', { method: 'POST', credentials: 'include' }); } catch (e) {}
+
             await loadMyChannels();
             await loadMyGroups();
             await loadFolders();
