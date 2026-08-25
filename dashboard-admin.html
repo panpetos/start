@@ -2051,7 +2051,7 @@
         let supportThreadId = null;
         let supPollTimer = null;
         let supMsgPollTimer = null;
-        let supLastTotalUnread = 0;
+        let supLastTotalUnread = -1;   // −1 = ещё не измеряли (см. supLastInboxUnread)
         let supPendingFile = null;
         let supAllThreadRows = [];
 
@@ -2132,7 +2132,11 @@
             return `<div style="margin-top:0.3rem;"><a href="${esc(m.attachment_url)}" target="_blank" style="color:inherit;text-decoration:underline;font-size:0.8rem;">📎 ${esc(m.attachment_name || 'файл')}</a></div>`;
         }
 
-        let supLastInboxUnread = 0;
+        // −1 значит «ещё не измеряли». С нуля начинать нельзя: на первом же опросе
+        // после загрузки страницы ЛЮБОЕ висящее непрочитанное больше нуля — и админке
+        // показывалось «Новое сообщение» про давнее, уже прочитанное обращение.
+        // Первый замер только запоминаем, звук и всплывашку не трогаем.
+        let supLastInboxUnread = -1;
         function supStartPolling() {
             if (supPollTimer) clearInterval(supPollTimer);
             supPollTimer = setInterval(psyGuardPoll(async () => {
@@ -2140,7 +2144,7 @@
                     const res = await (await fetch('/api/support.php?action=threads', { credentials:'include' })).json();
                     const rows = (res && res.ok) ? (res.data || []) : [];
                     const widgetUnread = rows.reduce((s,t) => s + (t.unread || 0), 0);
-                    if (widgetUnread > supLastTotalUnread) {
+                    if (supLastTotalUnread >= 0 && widgetUnread > supLastTotalUnread) {
                         supPlaySound();
                         const newest = rows.find(t => t.unread > 0);
                         if (newest) supShowNotif((newest.name || 'Гость') + ': ' + (newest.last_message || ''));
@@ -2150,7 +2154,7 @@
                     // Внутренний чат (сообщения клиентов/психологов) — опрашивается всегда,
                     // на любой вкладке админки, а не только на «Поддержка», иначе звук/тост не срабатывали.
                     const inbox = await supRefreshInbox();
-                    if (inbox.unread > supLastInboxUnread) {
+                    if (supLastInboxUnread >= 0 && inbox.unread > supLastInboxUnread) {
                         supPlaySound();
                         if (inbox.preview) supShowNotif(inbox.preview);
                     }
