@@ -3999,6 +3999,8 @@
     <script>
         const FAVORITES_ID = '__fav__'; // псевдо-собеседник «Избранное» (свой личный диалог)
         const FEED_ID = '__feed__';     // раздел «Лента» — посты каналов, на которые подписан человек
+        const BLOG_ID = '__blog__';     // раздел «Блог» — задача №81: был в закреплённом наборе, но не рисовался
+        const SUPPORT_ID = '__support__'; // раздел «Тех поддержка чат» — задача №81: свой разговор с поддержкой
         // ══════════════════════════════════════════════════════════════════════════
         //  КАТАЛОГ ПСИХОЛОГОВ ПРЯМО В ЧАТЕ
         //
@@ -6037,6 +6039,10 @@
             // тоже было пусто. Сервер сам решит, новичок это или нет.
             try { await fetch('/api/welcome.php?action=ensure', { method: 'POST', credentials: 'include' }); } catch (e) {}
 
+            // Задача №81: разово завести папку «Важное» с ИИ-ассистентом/Психологами/Лентой/
+            // Блогом/Тех поддержкой и закрепить их — сервер сам решит, было ли это уже сделано.
+            try { await fetch('/api/chat_folders.php?action=ensure-defaults', { method: 'POST', credentials: 'include' }); } catch (e) {}
+
             await loadMyChannels();
             await loadMyGroups();
             await loadFolders();
@@ -6147,6 +6153,8 @@
             if (k.indexOf(GROUP_PREFIX) === 0) { openGroupChat(k.slice(GROUP_PREFIX.length)); return; }
             if (k === FEED_ID) { openFeedSection(); return; }
             if (k === PSY_ID) { openPsyCatalog(); return; }
+            if (k === BLOG_ID) { openBlogSection(); return; }
+            if (k === SUPPORT_ID) { openMySupportChat(); return; }
             if (k.indexOf(CHANNEL_PREFIX) === 0) { openChannel(k.slice(CHANNEL_PREFIX.length)); return; }
             if (k.indexOf(SUPPORT_PREFIX) === 0) { openSupportThread(k.slice(SUPPORT_PREFIX.length)); return; }
             openChat(k);
@@ -6278,6 +6286,8 @@
             if (!k) return false;
             if (k === FEED_ID) return false;
             if (k === PSY_ID) return false;
+            if (k === BLOG_ID) return false;
+            if (k === SUPPORT_ID) return false;
             if (k.indexOf(CHANNEL_PREFIX) === 0) return false;
             if (k.indexOf('blog:') === 0) return false;
             return true;
@@ -7907,7 +7917,7 @@
 
         const BUILTIN_FOLDERS = [
             { id: 'all',      label: 'Все',     icon: ICO_ALL,     kinds: null },
-            { id: 'personal', label: 'Личное',  icon: ICO_PERSON,  kinds: ['personal', 'fav', 'ai'] },
+            { id: 'personal', label: 'Личное',  icon: ICO_PERSON,  kinds: ['personal', 'fav', 'ai', 'support'] },
             { id: 'channels', label: 'Каналы',  icon: ICO_CHANNEL, kinds: ['channel', 'feed'] },
             { id: 'groups',   label: 'Группы',  icon: ICO_GROUP,   kinds: ['group'] },
         ];
@@ -9909,6 +9919,204 @@
                 </div>` }];
         }
 
+        /** Строка «Блог» — задача №81: раздел числился в списке разделов, но не рисовался нигде. */
+        function blogRows() {
+            if (!chatVisible('feed', BLOG_ID, null)) return [];
+            return [{ key: BLOG_ID, name: 'Блог', html: `
+                <div class="conversation-item ${selectedUserId === BLOG_ID ? 'active' : ''}" onclick="openBlogSection()" title="Блог">
+                    <div class="conversation-avatar" style="background:linear-gradient(135deg,#7C3AED,#A78BFA);"><span class="ava-ico">📝</span></div>
+                    <div class="conversation-info">
+                        <div class="conversation-name"><span class="cn-text">Блог</span>${pinMarkHtml(BLOG_ID)}</div>
+                        <div class="conversation-preview">Статьи психологов о самочувствии и терапии</div>
+                    </div>
+                    ${folderPickHtml(BLOG_ID, 'feed', null, 'Блог')}
+                </div>` }];
+        }
+        function openBlogSection() {
+            window.location.href = '/blog.html';
+        }
+        window.openBlogSection = openBlogSection;
+
+        /** Строка «Тех поддержка» — задача №81: свой разговор с поддержкой прямо в чатах,
+         *  а не только всплывающий виджет (который у вошедших вообще скрыт). */
+        function supportRows() {
+            if (!chatVisible('support', SUPPORT_ID, null)) return [];
+            return [{ key: SUPPORT_ID, name: 'Тех поддержка', html: `
+                <div class="conversation-item ${selectedUserId === SUPPORT_ID ? 'active' : ''}" onclick="openMySupportChat()" title="Тех поддержка">
+                    <div class="conversation-avatar" style="background:linear-gradient(135deg,#F59E0B,#EF4444);"><span class="ava-ico">🆘</span></div>
+                    <div class="conversation-info">
+                        <div class="conversation-name"><span class="cn-text">Тех поддержка</span>${pinMarkHtml(SUPPORT_ID)}</div>
+                        <div class="conversation-preview">Напишите нам — ответим здесь</div>
+                    </div>
+                    ${folderPickHtml(SUPPORT_ID, 'support', null, 'Тех поддержка')}
+                </div>` }];
+        }
+
+        // ── Свой разговор с поддержкой (задача №81) ─────────────────────────────────
+        // Использует тот же публичный, по токену, api/support.php, которым уже пользуется
+        // всплывающий виджет (js/layout.js) — но виджет у вошедших скрыт (см. его же
+        // комментарий: «поддержка доступна в чатах»), а на деле раздела не было нигде.
+        // Ключ __support__ — НЕ то же самое, что admin-ый SUPPORT_PREFIX+id: тот открывает
+        // конкретное обращение из списка админки, этот — всегда «моё собственное».
+        let mySupportToken = null;
+        let mySupportPollTimer = null;
+
+        function mySupportTokenKey() {
+            return 'psy_support_token_own_' + (currentUser && currentUser.id ? currentUser.id : '');
+        }
+
+        function mySupportAttachmentHtml(m) {
+            if (!m.attachment_url) return '';
+            const isImg = (m.attachment_type || '').indexOf('image') === 0;
+            const isAudio = (m.attachment_type || '').indexOf('audio') === 0;
+            if (isImg) return `<div style="margin-top:0.3rem;"><img src="${escapeHtml(m.attachment_url)}" style="max-width:220px;max-height:180px;border-radius:0.6rem;cursor:pointer;" data-zoom></div>`;
+            if (isAudio) return `<div style="margin-top:0.3rem;"><audio controls src="${escapeHtml(m.attachment_url)}" style="max-width:240px;height:34px;"></audio></div>`;
+            return `<div style="margin-top:0.3rem;"><a href="${escapeHtml(m.attachment_url)}" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline;font-size:0.8rem;">📎 ${escapeHtml(m.attachment_name || 'файл')}</a></div>`;
+        }
+
+        function mySupportIsDark() { return document.body.classList.contains('dark'); }
+
+        function mySupportMsgHtml(m) {
+            const mine = m.sender === 'user';
+            const dark = mySupportIsDark();
+            const bg = mine ? 'linear-gradient(135deg,#047857,#059669)' : (dark ? '#2A2A2A' : '#fff');
+            const color = mine ? '#fff' : (dark ? '#E6E6E6' : '#1A1A1A');
+            const border = mine ? 'none' : ('1px solid ' + (dark ? '#444' : '#ECECEC'));
+            return `<div style="align-self:${mine ? 'flex-end' : 'flex-start'};max-width:80%;background:${bg};color:${color};border:${border};border-radius:0.9rem;padding:0.5rem 0.75rem;font-size:0.9rem;line-height:1.4;margin-bottom:0.5rem;">
+                ${mine ? '' : '<div style="font-size:0.7rem;color:#047857;font-weight:700;margin-bottom:0.15rem;">Поддержка</div>'}
+                ${escapeHtml(m.body || '')}${mySupportAttachmentHtml(m)}
+            </div>`;
+        }
+
+        async function loadMySupportMessages() {
+            const box = document.getElementById('mySupportMsgs');
+            if (!box) return;
+            if (!mySupportToken) {
+                box.innerHTML = '<div class="empty-state"><p style="color:#9CA3AF;">Напишите вопрос ниже — мы ответим здесь же.</p></div>';
+                return;
+            }
+            try {
+                const r = await fetch('/api/support.php?action=poll&token=' + encodeURIComponent(mySupportToken), { credentials: 'include' });
+                const d = await r.json();
+                const rows = (d && d.data) || [];
+                box.innerHTML = rows.length
+                    ? rows.map(mySupportMsgHtml).join('')
+                    : '<div class="empty-state"><p style="color:#9CA3AF;">Напишите вопрос ниже — мы ответим здесь же.</p></div>';
+                const scroller = document.getElementById('messagesContainer');
+                if (scroller) scroller.scrollTop = scroller.scrollHeight;
+            } catch (e) {}
+        }
+
+        function startMySupportPolling() {
+            if (mySupportPollTimer) clearInterval(mySupportPollTimer);
+            const tick = () => {
+                if (selectedUserId !== SUPPORT_ID) { clearInterval(mySupportPollTimer); mySupportPollTimer = null; return; }
+                loadMySupportMessages();
+            };
+            tick();
+            mySupportPollTimer = setInterval(psyPollGuard(unlessSync(tick)), 5000);
+        }
+
+        async function sendMySupportMessage() {
+            const input = document.getElementById('mySupportInput');
+            if (!input) return;
+            const text = input.value.trim();
+            if (!text) return;
+            input.value = '';
+            input.disabled = true;
+            try {
+                if (!mySupportToken) {
+                    const r = await fetch('/api/support.php?action=start', {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+                        body: JSON.stringify({ message: text }),
+                    });
+                    const d = await r.json();
+                    if (!d || !d.ok || !d.token) throw new Error((d && d.error) || 'Не удалось отправить');
+                    mySupportToken = d.token;
+                    try { localStorage.setItem(mySupportTokenKey(), mySupportToken); } catch (e) {}
+                    startMySupportPolling();
+                } else {
+                    const r = await fetch('/api/support.php?action=send', {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+                        body: JSON.stringify({ token: mySupportToken, message: text }),
+                    });
+                    const d = await r.json();
+                    if (!d || !d.ok) throw new Error((d && d.error) || 'Не удалось отправить');
+                    await loadMySupportMessages();
+                }
+            } catch (e) {
+                input.value = text;
+                alert('Сообщение не отправлено: ' + e.message);
+            } finally {
+                input.disabled = false;
+                input.focus();
+            }
+        }
+        window.sendMySupportMessage = sendMySupportMessage;
+
+        async function openMySupportChat() {
+            clearPinnedBar();
+            selectedUserId = SUPPORT_ID;
+            syncChatUrl(selectedUserId);
+            leaveAiMode();
+            cancelEditMessage();
+            headerRenderedFor = SUPPORT_ID;
+
+            document.getElementById('emptyState').style.display = 'none';
+            document.getElementById('chatContent').style.display = 'flex';
+            document.querySelector('.chat-container').classList.add('mobile-chat-open');
+            const inputBar = document.getElementById('chatInputBar');
+            if (inputBar) inputBar.style.display = 'none';   // у раздела свой, простой композер
+            if (pollInterval) { clearInterval(pollInterval); pollInterval = null; }
+
+            document.getElementById('chatHeader').innerHTML = `
+                <button class="chat-back-btn" onclick="goBackToList()" title="Назад к диалогам">←</button>
+                <div class="avatar" style="background:linear-gradient(135deg,#F59E0B,#EF4444);">🆘</div>
+                <div style="flex:1;min-width:0;">
+                    <div class="name">Тех поддержка</div>
+                    <div class="role">Обычно отвечаем в течение дня</div>
+                </div>
+                ${headerActionsHtml([], '')}`;
+
+            refreshConversationList();
+
+            if (!mySupportToken) {
+                try { mySupportToken = localStorage.getItem(mySupportTokenKey()); } catch (e) {}
+            }
+            // Композер — часть содержимого #messagesContainer, а не отдельный элемент сбоку:
+            // так уход в любой другой раздел (он тоже пишет в этот же контейнер) сам уберёт
+            // и список сообщений поддержки, и композер — без единой правки в других местах.
+            const box = document.getElementById('messagesContainer');
+            if (box) {
+                const dark = mySupportIsDark();
+                box.innerHTML = `
+                    <div id="mySupportMsgs" style="display:flex;flex-direction:column;gap:0.5rem;"></div>
+                    <div id="mySupportComposer" style="position:sticky;bottom:-1rem;margin:0.5rem -1rem -1rem;padding:0.7rem 1rem;
+                         background:${dark ? '#1E1E1E' : '#fff'};border-top:1px solid ${dark ? '#444' : '#ECECEC'};
+                         display:flex;gap:0.5rem;align-items:center;">
+                        <input id="mySupportInput" placeholder="Сообщение в поддержку..." style="flex:1;min-width:0;padding:0.6rem 0.9rem;border:1.5px solid ${dark ? '#444' : '#E5E7EB'};border-radius:1.2rem;font-family:inherit;font-size:0.9rem;outline:none;background:${dark ? '#2A2A2A' : '#fff'};color:${dark ? '#E6E6E6' : '#1A1A1A'};">
+                        <button id="mySupportSendBtn" style="width:42px;height:42px;border-radius:50%;border:none;background:linear-gradient(135deg,#F59E0B,#EF4444);color:#fff;cursor:pointer;font-size:1.05rem;flex-shrink:0;">➤</button>
+                    </div>`;
+                document.getElementById('mySupportSendBtn').addEventListener('click', sendMySupportMessage);
+                document.getElementById('mySupportInput').addEventListener('keydown', e => {
+                    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMySupportMessage(); }
+                });
+            }
+            if (!mySupportToken) {
+                try {
+                    const r = await fetch('/api/support.php?action=my-token', { credentials: 'include' });
+                    const d = await r.json();
+                    if (d && d.ok && d.token) {
+                        mySupportToken = d.token;
+                        try { localStorage.setItem(mySupportTokenKey(), mySupportToken); } catch (e) {}
+                    }
+                } catch (e) {}
+            }
+            startMySupportPolling();
+            setTimeout(() => { const i = document.getElementById('mySupportInput'); if (i) i.focus(); }, 80);
+        }
+        window.openMySupportChat = openMySupportChat;
+
         /** Перерисовать список диалогов с учётом активного поиска — если просто звать
          *  renderConversationList(allConversations) в ответ на любое обновление (смена папки,
          *  новое сообщение, опрос присутствия и т.д.), поиск молча сбрасывается на полный список:
@@ -9939,8 +10147,10 @@
             const err = channelsErrHtml() + groupsErrHtml();   // сообщения об ошибках всегда сверху
             favoritesRows().filter(bySpecialQuery).forEach(r => rows.push(r));
             aiRows().filter(bySpecialQuery).forEach(r => rows.push(r));
+            supportRows().filter(bySpecialQuery).forEach(r => rows.push(r));
             psyRows().filter(bySpecialQuery).forEach(r => rows.push(r));
             feedRows().filter(bySpecialQuery).forEach(r => rows.push(r));
+            blogRows().filter(bySpecialQuery).forEach(r => rows.push(r));
             channelsRows().filter(bySpecialQuery).forEach(r => rows.push(r));
             groupsRows().filter(bySpecialQuery).forEach(r => rows.push(r));
             const headHtml = q ? '' : err;

@@ -13,6 +13,9 @@
  *   POST ?action=start  {name, email, role, message, token?}  → создаёт обращение, вернёт token
  *   POST ?action=send   {token, message}
  *   GET  ?action=poll&token=...                                 → переписка посетителя
+ *   GET  ?action=my-token   (нужен вход)  → токен СВОЕГО обращения, если оно уже есть,
+ *      без создания нового — чтобы раздел «Тех поддержка» в чатах (задача №81) находил
+ *      прежний разговор и с другого устройства, где localStorage ещё пуст.
  * Админские (роль admin):
  *   GET  ?action=threads
  *   GET  ?action=messages&thread_id=...
@@ -206,6 +209,17 @@ if ($action === 'poll') {
         $pdo->prepare("UPDATE support_threads SET user_read_at = NOW() WHERE id = ?")->execute([(int)$thread['id']]);
     } catch (Exception $e) {}
     echo json_encode(['ok' => true, 'data' => $msgs]);
+    exit;
+}
+
+if ($action === 'my-token') {
+    if (!$userId) { http_response_code(401); echo json_encode(['error' => 'Требуется авторизация']); exit; }
+    try {
+        $st = $pdo->prepare("SELECT token FROM support_threads WHERE user_id = ? ORDER BY last_at DESC, id DESC LIMIT 1");
+        $st->execute([$userId]);
+        $token = $st->fetchColumn();
+        echo json_encode(['ok' => true, 'token' => $token !== false ? (string)$token : null]);
+    } catch (Exception $e) { echo json_encode(['ok' => true, 'token' => null]); }
     exit;
 }
 

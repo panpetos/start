@@ -19,6 +19,10 @@
  * POST ?action=delete      {id}            — удалить папку (состав удаляется вместе с ней)
  * POST ?action=toggle-item {id, chat_key}  — добавить/убрать чат из папки, вернёт in:true|false
  * POST ?action=set-items   {id, keys:[]}   — заменить состав папки целиком
+ * POST ?action=ensure-defaults             — задача №81: разово (на человека) завести папку
+ *      «Важное» с разделами ИИ-ассистент/Психологи/Лента/Блог/Тех поддержка и закрепить
+ *      их же — чтобы новый (и уже существующий) человек не потерял эти разделы среди
+ *      личных чатов. Идемпотентно — метка в default_seeded, повторный вызов молчит.
  */
 
 header('Content-Type: application/json; charset=utf-8');
@@ -59,9 +63,21 @@ try {
         chat_key VARCHAR(120) NOT NULL,
         PRIMARY KEY (folder_id, chat_key)
     ) DEFAULT CHARSET=utf8mb4");
+    $pdo->exec("CREATE TABLE IF NOT EXISTS chat_default_seeded (
+        user_id VARCHAR(64) NOT NULL PRIMARY KEY,
+        seeded_at DATETIME NOT NULL
+    ) DEFAULT CHARSET=utf8mb4");
+    // Та же таблица, что и в chat_pins.php (ensure-defaults закрепляет разделы сама,
+    // а порядок подключения файлов не гарантирован — на всякий случай создаём и здесь).
+    $pdo->exec("CREATE TABLE IF NOT EXISTS chat_pinned_chats (
+        user_id VARCHAR(64) NOT NULL,
+        chat_key VARCHAR(120) NOT NULL,
+        pinned_at DATETIME NOT NULL,
+        PRIMARY KEY (user_id, chat_key)
+    ) DEFAULT CHARSET=utf8mb4");
     // Наши таблицы создаются в utf8mb4_0900_ai_ci, а users/psychologists живут в
     // utf8mb4_unicode_ci — без выравнивания любой JOIN падает с ошибкой 1267.
-    psy_align_collation($pdo, ['chat_folders', 'chat_folder_items']);
+    psy_align_collation($pdo, ['chat_folders', 'chat_folder_items', 'chat_default_seeded', 'chat_pinned_chats']);
 } catch (Exception $e) {
     $foldersError = $e->getMessage();
 }
@@ -170,6 +186,36 @@ try {
             $ins->execute([(int)$f['id'], $k]);
         }
         out(['ok' => true, 'count' => count($seen)]);
+    }
+
+    if ($action === 'ensure-defaults') {
+        if ($foldersError) out(['ok' => true, 'done' => false, 'reason' => 'no-table']);
+        $mark = $pdo->prepare("SELECT 1 FROM chat_default_seeded WHERE user_id = ?");
+        $mark->execute([$userId]);
+        if ($mark->fetchColumn()) out(['ok' => true, 'done' => false, 'reason' => 'already']);
+        // Отмечаем сразу — двойной вызов (два тика загрузки чата) не должен завести две папки.
+        $pdo->prepare("INSERT IGNORE INTO chat_default_seeded (user_id, seeded_at) VALUES (?, NOW())")
+            ->execute([$userId]);
+
+        $defaultKeys = ['__ai__', '__psy__', '__feed__', '__blog__', '__support__'];
+
+        $st = $pdo->prepare("SELECT id FROM chat_folders WHERE user_id = ? AND name = ? LIMIT 1");
+        $st->execute([$userId, 'Важное']);
+        $folderId = (int)$st->fetchColumn();
+        if (!$folderId) {
+            $ord = $pdo->prepare("SELECT COALESCE(MAX(sort_order), 0) + 1 FROM chat_folders WHERE user_id = ?");
+            $ord->execute([$userId]);
+            $ins = $pdo->prepare("INSERT INTO chat_folders (user_id, name, sort_order, created_at) VALUES (?, 'Важное', ?, NOW())");
+            $ins->execute([$userId, (int)$ord->fetchColumn()]);
+            $folderId = (int)$pdo->lastInsertId();
+        }
+        $insItem = $pdo->prepare("INSERT IGNORE INTO chat_folder_items (folder_id, chat_key) VALUES (?, ?)");
+        $insPin = $pdo->prepare("INSERT IGNORE INTO chat_pinned_chats (user_id, chat_key, pinned_at) VALUES (?, ?, NOW())");
+        foreach ($defaultKeys as $k) {
+            $insItem->execute([$folderId, $k]);
+            try { $insPin->execute([$userId, $k]); } catch (Exception $e) {}
+        }
+        out(['ok' => true, 'done' => true, 'folder_id' => $folderId]);
     }
 
     out(['ok' => false, 'error' => 'Неизвестное действие'], 400);
