@@ -14379,8 +14379,11 @@
         }
 
         async function pickReaction(msgId, emoji) {
+            // Закрываем сразу: реакция от человека ОДНА, следующая заменяет прежнюю.
+            // Держать список открытым здесь незачем — в отличие от смайлов для текста,
+            // которые вставляют подряд.
+            closeFolderPicker();
             await toggleReaction(null, msgId, emoji);
-            refreshReactRow(msgId);
         }
         window.pickReaction = pickReaction;
 
@@ -14616,7 +14619,9 @@
             autoGrowInput(input);
             rememberEmoji(emoji);
             updateMicButton();
-            toggleEmojiPicker();
+            // Панель НЕ закрываем: смайлы в текст вставляют подряд по несколько,
+            // а закрытие после каждого заставляло открывать её заново на каждый.
+            // Закроется по клику вне панели — обработчик ниже.
         }
 
         // Закрыть emoji picker при клике вне его
