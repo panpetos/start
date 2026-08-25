@@ -148,6 +148,46 @@
         }
         .btn-outline:hover { border-color: var(--d-accent); color: var(--d-accent); background: var(--d-accent-hover); }
         .empty-state { text-align: center; padding: 2rem; color: var(--d-text-muted); }
+
+        /* История записей: прошедшие сессии сложены и не занимают место */
+        .appt-history { margin-top: 0.75rem; }
+        .appt-history > summary {
+            cursor: pointer; list-style: none; user-select: none;
+            padding: 0.6rem 0.85rem; border-radius: 0.7rem;
+            background: var(--d-panel-alt); border: 1px solid var(--d-border-light);
+            color: var(--d-text-sec); font-size: 0.875rem; font-weight: 600;
+            display: flex; align-items: center; gap: 0.4rem;
+        }
+        .appt-history > summary::-webkit-details-marker { display: none; }
+        .appt-history > summary::before {
+            content: '▸'; transition: transform 0.15s; display: inline-block; opacity: 0.7;
+        }
+        .appt-history[open] > summary::before { transform: rotate(90deg); }
+        .appt-history > summary:hover { border-color: var(--d-border-accent); color: var(--d-text); }
+        .appt-history > div { margin-top: 0.6rem; }
+        /* Прошедшее — приглушённее живого, чтобы взгляд цеплялся за предстоящее */
+        .appt-history .appointment-item { opacity: 0.78; }
+
+        /* Просьба об отзыве — заметная, но не кричащая */
+        .appt-review-nudge {
+            display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;
+            margin-top: 0.75rem; padding: 0.85rem 1rem; border-radius: 0.875rem;
+            background: var(--d-accent-bg, #D1FAE5); border: 1.5px solid var(--d-border-accent, #6EE7B7);
+            color: var(--d-accent, #065F46);
+        }
+        .appt-review-nudge { position: relative; }
+        .appt-nudge-x {
+            background: none; border: none; cursor: pointer; font-size: 1.25rem; line-height: 1;
+            color: inherit; opacity: 0.55; padding: 0 0.25rem; font-family: inherit;
+        }
+        .appt-nudge-x:hover { opacity: 1; }
+        /* На телефоне текст, кнопка и крестик в один ряд не помещаются: колонка с
+           текстом сжималась до одного слова в строке. Раскладываем сверху вниз. */
+        @media (max-width: 600px) {
+            .appt-review-nudge { flex-direction: column; align-items: stretch; padding-right: 2.5rem; }
+            .appt-review-nudge .btn { width: 100%; justify-content: center; }
+            .appt-nudge-x { position: absolute; top: 0.5rem; right: 0.6rem; padding: 0; }
+        }
         .loading { text-align: center; color: var(--d-text-muted); padding: 1rem; }
         .theme-toggle { background: var(--d-panel); border: 1.5px solid var(--d-border); color: var(--d-text-sec); padding: 0.4rem 0.7rem; border-radius: 0.5rem; cursor: pointer; font-size: 0.85rem; font-family: inherit; transition: all 0.15s; }
         .theme-toggle:hover { border-color: var(--d-accent); color: var(--d-accent); }
@@ -561,6 +601,19 @@
                     }).join('');
                 } catch (e) { card.style.display = 'none'; }
             }
+            /** Больше не просить отзыв по этой записи. Сервер не сообщает, оставлен
+             *  ли отзыв, поэтому помним решение у себя в браузере. */
+            function dismissReviewNudge(id){
+                try {
+                    const m = JSON.parse(localStorage.getItem('psy-review-asked') || '{}') || {};
+                    m[id] = 1;
+                    localStorage.setItem('psy-review-asked', JSON.stringify(m));
+                } catch (e) {}
+                const el = document.getElementById('apptReviewNudge');
+                if (el) el.remove();
+            }
+            window.dismissReviewNudge = dismissReviewNudge;
+
             function psychEsc(s){ const d=document.createElement('div'); d.textContent=(s==null?'':String(s)); return d.innerHTML; }
 
             async function loadAppointments() {
@@ -596,7 +649,19 @@
                         phone: ICO.phone + ' Звонок', audio: ICO.phone + ' Аудио'
                     };
 
-                    container.innerHTML = list.map(a => {
+                    // ── Прошедшие записи не должны висеть среди предстоящих ──────────
+                    //  Сессия закончилась вчера, а карточка по-прежнему занимала место
+                    //  и предлагала «Отменить». Прошедшие уводим в свёрнутую историю.
+                    //  Час после начала — запас: сессия к этому моменту точно кончилась,
+                    //  а идущую прямо сейчас мы в архив не спрячем.
+                    const NOW = Date.now();
+                    const apptIsPast = (a) => {
+                        const st = String(a.status || '').toLowerCase();
+                        if (st === 'completed' || st === 'cancelled' || st === 'no_show') return true;
+                        const t = new Date(a.date_time).getTime();
+                        return !!t && (t + 3600000) < NOW;
+                    };
+                    const renderAppt = (a) => {
                         const date = new Date(a.date_time);
                         const dateStr = `${date.getDate()} ${MONTHS[date.getMonth()]}, ${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
                         const psychName = `${a.psychologist_first_name || ''} ${a.psychologist_last_name || ''}`.trim() || 'Психолог';
@@ -622,11 +687,18 @@
                             statusText = 'Ждёт оплаты';
                         }
 
-                        const canCancel = (st === 'scheduled' || st === 'pending_payment' || st === 'pending')
+                        const past = apptIsPast(a);
+                        // Время прошло, а в базе всё ещё «запланировано» — статус там
+                        // никто не переставляет. Не выдаём это за предстоящую сессию.
+                        if (past && (st === 'scheduled' || st === 'pending_payment' || st === 'pending')) {
+                            statusClass = 'status-completed';
+                            statusText = 'Прошла';
+                        }
+                        const canCancel = !past && (st === 'scheduled' || st === 'pending_payment' || st === 'pending')
                             && new Date(a.date_time) > new Date();
                         const hoursUntil = (new Date(a.date_time) - new Date()) / 36e5;
                         const lateCancel = hoursUntil < 24;
-                        const canReview = st === 'completed';
+                        const canReview = past && st !== 'cancelled';
                         const canChat   = st !== 'cancelled';
 
                         return `
@@ -645,7 +717,46 @@
                             </div>
                         </div>
                     `;
-                    }).join('');
+                    };
+
+                    const upcoming = list.filter(a => !apptIsPast(a));
+                    const past = list.filter(apptIsPast)
+                        .sort((a, b) => new Date(b.date_time) - new Date(a.date_time));
+
+                    // Отзыв просим по самой свежей состоявшейся сессии. Отменённая —
+                    // не повод для отзыва. Убранное однажды не показываем снова:
+                    // сервер не сообщает, оставлен ли отзыв, поэтому помним у себя.
+                    let dismissed = {};
+                    try { dismissed = JSON.parse(localStorage.getItem('psy-review-asked') || '{}') || {}; } catch (e) {}
+                    const needReview = past.find(a =>
+                        String(a.status || '').toLowerCase() !== 'cancelled' && !dismissed[a.id]);
+
+                    const nameOf = a => `${a.psychologist_first_name || ''} ${a.psychologist_last_name || ''}`.trim() || 'психологом';
+
+                    const nudgeHtml = needReview ? `
+                        <div class="appt-review-nudge" id="apptReviewNudge">
+                            <div style="flex:1 1 190px;min-width:170px;">
+                                <div style="font-weight:600;margin-bottom:0.15rem;">Как прошла сессия?</div>
+                                <div style="font-size:0.8125rem;opacity:0.85;">${psychEsc(nameOf(needReview))} · ${(() => {
+                                    const d = new Date(needReview.date_time);
+                                    return isNaN(d) ? '' : d.getDate() + ' ' + MONTHS[d.getMonth()];
+                                })()} — ваш отзыв помогает другим выбрать специалиста.</div>
+                            </div>
+                            <button class="btn btn-small" onclick="openReview('${needReview.psychologist_id}');dismissReviewNudge('${needReview.id}')">Оставить отзыв</button>
+                            <button class="appt-nudge-x" title="Не сейчас" onclick="dismissReviewNudge('${needReview.id}')">&times;</button>
+                        </div>` : '';
+
+                    const historyHtml = past.length ? `
+                        <details class="appt-history">
+                            <summary>История записей (${past.length})</summary>
+                            <div>${past.map(renderAppt).join('')}</div>
+                        </details>` : '';
+
+                    container.innerHTML =
+                        (upcoming.length
+                            ? upcoming.map(renderAppt).join('')
+                            : `<div class="empty-state" style="padding:1.25rem 0;">Предстоящих записей нет</div>`)
+                        + nudgeHtml + historyHtml;
 
                 } catch (error) {
                     console.error('Load appointments error:', error);
