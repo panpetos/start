@@ -148,6 +148,23 @@ try {
             $v = $row[$flag] ?? null;
             if ($flag === 'is_read' ? !(int)$v : ($v === null || $v === '')) { $needs = true; break; }
         }
+        // Непрочитанное может быть СТАРШЕ загруженной порции — тогда в строках выше его
+        // не видно, и счётчик горел даже после того, как человек открыл диалог и всё
+        // прочитал (жалоба админа: «приходят старые, давно прочитанные»). На открытии
+        // диалога (opened=1) спрашиваем базу отдельно. На опросе этого запроса нет:
+        // чат перечитывает переписку раз в несколько секунд, и лишний запрос на каждый
+        // тик — ровно та нагрузка, из-за которой сайт уже ложился.
+        if (!$needs && !empty($_GET['opened'])) {
+            try {
+                $chk = $pdo->prepare($flag === 'is_read'
+                    ? "SELECT 1 FROM messages WHERE sender_id = ? AND receiver_id = ?
+                         AND (is_read = 0 OR is_read IS NULL) LIMIT 1"
+                    : "SELECT 1 FROM messages WHERE sender_id = ? AND receiver_id = ?
+                         AND read_at IS NULL LIMIT 1");
+                $chk->execute([$peer, $userId]);
+                $needs = (bool)$chk->fetchColumn();
+            } catch (Exception $e) { /* не смогли проверить — ведём себя как раньше */ }
+        }
         if ($needs) {
             try {
                 $sqlUpd = $flag === 'is_read'

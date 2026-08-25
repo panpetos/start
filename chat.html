@@ -12243,6 +12243,8 @@
         }
         window.forwardToGroup = forwardToGroup;
 
+        let dmLastOpenedPeer = null;   // с кем переписку уже открывали (см. dmFirstLoad ниже)
+
         async function loadMessages() {
             if (!selectedUserId) return;
             // Лента, канал и блог — не переписка: они рисуют себя сами. Если позвать
@@ -12255,6 +12257,14 @@
             if (selectedUserId === FAVORITES_ID) { await loadFavoritesMessages(); return; }
             if (isSupportMode()) { await loadSupportThreadMessages(); return; }
             if (selectedUserId.indexOf(GROUP_PREFIX) === 0) { await loadGroupMessages(); return; }
+
+            // Первое открытие этой переписки, а не очередной тик опроса. Нужно серверу:
+            // отметку «прочитано» он ставит, только если непрочитанное попало в загруженную
+            // порцию (последние 50), — а если оно старше, счётчик горел и после открытия
+            // диалога (жалоба админа про «старые давно прочитанные»). На открытии сервер
+            // проверит непрочитанное отдельно, на опросе — как раньше, без лишних запросов.
+            const dmFirstLoad = dmLastOpenedPeer !== String(selectedUserId);
+            dmLastOpenedPeer = String(selectedUserId);
 
             // ── ПОЧЕМУ ПЕРЕКЛЮЧЕНИЕ ЧАТОВ ТОРМОЗИЛО ─────────────────────────────
             // Здесь шли ПЯТЬ запросов подряд, каждый ждал предыдущего: список диалогов
@@ -12285,7 +12295,8 @@
                 // за всю переписку — поэтому запрос уходит вместе с остальными.
                 const [page, editedMap] = await Promise.all([
                     // Порциями: последние 50, старые подтягиваются прокруткой вверх
-                    fetch(`/api/messages_page.php?with=${encodeURIComponent(selectedUserId)}&limit=${DM_PAGE}`,
+                    fetch(`/api/messages_page.php?with=${encodeURIComponent(selectedUserId)}&limit=${DM_PAGE}`
+                          + (dmFirstLoad ? '&opened=1' : ''),
                           { credentials: 'include' })
                         .then(r => r.json()).catch(() => null),
                     fetch(`/api/message_edit.php?action=edited-map&with=${encodeURIComponent(selectedUserId)}`,
