@@ -91,6 +91,10 @@ function ensureGroupTablesNow(PDO $pdo) {
     // Время прочтения участником: last_read_message_id говорит «докуда прочитал»,
     // но не «когда» — а для окна «кто прочитал» нужно именно время.
     try { $pdo->exec("ALTER TABLE chat_group_members ADD COLUMN last_read_at DATETIME NULL"); } catch (Exception $e) {}
+    // Код пригласительной ссылки. Отдельная колонка, а не id группы: id
+    // предсказуем, по нему в группу зашёл бы любой перебором.
+    try { $pdo->exec("ALTER TABLE chat_groups ADD COLUMN invite_code VARCHAR(32) NULL"); } catch (Exception $e) {}
+    try { $pdo->exec("ALTER TABLE chat_groups ADD UNIQUE KEY uniq_invite (invite_code)"); } catch (Exception $e) {}
     try { $pdo->exec("ALTER TABLE chat_groups ADD COLUMN avatar_url VARCHAR(500) NULL"); } catch (Exception $e) {}
     try { $pdo->exec("ALTER TABLE chat_groups ADD COLUMN description VARCHAR(500) NULL"); } catch (Exception $e) {}
     // Вложения в группах: без этих колонок в группу нельзя было отправить ни фото, ни файл,
@@ -327,6 +331,68 @@ if ($action === 'readers') {
         http_response_code(500); echo json_encode(['error' => 'Не удалось получить список: ' . $e->getMessage()], JSON_UNESCAPED_UNICODE);
     }
     exit;
+}
+
+/** Код приглашения: без похожих символов, чтобы диктовать голосом и не путать 0/O. */
+function gcMakeInviteCode() {
+    $abc = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+    $out = '';
+    for ($i = 0; $i < 10; $i++) $out .= $abc[random_int(0, strlen($abc) - 1)];
+    return $out;
+}
+
+/**
+ * Пригласительная ссылка группы: получить, создать или отозвать.
+ *
+ * Раньше добавить человека можно было только вручную из списка контактов —
+ * позвать того, кого нет в контактах, было нечем.
+ *
+ * GET  ?action=invite-link&group_id=X            — текущая ссылка (владелец)
+ * POST ?action=invite-link {group_id, reset:1}   — выпустить заново (старая перестаёт работать)
+ */
+if ($action === 'invite-link') {
+    $groupId = (int)($_GET['group_id'] ?? ($body['group_id'] ?? 0));
+    if (!$groupId) out(['error' => 'Не передан номер группы'], 400);
+    if (isMember($pdo, $groupId, $userId) !== 'owner') out(['error' => 'Ссылку выдаёт только владелец группы'], 403);
+    try {
+        $st = $pdo->prepare("SELECT invite_code FROM chat_groups WHERE id = ? LIMIT 1");
+        $st->execute([$groupId]);
+        $code = (string)($st->fetchColumn() ?: '');
+        $reset = ($_SERVER['REQUEST_METHOD'] === 'POST') && !empty($body['reset']);
+        if ($code === '' || $reset) {
+            // Пробуем несколько раз: код случайный, совпадение маловероятно, но
+            // уникальный индекс всё равно должен быть соблюдён.
+            for ($i = 0; $i < 5; $i++) {
+                $try = gcMakeInviteCode();
+                try {
+                    $pdo->prepare("UPDATE chat_groups SET invite_code = ? WHERE id = ?")->execute([$try, $groupId]);
+                    $code = $try; break;
+                } catch (Exception $e) { /* столкновение — берём другой */ }
+            }
+            if ($code === '') out(['error' => 'Не удалось выпустить ссылку'], 500);
+        }
+        out(['ok' => true, 'code' => $code]);
+    } catch (Exception $e) { out(['error' => 'Не удалось получить ссылку: ' . $e->getMessage()], 500); }
+}
+
+/**
+ * Войти в группу по коду приглашения.
+ * POST ?action=join {code}
+ */
+if ($action === 'join' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    $code = strtoupper(trim((string)($body['code'] ?? '')));
+    if ($code === '') out(['error' => 'Не передан код приглашения'], 400);
+    try {
+        $st = $pdo->prepare("SELECT id, name FROM chat_groups WHERE invite_code = ? LIMIT 1");
+        $st->execute([$code]);
+        $g = $st->fetch(PDO::FETCH_ASSOC);
+        if (!$g) out(['error' => 'Ссылка недействительна — возможно, её отозвали'], 404);
+        $gid = (int)$g['id'];
+        if (isMember($pdo, $gid, $userId)) out(['ok' => true, 'group_id' => $gid, 'name' => $g['name'], 'already' => true]);
+        $pdo->prepare("INSERT INTO chat_group_members (group_id, user_id, role, last_read_message_id, joined_at)
+                       VALUES (?, ?, 'member', 0, NOW())")->execute([$gid, $userId]);
+        out(['ok' => true, 'group_id' => $gid, 'name' => $g['name'], 'already' => false]);
+    } catch (Exception $e) { out(['error' => 'Не удалось вступить: ' . $e->getMessage()], 500); }
 }
 
 if ($action === 'members') {

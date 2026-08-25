@@ -4744,7 +4744,9 @@
                     <textarea id="giDescr" rows="2" maxlength="500" placeholder="О чём группа, для кого" style="width:100%;padding:0.5rem 0.7rem;border:1.5px solid #e0e0e0;border-radius:0.5rem;font-family:inherit;font-size:0.88rem;resize:vertical;">${escapeHtml(g.description || '')}</textarea>
                     <button onclick="saveGroupInfo()" id="giSaveBtn" style="width:100%;border:none;background:#047857;color:#fff;border-radius:0.5rem;padding:0.55rem;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;margin-top:0.45rem;">Сохранить название и описание</button>
                 </div>` : ''}
-                <button onclick="openAddGroupMembers(${gid})" style="width:100%;border:none;background:#15803D;color:#fff;border-radius:0.6rem;padding:0.6rem;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:0.8rem;">➕ Добавить участников</button>
+                <button onclick="openAddGroupMembers(${gid})" style="width:100%;border:none;background:#15803D;color:#fff;border-radius:0.6rem;padding:0.6rem;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:0.5rem;">➕ Добавить участников</button>
+                ${isOwner ? `<button onclick="showGroupInvite(${gid})" style="width:100%;border:1.5px solid #6EE7B7;background:transparent;color:#047857;border-radius:0.6rem;padding:0.6rem;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:0.8rem;">🔗 Ссылка-приглашение</button>` : ''}
+                <div id="grInviteBox" style="margin-bottom:0.8rem;"></div>
                 <div style="font-weight:700;font-size:0.82rem;color:#6B7280;margin-bottom:0.3rem;">Участники</div>
                 <div>${rows}</div>
                 <button onclick="leaveGroupChat(${gid})" style="width:100%;border:1.5px solid #DC2626;background:transparent;color:#DC2626;border-radius:0.6rem;padding:0.6rem;font-weight:700;cursor:pointer;font-family:inherit;margin-top:0.9rem;">🚪 Выйти из группы</button>`;
@@ -4771,6 +4773,85 @@
                 alert('Не удалось сохранить: ' + e.message);
             } finally {
                 if (btn) { btn.disabled = false; btn.textContent = 'Сохранить название и описание'; }
+            }
+        }
+
+        /**
+         * Пригласительная ссылка в группу — как в Telegram.
+         *
+         * Раньше позвать можно было только того, кто уже в контактах: человека со
+         * стороны пригласить было нечем. Код случайный, а не id группы: по id в
+         * группу заходили бы перебором.
+         */
+        async function showGroupInvite(gid) {
+            const box = document.getElementById('grInviteBox');
+            if (!box) return;
+            box.innerHTML = '<div style="color:#9CA3AF;font-size:0.82rem;">Готовим ссылку…</div>';
+            try {
+                const r = await fetch('/api/group_chat.php?action=invite-link&group_id=' + encodeURIComponent(gid),
+                                      { credentials: 'include' });
+                const d = await r.json();
+                if (!r.ok || !d.ok) throw new Error(d.error || 'сервер отказал');
+                renderGroupInvite(gid, d.code);
+            } catch (e) {
+                box.innerHTML = `<div style="color:#DC2626;font-size:0.82rem;">Не удалось: ${escapeHtml(e.message || 'нет связи')}</div>`;
+            }
+        }
+        window.showGroupInvite = showGroupInvite;
+
+        function renderGroupInvite(gid, code) {
+            const box = document.getElementById('grInviteBox');
+            if (!box) return;
+            const link = location.origin + '/chat.html?join=' + encodeURIComponent(code);
+            box.innerHTML = `
+                <div style="background:#F7FDFA;border:1.5px dashed #A7F3D0;border-radius:0.7rem;padding:0.7rem;">
+                    <div style="font-size:0.78rem;color:#047857;font-weight:700;margin-bottom:0.35rem;">Ссылка для вступления</div>
+                    <input readonly value="${escapeHtml(link)}" onclick="this.select()"
+                           style="width:100%;box-sizing:border-box;padding:0.45rem 0.6rem;border:1px solid #D1FAE5;border-radius:0.5rem;font-family:inherit;font-size:0.8rem;background:#fff;color:#065F46;">
+                    <div style="display:flex;gap:0.4rem;margin-top:0.45rem;flex-wrap:wrap;">
+                        <button onclick="copyGroupInvite('${escapeHtml(link)}')" style="flex:1;border:none;background:#047857;color:#fff;border-radius:0.5rem;padding:0.45rem;font-weight:700;cursor:pointer;font-family:inherit;font-size:0.82rem;">Скопировать</button>
+                        <button onclick="resetGroupInvite(${gid})" title="Старая ссылка перестанет работать" style="border:1px solid #E5E7EB;background:#fff;color:#6B7280;border-radius:0.5rem;padding:0.45rem 0.7rem;cursor:pointer;font-family:inherit;font-size:0.82rem;">Отозвать</button>
+                    </div>
+                    <div style="font-size:0.73rem;color:#9CA3AF;margin-top:0.4rem;">Кто перейдёт по ссылке — вступит в группу. «Отозвать» выдаёт новую и ломает старую.</div>
+                </div>`;
+        }
+
+        function copyGroupInvite(link) {
+            try { navigator.clipboard.writeText(link); toast('Ссылка скопирована'); }
+            catch (e) { toast('Не удалось скопировать — выделите и скопируйте вручную'); }
+        }
+        window.copyGroupInvite = copyGroupInvite;
+
+        async function resetGroupInvite(gid) {
+            if (!confirm('Выпустить новую ссылку? Старая перестанет работать.')) return;
+            try {
+                const r = await fetch('/api/group_chat.php?action=invite-link', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+                    body: JSON.stringify({ group_id: gid, reset: 1 })
+                });
+                const d = await r.json();
+                if (!r.ok || !d.ok) throw new Error(d.error || 'сервер отказал');
+                renderGroupInvite(gid, d.code);
+                toast('Новая ссылка готова');
+            } catch (e) { toast('Не удалось: ' + (e.message || 'нет связи')); }
+        }
+        window.resetGroupInvite = resetGroupInvite;
+
+        /** Переход по пригласительной ссылке: ?join=КОД. */
+        async function joinGroupByCode(code) {
+            try {
+                const r = await fetch('/api/group_chat.php?action=join', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+                    body: JSON.stringify({ code })
+                });
+                const d = await r.json();
+                if (!r.ok || !d.ok) throw new Error(d.error || 'ссылка не сработала');
+                await loadMyGroups();
+                refreshConversationList();
+                openGroupChat(d.group_id);
+                toast(d.already ? 'Вы уже в этой группе' : 'Вы вступили в «' + (d.name || 'группу') + '»');
+            } catch (e) {
+                toast('Не удалось вступить: ' + (e.message || 'нет связи'));
             }
         }
 
@@ -6129,6 +6210,10 @@
             storiesPollTimer = setInterval(psyPollGuard(loadStoriesRow), 60000);
 
             rtcStartPolling();  // слушаем входящие звонки
+
+            // Пришли по пригласительной ссылке в группу
+            const joinCode = urlParams.get('join');
+            if (joinCode) { await joinGroupByCode(joinCode); }
 
             // Автоматически открыть чат если есть user в URL
             if (openFromUrl) {
