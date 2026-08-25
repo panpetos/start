@@ -88,6 +88,9 @@ function ensureGroupTablesNow(PDO $pdo) {
     // Аватарка и описание группы (фидбэк админа: «нужно моч ставить аватарку на группу
     // или канал с описанием и там и там»). Добавляем через ALTER, чтобы не ломать
     // существующие группы; повторный запуск молча ничего не делает.
+    // Время прочтения участником: last_read_message_id говорит «докуда прочитал»,
+    // но не «когда» — а для окна «кто прочитал» нужно именно время.
+    try { $pdo->exec("ALTER TABLE chat_group_members ADD COLUMN last_read_at DATETIME NULL"); } catch (Exception $e) {}
     try { $pdo->exec("ALTER TABLE chat_groups ADD COLUMN avatar_url VARCHAR(500) NULL"); } catch (Exception $e) {}
     try { $pdo->exec("ALTER TABLE chat_groups ADD COLUMN description VARCHAR(500) NULL"); } catch (Exception $e) {}
     // Вложения в группах: без этих колонок в группу нельзя было отправить ни фото, ни файл,
@@ -173,7 +176,7 @@ if ($action === 'messages') {
         $rows = $st->fetchAll(PDO::FETCH_ASSOC);
         $maxId = $rows ? (int)$rows[count($rows) - 1]['id'] : 0;
         if ($maxId > 0) {
-            $pdo->prepare("UPDATE chat_group_members SET last_read_message_id = GREATEST(COALESCE(last_read_message_id, 0), ?) WHERE group_id = ? AND user_id = ?")
+            $pdo->prepare("UPDATE chat_group_members SET last_read_message_id = GREATEST(COALESCE(last_read_message_id, 0), ?), last_read_at = NOW() WHERE group_id = ? AND user_id = ?")
                 ->execute([$maxId, $groupId, $userId]);
         }
         out(['ok' => true, 'data' => $rows]);
@@ -204,7 +207,7 @@ if ($action === 'send' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         $mid = (int)$pdo->lastInsertId();
         // COALESCE: если last_read_message_id почему-то NULL, GREATEST(NULL, x) вернёт NULL,
         // а колонка NOT NULL — в strict-режиме MySQL это ошибка и всё сообщение бы «не отправилось».
-        $pdo->prepare("UPDATE chat_group_members SET last_read_message_id = GREATEST(COALESCE(last_read_message_id, 0), ?) WHERE group_id = ? AND user_id = ?")
+        $pdo->prepare("UPDATE chat_group_members SET last_read_message_id = GREATEST(COALESCE(last_read_message_id, 0), ?), last_read_at = NOW() WHERE group_id = ? AND user_id = ?")
             ->execute([$mid, $groupId, $userId]);
         // Уведомления участникам — сразу, а не с рассылкой раз в несколько минут.
         // Отвечаем клиенту первым делом: обращений к службам доставки столько же,
@@ -283,6 +286,47 @@ if ($action === 'remove-member' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         $pdo->prepare("DELETE FROM chat_group_members WHERE group_id = ? AND user_id = ? AND role <> 'owner'")->execute([$groupId, $target]);
         out(['ok' => true]);
     } catch (Exception $e) { out(['error' => 'Не удалось исключить: ' . $e->getMessage()], 500); }
+}
+
+/**
+ * Кто из участников прочитал сообщение и когда.
+ *
+ * Считаем по last_read_message_id: прочитавшим считается тот, чья отметка дошла
+ * до этого сообщения или дальше. Себя из списка убираем — свои сообщения человек
+ * читал по определению.
+ *
+ * GET ?action=readers&group_id=X&message_id=Y
+ *   → { ok, readers: [{user_id, name, at}], total }
+ */
+if ($action === 'readers') {
+    $gid = (int)($_GET['group_id'] ?? 0);
+    $mid = (int)($_GET['message_id'] ?? 0);
+    if (!$gid || !$mid) { http_response_code(400); echo json_encode(['error' => 'Нужны group_id и message_id']); exit; }
+    if (!isMember($pdo, $gid, $userId)) { http_response_code(403); echo json_encode(['error' => 'Вы не участник группы']); exit; }
+    try {
+        $st = $pdo->prepare("SELECT m.user_id, m.last_read_at,
+                                    u.first_name, u.last_name
+                               FROM chat_group_members m
+                               LEFT JOIN users u ON u.id = m.user_id
+                              WHERE m.group_id = ? AND m.user_id <> ?
+                                AND COALESCE(m.last_read_message_id, 0) >= ?
+                              ORDER BY m.last_read_at DESC");
+        $st->execute([$gid, $userId, $mid]);
+        $rows = [];
+        foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $r) {
+            $name = trim(($r['first_name'] ?? '') . ' ' . ($r['last_name'] ?? ''));
+            $rows[] = ['user_id' => (string)$r['user_id'],
+                       'name' => $name !== '' ? $name : 'Участник',
+                       'at' => $r['last_read_at'] ?: null];
+        }
+        // Всего участников кроме меня — чтобы показать «3 из 5»
+        $tot = $pdo->prepare("SELECT COUNT(*) FROM chat_group_members WHERE group_id = ? AND user_id <> ?");
+        $tot->execute([$gid, $userId]);
+        echo json_encode(['ok' => true, 'readers' => $rows, 'total' => (int)$tot->fetchColumn()], JSON_UNESCAPED_UNICODE);
+    } catch (Exception $e) {
+        http_response_code(500); echo json_encode(['error' => 'Не удалось получить список: ' . $e->getMessage()], JSON_UNESCAPED_UNICODE);
+    }
+    exit;
 }
 
 if ($action === 'members') {

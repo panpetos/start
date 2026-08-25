@@ -2536,6 +2536,23 @@
            остаётся открытой и ставить можно несколько раз подряд. */
         .react-pick.mine { background: rgba(4,120,87,0.28); box-shadow: inset 0 0 0 1.5px #047857; }
         .react-more { font-size: 1rem; opacity: 0.6; }
+        /* Окно «кто прочитал» */
+        .readers-box { position: fixed; inset: 0; z-index: 4000; background: rgba(0,0,0,0.45);
+            display: flex; align-items: center; justify-content: center; padding: 1rem; }
+        .readers-box .rd-card { background: #fff; border-radius: 1rem; width: 100%; max-width: 340px;
+            max-height: 70vh; display: flex; flex-direction: column; overflow: hidden;
+            box-shadow: 0 16px 48px rgba(0,0,0,0.25); }
+        .readers-box .rd-head { display: flex; align-items: center; justify-content: space-between;
+            padding: 0.85rem 1rem; border-bottom: 1px solid #EEE; font-size: 0.95rem; }
+        .readers-box .rd-head button { background: none; border: none; font-size: 1.4rem;
+            line-height: 1; cursor: pointer; color: #9CA3AF; }
+        .readers-box .rd-body { overflow-y: auto; padding: 0.35rem 0; }
+        .readers-box .rd-row { display: flex; justify-content: space-between; gap: 0.75rem;
+            padding: 0.6rem 1rem; font-size: 0.9rem; }
+        .readers-box .rd-row i { font-style: normal; color: #9CA3AF; font-size: 0.82rem; white-space: nowrap; }
+        .readers-box .rd-empty { padding: 1.1rem 1rem; color: #9CA3AF; font-size: 0.9rem; text-align: center; }
+        body.dark .readers-box .rd-card { background: #252525; color: #E6E6E6; }
+        body.dark .readers-box .rd-head { border-bottom-color: #333; }
         /* Строка реакций над списком действий в «⋮»-меню */
         .msg-react-row {
             display: flex; gap: 2px; padding: 4px 4px 6px; margin-bottom: 4px;
@@ -9528,6 +9545,11 @@
             } else if ((cap.text || '').trim() && !cap.placeholder) {
                 html += row('📋', 'Скопировать текст', `copyMessageText('${id}')`);
             }
+            // «Кто прочитал» — только у своих: галочки говорят «прочитано», но не
+            // говорят кем и когда, а в группе это вообще неизвестно.
+            const mineMsg = /(^|\s)Вы$/.test(String(cap.author || ''));
+            if (mineMsg && cap.kind !== 'fav' && !isAiMode())
+                html += row('👁', 'Кто прочитал', `showReaders('${id}')`);
             if (cap.canForward) html += row('↪', 'Переслать', `openForwardMenu(null,'${cap.kind || 'msg'}','${id}')`);
             // Админу — быстрый путь из любой переписки в очередь доработок
             if (currentUser && currentUser.role === 'admin')
@@ -14289,6 +14311,91 @@
             if (row) row.outerHTML = reactRowHtml(msgId, true);
         }
         window.expandReactRow = expandReactRow;
+
+        /**
+         * Кто и когда прочитал моё сообщение.
+         *
+         * В группе спрашиваем поимённо (group_chat.php?action=readers считает по
+         * отметке «докуда дочитал»). В личной переписке собеседник один, поэтому
+         * достаточно времени его последнего прочтения — presence.php?action=read-by.
+         * Кто скрыл «был(а) в сети», тот скрыл и это: настройку нельзя обходить
+         * через соседнее окно.
+         */
+        async function showReaders(msgId) {
+            const inGroup = typeof isGroupMode === 'function' && isGroupMode();
+            let title = 'Кто прочитал', body = '<div class="rd-empty">Загрузка…</div>';
+            openReadersBox(title, body);
+            try {
+                if (inGroup) {
+                    const gid = selectedUserId.slice(GROUP_PREFIX.length);
+                    const r = await fetch(`/api/group_chat.php?action=readers&group_id=${encodeURIComponent(gid)}&message_id=${encodeURIComponent(msgId)}`,
+                                          { credentials: 'include' });
+                    const d = await r.json();
+                    if (!r.ok || !d.ok) throw new Error(d.error || 'сервер отказал');
+                    const list = d.readers || [];
+                    title = `Прочитали ${list.length} из ${d.total || 0}`;
+                    body = list.length
+                        ? list.map(x => `<div class="rd-row"><span>${escapeHtml(x.name)}</span><i>${x.at ? escapeHtml(fmtReadAt(x.at)) : ''}</i></div>`).join('')
+                        : '<div class="rd-empty">Пока никто не прочитал</div>';
+                } else {
+                    const r = await fetch('/api/presence.php?action=read-by&peer_id=' + encodeURIComponent(selectedUserId),
+                                          { credentials: 'include' });
+                    const d = await r.json();
+                    if (!r.ok || !d.ok) throw new Error(d.error || 'сервер отказал');
+                    if (d.hidden) {
+                        body = '<div class="rd-empty">Собеседник скрыл время прочтения</div>';
+                    } else if (!d.at) {
+                        body = '<div class="rd-empty">Ещё не прочитано</div>';
+                    } else {
+                        // Отметка о прочтении общая для переписки: она говорит, что
+                        // собеседник читал её в это время. Если он заходил ПОСЛЕ
+                        // отправки — сообщение он видел.
+                        const seen = new Date(String(d.at).replace(' ', 'T')).getTime();
+                        const sent = msgSentAt(msgId);
+                        body = (sent && seen < sent)
+                            ? '<div class="rd-empty">Ещё не прочитано</div>'
+                            : `<div class="rd-row"><span>Прочитано</span><i>${escapeHtml(fmtReadAt(d.at))}</i></div>`;
+                    }
+                }
+            } catch (e) {
+                body = `<div class="rd-empty">Не удалось узнать: ${escapeHtml(e.message || 'нет связи')}</div>`;
+            }
+            openReadersBox(title, body);
+        }
+        window.showReaders = showReaders;
+
+        /** Время отправки сообщения из уже отрисованной ленты. */
+        function msgSentAt(msgId) {
+            const m = (dmState.list || []).find(x => String(x.id) === String(msgId));
+            if (!m || !m.created_at) return 0;
+            const t = new Date(String(m.created_at).replace(' ', 'T')).getTime();
+            return isNaN(t) ? 0 : t;
+        }
+
+        function fmtReadAt(v) {
+            const d = new Date(String(v).replace(' ', 'T'));
+            if (isNaN(d)) return String(v);
+            const today = new Date(); today.setHours(0, 0, 0, 0);
+            const hhmm = String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+            if (d.getTime() >= today.getTime()) return 'сегодня в ' + hhmm;
+            return d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }) + ' в ' + hhmm;
+        }
+
+        function openReadersBox(title, bodyHtml) {
+            let box = document.getElementById('readersBox');
+            if (!box) {
+                box = document.createElement('div');
+                box.id = 'readersBox';
+                box.className = 'readers-box';
+                box.onclick = (e) => { if (e.target === box) box.remove(); };
+                document.body.appendChild(box);
+            }
+            box.innerHTML = `<div class="rd-card">
+                    <div class="rd-head"><b>${escapeHtml(title)}</b>
+                        <button type="button" onclick="document.getElementById('readersBox').remove()">&times;</button></div>
+                    <div class="rd-body">${bodyHtml}</div>
+                </div>`;
+        }
 
         /** Выбор реакции по кнопке-смайлу над сообщением. */
         function openReactionPicker(msgId) {

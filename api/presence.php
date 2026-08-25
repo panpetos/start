@@ -171,6 +171,39 @@ if ($action === 'read') {
     exit;
 }
 
+/**
+ * Когда СОБЕСЕДНИК прочитал мои сообщения.
+ *
+ * Зеркало my-read: там я спрашиваю про себя, здесь — про него. Нужно для
+ * «кто и когда прочитал» в меню своего сообщения: галочки говорят «прочитано»,
+ * но не говорят когда, а в разговоре это иногда важно.
+ *
+ * Приватность уважаем: кто скрыл «был(а) в сети» (hide_last_seen), тот скрыл и
+ * время прочтения — иначе настройка обходилась бы через это окно.
+ *
+ * GET ?action=read-by&peer_id=X → { ok, at: "Y-m-d H:i:s"|null, hidden: bool }
+ */
+if ($action === 'read-by') {
+    $peer = trim((string)($_GET['peer_id'] ?? ''));
+    if ($peer === '') { http_response_code(400); echo json_encode(['error' => 'Не указан собеседник']); exit; }
+    $hidden = false;
+    try {
+        $st = $pdo->prepare("SELECT hide_last_seen FROM user_presence WHERE user_id = ? LIMIT 1");
+        $st->execute([$peer]);
+        $hidden = (bool)(int)$st->fetchColumn();
+    } catch (Exception $e) {}
+    if ($hidden) { echo json_encode(['ok' => true, 'at' => null, 'hidden' => true]); exit; }
+    $at = null;
+    try {
+        $st = $pdo->prepare("SELECT last_read_at FROM chat_reads WHERE user_id = ? AND peer_id = ? LIMIT 1");
+        $st->execute([$peer, $userId]);
+        $v = $st->fetchColumn();
+        if ($v !== false && $v !== null) $at = (string)$v;
+    } catch (Exception $e) {}
+    echo json_encode(['ok' => true, 'at' => $at, 'hidden' => false]);
+    exit;
+}
+
 if ($action === 'state') {
     $raw = (string)($_GET['peers'] ?? '');
     $peers = array_values(array_filter(array_map('trim', explode(',', $raw)), function ($p) { return $p !== ''; }));
