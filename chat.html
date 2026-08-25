@@ -10175,10 +10175,7 @@
                         <button type="button" onclick="openBlogArticle('${id}',${st})" title="Читать статью">${escapeHtml(who)}</button>
                     </div>
                     <div class="ch-post-date">${meta}</div>
-                    <div class="ch-post-text">
-                        <div style="font-weight:700;font-size:1.02rem;margin-bottom:0.25rem;">${escapeHtml(a.title || 'Без названия')}</div>
-                        ${a.excerpt ? escapeHtml(a.excerpt) : ''}
-                    </div>
+                    <div class="ch-post-text"><div style="font-weight:700;font-size:1.02rem;margin-bottom:0.25rem;">${escapeHtml(a.title || 'Без названия')}</div>${a.excerpt ? escapeHtml(a.excerpt) : ''}</div>
                     ${cover}
                     <div class="ch-post-actions">
                         <button class="ch-pbtn" onclick="openBlogArticle('${id}',${st})">📖 <span>Читать</span></button>
