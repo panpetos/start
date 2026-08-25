@@ -67,6 +67,10 @@ try {
         user_id VARCHAR(64) NOT NULL PRIMARY KEY,
         seeded_at DATETIME NOT NULL
     ) DEFAULT CHARSET=utf8mb4");
+    // Задача №82: «Важное» — служебная папка. Её нельзя удалить, а разделы из неё
+    // нельзя вынуть и нельзя разложить по другим папкам. Признак живёт колонкой,
+    // а не сравнением названия: папку разрешено переименовать, она остаётся служебной.
+    try { $pdo->exec("ALTER TABLE chat_folders ADD COLUMN is_system TINYINT NOT NULL DEFAULT 0"); } catch (Exception $e) {}
     // Та же таблица, что и в chat_pins.php (ensure-defaults закрепляет разделы сама,
     // а порядок подключения файлов не гарантирован — на всякий случай создаём и здесь).
     $pdo->exec("CREATE TABLE IF NOT EXISTS chat_pinned_chats (
@@ -92,6 +96,18 @@ function ownFolder(PDO $pdo, $id, $userId) {
     return $st->fetch(PDO::FETCH_ASSOC) ?: null;
 }
 
+/**
+ * Разделы, закреплённые за служебной папкой (задача №82). Это не переписки, а входы
+ * в разделы — им нечего делать в пользовательских папках, и терять их из «Важного»
+ * человек не должен.
+ */
+function lockedSectionKeys() {
+    return ['__ai__', '__psy__', '__feed__', '__blog__', '__support__'];
+}
+function isLockedSectionKey($k) {
+    return in_array((string)$k, lockedSectionKeys(), true);
+}
+
 function cleanName($n) {
     $n = trim(preg_replace('/\s+/u', ' ', (string)$n));
     if (function_exists('mb_substr')) $n = mb_substr($n, 0, 40, 'UTF-8');
@@ -102,7 +118,8 @@ function cleanName($n) {
 try {
     if ($action === 'list') {
         if ($foldersError) out(['ok' => false, 'error' => 'Папки недоступны: ' . $foldersError], 500);
-        $st = $pdo->prepare("SELECT id, name, sort_order FROM chat_folders WHERE user_id = ? ORDER BY sort_order, id");
+        $st = $pdo->prepare("SELECT id, name, sort_order, COALESCE(is_system, 0) AS is_system
+                               FROM chat_folders WHERE user_id = ? ORDER BY is_system DESC, sort_order, id");
         $st->execute([$userId]);
         $folders = $st->fetchAll(PDO::FETCH_ASSOC);
         if ($folders) {
@@ -116,6 +133,7 @@ try {
             }
             foreach ($folders as &$f) {
                 $f['id'] = (int)$f['id'];
+                $f['is_system'] = (int)($f['is_system'] ?? 0);
                 $f['keys'] = $byFolder[$f['id']] ?? [];
             }
             unset($f);
@@ -150,6 +168,9 @@ try {
     if ($action === 'delete') {
         $f = ownFolder($pdo, $body['id'] ?? 0, $userId);
         if (!$f) out(['ok' => false, 'error' => 'Папка не найдена'], 404);
+        if ((int)($f['is_system'] ?? 0) === 1) {
+            out(['ok' => false, 'error' => 'Папку «' . $f['name'] . '» удалить нельзя: в ней лежат разделы сайта'], 400);
+        }
         $pdo->prepare("DELETE FROM chat_folder_items WHERE folder_id = ?")->execute([(int)$f['id']]);
         $pdo->prepare("DELETE FROM chat_folders WHERE id = ?")->execute([(int)$f['id']]);
         out(['ok' => true]);
@@ -160,6 +181,11 @@ try {
         if (!$f) out(['ok' => false, 'error' => 'Папка не найдена'], 404);
         $key = trim((string)($body['chat_key'] ?? ''));
         if ($key === '' || strlen($key) > 120) out(['ok' => false, 'error' => 'Некорректный чат'], 400);
+        if (isLockedSectionKey($key)) {
+            out(['ok' => false, 'error' => (int)($f['is_system'] ?? 0) === 1
+                ? 'Разделы сайта из этой папки убрать нельзя'
+                : 'Разделы сайта лежат только в папке «Важное»'], 400);
+        }
         $ex = $pdo->prepare("SELECT 1 FROM chat_folder_items WHERE folder_id = ? AND chat_key = ?");
         $ex->execute([(int)$f['id'], $key]);
         if ($ex->fetchColumn()) {
@@ -176,12 +202,17 @@ try {
         $f = ownFolder($pdo, $body['id'] ?? 0, $userId);
         if (!$f) out(['ok' => false, 'error' => 'Папка не найдена'], 404);
         $keys = is_array($body['keys'] ?? null) ? $body['keys'] : [];
+        $isSystem = (int)($f['is_system'] ?? 0) === 1;
+        // Служебная папка всегда держит разделы, обычная — никогда их не принимает.
+        // Иначе «заменить состав целиком» стало бы обходным путём вокруг запрета.
+        if ($isSystem) $keys = array_merge(lockedSectionKeys(), $keys);
         $pdo->prepare("DELETE FROM chat_folder_items WHERE folder_id = ?")->execute([(int)$f['id']]);
         $ins = $pdo->prepare("INSERT INTO chat_folder_items (folder_id, chat_key) VALUES (?, ?)");
         $seen = [];
         foreach ($keys as $k) {
             $k = trim((string)$k);
             if ($k === '' || strlen($k) > 120 || isset($seen[$k])) continue;
+            if (!$isSystem && isLockedSectionKey($k)) continue;
             $seen[$k] = true;
             $ins->execute([(int)$f['id'], $k]);
         }
@@ -192,30 +223,45 @@ try {
         if ($foldersError) out(['ok' => true, 'done' => false, 'reason' => 'no-table']);
         $mark = $pdo->prepare("SELECT 1 FROM chat_default_seeded WHERE user_id = ?");
         $mark->execute([$userId]);
-        if ($mark->fetchColumn()) out(['ok' => true, 'done' => false, 'reason' => 'already']);
-        // Отмечаем сразу — двойной вызов (два тика загрузки чата) не должен завести две папки.
-        $pdo->prepare("INSERT IGNORE INTO chat_default_seeded (user_id, seeded_at) VALUES (?, NOW())")
-            ->execute([$userId]);
+        $seeded = (bool)$mark->fetchColumn();
 
-        $defaultKeys = ['__ai__', '__psy__', '__feed__', '__blog__', '__support__'];
+        // Саму папку и её состав проверяем ВСЕГДА, а не только у новичка: у тех, кого завёл
+        // прошлый прогон, папка есть, но пометки служебной на ней нет — иначе они навсегда
+        // остались бы с папкой, которую можно удалить вместе с разделами.
+        $defaultKeys = lockedSectionKeys();
 
-        $st = $pdo->prepare("SELECT id FROM chat_folders WHERE user_id = ? AND name = ? LIMIT 1");
-        $st->execute([$userId, 'Важное']);
+        // Ищем сперва по признаку служебной (папку могли переименовать), потом по названию.
+        $st = $pdo->prepare("SELECT id FROM chat_folders WHERE user_id = ? AND is_system = 1 LIMIT 1");
+        $st->execute([$userId]);
         $folderId = (int)$st->fetchColumn();
+        if (!$folderId) {
+            $st = $pdo->prepare("SELECT id FROM chat_folders WHERE user_id = ? AND name = ? LIMIT 1");
+            $st->execute([$userId, 'Важное']);
+            $folderId = (int)$st->fetchColumn();
+        }
         if (!$folderId) {
             $ord = $pdo->prepare("SELECT COALESCE(MAX(sort_order), 0) + 1 FROM chat_folders WHERE user_id = ?");
             $ord->execute([$userId]);
-            $ins = $pdo->prepare("INSERT INTO chat_folders (user_id, name, sort_order, created_at) VALUES (?, 'Важное', ?, NOW())");
+            $ins = $pdo->prepare("INSERT INTO chat_folders (user_id, name, sort_order, created_at, is_system) VALUES (?, 'Важное', ?, NOW(), 1)");
             $ins->execute([$userId, (int)$ord->fetchColumn()]);
             $folderId = (int)$pdo->lastInsertId();
         }
+        // Папка могла быть заведена прошлым прогоном, когда колонки ещё не было.
+        try { $pdo->prepare("UPDATE chat_folders SET is_system = 1 WHERE id = ?")->execute([$folderId]); } catch (Exception $e) {}
         $insItem = $pdo->prepare("INSERT IGNORE INTO chat_folder_items (folder_id, chat_key) VALUES (?, ?)");
-        $insPin = $pdo->prepare("INSERT IGNORE INTO chat_pinned_chats (user_id, chat_key, pinned_at) VALUES (?, ?, NOW())");
-        foreach ($defaultKeys as $k) {
-            $insItem->execute([$folderId, $k]);
-            try { $insPin->execute([$userId, $k]); } catch (Exception $e) {}
+        foreach ($defaultKeys as $k) $insItem->execute([$folderId, $k]);
+
+        // А вот закрепление — разово: человек вправе открепить раздел, и навязывать
+        // закреп заново при каждом заходе нельзя.
+        if (!$seeded) {
+            $insPin = $pdo->prepare("INSERT IGNORE INTO chat_pinned_chats (user_id, chat_key, pinned_at) VALUES (?, ?, NOW())");
+            foreach ($defaultKeys as $k) {
+                try { $insPin->execute([$userId, $k]); } catch (Exception $e) {}
+            }
+            $pdo->prepare("INSERT IGNORE INTO chat_default_seeded (user_id, seeded_at) VALUES (?, NOW())")
+                ->execute([$userId]);
         }
-        out(['ok' => true, 'done' => true, 'folder_id' => $folderId]);
+        out(['ok' => true, 'done' => true, 'folder_id' => $folderId, 'pinned' => !$seeded]);
     }
 
     out(['ok' => false, 'error' => 'Неизвестное действие'], 400);

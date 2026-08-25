@@ -49,36 +49,80 @@ function unHasIsRead(PDO $pdo) {
     return $has;
 }
 
-$action = $_GET['action'] ?? 'counts';
-
-if (!unHasIsRead($pdo)) unOut(['ok' => true, 'supported' => false, 'data' => new stdClass(), 'total' => 0]);
-
-if ($action === 'total') {
+/**
+ * Скрытые и архивные диалоги этого человека: ключ чата → [время, вид].
+ *
+ * ПОЧЕМУ ЭТО ЗДЕСЬ. Счётчик висел вечно (жалоба админа: «приходят старые сообщения,
+ * я даже диалог удалил, а два висят»). Круг замыкался так: удалённый у себя диалог
+ * пропадает из списка (chat_hidden) → открыть его больше нельзя → messages_page.php,
+ * который единственный ставит is_read = 1, до него не доходит НИКОГДА → здесь он
+ * считается непрочитанным до скончания века.
+ *
+ * JOIN сознательно не делаем: chat_hidden и messages живут в разных collation
+ * (см. schema_util.php), и JOIN между ними падает с ошибкой 1267 — а падение тут
+ * молча возвращает supported:false и гасит счётчики совсем.
+ */
+function unHiddenMap(PDO $pdo, $userId) {
+    $map = [];
     try {
-        $st = $pdo->prepare("SELECT COUNT(*) FROM messages
-                              WHERE receiver_id = ? AND (is_read = 0 OR is_read IS NULL)");
+        $st = $pdo->prepare("SELECT chat_key, hidden_at, COALESCE(kind, 'deleted') AS kind
+                               FROM chat_hidden WHERE user_id = ?");
         $st->execute([$userId]);
-        unOut(['ok' => true, 'supported' => true, 'total' => (int)$st->fetchColumn()]);
-    } catch (Exception $e) { unOut(['ok' => true, 'supported' => false, 'total' => 0]); }
+        foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $r) {
+            $map[(string)$r['chat_key']] = ['at' => (string)$r['hidden_at'], 'kind' => (string)$r['kind']];
+        }
+    } catch (Exception $e) { /* таблицы нет — считаем как раньше, по всем */ }
+    return $map;
 }
 
-// По собеседникам. Группируем в базе, а не в PHP: строк может быть много, а нам
-// нужны только числа.
-try {
+/**
+ * Непрочитанное по собеседникам, с учётом удалённых и архивных диалогов.
+ * Возвращает [ключ => число]. Один и тот же расчёт и для counts, и для total —
+ * иначе шапка и список опять разойдутся, ради чего этот файл и заводился.
+ */
+function unCountsByPeer(PDO $pdo, $userId) {
     $st = $pdo->prepare("SELECT sender_id, COUNT(*) AS n FROM messages
                           WHERE receiver_id = ? AND (is_read = 0 OR is_read IS NULL)
                           GROUP BY sender_id");
     $st->execute([$userId]);
+    $rows = $st->fetchAll(PDO::FETCH_ASSOC);
+
+    $hidden = unHiddenMap($pdo, $userId);
+    // Считаем только то, что пришло ПОСЛЕ удаления: ровно такой диалог и возвращается
+    // в список сам (см. isChatHidden в chat.html). Всё, что было до, человек выбросил.
+    $fresh = $pdo->prepare("SELECT COUNT(*) FROM messages
+                             WHERE receiver_id = ? AND sender_id = ?
+                               AND (is_read = 0 OR is_read IS NULL) AND created_at > ?");
     $out = [];
-    $total = 0;
-    foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $r) {
+    foreach ($rows as $r) {
         $id = (string)($r['sender_id'] ?? '');
         if ($id === '') continue;
         $n = (int)$r['n'];
+        if (isset($hidden[$id])) {
+            // Архив, в отличие от удаления, не возвращается сам даже на новое сообщение —
+            // значит и счётчику там взяться неоткуда.
+            if ($hidden[$id]['kind'] === 'archived') continue;
+            try {
+                $fresh->execute([$userId, $id, $hidden[$id]['at']]);
+                $n = (int)$fresh->fetchColumn();
+            } catch (Exception $e) { $n = 0; }
+        }
+        if ($n <= 0) continue;
         $out[$id] = $n;
-        $total += $n;
     }
-    unOut(['ok' => true, 'supported' => true, 'data' => $out ?: new stdClass(), 'total' => $total]);
+    return $out;
+}
+
+$action = $_GET['action'] ?? 'counts';
+
+if (!unHasIsRead($pdo)) unOut(['ok' => true, 'supported' => false, 'data' => new stdClass(), 'total' => 0]);
+
+try {
+    $counts = unCountsByPeer($pdo, $userId);
+    $total = array_sum($counts);
+    if ($action === 'total') unOut(['ok' => true, 'supported' => true, 'total' => $total]);
+    unOut(['ok' => true, 'supported' => true, 'data' => $counts ?: new stdClass(), 'total' => $total]);
 } catch (Exception $e) {
+    if ($action === 'total') unOut(['ok' => true, 'supported' => false, 'total' => 0]);
     unOut(['ok' => true, 'supported' => false, 'data' => new stdClass(), 'total' => 0]);
 }

@@ -2165,6 +2165,19 @@
             padding: 0.9rem; width: 216px;
         }
         .rtc-game.open { display: block; }
+        /* Пока игра открыта, содержимое постера выше обычного: центрировать его уже нельзя —
+           доска и кнопки «Заново/Закрыть» заезжали под нижнюю панель звонка (.rtc-bar лежит
+           поверх, z-index 6). Прижимаем содержимое к верху, даём прокрутку и оставляем снизу
+           место ровно под панель с кнопками. */
+        .rtc-screen.game-open .rtc-poster {
+            justify-content: flex-start;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+            padding-bottom: calc(7.5rem + env(safe-area-inset-bottom));
+        }
+        /* Аватар при этом ужимаем — иначе на невысоком экране доска всё равно не влезает */
+        .rtc-screen.game-open .rtc-ava { width: 84px; height: 84px; font-size: 2rem; }
+        .rtc-screen.game-open .rtc-name { font-size: 1.15rem; }
         .rtc-game-score { text-align: center; color: #A7F3D0; font-size: 0.85rem; font-weight: 700; margin-bottom: 0.5rem; }
         .rtc-game-board {
             display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin: 0 auto;
@@ -3619,6 +3632,18 @@
                     <div class="emoji-grid" id="emojiGrid"></div>
                 </div>
                 </div>
+                <!-- Строка ввода раздела «Тех поддержка» (задача №82). Отдельная от основной,
+                     но с тем же классом .chat-input и таким же соседом #messagesContainer —
+                     значит и на телефоне ведёт себя как обычная: прижата к полу, с отступом
+                     под системную полосу. Раньше она рисовалась ВНУТРИ прокрутки сообщений
+                     и потому висела посреди экрана, оторванная от низа. -->
+                <div class="chat-input" id="supportInputBar" style="display:none;">
+                    <textarea id="mySupportInput" rows="1" placeholder="Сообщение в поддержку..."
+                        oninput="growSupportInput(this)" onkeydown="onSupportKeyDown(event)"></textarea>
+                    <button onclick="sendMySupportMessage()" class="send-btn cin-send" title="Отправить" aria-label="Отправить">
+                        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2.5L10.8 13.2"/><path d="M21.5 2.5l-7 19-3.7-8.3-8.3-3.7 19-7z"/></svg>
+                    </button>
+                </div>
                 <!-- Запись голоса -->
                 <!-- Плашка записи занимает МЕСТО строки ввода, а не появляется под ней:
                      иначе на телефоне она вылезала второй строкой ровно под пальцем и
@@ -4358,8 +4383,7 @@
             document.getElementById('emptyState').style.display = 'none';
             document.getElementById('chatContent').style.display = 'flex';
             document.querySelector('.chat-container').classList.add('mobile-chat-open');
-            const inputBar = document.getElementById('chatInputBar');
-            if (inputBar) inputBar.style.display = '';
+            setComposerMode('chat');
             if (pollInterval) clearInterval(pollInterval);
 
             renderGroupHeader(groupId);
@@ -4797,8 +4821,7 @@
             document.getElementById('emptyState').style.display = 'none';
             document.getElementById('chatContent').style.display = 'flex';
             document.querySelector('.chat-container').classList.add('mobile-chat-open');
-            const inputBar = document.getElementById('chatInputBar');
-            if (inputBar) inputBar.style.display = 'none';
+            setComposerMode('none');
             if (pollInterval) { clearInterval(pollInterval); pollInterval = null; }
 
             const c = myChannels.find(x => String(x.psychologist_id) === String(psychId)) || {};
@@ -5087,8 +5110,7 @@
             document.getElementById('emptyState').style.display = 'none';
             document.getElementById('chatContent').style.display = 'flex';
             document.querySelector('.chat-container').classList.add('mobile-chat-open');
-            const inputBar = document.getElementById('chatInputBar');
-            if (inputBar) inputBar.style.display = 'none';    // в каталог не пишут
+            setComposerMode('none');                         // в каталог не пишут
             if (pollInterval) { clearInterval(pollInterval); pollInterval = null; }
             dropRenderCache();
 
@@ -5364,8 +5386,7 @@
             document.getElementById('emptyState').style.display = 'none';
             document.getElementById('chatContent').style.display = 'flex';
             document.querySelector('.chat-container').classList.add('mobile-chat-open');
-            const inputBar = document.getElementById('chatInputBar');
-            if (inputBar) inputBar.style.display = 'none';    // в ленту не пишут, её читают
+            setComposerMode('none');                         // в ленту не пишут, её читают
             if (pollInterval) { clearInterval(pollInterval); pollInterval = null; }
 
             document.getElementById('chatHeader').innerHTML = `
@@ -6594,9 +6615,17 @@
         }
 
         function checkUnreadForSound(conversations) {
-            const total = (conversations || []).reduce((s, c) => s + (c.unread_count || 0), 0);
+            // Удалённый и архивный диалог не должны ни звучать, ни всплывать: жалоба админа
+            // «приходят старые сообщения, я даже диалог удалил» — ровно про это. Счёт из
+            // api/unread.php их уже не отдаёт, но если сервер такой счёт не поддерживает,
+            // сюда попадут числа из messages.php, который про скрытие ничего не знает.
+            const audible = (conversations || []).filter(c => {
+                const key = c._support ? (SUPPORT_PREFIX + c._threadId) : String(c.user_id || c.id || '');
+                return key && !hiddenChats[key] && !archivedChats[key];
+            });
+            const total = audible.reduce((s, c) => s + (c.unread_count || 0), 0);
             if (lastKnownUnreadTotal >= 0 && total > lastKnownUnreadTotal) {
-                const withUnread = (conversations || []).find(c => (c.unread_count || 0) > 0);
+                const withUnread = audible.find(c => (c.unread_count || 0) > 0);
                 const noisyKey = withUnread
                     ? (withUnread._support ? (SUPPORT_PREFIX + withUnread._threadId) : String(withUnread.user_id || withUnread.id))
                     : null;
@@ -6984,7 +7013,8 @@
                 const container = document.getElementById('conversationsList');
 
                 if (!conversations || conversations.length === 0) {
-                    const rows = sortPinnedFirst(favoritesRows().concat(aiRows(), psyRows(), feedRows(), channelsRows(), groupsRows()));
+                    const rows = sortPinnedFirst(favoritesRows().concat(aiRows(), supportRows(), psyRows(),
+                                                                        feedRows(), blogRows(), channelsRows(), groupsRows()));
                     container.innerHTML = channelsErrHtml() + groupsErrHtml() + rows.map(r => r.html).join('') + `
                         <div class="no-conversations">
                             <p>У вас пока нет диалогов</p>
@@ -7434,6 +7464,39 @@
             pinnedMessages = []; pinnedIdx = 0; pinnedMessage = null;
             renderPinnedBar();
         }
+
+        /**
+         * Какая строка ввода сейчас видна. Раньше каждый раздел прятал #chatInputBar
+         * своим инлайновым стилем, а вернуть её умел только loadMessages — стоило
+         * добавить раздел со своим композером, и легко было остаться вообще без строки
+         * ввода (фидбэк админа «адаптация чатов сломалась на телефоне»). Теперь
+         * состояние одно и переключается в одном месте.
+         *   'chat'    — обычная переписка
+         *   'support' — раздел «Тех поддержка»
+         *   'none'    — читаемые разделы: лента, канал, каталог, блог
+         */
+        function setComposerMode(mode) {
+            const chatBar = document.getElementById('chatInputBar');
+            const supBar = document.getElementById('supportInputBar');
+            if (chatBar) chatBar.style.display = (mode === 'chat') ? '' : 'none';
+            if (supBar) supBar.style.display = (mode === 'support') ? 'flex' : 'none';
+        }
+        window.setComposerMode = setComposerMode;
+
+        function onSupportKeyDown(e) {
+            if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMySupportMessage(); }
+        }
+        window.onSupportKeyDown = onSupportKeyDown;
+
+        /** Своя, а не общая autoGrowInput: та заодно переключает микрофон основного
+         *  композера, которому в разделе поддержки делать нечего. */
+        function growSupportInput(ta) {
+            if (!ta || !ta.offsetParent) return;
+            ta.style.height = 'auto';
+            const border = ta.offsetHeight - ta.clientHeight;
+            ta.style.height = Math.min(ta.scrollHeight + border, 136) + 'px';
+        }
+        window.growSupportInput = growSupportInput;
 
         async function pinsApi(action, payload) {
             const url = '/api/chat_pins.php?action=' + action;
@@ -7917,8 +7980,8 @@
 
         const BUILTIN_FOLDERS = [
             { id: 'all',      label: 'Все',     icon: ICO_ALL,     kinds: null },
-            { id: 'personal', label: 'Личное',  icon: ICO_PERSON,  kinds: ['personal', 'fav', 'ai', 'support'] },
-            { id: 'channels', label: 'Каналы',  icon: ICO_CHANNEL, kinds: ['channel', 'feed'] },
+            { id: 'personal', label: 'Личное',  icon: ICO_PERSON,  kinds: ['personal', 'fav'] },
+            { id: 'channels', label: 'Каналы',  icon: ICO_CHANNEL, kinds: ['channel'] },
             { id: 'groups',   label: 'Группы',  icon: ICO_GROUP,   kinds: ['group'] },
         ];
         let myFolders = [];              // [{id, name, keys:[]}]
@@ -9032,7 +9095,7 @@
                         <span class="ftab-ico">${ICO_PLUS}</span><span class="ftab-name">Папка</span>
                     </button>`;
             if (myFolders.length && activeFolder.charAt(0) === 'u') {
-                html += `<button class="folder-tab folder-tab-add" onclick="manageActiveFolder()" title="Настроить папку">
+                html += `<button class="folder-tab folder-tab-add" onclick="manageActiveFolder(event)" title="Переименовать или удалить папку">
                             <span class="ftab-ico">${ICO_GEAR}</span><span class="ftab-name">Правка</span>
                         </button>`;
             }
@@ -9056,25 +9119,72 @@
             }
         }
 
-        async function manageActiveFolder() {
+        /**
+         * Меню папки. Раньше здесь был один prompt, куда надо было ВПИСАТЬ слово «удалить» —
+         * удаление папки просто не находили (фидбэк админа: «не нашёл удалить папки функции»).
+         * Теперь это обычное меню с отдельным пунктом.
+         */
+        function manageActiveFolder(evt) {
+            if (evt) { evt.stopPropagation(); evt.preventDefault(); }
+            closeFolderPicker();
             const f = myFolders.find(x => 'u' + x.id === activeFolder);
             if (!f) return;
-            const what = prompt(`Папка «${f.name}»: введите новое название, либо слово «удалить», чтобы убрать папку.`, f.name);
-            if (what === null) return;
+            const menu = document.createElement('div');
+            menu.className = 'folder-picker';
+            menu.id = 'folderPicker';
+            menu.innerHTML = `
+                <div class="folder-picker-sep">Папка «${escapeHtml(f.name)}»</div>
+                <button class="folder-picker-row" onclick="event.stopPropagation();renameChatFolder(${f.id})">
+                    <span class="fp-mark">✏️</span>Переименовать
+                </button>
+                ${f.is_system
+                    ? `<button class="folder-picker-row" style="cursor:default;opacity:0.7;" onclick="event.stopPropagation();">
+                            <span class="fp-mark">🔒</span>Служебная папка — не удаляется
+                       </button>`
+                    : `<button class="folder-picker-row fp-danger" onclick="event.stopPropagation();deleteChatFolder(${f.id})">
+                            <span class="fp-mark">🗑</span>Удалить папку
+                       </button>`}`;
+            document.body.appendChild(menu);
+            const r = (evt && evt.currentTarget) ? evt.currentTarget.getBoundingClientRect() : { left: 20, bottom: 80, top: 60 };
+            const mh = menu.getBoundingClientRect().height;
+            menu.style.left = Math.min(r.left, window.innerWidth - menu.offsetWidth - 8) + 'px';
+            menu.style.top = (r.bottom + mh > window.innerHeight ? Math.max(8, r.top - mh) : r.bottom + 4) + 'px';
+            setTimeout(() => document.addEventListener('click', closeFolderPicker, { once: true }), 0);
+        }
+        window.manageActiveFolder = manageActiveFolder;
+
+        async function renameChatFolder(id) {
+            closeFolderPicker();
+            const f = myFolders.find(x => x.id === id);
+            if (!f) return;
+            const name = prompt('Новое название папки:', f.name);
+            if (name === null || !name.trim()) return;
             try {
-                if (what.trim().toLowerCase() === 'удалить') {
-                    await folderApi('delete', { id: f.id });
-                    activeFolder = 'all';
-                    try { localStorage.setItem('psy-chat-folder', 'all'); } catch (e) {}
-                } else if (what.trim()) {
-                    await folderApi('rename', { id: f.id, name: what.trim() });
-                }
+                await folderApi('rename', { id: f.id, name: name.trim() });
                 await loadFolders();
                 refreshConversationList();
             } catch (e) {
-                alert('Не получилось: ' + e.message);
+                alert('Не удалось переименовать: ' + e.message);
             }
         }
+        window.renameChatFolder = renameChatFolder;
+
+        async function deleteChatFolder(id) {
+            closeFolderPicker();
+            const f = myFolders.find(x => x.id === id);
+            if (!f) return;
+            if (!confirm(`Удалить папку «${f.name}»?\n\nСами чаты останутся на месте — исчезнет только папка.`)) return;
+            try {
+                await folderApi('delete', { id: f.id });
+                activeFolder = 'all';
+                try { localStorage.setItem('psy-chat-folder', 'all'); } catch (e) {}
+                await loadFolders();
+                refreshConversationList();
+            } catch (e) {
+                alert('Не удалось удалить папку: ' + e.message);
+            }
+        }
+        window.deleteChatFolder = deleteChatFolder;
 
         /**
          * Кнопка «⋮» у строки чата. Раньше это была отдельная кнопка «в папку», и админ не
@@ -9788,9 +9898,9 @@
                     </button>`;
             }
             const hiddenNow = !!hiddenChats[chatKey];
-            // «Избранное» и ассистент — не переписки с людьми, удалять их нечего:
-            // раньше пункт был и приводил к пустому месту в списке без внятной причины.
-            const canDelete = chatKey !== FAVORITES_ID && chatKey !== AI_ID;
+            // «Избранное», ассистент и разделы сайта — не переписки с людьми, удалять их
+            // нечего: раньше пункт был и приводил к пустому месту в списке без внятной причины.
+            const canDelete = chatKey !== FAVORITES_ID && chatKey !== AI_ID && kind !== 'section';
             const escTitle = (rowTitle || '').replace(/'/g, "\\'");
             if (canDelete) {
                 html += hiddenNow
@@ -9818,15 +9928,25 @@
                             <span class="fp-mark">🚩</span>Пожаловаться
                          </button>`;
             }
-            html += `<div class="folder-picker-sep">Папки</div>`;
-            html += myFolders.map(f => {
-                const inIt = (f.keys || []).indexOf(chatKey) >= 0;
-                return `<button class="folder-picker-row${inIt ? ' on' : ''}"
-                            onclick="event.stopPropagation();toggleChatInFolder('${esc}',${f.id})">
-                            <span class="fp-mark">${inIt ? '✓' : ''}</span>${escapeHtml(f.name)}
-                        </button>`;
-            }).join('');
-            html += `<button class="folder-picker-row fp-new" onclick="event.stopPropagation();closeFolderPicker();createChatFolder()">＋ Новая папка</button>`;
+            // Разделы сайта живут только в служебной папке (задача №82): раскладывать их
+            // по своим папкам нельзя, поэтому и выбора папок для них не показываем.
+            if (kind === 'section') {
+                const sysName = (myFolders.find(f => f.is_system) || {}).name || 'Важное';
+                html += `<div class="folder-picker-sep">Папка</div>
+                         <button class="folder-picker-row on" style="cursor:default;" onclick="event.stopPropagation();">
+                            <span class="fp-mark">✓</span>${escapeHtml(sysName)} — раздел закреплён здесь
+                         </button>`;
+            } else {
+                html += `<div class="folder-picker-sep">Папки</div>`;
+                html += myFolders.map(f => {
+                    const inIt = (f.keys || []).indexOf(chatKey) >= 0;
+                    return `<button class="folder-picker-row${inIt ? ' on' : ''}"
+                                onclick="event.stopPropagation();toggleChatInFolder('${esc}',${f.id})">
+                                <span class="fp-mark">${inIt ? '✓' : ''}</span>${escapeHtml(f.name)}
+                            </button>`;
+                }).join('');
+                html += `<button class="folder-picker-row fp-new" onclick="event.stopPropagation();closeFolderPicker();createChatFolder()">＋ Новая папка</button>`;
+            }
             menu.innerHTML = html;
             document.body.appendChild(menu);
             const r = evt.currentTarget.getBoundingClientRect();
@@ -9877,7 +9997,7 @@
 
         /** Строка «ИИ-ассистент» — бот, всегда рядом с Избранным. */
         function aiRows() {
-            if (!chatVisible('ai', AI_ID, null)) return [];
+            if (!chatVisible('section', AI_ID, null)) return [];
             return [{ key: AI_ID, name: 'ИИ-ассистент', html: `
                 <div class="conversation-item ${selectedUserId === AI_ID ? 'active' : ''}" onclick="openAiBot()" title="ИИ-ассистент">
                     <div class="conversation-avatar" style="background:linear-gradient(135deg,#0EA5E9,#047857);"><span class="ava-ico">${ICO_BOT}</span></div>
@@ -9885,7 +10005,7 @@
                         <div class="conversation-name"><span class="cn-text">ИИ-ассистент</span>${pinMarkHtml(AI_ID)}</div>
                         <div class="conversation-preview">Спросить совет, формулировку, план сессии</div>
                     </div>
-                    ${folderPickHtml(AI_ID, 'ai', null, 'ИИ-ассистент')}
+                    ${folderPickHtml(AI_ID, 'section', null, 'ИИ-ассистент')}
                 </div>` }];
         }
 
@@ -9894,7 +10014,7 @@
         function psyRows() {
             // Психологу каталог коллег в списке чатов ни к чему
             if (currentUser && currentUser.role === 'psychologist') return [];
-            if (!chatVisible('feed', PSY_ID, null)) return [];
+            if (!chatVisible('section', PSY_ID, null)) return [];
             return [{ key: PSY_ID, name: 'Психологи', html: `
                 <div class="conversation-item ${selectedUserId === PSY_ID ? 'active' : ''}" onclick="openPsyCatalog()" title="Психологи">
                     <div class="conversation-avatar" style="background:linear-gradient(135deg,#047857,#059669);"><span class="ava-ico">🧠</span></div>
@@ -9902,12 +10022,12 @@
                         <div class="conversation-name"><span class="cn-text">Психологи</span>${pinMarkHtml(PSY_ID)}</div>
                         <div class="conversation-preview">Выбрать специалиста и записаться</div>
                     </div>
-                    ${folderPickHtml(PSY_ID, 'feed', null, 'Психологи')}
+                    ${folderPickHtml(PSY_ID, 'section', null, 'Психологи')}
                 </div>` }];
         }
 
         function feedRows() {
-            if (!chatVisible('feed', FEED_ID, null)) return [];
+            if (!chatVisible('section', FEED_ID, null)) return [];
             return [{ key: FEED_ID, name: 'Лента', html: `
                 <div class="conversation-item ${selectedUserId === FEED_ID ? 'active' : ''}" onclick="openFeedSection()" title="Лента">
                     <div class="conversation-avatar" style="background:linear-gradient(135deg,#059669,#34D399);"><span class="ava-ico">📰</span></div>
@@ -9915,13 +10035,13 @@
                         <div class="conversation-name"><span class="cn-text">Лента</span>${pinMarkHtml(FEED_ID)}</div>
                         <div class="conversation-preview">Посты каналов, на которые вы подписаны</div>
                     </div>
-                    ${folderPickHtml(FEED_ID, 'feed', null, 'Лента')}
+                    ${folderPickHtml(FEED_ID, 'section', null, 'Лента')}
                 </div>` }];
         }
 
         /** Строка «Блог» — задача №81: раздел числился в списке разделов, но не рисовался нигде. */
         function blogRows() {
-            if (!chatVisible('feed', BLOG_ID, null)) return [];
+            if (!chatVisible('section', BLOG_ID, null)) return [];
             return [{ key: BLOG_ID, name: 'Блог', html: `
                 <div class="conversation-item ${selectedUserId === BLOG_ID ? 'active' : ''}" onclick="openBlogSection()" title="Блог">
                     <div class="conversation-avatar" style="background:linear-gradient(135deg,#7C3AED,#A78BFA);"><span class="ava-ico">📝</span></div>
@@ -9929,18 +10049,166 @@
                         <div class="conversation-name"><span class="cn-text">Блог</span>${pinMarkHtml(BLOG_ID)}</div>
                         <div class="conversation-preview">Статьи психологов о самочувствии и терапии</div>
                     </div>
-                    ${folderPickHtml(BLOG_ID, 'feed', null, 'Блог')}
+                    ${folderPickHtml(BLOG_ID, 'section', null, 'Блог')}
                 </div>` }];
         }
-        function openBlogSection() {
-            window.location.href = '/blog.html';
+        /**
+         * Раздел «Блог» внутри чата — как канал (фидбэк админа: «блог вылетает из чата,
+         * а должен быть приведён к общему виду»). Раньше строка списка просто уводила на
+         * /blog.html, и человек терял чат целиком. Теперь и список статей, и чтение самой
+         * статьи происходят здесь же, тем же карточным видом, что и посты канала.
+         */
+        async function openBlogSection() {
+            clearPinnedBar();
+            selectedUserId = BLOG_ID;
+            syncChatUrl(selectedUserId);
+            leaveAiMode();
+            cancelEditMessage();
+            headerRenderedFor = BLOG_ID;
+
+            document.getElementById('emptyState').style.display = 'none';
+            document.getElementById('chatContent').style.display = 'flex';
+            document.querySelector('.chat-container').classList.add('mobile-chat-open');
+            setComposerMode('none');                         // в блог не пишут, его читают
+            if (pollInterval) { clearInterval(pollInterval); pollInterval = null; }
+
+            renderBlogHeader();
+            refreshConversationList();
+            await loadBlogSection();
         }
         window.openBlogSection = openBlogSection;
+
+        function renderBlogHeader(articleTitle) {
+            document.getElementById('chatHeader').innerHTML = `
+                <button class="chat-back-btn" onclick="${articleTitle ? 'loadBlogSection()' : 'goBackToList()'}"
+                        title="${articleTitle ? 'Назад к списку статей' : 'Назад к диалогам'}">←</button>
+                <div class="avatar" style="background:linear-gradient(135deg,#7C3AED,#A78BFA);"><span class="ava-ico">📝</span></div>
+                <div style="flex:1;min-width:0;">
+                    <div class="name">Блог</div>
+                    <div class="role">${articleTitle ? escapeHtml(articleTitle) : 'Статьи психологов'}</div>
+                </div>
+                ${headerActionsHtml([
+                    { icon: '🔄', label: 'Обновить блог', run: () => loadBlogSection() },
+                    { icon: '🌐', label: 'Открыть блог отдельной страницей', href: '/blog.html' },
+                ], '')}`;
+        }
+
+        async function loadBlogSection() {
+            const box = document.getElementById('messagesContainer');
+            if (!box) return;
+            renderBlogHeader();
+            box.innerHTML = '<div class="empty-state"><p style="color:#9CA3AF;">Загрузка статей…</p></div>';
+            dropRenderCache();
+            let rows = [];
+            try {
+                const r = await fetch('/api/blog.php?action=list&limit=50', { credentials: 'include' });
+                const d = await r.json();
+                rows = (d && d.data) || [];
+            } catch (e) {}
+            if (selectedUserId !== BLOG_ID) return;   // пока грузили, ушли в другой раздел
+            if (!rows.length) {
+                box.innerHTML = `<div class="empty-state"><div>
+                    <p style="color:#9CA3AF;">📝 В блоге пока нет опубликованных статей.</p>
+                </div></div>`;
+                dropRenderCache();
+                return;
+            }
+            box.innerHTML = rows.map(blogCardHtml).join('');
+            dropRenderCache();
+        }
+        window.loadBlogSection = loadBlogSection;
+
+        function blogDateText(a) {
+            const when = a.published_at || a.created_at;
+            if (!when) return '';
+            const d = new Date(String(when).replace(' ', 'T'));
+            return isNaN(d) ? '' : d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
+        }
+
+        function blogCardHtml(a) {
+            const who = `${a.first_name || ''} ${a.last_name || ''}`.trim() || 'psytalk.pro';
+            const id = String(a.id).replace(/'/g, '');
+            const cover = a.cover_url ? `<img class="ch-post-img" src="${escapeHtml(a.cover_url)}" alt="">` : '';
+            const tag = a.tag ? `<span class="ch-pbtn" style="cursor:default;">#${escapeHtml(a.tag)}</span>` : '';
+            return `
+                <div class="ch-post" data-blog-id="${escapeHtml(id)}">
+                    <div class="ch-post-author">
+                        <button type="button" onclick="openBlogArticle('${id}')" title="Читать статью">${escapeHtml(who)}</button>
+                    </div>
+                    <div class="ch-post-date">${escapeHtml(blogDateText(a))}</div>
+                    <div class="ch-post-text">
+                        <div style="font-weight:700;font-size:1.02rem;margin-bottom:0.25rem;">${escapeHtml(a.title || 'Без названия')}</div>
+                        ${a.excerpt ? escapeHtml(a.excerpt) : ''}
+                    </div>
+                    ${cover}
+                    <div class="ch-post-actions">
+                        <button class="ch-pbtn" onclick="openBlogArticle('${id}')">📖 <span>Читать</span></button>
+                        <span class="ch-pbtn" style="cursor:default;">👁 ${a.views_count || 0}</span>
+                        ${tag}
+                        <button class="ch-pbtn" onclick="shareBlogArticle('${id}')" title="Отправить статью своим контактам">↗ <span>Поделиться</span></button>
+                    </div>
+                </div>`;
+        }
+
+        let blogArticleCache = {};
+
+        async function openBlogArticle(id) {
+            const box = document.getElementById('messagesContainer');
+            if (!box) return;
+            box.innerHTML = '<div class="empty-state"><p style="color:#9CA3AF;">Загрузка статьи…</p></div>';
+            let a = null;
+            try {
+                const r = await fetch('/api/blog.php?action=get&id=' + encodeURIComponent(id), { credentials: 'include' });
+                const d = await r.json();
+                a = (d && d.data) || null;
+            } catch (e) {}
+            if (selectedUserId !== BLOG_ID) return;
+            if (!a) {
+                box.innerHTML = '<div class="empty-state"><p style="color:#9CA3AF;">Статью не удалось открыть — возможно, её сняли с публикации.</p></div>';
+                return;
+            }
+            blogArticleCache[String(a.id)] = a;
+            renderBlogHeader(a.title || 'Статья');
+            const who = `${a.first_name || ''} ${a.last_name || ''}`.trim() || 'psytalk.pro';
+            const cover = a.cover_url ? `<img class="ch-post-img" src="${escapeHtml(a.cover_url)}" alt="">` : '';
+            // Тело статьи прогоняем через тот же formatPostText, что и статьи на /article.html:
+            // он экранирует текст и уже потом применяет разметку.
+            box.innerHTML = `
+                <div class="ch-post" data-blog-id="${escapeHtml(String(a.id))}">
+                    <div class="ch-post-author"><button type="button" onclick="loadBlogSection()" title="Ко всем статьям">← Все статьи</button></div>
+                    <div class="ch-post-date">${escapeHtml(who)} · ${escapeHtml(blogDateText(a))}${a.read_time ? ' · ' + escapeHtml(a.read_time) : ''}</div>
+                    <div class="ch-post-text"><div style="font-weight:700;font-size:1.15rem;margin-bottom:0.5rem;">${escapeHtml(a.title || 'Без названия')}</div></div>
+                    ${cover}
+                    <div class="ch-post-text" style="margin-top:0.6rem;">${formatPostText(a.body || '')}</div>
+                    <div class="ch-post-actions">
+                        <span class="ch-pbtn" style="cursor:default;">👁 ${a.views_count || 0}</span>
+                        <button class="ch-pbtn" onclick="shareBlogArticle('${String(a.id).replace(/'/g, '')}')" title="Отправить статью своим контактам">↗ <span>Поделиться</span></button>
+                        <button class="ch-pbtn" onclick="loadBlogSection()">📚 <span>Все статьи</span></button>
+                    </div>
+                </div>`;
+            const scroller = document.getElementById('messagesContainer');
+            if (scroller) scroller.scrollTop = 0;
+        }
+        window.openBlogArticle = openBlogArticle;
+
+        /** Отправить статью своим контактам — тем же окном пересылки, что и посты канала. */
+        function shareBlogArticle(id) {
+            const a = blogArticleCache[String(id)] || {};
+            const link = location.origin + '/article.html?' + (a.slug ? 'slug=' + encodeURIComponent(a.slug) : 'id=' + encodeURIComponent(id));
+            const title = (a.title || '').trim();
+            openForwardModalWith([{
+                content: (title ? '📝 ' + title + '\n\n' : '') + link,
+                attachment_url: a.cover_url || null,
+                attachment_type: a.cover_url ? 'image' : null,
+                attachment_name: null,
+            }]);
+        }
+        window.shareBlogArticle = shareBlogArticle;
 
         /** Строка «Тех поддержка» — задача №81: свой разговор с поддержкой прямо в чатах,
          *  а не только всплывающий виджет (который у вошедших вообще скрыт). */
         function supportRows() {
-            if (!chatVisible('support', SUPPORT_ID, null)) return [];
+            if (!chatVisible('section', SUPPORT_ID, null)) return [];
             return [{ key: SUPPORT_ID, name: 'Тех поддержка', html: `
                 <div class="conversation-item ${selectedUserId === SUPPORT_ID ? 'active' : ''}" onclick="openMySupportChat()" title="Тех поддержка">
                     <div class="conversation-avatar" style="background:linear-gradient(135deg,#F59E0B,#EF4444);"><span class="ava-ico">🆘</span></div>
@@ -9948,7 +10216,7 @@
                         <div class="conversation-name"><span class="cn-text">Тех поддержка</span>${pinMarkHtml(SUPPORT_ID)}</div>
                         <div class="conversation-preview">Напишите нам — ответим здесь</div>
                     </div>
-                    ${folderPickHtml(SUPPORT_ID, 'support', null, 'Тех поддержка')}
+                    ${folderPickHtml(SUPPORT_ID, 'section', null, 'Тех поддержка')}
                 </div>` }];
         }
 
@@ -10023,6 +10291,7 @@
             const text = input.value.trim();
             if (!text) return;
             input.value = '';
+            growSupportInput(input);                        // вернуть высоту в одну строку
             input.disabled = true;
             try {
                 if (!mySupportToken) {
@@ -10065,8 +10334,7 @@
             document.getElementById('emptyState').style.display = 'none';
             document.getElementById('chatContent').style.display = 'flex';
             document.querySelector('.chat-container').classList.add('mobile-chat-open');
-            const inputBar = document.getElementById('chatInputBar');
-            if (inputBar) inputBar.style.display = 'none';   // у раздела свой, простой композер
+            setComposerMode('support');                      // у раздела своя строка ввода
             if (pollInterval) { clearInterval(pollInterval); pollInterval = null; }
 
             document.getElementById('chatHeader').innerHTML = `
@@ -10083,25 +10351,11 @@
             if (!mySupportToken) {
                 try { mySupportToken = localStorage.getItem(mySupportTokenKey()); } catch (e) {}
             }
-            // Композер — часть содержимого #messagesContainer, а не отдельный элемент сбоку:
-            // так уход в любой другой раздел (он тоже пишет в этот же контейнер) сам уберёт
-            // и список сообщений поддержки, и композер — без единой правки в других местах.
+            // Только лента сообщений. Строка ввода — статический #supportInputBar рядом с
+            // прокруткой (см. разметку): раньше она рисовалась ЗДЕСЬ, внутри прокрутки, и
+            // потому висела посреди экрана вместо низа.
             const box = document.getElementById('messagesContainer');
-            if (box) {
-                const dark = mySupportIsDark();
-                box.innerHTML = `
-                    <div id="mySupportMsgs" style="display:flex;flex-direction:column;gap:0.5rem;"></div>
-                    <div id="mySupportComposer" style="position:sticky;bottom:-1rem;margin:0.5rem -1rem -1rem;padding:0.7rem 1rem;
-                         background:${dark ? '#1E1E1E' : '#fff'};border-top:1px solid ${dark ? '#444' : '#ECECEC'};
-                         display:flex;gap:0.5rem;align-items:center;">
-                        <input id="mySupportInput" placeholder="Сообщение в поддержку..." style="flex:1;min-width:0;padding:0.6rem 0.9rem;border:1.5px solid ${dark ? '#444' : '#E5E7EB'};border-radius:1.2rem;font-family:inherit;font-size:0.9rem;outline:none;background:${dark ? '#2A2A2A' : '#fff'};color:${dark ? '#E6E6E6' : '#1A1A1A'};">
-                        <button id="mySupportSendBtn" style="width:42px;height:42px;border-radius:50%;border:none;background:linear-gradient(135deg,#F59E0B,#EF4444);color:#fff;cursor:pointer;font-size:1.05rem;flex-shrink:0;">➤</button>
-                    </div>`;
-                document.getElementById('mySupportSendBtn').addEventListener('click', sendMySupportMessage);
-                document.getElementById('mySupportInput').addEventListener('keydown', e => {
-                    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMySupportMessage(); }
-                });
-            }
+            if (box) box.innerHTML = '<div id="mySupportMsgs" style="display:flex;flex-direction:column;gap:0.5rem;"></div>';
             if (!mySupportToken) {
                 try {
                     const r = await fetch('/api/support.php?action=my-token', { credentials: 'include' });
@@ -10648,8 +10902,7 @@
             document.getElementById('emptyState').style.display = 'none';
             document.getElementById('chatContent').style.display = 'flex';
             document.querySelector('.chat-container').classList.add('mobile-chat-open');
-            const inputBar = document.getElementById('chatInputBar');
-            if (inputBar) inputBar.style.display = '';
+            setComposerMode('chat');
             // Боту нельзя отправить файл, голосовое или кружок — прячем эти кнопки
             document.body.classList.add('ai-chat');
             // Список голосов браузер отдаёт не сразу: трогаем его заранее, чтобы к первому
@@ -11956,8 +12209,7 @@
             if (!isConversationKey(selectedUserId)) return;
             if (isAiMode()) { renderAiMessages(); return; }   // у бота переписка локальная
             // Реальная переписка (в отличие от read-only канала) — вернуть панель ввода сообщений, если она была скрыта.
-            const inputBar = document.getElementById('chatInputBar');
-            if (inputBar && inputBar.style.display === 'none') inputBar.style.display = '';
+            setComposerMode('chat');
             if (selectedUserId === FAVORITES_ID) { await loadFavoritesMessages(); return; }
             if (isSupportMode()) { await loadSupportThreadMessages(); return; }
             if (selectedUserId.indexOf(GROUP_PREFIX) === 0) { await loadGroupMessages(); return; }
@@ -17136,6 +17388,8 @@
             rtcGameBoard = null; rtcGameTurn = 'X'; rtcGameOver = false;
             const panel = document.getElementById('rtcGamePanel');
             if (panel) panel.classList.remove('open');
+            const screen = document.getElementById('rtcScreen');
+            if (screen) screen.classList.remove('game-open');
             const toggle = document.getElementById('rtcGameToggle');
             if (toggle) toggle.style.display = '';
             rtcGameLoadScore();
@@ -17147,6 +17401,10 @@
             if (!panel) return;
             const opening = !panel.classList.contains('open');
             panel.classList.toggle('open', opening);
+            // Пометка на весь экран звонка: пока игра открыта, постеру нужна другая
+            // раскладка, иначе доска налезает на кнопки звонка снизу (фидбэк админа).
+            const screen = document.getElementById('rtcScreen');
+            if (screen) screen.classList.toggle('game-open', opening);
             if (opening && !rtcGameBoard) rtcGameStartRound(true);
         }
         window.rtcGameToggle = rtcGameToggle;
