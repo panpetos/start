@@ -4020,6 +4020,10 @@
     <script src="/js/auth.js?v=20260821"></script>
     <script src="/js/lightbox.js?v=6"></script>
     <script src="/js/post-format.js?v=20260823b"></script>
+    <!-- Редакционные статьи блога (window.PSY_ARTICLES). Их же показывает /blog.html
+         рядом со статьями психологов из БД — без этого файла раздел «Блог» в чате
+         показывал бы «статей нет», пока в базе пусто. -->
+    <script src="/js/articles.js?v=20260821"></script>
     <script src="/js/header.js?v=20260821"></script>
     <script>
         const FAVORITES_ID = '__fav__'; // псевдо-собеседник «Избранное» (свой личный диалог)
@@ -10093,27 +10097,34 @@
                 ], '')}`;
         }
 
+        /**
+         * Два источника, ровно как на /blog.html: статьи психологов из БД идут первыми,
+         * редакционные (js/articles.js) — следом. Раньше здесь была только база, а она
+         * пока пуста — раздел показывал бы «статей нет» при живом блоге на сайте.
+         */
         async function loadBlogSection() {
             const box = document.getElementById('messagesContainer');
             if (!box) return;
             renderBlogHeader();
             box.innerHTML = '<div class="empty-state"><p style="color:#9CA3AF;">Загрузка статей…</p></div>';
             dropRenderCache();
-            let rows = [];
+            let apiRows = [];
             try {
-                const r = await fetch('/api/blog.php?action=list&limit=50', { credentials: 'include' });
+                const r = await fetch('/api/blog.php?action=list&limit=60', { credentials: 'include' });
                 const d = await r.json();
-                rows = (d && d.data) || [];
+                if (d && d.ok) apiRows = d.data || [];
             } catch (e) {}
             if (selectedUserId !== BLOG_ID) return;   // пока грузили, ушли в другой раздел
-            if (!rows.length) {
+            const staticRows = window.PSY_ARTICLES || [];
+            if (!apiRows.length && !staticRows.length) {
                 box.innerHTML = `<div class="empty-state"><div>
-                    <p style="color:#9CA3AF;">📝 В блоге пока нет опубликованных статей.</p>
+                    <p style="color:#9CA3AF;">📝 В блоге пока нет статей.</p>
                 </div></div>`;
                 dropRenderCache();
                 return;
             }
-            box.innerHTML = rows.map(blogCardHtml).join('');
+            box.innerHTML = apiRows.map(a => blogCardHtml(a, false)).join('')
+                          + staticRows.map(a => blogCardHtml(a, true)).join('');
             dropRenderCache();
         }
         window.loadBlogSection = loadBlogSection;
@@ -10125,81 +10136,112 @@
             return isNaN(d) ? '' : d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
         }
 
-        function blogCardHtml(a) {
-            const who = `${a.first_name || ''} ${a.last_name || ''}`.trim() || 'psytalk.pro';
+        function blogCardHtml(a, isStatic) {
             const id = String(a.id).replace(/'/g, '');
-            const cover = a.cover_url ? `<img class="ch-post-img" src="${escapeHtml(a.cover_url)}" alt="">` : '';
+            const st = isStatic ? 'true' : 'false';
             const tag = a.tag ? `<span class="ch-pbtn" style="cursor:default;">#${escapeHtml(a.tag)}</span>` : '';
+            // У редакционных статей вместо обложки — эмодзи на градиенте, как на /blog.html
+            const cover = isStatic
+                ? `<div class="ch-post-img" style="background:${escapeHtml(a.grad || '#EDE9FE')};display:flex;align-items:center;
+                        justify-content:center;font-size:2.4rem;height:120px;border-radius:0.7rem;">${escapeHtml(a.emoji || '📝')}</div>`
+                : (a.cover_url ? `<img class="ch-post-img" src="${escapeHtml(a.cover_url)}" alt="">` : '');
+            const who = isStatic
+                ? 'Редакция psytalk.pro'
+                : (`${a.first_name || ''} ${a.last_name || ''}`.trim() || 'psytalk.pro');
+            const meta = isStatic
+                ? (a.read ? escapeHtml(a.read) + ' чтения' : '')
+                : escapeHtml(blogDateText(a));
             return `
                 <div class="ch-post" data-blog-id="${escapeHtml(id)}">
                     <div class="ch-post-author">
-                        <button type="button" onclick="openBlogArticle('${id}')" title="Читать статью">${escapeHtml(who)}</button>
+                        <button type="button" onclick="openBlogArticle('${id}',${st})" title="Читать статью">${escapeHtml(who)}</button>
                     </div>
-                    <div class="ch-post-date">${escapeHtml(blogDateText(a))}</div>
+                    <div class="ch-post-date">${meta}</div>
                     <div class="ch-post-text">
                         <div style="font-weight:700;font-size:1.02rem;margin-bottom:0.25rem;">${escapeHtml(a.title || 'Без названия')}</div>
                         ${a.excerpt ? escapeHtml(a.excerpt) : ''}
                     </div>
                     ${cover}
                     <div class="ch-post-actions">
-                        <button class="ch-pbtn" onclick="openBlogArticle('${id}')">📖 <span>Читать</span></button>
-                        <span class="ch-pbtn" style="cursor:default;">👁 ${a.views_count || 0}</span>
+                        <button class="ch-pbtn" onclick="openBlogArticle('${id}',${st})">📖 <span>Читать</span></button>
+                        ${isStatic ? '' : `<span class="ch-pbtn" style="cursor:default;">👁 ${a.views_count || 0}</span>`}
                         ${tag}
-                        <button class="ch-pbtn" onclick="shareBlogArticle('${id}')" title="Отправить статью своим контактам">↗ <span>Поделиться</span></button>
+                        <button class="ch-pbtn" onclick="shareBlogArticle('${id}',${st})" title="Отправить статью своим контактам">↗ <span>Поделиться</span></button>
                     </div>
                 </div>`;
         }
 
         let blogArticleCache = {};
 
-        async function openBlogArticle(id) {
+        async function openBlogArticle(id, isStatic) {
             const box = document.getElementById('messagesContainer');
             if (!box) return;
-            box.innerHTML = '<div class="empty-state"><p style="color:#9CA3AF;">Загрузка статьи…</p></div>';
-            let a = null;
-            try {
-                const r = await fetch('/api/blog.php?action=get&id=' + encodeURIComponent(id), { credentials: 'include' });
-                const d = await r.json();
-                a = (d && d.data) || null;
-            } catch (e) {}
-            if (selectedUserId !== BLOG_ID) return;
+
+            let a = null, bodyHtml = '';
+            if (isStatic) {
+                a = (window.PSY_ARTICLES || []).find(x => String(x.id) === String(id)) || null;
+                // Редакционные статьи — наш собственный файл js/articles.js, тело там уже
+                // размечено абзацами и подзаголовками. Собираем ровно как /article.html.
+                if (a) bodyHtml = (a.body || []).map(pp => String(pp).startsWith('<h2') ? pp : '<p>' + pp + '</p>').join('');
+            } else {
+                box.innerHTML = '<div class="empty-state"><p style="color:#9CA3AF;">Загрузка статьи…</p></div>';
+                try {
+                    const r = await fetch('/api/blog.php?action=get&id=' + encodeURIComponent(id), { credentials: 'include' });
+                    const d = await r.json();
+                    a = (d && d.data) || null;
+                } catch (e) {}
+                if (selectedUserId !== BLOG_ID) return;
+                // Тело из БД пишут психологи — через formatPostText, он экранирует текст
+                // и только потом применяет разметку (тот же путь, что и на /article.html).
+                if (a) bodyHtml = formatPostText(a.body || '');
+            }
             if (!a) {
                 box.innerHTML = '<div class="empty-state"><p style="color:#9CA3AF;">Статью не удалось открыть — возможно, её сняли с публикации.</p></div>';
                 return;
             }
-            blogArticleCache[String(a.id)] = a;
+            blogArticleCache[(isStatic ? 'st:' : 'db:') + String(a.id)] = a;
             renderBlogHeader(a.title || 'Статья');
-            const who = `${a.first_name || ''} ${a.last_name || ''}`.trim() || 'psytalk.pro';
-            const cover = a.cover_url ? `<img class="ch-post-img" src="${escapeHtml(a.cover_url)}" alt="">` : '';
-            // Тело статьи прогоняем через тот же formatPostText, что и статьи на /article.html:
-            // он экранирует текст и уже потом применяет разметку.
+            const who = isStatic
+                ? 'Редакция psytalk.pro'
+                : (`${a.first_name || ''} ${a.last_name || ''}`.trim() || 'psytalk.pro');
+            const meta = isStatic
+                ? (a.read ? escapeHtml(a.read) + ' чтения' : '')
+                : escapeHtml(blogDateText(a)) + (a.read_time ? ' · ' + escapeHtml(a.read_time) : '');
+            const cover = isStatic
+                ? `<div class="ch-post-img" style="background:${escapeHtml(a.grad || '#EDE9FE')};display:flex;align-items:center;
+                        justify-content:center;font-size:3rem;height:150px;border-radius:0.7rem;">${escapeHtml(a.emoji || '📝')}</div>`
+                : (a.cover_url ? `<img class="ch-post-img" src="${escapeHtml(a.cover_url)}" alt="">` : '');
+            const esc = String(a.id).replace(/'/g, '');
+            const st = isStatic ? 'true' : 'false';
             box.innerHTML = `
                 <div class="ch-post" data-blog-id="${escapeHtml(String(a.id))}">
                     <div class="ch-post-author"><button type="button" onclick="loadBlogSection()" title="Ко всем статьям">← Все статьи</button></div>
-                    <div class="ch-post-date">${escapeHtml(who)} · ${escapeHtml(blogDateText(a))}${a.read_time ? ' · ' + escapeHtml(a.read_time) : ''}</div>
+                    <div class="ch-post-date">${escapeHtml(who)}${meta ? ' · ' + meta : ''}</div>
                     <div class="ch-post-text"><div style="font-weight:700;font-size:1.15rem;margin-bottom:0.5rem;">${escapeHtml(a.title || 'Без названия')}</div></div>
                     ${cover}
-                    <div class="ch-post-text" style="margin-top:0.6rem;">${formatPostText(a.body || '')}</div>
+                    <div class="ch-post-text" style="margin-top:0.6rem;">${bodyHtml}</div>
                     <div class="ch-post-actions">
-                        <span class="ch-pbtn" style="cursor:default;">👁 ${a.views_count || 0}</span>
-                        <button class="ch-pbtn" onclick="shareBlogArticle('${String(a.id).replace(/'/g, '')}')" title="Отправить статью своим контактам">↗ <span>Поделиться</span></button>
+                        ${isStatic ? '' : `<span class="ch-pbtn" style="cursor:default;">👁 ${a.views_count || 0}</span>`}
+                        <button class="ch-pbtn" onclick="shareBlogArticle('${esc}',${st})" title="Отправить статью своим контактам">↗ <span>Поделиться</span></button>
                         <button class="ch-pbtn" onclick="loadBlogSection()">📚 <span>Все статьи</span></button>
                     </div>
                 </div>`;
-            const scroller = document.getElementById('messagesContainer');
-            if (scroller) scroller.scrollTop = 0;
+            box.scrollTop = 0;
         }
         window.openBlogArticle = openBlogArticle;
 
         /** Отправить статью своим контактам — тем же окном пересылки, что и посты канала. */
-        function shareBlogArticle(id) {
-            const a = blogArticleCache[String(id)] || {};
-            const link = location.origin + '/article.html?' + (a.slug ? 'slug=' + encodeURIComponent(a.slug) : 'id=' + encodeURIComponent(id));
+        function shareBlogArticle(id, isStatic) {
+            let a = blogArticleCache[(isStatic ? 'st:' : 'db:') + String(id)];
+            if (!a && isStatic) a = (window.PSY_ARTICLES || []).find(x => String(x.id) === String(id));
+            a = a || {};
+            const link = location.origin + '/article.html?' +
+                (!isStatic && a.slug ? 'slug=' + encodeURIComponent(a.slug) : 'id=' + encodeURIComponent(id));
             const title = (a.title || '').trim();
             openForwardModalWith([{
                 content: (title ? '📝 ' + title + '\n\n' : '') + link,
-                attachment_url: a.cover_url || null,
-                attachment_type: a.cover_url ? 'image' : null,
+                attachment_url: (!isStatic && a.cover_url) ? a.cover_url : null,
+                attachment_type: (!isStatic && a.cover_url) ? 'image' : null,
                 attachment_name: null,
             }]);
         }
