@@ -47,7 +47,7 @@ function out($d, $c = 200) { http_response_code($c); echo json_encode($d, JSON_U
 // и четыре CREATE TABLE выполнялись на каждый опрос группового чата, а он идёт
 // раз в пять секунд с каждой открытой вкладки.
 function ensureGroupTables(PDO $pdo) {
-    psy_schema_once('group_chat_schema_v1', 3600, function () use ($pdo) { ensureGroupTablesNow($pdo); });
+    psy_schema_once('group_chat_schema_v2', 3600, function () use ($pdo) { ensureGroupTablesNow($pdo); });
 }
 
 function ensureGroupTablesNow(PDO $pdo) {
@@ -110,6 +110,34 @@ function ensureGroupTablesNow(PDO $pdo) {
 // и раньше это выглядело как «сообщения просто не отправляются» без единого намёка на причину.
 $groupTablesError = null;
 try { ensureGroupTables($pdo); } catch (Exception $e) { $groupTablesError = $e->getMessage(); }
+
+/**
+ * Отметить прочитанное. Вынесено в отдельную функцию с собственным try/catch.
+ *
+ * ПОЧЕМУ ТАК. Отметка — служебная запись, а не то, за чем человек пришёл. Когда
+ * я добавил в неё колонку last_read_at, а сама колонка ещё не появилась (схема
+ * проверяется не чаще раза в час), UPDATE падал ВНУТРИ try, который возвращал
+ * сообщения, — и catch отдавал пустой список. Со стороны это выглядело так,
+ * будто во всех группах пропали сообщения, хотя они уже были прочитаны из базы.
+ *
+ * Теперь: сначала пробуем со временем, при ошибке — без него, и в любом случае
+ * молча. Выдача сообщений от этого не зависит.
+ */
+function gcMarkRead(PDO $pdo, $groupId, $userId, $upToId) {
+    if ($upToId <= 0) return;
+    try {
+        $pdo->prepare("UPDATE chat_group_members
+                          SET last_read_message_id = GREATEST(COALESCE(last_read_message_id, 0), ?),
+                              last_read_at = NOW()
+                        WHERE group_id = ? AND user_id = ?")->execute([$upToId, $groupId, $userId]);
+        return;
+    } catch (Exception $e) { /* колонки времени ещё нет — отмечаем по-старому */ }
+    try {
+        $pdo->prepare("UPDATE chat_group_members
+                          SET last_read_message_id = GREATEST(COALESCE(last_read_message_id, 0), ?)
+                        WHERE group_id = ? AND user_id = ?")->execute([$upToId, $groupId, $userId]);
+    } catch (Exception $e) {}
+}
 
 function isMember(PDO $pdo, $groupId, $userId) {
     try {
@@ -179,10 +207,7 @@ if ($action === 'messages') {
         $st->execute([$groupId]);
         $rows = $st->fetchAll(PDO::FETCH_ASSOC);
         $maxId = $rows ? (int)$rows[count($rows) - 1]['id'] : 0;
-        if ($maxId > 0) {
-            $pdo->prepare("UPDATE chat_group_members SET last_read_message_id = GREATEST(COALESCE(last_read_message_id, 0), ?), last_read_at = NOW() WHERE group_id = ? AND user_id = ?")
-                ->execute([$maxId, $groupId, $userId]);
-        }
+        gcMarkRead($pdo, $groupId, $userId, $maxId);
         out(['ok' => true, 'data' => $rows]);
     } catch (Exception $e) { out(['ok' => true, 'data' => []]); }
 }
@@ -211,8 +236,7 @@ if ($action === 'send' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         $mid = (int)$pdo->lastInsertId();
         // COALESCE: если last_read_message_id почему-то NULL, GREATEST(NULL, x) вернёт NULL,
         // а колонка NOT NULL — в strict-режиме MySQL это ошибка и всё сообщение бы «не отправилось».
-        $pdo->prepare("UPDATE chat_group_members SET last_read_message_id = GREATEST(COALESCE(last_read_message_id, 0), ?), last_read_at = NOW() WHERE group_id = ? AND user_id = ?")
-            ->execute([$mid, $groupId, $userId]);
+        gcMarkRead($pdo, $groupId, $userId, $mid);
         // Уведомления участникам — сразу, а не с рассылкой раз в несколько минут.
         // Отвечаем клиенту первым делом: обращений к службам доставки столько же,
         // сколько участников, и ждать их «отправить» не должно.
@@ -308,13 +332,17 @@ if ($action === 'readers') {
     if (!$gid || !$mid) { http_response_code(400); echo json_encode(['error' => 'Нужны group_id и message_id']); exit; }
     if (!isMember($pdo, $gid, $userId)) { http_response_code(403); echo json_encode(['error' => 'Вы не участник группы']); exit; }
     try {
-        $st = $pdo->prepare("SELECT m.user_id, m.last_read_at,
+        // Колонка времени могла ещё не появиться (схема обновляется не чаще раза в
+        // час) — тогда отдаём список без времени, а не падаем целиком.
+        $sel = "m.last_read_at"; $ord = " ORDER BY m.last_read_at DESC";
+        try { $pdo->query("SELECT last_read_at FROM chat_group_members LIMIT 0"); }
+        catch (Exception $e) { $sel = "NULL AS last_read_at"; $ord = ""; }
+        $st = $pdo->prepare("SELECT m.user_id, $sel,
                                     u.first_name, u.last_name
                                FROM chat_group_members m
                                LEFT JOIN users u ON u.id = m.user_id
                               WHERE m.group_id = ? AND m.user_id <> ?
-                                AND COALESCE(m.last_read_message_id, 0) >= ?
-                              ORDER BY m.last_read_at DESC");
+                                AND COALESCE(m.last_read_message_id, 0) >= ?" . $ord);
         $st->execute([$gid, $userId, $mid]);
         $rows = [];
         foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $r) {
