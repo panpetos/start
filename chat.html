@@ -2532,6 +2532,23 @@
             padding: 4px 6px; border-radius: 8px; line-height: 1;
         }
         .react-pick:hover { background: rgba(4,120,87,0.18); }
+        /* Свой выбор виден: иначе не понять, что уже поставлено, а строка теперь
+           остаётся открытой и ставить можно несколько раз подряд. */
+        .react-pick.mine { background: rgba(4,120,87,0.28); box-shadow: inset 0 0 0 1.5px #047857; }
+        .react-more { font-size: 1rem; opacity: 0.6; }
+        /* Строка реакций над списком действий в «⋮»-меню */
+        .msg-react-row {
+            display: flex; gap: 2px; padding: 4px 4px 6px; margin-bottom: 4px;
+            border-bottom: 1px solid rgba(0,0,0,0.08);
+            overflow-x: auto; scrollbar-width: none;
+        }
+        .msg-react-row::-webkit-scrollbar { display: none; }
+        .msg-react-row.expanded {
+            display: grid; grid-template-columns: repeat(6, 1fr);
+            overflow-x: visible; max-height: 40vh; overflow-y: auto;
+        }
+        .react-picker .msg-react-row { border-bottom: none; margin-bottom: 0; padding-bottom: 4px; }
+        body.dark .msg-react-row { border-bottom-color: rgba(255,255,255,0.12); }
 
         /* Что прикреплено и ждёт отправки */
         .attach-bar {
@@ -9496,7 +9513,9 @@
                 `<button class="folder-picker-row" onclick="event.stopPropagation();closeFolderPicker();${call}">
                     <span class="fp-mark">${icon}</span>${label}
                 </button>`;
-            let html = row('😊', 'Реакция', `openReactionPicker('${id}')`);
+            // Реакции — строкой сверху, как в Telegram: видны сразу и ставятся
+            // подряд, без переоткрытия меню на каждый смайл.
+            let html = reactRowHtml(id, false);
             html += row('↩', 'Ответить', `startReply(null,'${id}')`);
             html += row('☑', 'Выделить', `enterSelectMode('${id}')`);
             if (cap.kind === 'fav') {
@@ -14139,6 +14158,10 @@
 
         // ── Реакции на сообщения ──
         const REACTIONS = ['👍', '❤️', '🔥', '😂', '😮', '😢', '🙏', '👏'];
+        // Полная сетка — раскрывается стрелкой, как в Telegram. Быстрый ряд короткий
+        // намеренно: он должен помещаться в одну строку на телефоне.
+        const REACTIONS_MORE = ['👍','❤️','🔥','😂','😮','😢','🙏','👏','🎉','💯','🤔','😍',
+                                '😅','🤗','👌','💪','✨','🥰','😴','🤝','☺️','😇','🙌','💔'];
         let reactionMap = {};      // id сообщения -> {эмодзи: {count, mine}}
 
         /** Ключ переписки для реакций. Для личной он ОБЯЗАН быть одинаковым у обеих
@@ -14228,7 +14251,46 @@
         }
         window.toggleReaction = toggleReaction;
 
-        /** Выбор реакции из меню действий над сообщением. */
+        /**
+         * Строка реакций — общая для «⋮»-меню и для кнопки-смайла над сообщением.
+         *
+         * ПОЧЕМУ НЕ ЗАКРЫВАЕТСЯ ПОСЛЕ ВЫБОРА. Раньше каждый смайл закрывал окошко,
+         * и чтобы поставить второй, приходилось открывать всё заново. Теперь клик
+         * гасится stopPropagation'ом (закрытие висит на document), строка
+         * перерисовывается на месте и остаётся открытой — как в Telegram.
+         */
+        function reactRowHtml(msgId, expanded) {
+            const set = reactionMap[msgId] || {};
+            const list = expanded ? REACTIONS_MORE : REACTIONS.slice(0, 7);
+            const btns = list.map(e =>
+                `<button type="button" class="react-pick${set[e] && set[e].mine ? ' mine' : ''}"
+                         onclick="event.stopPropagation();pickReaction('${msgId}','${e}')">${e}</button>`).join('');
+            const more = expanded ? '' :
+                `<button type="button" class="react-pick react-more" title="Больше смайлов"
+                         onclick="event.stopPropagation();expandReactRow('${msgId}')">⌄</button>`;
+            return `<div class="msg-react-row${expanded ? ' expanded' : ''}" data-react-row="${msgId}">${btns}${more}</div>`;
+        }
+
+        async function pickReaction(msgId, emoji) {
+            await toggleReaction(null, msgId, emoji);
+            refreshReactRow(msgId);
+        }
+        window.pickReaction = pickReaction;
+
+        function refreshReactRow(msgId) {
+            const row = document.querySelector(`[data-react-row="${msgId}"]`);
+            if (!row) return;
+            const expanded = row.classList.contains('expanded');
+            row.outerHTML = reactRowHtml(msgId, expanded);
+        }
+
+        function expandReactRow(msgId) {
+            const row = document.querySelector(`[data-react-row="${msgId}"]`);
+            if (row) row.outerHTML = reactRowHtml(msgId, true);
+        }
+        window.expandReactRow = expandReactRow;
+
+        /** Выбор реакции по кнопке-смайлу над сообщением. */
         function openReactionPicker(msgId) {
             closeFolderPicker();
             // В «Избранном» у пузыря data-fav-id — без этого окошко выбора смайла
@@ -14238,9 +14300,7 @@
             const menu = document.createElement('div');
             menu.className = 'folder-picker react-picker';
             menu.id = 'folderPicker';
-            menu.innerHTML = REACTIONS.map(e =>
-                `<button type="button" class="react-pick" onclick="event.stopPropagation();closeFolderPicker();toggleReaction(null,'${msgId}','${e}')">${e}</button>`
-            ).join('');
+            menu.innerHTML = reactRowHtml(msgId, false);
             document.body.appendChild(menu);
             const r = (el || document.body).getBoundingClientRect();
             const mh = menu.getBoundingClientRect().height;
