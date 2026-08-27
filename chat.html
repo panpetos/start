@@ -3595,7 +3595,9 @@
             </div>
 
             <input tabindex="-1" type="file" id="storyFileInput" accept="image/*" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;">
-            <div id="conversationsList" style="overflow-y:auto;flex:1;min-height:0;touch-action:pan-y;">
+            <!-- -webkit-overflow-scrolling: touch — на айфоне без него список едет рывками
+                 и «залипает»; overscroll-behavior не даёт утянуть за собой всю страницу. -->
+            <div id="conversationsList" style="overflow-y:auto;flex:1;min-height:0;touch-action:pan-y;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;">
                 <div class="no-conversations">Загрузка...</div>
             </div>
             <!-- Круглый «плюс», как в Telegram: создать группу, канал или блог, не уходя из чата -->
@@ -5813,7 +5815,7 @@
                 });
                 const d = await r.json();
                 if (d.ok) {
-                    input.value = '';
+                    input.value = ''; afterSendReset(input);
                 resetInputHeight();
                     const list = document.getElementById('chClist-' + postId);
                     if (list.children.length === 1 && list.children[0].tagName === 'DIV' && !list.children[0].classList.contains('ch-comment-item')) list.innerHTML = '';
@@ -8176,7 +8178,17 @@
                 syncPinnedCurrent();
                 renderPinnedBar();
             }
-            if (!el) { toast('Это сообщение выше в переписке — прокрутите вверх, оно ещё не загружено.'); return; }
+            if (!el) {
+                // Не нашли на экране — дотягиваем историю сами, а не отправляем человека
+                // листать вручную до сообщения, ради которого он и нажал на закреп.
+                toast('Ищу закреплённое сообщение…');
+                findMessageEl(id).then(found => {
+                    if (!found) { toast('Закреплённое сообщение не найдено — возможно, его удалили.'); return; }
+                    try { found.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (e) {}
+                    flashMessage(found, id);
+                });
+                return;
+            }
             try { el.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (e) {}
             flashMessage(el, id);
         }
@@ -8384,7 +8396,11 @@
                 sx = e.touches[0].clientX; sy = e.touches[0].clientY;
                 dx = 0; tracking = true; dragging = false;
                 list.style.transition = 'none';          // ставим один раз, а не на каждом кадре
-                list.style.willChange = 'transform';
+                // will-change ставим НЕ здесь: раньше он включался на любое касание, в том
+                // числе на обычную вертикальную прокрутку. Браузер на каждый тап выносил
+                // весь длинный список в отдельный слой — на айфоне прокрутка от этого
+                // дёргалась и подвисала. Теперь слой создаётся только когда жест уже
+                // опознан как горизонтальный, то есть когда он действительно нужен.
             }, { passive: true });
 
             list.addEventListener('touchmove', function (e) {
@@ -8397,6 +8413,7 @@
                     // будет то и дело случайно переключать папку.
                     if (Math.abs(dx) <= Math.abs(dy) * 1.2) { tracking = false; list.style.willChange = ''; return; }
                     dragging = true;
+                    list.style.willChange = 'transform';
                 }
                 const limit = width() * DRAG_SHIFT;
                 const has = !!targetFolder(dx < 0 ? -1 : 1);
@@ -9647,10 +9664,38 @@
                     </div>`;
         }
 
-        function jumpToMessage(evt, id) {
+        /**
+         * Найти сообщение, дотянув историю, если его ещё нет на экране.
+         *
+         * Переписка грузится порциями по 50, и закреплённое сообщение почти всегда
+         * остаётся за пределами первой порции. Раньше переход просто отказывал словами
+         * «прокрутите вверх» — то есть человек должен был вручную домотать до сообщения,
+         * ради которого и нажал на закреп. Теперь подтягиваем порции сами, пока сообщение
+         * не найдётся. Потолок в 40 порций (2000 сообщений) — чтобы в очень длинной
+         * переписке нажатие не превратилось в бесконечную загрузку.
+         */
+        async function findMessageEl(id) {
+            const find = () => document.querySelector(`[data-msg-id="${id}"]`) ||
+                               document.querySelector(`[data-fav-id="${id}"]`);
+            let el = find();
+            if (el) return el;
+            for (let i = 0; i < 40; i++) {
+                if (!dmState.hasMore || dmState.peer !== selectedUserId) break;
+                await loadOlderMessages();
+                el = find();
+                if (el) return el;
+            }
+            return find();
+        }
+
+        async function jumpToMessage(evt, id) {
             if (evt) evt.stopPropagation();
-            const el = document.querySelector(`[data-msg-id="${id}"]`) || document.querySelector(`[data-fav-id="${id}"]`);
-            if (!el) { alert('Это сообщение выше в переписке — прокрутите вверх.'); return; }
+            let el = document.querySelector(`[data-msg-id="${id}"]`) || document.querySelector(`[data-fav-id="${id}"]`);
+            if (!el) {
+                toast('Ищу сообщение в переписке…');
+                el = await findMessageEl(id);
+            }
+            if (!el) { toast('Сообщение не найдено — возможно, его удалили.'); return; }
             try { el.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (e) {}
             flashMessage(el, id);
         }
@@ -12873,6 +12918,24 @@
         //  Enter отправляет, Shift+Enter переносит строку и растягивает поле — как в Telegram.
         //  Отдельная кнопка открывает окно с панелью форматирования и предпросмотром.
         // ══════════════════════════════════════════════════════════════════════════════
+        /**
+         * Прибрать за отправкой: вернуть полю ввода высоту в одну строку и увести
+         * переписку к последнему сообщению.
+         *
+         * На айфоне после отправки лента подскакивала вверх. Поле оставалось растянутым
+         * на столько строк, сколько было в тексте (высота выставлена инлайном и очистка
+         * value её не меняет), а прокрутку вниз выставляли тем же кадром, до того как
+         * браузер пересчитает разметку и подвинет клавиатуру. Считать высоту нужно
+         * ПОСЛЕ перерисовки — отсюда два requestAnimationFrame.
+         */
+        function afterSendReset(ta) {
+            try { autoGrowInput(ta); } catch (e) {}
+            const box = document.getElementById('messagesContainer');
+            if (!box) return;
+            const toBottom = () => { box.scrollTop = box.scrollHeight; };
+            requestAnimationFrame(() => { toBottom(); requestAnimationFrame(toBottom); });
+        }
+
         function autoGrowInput(ta) {
             updateMicButton();                     // пусто/не пусто — микрофон или отправка
             if (!ta || !ta.offsetParent) return;   // поле скрыто — измерять нечего
@@ -13749,7 +13812,7 @@
             if (isAiMode() && pendingAttachments.length) {
                 const caption = input.value.trim();
                 const files = pendingAttachments.splice(0);
-                input.value = '';
+                input.value = ''; afterSendReset(input);
                 clearDraft();          // отправили — черновика больше нет
                 resetInputHeight();
                 renderAttachBar();
@@ -13760,7 +13823,7 @@
             // Прикреплённые файлы отправляем вместе с подписью — она уходит с первым из них
             if (pendingAttachments.length && selectedUserId) {
                 const caption = input.value.trim();
-                input.value = '';
+                input.value = ''; afterSendReset(input);
                 clearDraft();          // отправили — черновика больше нет
                 resetInputHeight();
                 updateMicButton();
@@ -13775,7 +13838,7 @@
 
             if (isAiMode()) {
                 const text = input.value.trim();
-                input.value = '';
+                input.value = ''; afterSendReset(input);
                 clearDraft();          // отправили — черновика больше нет
                 resetInputHeight();
                 await sendToAi(text);
@@ -13783,7 +13846,7 @@
             }
 
             if (typeof selectedUserId === 'string' && selectedUserId.indexOf(GROUP_PREFIX) === 0) {
-                input.value = '';
+                input.value = ''; afterSendReset(input);
                 clearDraft();          // отправили — черновика больше нет
                 resetInputHeight();
                 const d = await groupApi('send', { group_id: selectedUserId.slice(GROUP_PREFIX.length), content });
@@ -13802,7 +13865,7 @@
             }
 
             if (isSupportMode()) {
-                input.value = '';
+                input.value = ''; afterSendReset(input);
                 clearDraft();          // отправили — черновика больше нет
                 resetInputHeight();
                 try {
@@ -13818,7 +13881,7 @@
             }
 
             if (selectedUserId === FAVORITES_ID) {
-                input.value = '';
+                input.value = ''; afterSendReset(input);
                 clearDraft();          // отправили — черновика больше нет
                 resetInputHeight();
                 try {
