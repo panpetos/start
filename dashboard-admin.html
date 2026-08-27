@@ -3845,7 +3845,10 @@
         loadPsychCredentials(p.id);
     }
 
+    var _pmInnLoaded = false;
+
     async function loadPsychCredentials(psychId) {
+        _pmInnLoaded = false;
         var cont = document.getElementById('pmCreds');
         if (!cont) return;
         try {
@@ -3854,6 +3857,9 @@
             var innRow = creds.filter(function(c){ return c.type === 'inn'; }).pop();
             var innEl = document.getElementById('pm_inn');
             if (innEl && innRow && innRow.name) innEl.value = String(innRow.name).replace(/\D+/g, '');
+            // Поле заполнено тем, что реально лежит в базе. Пока этого не произошло,
+            // отправлять ИНН нельзя: пустое поле стёрло бы сохранённый ИНН.
+            _pmInnLoaded = true;
             creds = creds.filter(function(c){ return c.type !== 'inn'; });
             if (!creds.length) { cont.innerHTML = '<span class="pm-cred-empty">Нет загруженных документов</span>'; return; }
             cont.innerHTML = creds.map(function(c) {
@@ -3871,11 +3877,13 @@
 
     async function savePsychModal(psychId) {
         var data = { psychologist_id: psychId };
-        var fields = ['first_name','last_name','specialization','experience','price','education','description','not_working_with','phone','telegram','whatsapp','max_msg','inn'];
+        var fields = ['first_name','last_name','specialization','experience','price','education','description','not_working_with','phone','telegram','whatsapp','max_msg'];
         fields.forEach(function(f) {
             var el = document.getElementById('pm_'+f);
             if (el) data[f] = el.value;
         });
+        var innEl = document.getElementById('pm_inn');
+        if (innEl && _pmInnLoaded) data.inn = innEl.value;
         if (data.experience !== undefined) data.experience = parseInt(data.experience) || 0;
         if (data.price !== undefined) data.price = parseFloat(data.price) || 0;
         try {
