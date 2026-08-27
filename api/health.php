@@ -292,6 +292,33 @@ if (isset($_GET['creds']) && isset($pdo) && $pdo) {
     $r['credentials'] = $c;
 }
 
+// 4c. ?support=1 — обращения в поддержку. Админ сообщил, что не видит сообщений от
+//     людей. Надо отделить «сообщения не приходят» от «приходят, но не показываются»:
+//     здесь видно число обращений, число сообщений, когда пришло последнее и сколько
+//     обращений привязано к зарегистрированным пользователям. Текстов не отдаём.
+if (isset($_GET['support']) && isset($pdo) && $pdo) {
+    $sp = [];
+    try {
+        $sp['обращений'] = (int)$pdo->query("SELECT COUNT(*) FROM support_threads")->fetchColumn();
+        $sp['из_них_у_зарегистрированных'] = (int)$pdo->query("SELECT COUNT(*) FROM support_threads WHERE user_id IS NOT NULL AND user_id <> ''")->fetchColumn();
+        $sp['сообщений_всего'] = (int)$pdo->query("SELECT COUNT(*) FROM support_messages")->fetchColumn();
+        foreach ($pdo->query("SELECT sender, COUNT(*) n, MAX(created_at) last_at
+                                FROM support_messages GROUP BY sender")->fetchAll(PDO::FETCH_ASSOC) as $row) {
+            $sp['по_отправителю'][(string)$row['sender']] = [
+                'сообщений' => (int)$row['n'],
+                'последнее' => (string)$row['last_at'],
+            ];
+        }
+        // Обращения, где последнее слово за человеком и админ его ещё не открывал.
+        $sp['ждут_ответа'] = (int)$pdo->query(
+            "SELECT COUNT(*) FROM support_threads t
+              WHERE EXISTS (SELECT 1 FROM support_messages m
+                             WHERE m.thread_id = t.id AND m.sender = 'user'
+                               AND (t.admin_read_at IS NULL OR m.created_at > t.admin_read_at))")->fetchColumn();
+    } catch (Exception $e) { $sp['ошибка'] = substr($e->getMessage(), 0, 200); }
+    $r['support'] = $sp;
+}
+
 // 5. ?bench=1 — сколько стоят типовые запросы сайта. Нужно, чтобы прикинуть,
 //    сколько людей хостинг вытянет, не устраивая проду настоящую нагрузку.
 //    Всё только на чтение, данные наружу не отдаются — одни тайминги.
