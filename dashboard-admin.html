@@ -3312,16 +3312,24 @@
             try {
                 const r = await fetch('/api/sber_acquiring.php?action=bankcheck', { credentials:'include' });
                 const d = await r.json();
-                if (d && d['связь'] === 'есть') {
-                    box.style.color = '#16A34A';
-                    box.textContent = '✅ ' + d['вывод'] + ' Контур: ' + d['режим'] + '. Ответ банка: ' + d['ответ_банка'] + '.';
-                } else if (d && d['вывод']) {
+                if (!d || !d['вывод']) {
                     box.style.color = '#DC2626';
-                    box.textContent = '✕ ' + d['вывод'] + ' Ответ банка: ' + (d['ответ_банка'] || '—') + '.';
-                } else {
-                    box.style.color = '#DC2626';
-                    box.textContent = '✕ ' + ((d && (d['причина'] || d.error)) || 'Не удалось проверить');
+                    box.textContent = '✕ ' + ((d && d.error) || 'Не удалось проверить');
+                    return;
                 }
+                // Показываем оба контура: по одному «Access denied» не понять, дело в
+                // ключах или в том, что выбран не тот контур.
+                var lines = Object.keys(d['проверено'] || {}).map(function(name){
+                    var c = d['проверено'][name];
+                    var mark = c['принят'] === true ? '✅' : (c['принят'] === null ? '•' : '✕');
+                    return mark + ' ' + name + ' контур' + (c['логин'] ? ' (логин ' + esc(c['логин']) + ')' : '') +
+                           ' — ' + esc(c['ответ']);
+                });
+                box.style.color = d['связь'] === 'есть' ? '#16A34A' : '#DC2626';
+                box.innerHTML = '<div style="font-weight:600;margin-bottom:0.35rem;">' +
+                    (d['связь'] === 'есть' ? '✅ ' : '✕ ') + esc(d['вывод']) + '</div>' +
+                    '<div style="color:var(--a-text-sec);font-size:0.83rem;">' +
+                    'Сейчас выбран: ' + esc(d['сейчас_выбран']) + '<br>' + lines.join('<br>') + '</div>';
             } catch(e) {
                 box.style.color = '#DC2626';
                 box.textContent = '✕ Не удалось выполнить проверку';

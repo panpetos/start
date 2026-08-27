@@ -50,6 +50,11 @@ $cfgFile = __DIR__ . '/sber_acquiring_config.php';
 $cfg = file_exists($cfgFile) ? (include $cfgFile) : (include __DIR__ . '/sber_acquiring_config.sample.php');
 $isTest = (int)($cfg['is_test'] ?? 1);
 $creds  = $isTest ? ($cfg['test'] ?? []) : ($cfg['prod'] ?? []);
+// Логин и пароль почти всегда попадают в конфиг копированием, а вместе с ними —
+// пробел или перенос строки по краям. Банк на такое отвечает «Access denied», и
+// понять причину по его ответу невозможно. Срезаем края сразу.
+if (isset($creds['userName'])) $creds['userName'] = trim((string)$creds['userName']);
+if (isset($creds['password'])) $creds['password'] = trim((string)$creds['password']);
 $userName = (string)($creds['userName'] ?? '');
 $password = (string)($creds['password'] ?? '');
 $base     = rtrim((string)($creds['base'] ?? ''), '/');
@@ -305,6 +310,14 @@ if ($action === 'selftest') {
  * (код 6), если неверны — «доступ запрещён» (коды 5/7). Ни заказа, ни списания при
  * этом не создаётся. Только администратору: ответ говорит, рабочие ли ключи.
  */
+/**
+ * Проверка ключей без единого рубля — и сразу по обоим контурам банка.
+ *
+ * «Код 5: Access denied» ничего не говорит о том, что именно не так: логин, пароль или
+ * контур. Ключи от тестового контура на боевом адресе дают ровно этот же ответ. Поэтому
+ * пробуем каждую пару логин/пароль на её адресе и показываем, где банк нас узнал.
+ * Спрашиваем статус заведомо несуществующего заказа: заказа и списания не возникает.
+ */
 if ($action === 'bankcheck') {
     if (!$pdo) sberOut(['ok' => false, 'error' => 'Нет подключения к БД'], 500);
     if (!$userId) sberOut(['ok' => false, 'error' => 'Требуется авторизация'], 401);
@@ -315,30 +328,55 @@ if ($action === 'bankcheck') {
         $role = (string)$st->fetchColumn();
     } catch (Exception $e) {}
     if ($role !== 'admin') sberOut(['ok' => false, 'error' => 'Только для администратора'], 403);
-    if (!sberReady($userName, $password)) {
-        sberOut(['ok' => false, 'связь' => 'нет', 'причина' => 'В api/sber_acquiring_config.php не вписаны логин и пароль от банка']);
+
+    $probe = 'psytalk-probe-' . substr(md5((string)$userId), 0, 16);
+    $tryOne = function (array $creds, string $fallbackBase) use ($pdo, $probe) {
+        $u = trim((string)($creds['userName'] ?? ''));
+        $pw = trim((string)($creds['password'] ?? ''));
+        $b = (string)($creds['base'] ?? '') ?: $fallbackBase;
+        if (!sberReady($u, $pw)) return ['принят' => null, 'ответ' => 'логин и пароль не вписаны', 'адрес' => $b, 'логин' => ''];
+        $res = sberCall($pdo, $b, $u, $pw, 'getOrderStatusExtended', ['orderNumber' => $probe]);
+        $code = isset($res['errorCode']) ? (string)$res['errorCode'] : '';
+        $msg  = (string)($res['errorMessage'] ?? '');
+        if ($code === 'net' || $code === 'parse') {
+            return ['принят' => null, 'ответ' => 'банк не ответил: ' . $msg, 'адрес' => $b, 'логин' => $u];
+        }
+        // 6 — «Незарегистрированный OrderId»: банк нас узнал, значит ключи рабочие.
+        return [
+            'принят' => in_array($code, ['6', '0'], true),
+            'ответ' => ($code !== '' ? ('код ' . $code . ': ') : '') . ($msg ?: '—'),
+            'адрес' => $b,
+            'логин' => $u,
+        ];
+    };
+
+    $checks = [
+        'боевой'    => $tryOne((array)($cfg['prod'] ?? []), 'https://securepayments.sberbank.ru/payment/rest'),
+        'тестовый'  => $tryOne((array)($cfg['test'] ?? []), 'https://ecomtest.sberbank.ru/ecomm/gate/rest'),
+    ];
+    $okContour = '';
+    foreach ($checks as $name => $r) { if ($r['принят'] === true) { $okContour = $name; break; } }
+
+    $now = $isTest ? 'тестовый' : 'боевой';
+    if ($okContour === '') {
+        $vyvod = 'Ни один контур не принял ключи. Чаще всего это значит, что логин или пароль '
+               . 'скопированы с лишним пробелом, либо банк ещё не активировал доступ. '
+               . 'Покажите этот ответ менеджеру банка — он видит по логину, что происходит.';
+    } elseif ($okContour === $now) {
+        $vyvod = 'Ключи приняты, контур выбран верно — оплату можно принимать.';
+    } else {
+        $vyvod = 'Ключи рабочие, но не от того контура: банк узнал их на «' . $okContour
+               . '», а в конфиге стоит «' . $now . '». Поменяйте is_test в api/sber_acquiring_config.php ('
+               . ($okContour === 'боевой' ? '0' : '1') . ') — и всё заработает.';
     }
-    $probe = 'psytalk-probe-' . substr(md5((string)$userId . '|' . $base), 0, 16);
-    $res = sberCall($pdo, $base, $userName, $password, 'getOrderStatusExtended', ['orderNumber' => $probe]);
-    $code = isset($res['errorCode']) ? (string)$res['errorCode'] : '';
-    $msg  = (string)($res['errorMessage'] ?? '');
-    // 'net'/'parse' ставит сам sberCall, когда банк не ответил или ответил не JSON.
-    if ($code === 'net' || $code === 'parse') {
-        sberOut(['ok' => true, 'связь' => 'нет', 'режим' => $isTest ? 'тестовый' : 'боевой',
-                 'адрес_банка' => $base, 'ответ_банка' => $msg ?: '—',
-                 'вывод' => 'До банка не достучались — это связь, а не ключи. Проверьте адрес и что хостинг ходит наружу.']);
-    }
-    // 6 — «Незарегистрированный OrderId»: банк нас узнал, значит ключи рабочие.
-    $good = in_array($code, ['6', '0'], true);
+
     sberOut([
         'ok' => true,
-        'связь' => $good ? 'есть' : 'нет',
-        'режим' => $isTest ? 'тестовый' : 'боевой',
-        'адрес_банка' => $base,
-        'ответ_банка' => ($code !== '' ? ('код ' . $code . ': ') : '') . ($msg ?: '—'),
-        'вывод' => $good
-            ? 'Логин и пароль приняты банком — оплату можно принимать.'
-            : 'Банк не принял логин или пароль. Проверьте их в api/sber_acquiring_config.php и режим is_test.',
+        'связь' => $okContour !== '' ? 'есть' : 'нет',
+        'сейчас_выбран' => $now,
+        'ключи_приняты_на' => $okContour ?: '—',
+        'проверено' => $checks,
+        'вывод' => $vyvod,
     ]);
 }
 
