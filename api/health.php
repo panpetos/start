@@ -262,6 +262,29 @@ if (isset($_GET['creds']) && isset($pdo) && $pdo) {
             "SELECT COUNT(*) FROM psychologist_credentials pc
                JOIN psychologists p ON p.user_id = pc.user_id")->fetchColumn();
     } catch (Exception $e) { $c['ошибка_привязки'] = substr($e->getMessage(), 0, 200); }
+    // Построчно: к кому привязан документ и существует ли этот психолог/пользователь.
+    // Идентификаторы и так отдаёт публичный поиск психологов, ничего нового не раскрываем.
+    try {
+        $rows = $pdo->query("SELECT pc.id, pc.type,
+                                    pc.psychologist_id, pc.user_id,
+                                    (pc.url IS NOT NULL AND pc.url <> '') AS has_url,
+                                    (SELECT COUNT(*) FROM psychologists p WHERE p.id = pc.psychologist_id) AS psy_ok,
+                                    (SELECT COUNT(*) FROM users u WHERE u.id = pc.user_id) AS user_ok,
+                                    (SELECT COUNT(*) FROM psychologists p2 WHERE p2.user_id = pc.user_id) AS psy_by_user
+                               FROM psychologist_credentials pc ORDER BY pc.id")->fetchAll(PDO::FETCH_ASSOC);
+        foreach ($rows as $row) {
+            $c['строки'][] = [
+                'id' => (int)$row['id'],
+                'тип' => (string)$row['type'],
+                'файл' => ((int)$row['has_url'] === 1),
+                'psychologist_id' => (string)$row['psychologist_id'],
+                'такой_психолог_есть' => ((int)$row['psy_ok'] > 0),
+                'user_id' => (string)$row['user_id'],
+                'такой_пользователь_есть' => ((int)$row['user_ok'] > 0),
+                'психолог_по_user_id' => ((int)$row['psy_by_user'] > 0),
+            ];
+        }
+    } catch (Exception $e) { $c['ошибка_строк'] = substr($e->getMessage(), 0, 200); }
     $r['credentials'] = $c;
 }
 
