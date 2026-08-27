@@ -1851,6 +1851,16 @@
             margin-top: 8px;
         }
 
+        /* Сообщение из одной картинки: рамка в 3 пикселя вместо полного отступа пузыря.
+           Иначе вокруг фото оставалось поле шириной с текстовые поля — заметно широкое. */
+        .message.img-only { padding: 3px; }
+        .message.img-only .message-attachment { margin-top: 0; }
+        .message.img-only .msg-foot {
+            position: absolute; right: 8px; bottom: 6px;
+            background: rgba(0,0,0,0.42); border-radius: 10px; padding: 1px 7px;
+        }
+        .message.img-only .message-time { color: #fff !important; opacity: 0.95; }
+
         /* Пока копия едет — мягкое мерцание на её месте: без него в пузыре
            зияла пустота, а когда картинка приезжала, вёрстка прыгала. */
         .img-wrap { display: inline-block; position: relative; border-radius: 8px; line-height: 0; }
@@ -3584,7 +3594,7 @@
                 <button type="button" class="chat-hdr-btn" id="sbSearchClose" onclick="closeSbSearch()" title="Закрыть поиск" aria-label="Закрыть поиск">✕</button>
             </div>
 
-            <input type="file" id="storyFileInput" accept="image/*" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;">
+            <input tabindex="-1" type="file" id="storyFileInput" accept="image/*" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;">
             <div id="conversationsList" style="overflow-y:auto;flex:1;min-height:0;touch-action:pan-y;">
                 <div class="no-conversations">Загрузка...</div>
             </div>
@@ -3687,7 +3697,7 @@
                     </button>
                     <label class="icon-btn cin-attach" title="Прикрепить файл" aria-label="Прикрепить файл">
                         <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20.4 12.3l-7.9 7.9a5 5 0 01-7-7l8-8a3.3 3.3 0 014.7 4.7l-8 8a1.7 1.7 0 01-2.4-2.4l7.4-7.3"/></svg>
-                        <input type="file" id="fileInput" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0;padding:0;margin:-1px;" onchange="handleFileSelect(event)"
+                        <input tabindex="-1" type="file" id="fileInput" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0;padding:0;margin:-1px;" onchange="handleFileSelect(event)"
                             accept="image/*,.pdf,.doc,.docx,.txt" multiple>
                     </label>
                     <button type="button" id="voiceBtn" onclick="toggleVoiceRecording()" class="icon-btn cin-voice"
@@ -3892,7 +3902,7 @@
                 <label class="cmp-attach-btn" title="Прикрепить фото или документ">
                     <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20.4 12.3l-7.9 7.9a5 5 0 01-7-7l8-8a3.3 3.3 0 014.7 4.7l-8 8a1.7 1.7 0 01-2.4-2.4l7.4-7.3"/></svg>
                     <span>Файл</span>
-                    <input type="file" id="cmpFileInput" onchange="cmpPickFiles(event)"
+                    <input tabindex="-1" type="file" id="cmpFileInput" onchange="cmpPickFiles(event)"
                            accept="image/*,.pdf,.doc,.docx,.txt" multiple
                            style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;clip:rect(0 0 0 0);border:0;padding:0;margin:-1px;">
                 </label>
@@ -4404,7 +4414,7 @@
                 const preview = c.last_post_text ? (label + ' · ' + previewText(c.last_post_text).slice(0, 30))
                     : (c.channel_description ? (label + ' · ' + c.channel_description.slice(0, 34)) : (label + ' · публикации психолога'));
                 if (!chatVisible('channel', activeId, c.last_post_at)) return;
-                out.push({ key: activeId, name, html: `
+                out.push({ key: activeId, name, at: c.last_post_at || '', html: `
                     <div class="conversation-item ${activeId === selectedUserId ? 'active' : ''}" onclick="openChannel('${c.psychologist_id}')" title="${escapeHtml(name)}">
                         <div class="conversation-avatar has-badge">
                             ${ava ? `<img src="${escapeHtml(ava)}" alt="${escapeHtml(name)}">` : initial}
@@ -4457,7 +4467,7 @@
                     : (g.description ? g.description.slice(0, 40) : 'Группа создана — напишите первым');
                 const time = g.last_message_at ? formatTime(g.last_message_at) : '';
                 if (!chatVisible('group', activeId, g.last_message_at)) return;
-                out.push({ key: activeId, name: g.name, html: `
+                out.push({ key: activeId, name: g.name, at: g.last_message_at || '', html: `
                     <div class="conversation-item ${activeId === selectedUserId ? 'active' : ''}" onclick="openGroupChat(${g.id})" title="${escapeHtml(g.name)}">
                         <div class="conversation-avatar" style="background:linear-gradient(135deg,#059669,#059669);">${g.avatar_url ? `<img src="${escapeHtml(g.avatar_url)}" alt="">` : `<span class="ava-ico">${ICO_GROUP}</span>`}</div>
                         <div class="conversation-info">
@@ -4579,7 +4589,7 @@
             const textHtml = (m.content && !isAttachmentPlaceholder(m))
                 ? `<div>${highlightMentions(msgText(grp.body))}</div>` : '';
             const bubble = `
-                <div class="message ${isMine ? 'mine' : 'theirs'}${(isVideoNote(m) && !textHtml) ? ' vn-only' : ''}" data-msg-id="${m.id}">
+                <div class="message ${isMine ? 'mine' : 'theirs'}${(isVideoNote(m) && !textHtml) ? ' vn-only' : ''}${imgOnlyClass(m, textHtml)}" data-msg-id="${m.id}">
                     ${!isMine ? `<div style="font-size:0.75rem;font-weight:700;opacity:0.8;margin-bottom:0.15rem;color:#047857;">${escapeHtml(name)}</div>` : ''}
                     ${quoteHtml(grp.replyId)}
                     <div id="gmsg-body-${m.id}">${textHtml}</div>
@@ -4790,10 +4800,13 @@
 
             box.innerHTML = `
                 <div style="text-align:center;margin-bottom:0.9rem;">
-                    <div class="chat-ava-edit" style="margin:0 auto 0.5rem;">
+                    <!-- Размер рамки должен совпадать с аватаркой: .chat-ava-edit задаёт 72px,
+                         а аватарка тут 88px — она вылезала за нижний край рамки и наезжала
+                         на название группы, стоящее следом. -->
+                    <div class="chat-ava-edit" style="margin:0 auto 0.5rem;width:88px;height:88px;">
                         <div class="conversation-avatar" id="giAvatar" style="width:88px;height:88px;background:linear-gradient(135deg,#059669,#059669);font-size:2rem;">${g.avatar_url ? `<img src="${escapeHtml(g.avatar_url)}" alt="">` : '👥'}</div>
                         ${isOwner ? `<label class="chat-ava-btn" title="Сменить аватарку группы">📷
-                            <input type="file" accept="image/*" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0;padding:0;margin:-1px;" onchange="uploadGroupAvatar(event)">
+                            <input tabindex="-1" type="file" accept="image/*" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0;padding:0;margin:-1px;" onchange="uploadGroupAvatar(event)">
                         </label>` : ''}
                     </div>
                     <div style="font-weight:700;font-size:1.05rem;" id="giName">${escapeHtml(g.name || 'Группа')}</div>
@@ -5079,7 +5092,7 @@
                     <div class="chat-ava-edit" style="margin:0 auto 0.5rem;">
                         <div class="conversation-avatar" id="csAvatar" style="width:72px;height:72px;font-size:1.7rem;">${ava ? `<img src="${escapeHtml(ava)}" alt="">` : '📡'}</div>
                         <label class="chat-ava-btn" title="Сменить аватарку канала">📷
-                            <input type="file" accept="image/*" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0;padding:0;margin:-1px;" onchange="uploadChannelAvatar(event)">
+                            <input tabindex="-1" type="file" accept="image/*" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0;padding:0;margin:-1px;" onchange="uploadChannelAvatar(event)">
                         </label>
                     </div>
                     <div style="color:#9CA3AF;font-size:0.78rem;">Аватарка канала — отдельно от вашего фото в профиле</div>
@@ -5168,7 +5181,7 @@
                 <div class="ch-composer-preview" id="chComposerPreview" style="display:none;"></div>
                 <div class="ch-composer-bar">
                     <label class="ch-composer-attach" title="Добавить картинку">🖼️
-                        <input type="file" accept="image/*" onchange="pickChannelImage(event)"
+                        <input tabindex="-1" type="file" accept="image/*" onchange="pickChannelImage(event)"
                                style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;clip:rect(0 0 0 0);">
                     </label>
                     <span class="ch-composer-msg" id="chComposerMsg"></span>
@@ -7202,11 +7215,12 @@
                 // чтобы найти в нём имя собеседника, — лишний круг к серверу.
                 convCache = conversations;
 
+                // Сортировка нужна ВСЕГДА, а не только когда есть обращения в поддержку:
+                // раньше без них список оставался в том порядке, в каком его отдал сервер.
                 const supportConvs = await loadSupportConversations();
-                if (supportConvs.length) {
-                    conversations = conversations.concat(supportConvs)
-                        .sort((a, b) => String(b.last_message_time || '').localeCompare(String(a.last_message_time || '')));
-                }
+                if (supportConvs.length) conversations = conversations.concat(supportConvs);
+                conversations.sort((a, b) =>
+                    String(b.last_message_time || '').localeCompare(String(a.last_message_time || '')));
 
                 checkUnreadForSound(conversations);
 
@@ -7214,7 +7228,8 @@
 
                 if (!conversations || conversations.length === 0) {
                     const rows = sortPinnedFirst(favoritesRows().concat(aiRows(), supportRows(), psyRows(),
-                                                                        feedRows(), blogRows(), channelsRows(), groupsRows()));
+                                                                        feedRows(), blogRows())
+                                                 .concat(byRecent(channelsRows().concat(groupsRows()))));
                     container.innerHTML = channelsErrHtml() + groupsErrHtml() + rows.map(r => r.html).join('') + `
                         <div class="no-conversations">
                             <p>У вас пока нет диалогов</p>
@@ -7447,7 +7462,7 @@
                         <span class="wall-label">Своё фото</span>
                     </button>
                 </div>
-                <input type="file" id="wallFileInput" accept="image/*" style="display:none;">
+                <input tabindex="-1" type="file" id="wallFileInput" accept="image/*" style="display:none;">
 
                 <div class="wall-tune" id="wallDimRow" style="${cur === 'photo' ? '' : 'display:none;'}">
                     <label for="wallDim">Затемнение фото <b id="wallDimVal">${dim}%</b></label>
@@ -10627,6 +10642,32 @@
             else renderConversationList(allConversations);
         }
 
+        /**
+         * Переписки — по времени последнего сообщения, свежие сверху.
+         *
+         * Раньше порядок задавался тем, в каком месте кода строка добавлена: каналы, потом
+         * группы, потом личные, а внутри личных — как отдал сервер. Пришедшее сообщение
+         * никуда чат не поднимало, и свежий разговор мог оказаться в самом низу списка.
+         * Служебные строки («Избранное», бот, поддержка) сюда не попадают — они не переписки
+         * и остаются наверху.
+         *
+         * Время приходит строкой «ГГГГ-ММ-ДД ЧЧ:ММ:СС», поэтому сравниваем как строки:
+         * такой формат сортируется посимвольно так же, как по времени. Строки без времени
+         * (новая группа, канал без публикаций) уходят вниз, но сохраняют свой порядок.
+         */
+        function byRecent(rows) {
+            return rows
+                .map((r, i) => ({ r, i }))
+                .sort((a, b) => {
+                    const at = String(a.r.at || ''), bt = String(b.r.at || '');
+                    if (at === bt) return a.i - b.i;
+                    if (!at) return 1;
+                    if (!bt) return -1;
+                    return bt.localeCompare(at);
+                })
+                .map(x => x.r);
+        }
+
         /** Закреплённые чаты — первыми, остальные в исходном порядке (устойчивая сортировка). */
         function sortPinnedFirst(rows) {
             const pinned = [], rest = [];
@@ -10643,7 +10684,8 @@
             // раньше они лезли в список независимо от запроса, включая закреплённые (мешали результатам).
             const q = (query || '').trim().toLowerCase();
             const bySpecialQuery = r => !q || (r.name || '').toLowerCase().includes(q);
-            const rows = [];
+            const rows = [];        // служебные строки: «Избранное», бот, поддержка, лента, блог
+            const chatRows = [];    // настоящие переписки: каналы, группы, личные
             const err = channelsErrHtml() + groupsErrHtml();   // сообщения об ошибках всегда сверху
             favoritesRows().filter(bySpecialQuery).forEach(r => rows.push(r));
             aiRows().filter(bySpecialQuery).forEach(r => rows.push(r));
@@ -10651,11 +10693,11 @@
             psyRows().filter(bySpecialQuery).forEach(r => rows.push(r));
             feedRows().filter(bySpecialQuery).forEach(r => rows.push(r));
             blogRows().filter(bySpecialQuery).forEach(r => rows.push(r));
-            channelsRows().filter(bySpecialQuery).forEach(r => rows.push(r));
-            groupsRows().filter(bySpecialQuery).forEach(r => rows.push(r));
+            channelsRows().filter(bySpecialQuery).forEach(r => chatRows.push(r));
+            groupsRows().filter(bySpecialQuery).forEach(r => chatRows.push(r));
             const headHtml = q ? '' : err;
             if (!conversations || conversations.length === 0) {
-                const only = sortPinnedFirst(rows).map(r => r.html).join('');
+                const only = sortPinnedFirst(rows.concat(byRecent(chatRows))).map(r => r.html).join('');
                 container.innerHTML = headHtml + only + (only.indexOf('conversation-item') >= 0 ? '' : `
                     <div class="no-conversations">
                         <p>${showHidden ? 'Удалённых диалогов нет' : 'Ничего не найдено'}</p>
@@ -10684,7 +10726,7 @@
                 const clickHandler = isSupport ? `openSupportThread('${c._threadId}')` : (isNew ? `startNewChat('${c.id}')` : `openChat('${c.user_id}')`);
                 const activeId = isNew ? c.id : c.user_id;
                 if (!chatVisible('personal', String(activeId), c.last_message_time)) return;
-                rows.push({ key: String(activeId), html: `
+                chatRows.push({ key: String(activeId), at: c.last_message_time || '', html: `
                     <div class="conversation-item ${activeId === selectedUserId ? 'active' : ''}"
                          data-user-id="${escapeHtml(String(activeId))}"
                          onclick="${clickHandler}" title="${escapeHtml(name)}">
@@ -10704,7 +10746,7 @@
                     </div>
                 ` });
             });
-            container.innerHTML = headHtml + sortPinnedFirst(rows).map(r => r.html).join('') + hiddenFooterHtml();
+            container.innerHTML = headHtml + sortPinnedFirst(rows.concat(byRecent(chatRows))).map(r => r.html).join('') + hiddenFooterHtml();
             // Папка может не содержать ни одного чата — иначе список выглядел бы «сломанным»
             if (container.querySelectorAll('.conversation-item').length === 0) {
                 const f = myFolders.find(x => 'u' + x.id === activeFolder);
@@ -11779,7 +11821,7 @@
                         };
                     }
                     return daySepHtml(m.created_at, supDay) + `
-                        <div class="message ${isMine ? 'mine' : 'theirs'}" data-msg-id="${escapeHtml(mid)}">
+                        <div class="message ${isMine ? 'mine' : 'theirs'}${imgOnlyClass(m, content)}" data-msg-id="${escapeHtml(mid)}">
                             ${content ? `<div>${content}</div>` : ''}
                             ${attachmentHtml}
                             <div class="msg-foot"><div class="message-time">${time}</div>${mid ? msgHoverHtml(mid) : ''}</div>
@@ -11978,6 +12020,14 @@
          * Разметка вложения — одна для личных, групповых и избранных сообщений.
          * voiceKey нужен плееру голосовых: он должен быть уникален в пределах страницы.
          */
+        /**
+         * Сообщение состоит из одной картинки? Тогда пузырю не нужен полный отступ —
+         * см. .message.img-only. Подпись под фото (текст сообщения) отступ возвращает.
+         */
+        function imgOnlyClass(m, textHtml) {
+            return (m && isImageAttachment(m) && !textHtml) ? ' img-only' : '';
+        }
+
         function attachmentHtmlFor(m, voiceKey) {
             if (!m) return '';
             if (!m.attachment_url) {
@@ -12019,7 +12069,7 @@
                 canForward: true, canPin: true, canEdit: !m.attachment_url, canDelete: true,
             };
             return `
-                <div class="message mine${(isVideoNote(m) && !content) ? ' vn-only' : ''}" data-fav-id="${m.id}">
+                <div class="message mine${(isVideoNote(m) && !content) ? ' vn-only' : ''}${imgOnlyClass(m, content)}" data-fav-id="${m.id}">
                     ${tagLine}
                     ${sourceLine}
                     ${quoteHtml(fav.replyId)}
@@ -12713,7 +12763,7 @@
                     }
 
                     return sep + `
-                        <div class="message ${isMine ? 'mine' : 'theirs'}${(isVideoNote(m) && !content) ? ' vn-only' : ''}" data-msg-id="${m.id || ''}">
+                        <div class="message ${isMine ? 'mine' : 'theirs'}${(isVideoNote(m) && !content) ? ' vn-only' : ''}${imgOnlyClass(m, content)}" data-msg-id="${m.id || ''}">
                             ${quote}
                             ${callBtn}
                             <div id="msg-body-${m.id || ''}">${content ? `<div id="msg-content-${m.id || ''}">${highlightMentions(content)}</div>` : ''}</div>
