@@ -53,7 +53,11 @@
         .dash-sidebar-icon { font-size: 1rem; width: 1.35rem; text-align: center; flex-shrink: 0; }
         .dash-sidebar-footer { padding: 0.6rem 0.5rem; border-top: 1px solid var(--d-border); display: flex; flex-direction: column; gap: 0.15rem; }
         .dash-sidebar-footer .dash-sidebar-item { margin: 0.06rem 0; }
-        .dash-sidebar-toggle { display: none; position: fixed; top: 92px; left: 0.75rem; z-index: 1001; width: 38px; height: 38px; border-radius: 0.5rem; border: 1px solid var(--d-border); background: var(--d-panel); color: var(--d-text); font-size: 1.2rem; cursor: pointer; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+        /* Кнопка меню кабинета — в самой шапке справа, а не отдельной плашкой под ней:
+           на телефоне там пусто (меню сайта и его бургер в кабинете скрыты), и рука
+           тянется в правый верхний угол. Прежнее место — слева под шапкой — висело
+           поверх содержимого и закрывало первую строку страницы. */
+        .dash-sidebar-toggle { display: none; position: fixed; top: 13px; right: 0.9rem; left: auto; z-index: 1001; width: 38px; height: 38px; border-radius: 0.5rem; border: 1px solid var(--d-border); background: var(--d-panel); color: var(--d-text); font-size: 1.2rem; cursor: pointer; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
         .dash-sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.35); z-index: 999; }
         .dash-sidebar-overlay.open { display: block; }
         @media (max-width: 768px) {

@@ -183,7 +183,10 @@ if ($action === 'list') {
                    (SELECT content FROM chat_group_messages WHERE group_id = g.id ORDER BY id DESC LIMIT 1) AS last_message,
                    (SELECT created_at FROM chat_group_messages WHERE group_id = g.id ORDER BY id DESC LIMIT 1) AS last_message_at,
                    (SELECT MAX(id) FROM chat_group_messages WHERE group_id = g.id) AS last_message_id,
-                   (SELECT COUNT(*) FROM chat_group_messages WHERE group_id = g.id AND id > m.last_read_message_id) AS unread_count
+                   (SELECT COUNT(*) FROM chat_group_messages
+                     WHERE group_id = g.id
+                       AND id > COALESCE(m.last_read_message_id, 0)
+                       AND sender_id <> m.user_id) AS unread_count
             FROM chat_group_members m
             JOIN chat_groups g ON g.id = m.group_id
             WHERE m.user_id = ?
@@ -199,14 +202,26 @@ if ($action === 'messages') {
     if (!$groupId) out(['error' => 'Не передан номер группы'], 400);
     if (!isMember($pdo, $groupId, $userId)) out(['error' => 'Вы не участник этой группы (или группа удалена)'], 403);
     try {
+        // ORDER BY id ASC LIMIT 500 отдавал ПЕРВЫЕ 500 сообщений, а не последние: в группе,
+        // где сообщений больше, свежие не приходили вовсе, а отметка о прочтении вставала
+        // на пятисотое сообщение — и счётчик непрочитанных не обнулялся уже никогда.
+        // Берём последние 500 и разворачиваем обратно в хронологический порядок.
         $st = $pdo->prepare("SELECT m.id, m.sender_id, m.content, m.created_at, m.edited_at,
                                      m.attachment_url, m.attachment_type, m.attachment_name,
                                      u.first_name, u.last_name, u.avatar
                               FROM chat_group_messages m LEFT JOIN users u ON u.id = m.sender_id
-                              WHERE m.group_id = ? ORDER BY m.id ASC LIMIT 500");
+                              WHERE m.group_id = ? ORDER BY m.id DESC LIMIT 500");
         $st->execute([$groupId]);
-        $rows = $st->fetchAll(PDO::FETCH_ASSOC);
-        $maxId = $rows ? (int)$rows[count($rows) - 1]['id'] : 0;
+        $rows = array_reverse($st->fetchAll(PDO::FETCH_ASSOC));
+        // Отмечаем по самому свежему сообщению группы, а не по последнему из выборки:
+        // иначе в группе с длинной историей отметка всегда отставала.
+        $maxId = 0;
+        try {
+            $mx = $pdo->prepare("SELECT MAX(id) FROM chat_group_messages WHERE group_id = ?");
+            $mx->execute([$groupId]);
+            $maxId = (int)$mx->fetchColumn();
+        } catch (Exception $e) {}
+        if ($maxId <= 0) $maxId = $rows ? (int)$rows[count($rows) - 1]['id'] : 0;
         gcMarkRead($pdo, $groupId, $userId, $maxId);
         out(['ok' => true, 'data' => $rows]);
     } catch (Exception $e) { out(['ok' => true, 'data' => []]); }
