@@ -624,25 +624,46 @@
         }
         window.proceedFreeIntro = proceedFreeIntro;
 
+        /** Какой эквайринг включён. Спрашиваем сервер: в браузере этому решению не место. */
+        let _payProvider = null;
+        async function paymentProvider() {
+            if (_payProvider) return _payProvider;
+            try {
+                const r = await fetch('/api/settings.php?action=public');
+                const d = await r.json();
+                _payProvider = (d && d.payment_provider) ? String(d.payment_provider) : 'robokassa';
+            } catch (e) { _payProvider = 'robokassa'; }
+            return _payProvider;
+        }
+
         async function proceedToPayment() {
             const btn = document.getElementById('payBtn');
             btn.disabled = true;
             btn.innerHTML = '<i data-lucide="loader" style="width: 20px; height: 20px;"></i> Создание платежа...';
 
             try {
-                const response = await fetch('/api/robokassa.php?action=init', {
+                // Чем принимаем оплату — решает настройка в админке (payment_provider).
+                // Сбер отвечает formUrl, Робокасса — paymentUrl; ниже приводим к одному.
+                const provider = await paymentProvider();
+                const url = provider === 'sber'
+                    ? '/api/sber_acquiring.php?action=init'
+                    : '/api/robokassa.php?action=init';
+                const response = await fetch(url, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     credentials: 'include',
                     body: JSON.stringify({
                         psychologistId: psychologistData.id,
+                        psychologist_id: psychologistData.id,   // Сбер ждёт это имя
                         dateTime: bookingData.datetime,
                         format: bookingData.format,
-                        price: psychologistData.price
+                        price: psychologistData.price,
+                        amount: psychologistData.price          // Сбер ждёт это имя
                     })
                 });
 
                 const data = await response.json();
+                if (data.formUrl && !data.paymentUrl) data.paymentUrl = data.formUrl;
 
                 if (data.error) {
                     document.getElementById('errorMsg').innerHTML =

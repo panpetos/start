@@ -142,6 +142,8 @@ function allowedSettingKeys(): array {
              // админка показывала «Сохранено», а значение молча не доходило до settings —
              // и промокод не срабатывал никогда.
              'free_promo_code', 'free_promo_limit', 'free_promo_fail_limit', 'free_promo_expires',
+             // Эквайринг: чем принимаем оплату и тестовая сумма (см. sber_acquiring.php)
+             'payment_provider', 'sber_test_amount',
              // Текст автоприветствия новому пользователю (api/welcome.php)
              'welcome_message'];
     foreach (['self', 'couple', 'teen'] as $t) {

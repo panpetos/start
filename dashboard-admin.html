@@ -1786,6 +1786,32 @@
                             style="width:100%;padding:0.6rem 0.75rem;border:1.5px solid var(--a-input-border);border-radius:0.6rem;font-family:inherit;font-size:0.92rem;line-height:1.5;background:var(--a-input-bg);color:var(--a-text);resize:vertical;">${esc(sGet('welcome_message',''))}</textarea>
                 </div>
               </div>
+              <div class="panel" style="margin-bottom:1.25rem;">
+                <div class="panel-head"><h2>Эквайринг</h2></div>
+                <div style="padding:1.1rem 1.25rem;">
+                  <div style="display:flex;gap:0.9rem;flex-wrap:wrap;align-items:flex-end;">
+                    <label style="font-size:0.82rem;color:var(--a-text-sec);font-weight:600;">Чем принимаем оплату<br>
+                      <select id="payment_provider" style="width:220px;margin-top:0.3rem;padding:0.55rem 0.7rem;border:1.5px solid var(--a-input-border);border-radius:0.6rem;font-family:inherit;font-size:0.95rem;background:var(--a-input-bg);color:var(--a-text);">
+                        ${['robokassa','sber'].map(v=>`<option value="${v}" ${sGet('payment_provider','robokassa')===v?'selected':''}>${v==='sber'?'Сбербанк':'Робокасса'}</option>`).join('')}
+                      </select></label>
+                    <label style="font-size:0.82rem;color:var(--a-text-sec);font-weight:600;">Тестовая сумма, ₽<br>
+                      <input id="sber_test_amount" type="number" min="0" step="1"
+                             value="${esc(sGet('sber_test_amount','0'))}"
+                             style="width:150px;margin-top:0.3rem;padding:0.55rem 0.7rem;border:1.5px solid var(--a-input-border);border-radius:0.6rem;font-family:inherit;font-size:0.95rem;background:var(--a-input-bg);color:var(--a-text);"></label>
+                    <span style="color:var(--a-text-muted);font-size:0.8rem;">0 — брать настоящую цену</span>
+                  </div>
+                  <div class="note" style="margin-top:0.9rem;">
+                    <b>Тестовая сумма</b> подменяет цену заказа на маленькую. Банк выдаёт боевые ключи
+                    сразу, значит первые проверки пойдут <b>реальными деньгами</b> — поставьте 10 ₽,
+                    прогоните весь путь, потом верните 0. Подмена происходит на сервере, из браузера
+                    занизить цену нельзя. В выписке такой платёж подписан «Проверка оплаты».
+                  </div>
+                  <div class="note" style="margin-top:0.6rem;">
+                    Логин и пароль от банка в админку <b>не вводятся</b> — они лежат в файле
+                    <code>api/sber_acquiring_config.php</code> прямо на сервере (в git он не попадает).
+                  </div>
+                </div>
+              </div>
               <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;align-items:start;" id="tariffGrid">
                 <div class="panel">
                   <div class="panel-head"><h2>Базовые цены тарифов</h2></div>
@@ -2006,6 +2032,10 @@
             if (fpf) payload.free_promo_fail_limit = String(parseInt(fpf.value, 10) || 0);
             const fpe = document.getElementById('free_promo_expires');
             if (fpe) payload.free_promo_expires = fpe.value.trim().replace('T', ' ');
+            const pp = document.getElementById('payment_provider');
+            if (pp) payload.payment_provider = pp.value;
+            const sta = document.getElementById('sber_test_amount');
+            if (sta) payload.sber_test_amount = String(parseInt(sta.value, 10) || 0);
             const msg = document.getElementById('saveMsg');
             btn.disabled = true; if(msg){ msg.textContent='Сохраняем...'; msg.style.color='var(--a-text-sec)'; }
             const res = await apiPost('save-settings', { settings: payload });

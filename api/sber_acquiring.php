@@ -178,6 +178,20 @@ if ($action === 'init' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!$userId) sberOut(['ok' => false, 'error' => 'Требуется авторизация'], 401);
     $amount = (int)round(((float)($body['amount'] ?? 0)) * 100);          // банк считает в копейках
     if ($amount < 100) sberOut(['ok' => false, 'error' => 'Некорректная сумма'], 400);
+
+    // ── ТЕСТОВАЯ СУММА ────────────────────────────────────────────────────────
+    // Банк выдаёт боевые ключи сразу, то есть первые же проверки пойдут реальными
+    // деньгами. Настройка sber_test_amount (в рублях) подменяет сумму заказа на
+    // маленькую — проверить весь путь можно за десять рублей, а не за три тысячи.
+    //
+    // Подмена ЗДЕСЬ, на сервере, а не в браузере: иначе сумму можно было бы
+    // занизить из консоли и оплатить настоящую консультацию за копейки.
+    $testRub = (float)psySetting($pdo, 'sber_test_amount', '0');
+    $isTestAmount = false;
+    if ($testRub > 0) {
+        $amount = max(100, (int)round($testRub * 100));
+        $isTestAmount = true;
+    }
     $psychId = (string)($body['psychologist_id'] ?? '');
     $appointment = (string)($body['appointment_id'] ?? '');
     $orderNumber = 'psy-' . date('Ymd') . '-' . bin2hex(random_bytes(5));
@@ -196,7 +210,7 @@ if ($action === 'init' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         'amount' => $amount,
         'returnUrl' => (string)($cfg['return_url'] ?? ''),
         'failUrl' => (string)($cfg['fail_url'] ?? ''),
-        'description' => 'Консультация психолога',
+        'description' => $isTestAmount ? 'Проверка оплаты (psytalk.pro)' : 'Консультация психолога',
         // Чек: платформа — агент, услугу оказывает самозанятый
         'orderBundle' => json_encode([
             'cartItems' => ['items' => [[
@@ -227,7 +241,8 @@ if ($action === 'init' && $_SERVER['REQUEST_METHOD'] === 'POST') {
             ->execute([$orderNumber, (string)($res['orderId'] ?? ''), $userId, $psychId ?: null,
                        $appointment ?: null, $amount, $commission, (string)($res['formUrl'] ?? '')]);
     } catch (Exception $e) {}
-    sberOut(['ok' => true, 'order_number' => $orderNumber, 'formUrl' => (string)($res['formUrl'] ?? '')]);
+    sberOut(['ok' => true, 'order_number' => $orderNumber, 'formUrl' => (string)($res['formUrl'] ?? ''),
+             'test_amount' => $isTestAmount, 'amount_rub' => round($amount / 100, 2)]);
 }
 
 if ($action === 'status') {
