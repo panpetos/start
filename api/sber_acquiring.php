@@ -124,7 +124,6 @@ function sberCall(PDO $pdo, $base, $userName, $password, $method, array $params,
     return is_array($d) ? $d : ['errorCode' => 'parse', 'errorMessage' => 'Непонятный ответ банка'];
 }
 
-/** Данные исполнителя для чека: банк требует ИНН и название самозанятого. */
 /**
  * ИНН исполнителя. Хранится в psychologist_credentials (type='inn', ИНН в поле name) —
  * туда его кладёт форма регистрации и редактирование профиля, оттуда его показывает
@@ -193,10 +192,10 @@ $body = json_decode(file_get_contents('php://input'), true) ?: [];
  * включена» — его полезно показать человеку перед оплатой.
  */
 if ($action === 'provider') {
-    $prov = strtolower(trim(psySetting($pdo, 'payment_provider', 'robokassa')));
-    if (!in_array($prov, ['robokassa', 'sber'], true)) $prov = 'robokassa';
+    // Эквайринг на платформе один — Сбербанк. Робокассы и ЮKassa больше нет, поэтому
+    // выбора здесь нет: настройка payment_provider не может увести оплату в сторону.
     $testRub = (float)psySetting($pdo, 'sber_test_amount', '0');
-    echo json_encode(['ok' => true, 'provider' => $prov,
+    echo json_encode(['ok' => true, 'provider' => 'sber',
                       'test_amount' => $testRub > 0 ? $testRub : 0], JSON_UNESCAPED_UNICODE);
     exit;
 }
@@ -215,6 +214,49 @@ if ($action === 'selftest') {
             (!empty($cfg['agent']['inn']) && strpos((string)$cfg['agent']['inn'], 'ВПИШИТЕ') === false) ? null : 'ИНН платформы как агента',
             'подтверждение, что онлайн-касса зарегистрирована',
         ])),
+    ]);
+}
+
+/**
+ * Проверка связи с банком без единого рубля. Спрашиваем у банка статус заведомо
+ * несуществующего заказа: если логин с паролем верны, банк отвечает «заказ не найден»
+ * (код 6), если неверны — «доступ запрещён» (коды 5/7). Ни заказа, ни списания при
+ * этом не создаётся. Только администратору: ответ говорит, рабочие ли ключи.
+ */
+if ($action === 'bankcheck') {
+    if (!$pdo) sberOut(['ok' => false, 'error' => 'Нет подключения к БД'], 500);
+    if (!$userId) sberOut(['ok' => false, 'error' => 'Требуется авторизация'], 401);
+    $role = '';
+    try {
+        $st = $pdo->prepare("SELECT role FROM users WHERE id = ? LIMIT 1");
+        $st->execute([$userId]);
+        $role = (string)$st->fetchColumn();
+    } catch (Exception $e) {}
+    if ($role !== 'admin') sberOut(['ok' => false, 'error' => 'Только для администратора'], 403);
+    if (!sberReady($userName, $password)) {
+        sberOut(['ok' => false, 'связь' => 'нет', 'причина' => 'В api/sber_acquiring_config.php не вписаны логин и пароль от банка']);
+    }
+    $probe = 'psytalk-probe-' . substr(md5((string)$userId . '|' . $base), 0, 16);
+    $res = sberCall($pdo, $base, $userName, $password, 'getOrderStatusExtended', ['orderNumber' => $probe]);
+    $code = isset($res['errorCode']) ? (string)$res['errorCode'] : '';
+    $msg  = (string)($res['errorMessage'] ?? '');
+    // 'net'/'parse' ставит сам sberCall, когда банк не ответил или ответил не JSON.
+    if ($code === 'net' || $code === 'parse') {
+        sberOut(['ok' => true, 'связь' => 'нет', 'режим' => $isTest ? 'тестовый' : 'боевой',
+                 'адрес_банка' => $base, 'ответ_банка' => $msg ?: '—',
+                 'вывод' => 'До банка не достучались — это связь, а не ключи. Проверьте адрес и что хостинг ходит наружу.']);
+    }
+    // 6 — «Незарегистрированный OrderId»: банк нас узнал, значит ключи рабочие.
+    $good = in_array($code, ['6', '0'], true);
+    sberOut([
+        'ok' => true,
+        'связь' => $good ? 'есть' : 'нет',
+        'режим' => $isTest ? 'тестовый' : 'боевой',
+        'адрес_банка' => $base,
+        'ответ_банка' => ($code !== '' ? ('код ' . $code . ': ') : '') . ($msg ?: '—'),
+        'вывод' => $good
+            ? 'Логин и пароль приняты банком — оплату можно принимать.'
+            : 'Банк не принял логин или пароль. Проверьте их в api/sber_acquiring_config.php и режим is_test.',
     ]);
 }
 

@@ -359,12 +359,6 @@
                     <button class="sidebar-item" data-tab="tariffs" onclick="switchTab('tariffs')">
                         <span class="sidebar-item-icon">📋</span> Тарифы
                     </button>
-                    <button class="sidebar-item" data-tab="robokassa" onclick="switchTab('robokassa')">
-                        <span class="sidebar-item-icon">💰</span> Робокасса
-                    </button>
-                    <button class="sidebar-item" data-tab="yookassa" onclick="switchTab('yookassa')">
-                        <span class="sidebar-item-icon">🟣</span> ЮKassa
-                    </button>
                 </div>
 
                 <div class="sidebar-group">
@@ -1790,14 +1784,13 @@
                 <div class="panel-head"><h2>Эквайринг</h2></div>
                 <div style="padding:1.1rem 1.25rem;">
                   <div style="display:flex;gap:0.9rem;flex-wrap:wrap;align-items:flex-end;">
-                    <label style="font-size:0.82rem;color:var(--a-text-sec);font-weight:600;">Чем принимаем оплату<br>
-                      <select id="payment_provider" style="width:220px;margin-top:0.3rem;padding:0.55rem 0.7rem;border:1.5px solid var(--a-input-border);border-radius:0.6rem;font-family:inherit;font-size:0.95rem;background:var(--a-input-bg);color:var(--a-text);">
-                        ${['robokassa','sber'].map(v=>`<option value="${v}" ${sGet('payment_provider','robokassa')===v?'selected':''}>${v==='sber'?'Сбербанк':'Робокасса'}</option>`).join('')}
-                      </select></label>
+                    <div style="font-size:0.82rem;color:var(--a-text-sec);font-weight:600;">Чем принимаем оплату<br>
+                      <div style="margin-top:0.3rem;padding:0.55rem 0.7rem;border:1.5px solid var(--a-input-border);border-radius:0.6rem;font-size:0.95rem;font-weight:700;color:var(--a-text);">🏦 Сбербанк</div></div>
                     <label style="font-size:0.82rem;color:var(--a-text-sec);font-weight:600;">Тестовая сумма, ₽<br>
                       <input id="sber_test_amount" type="number" min="0" step="1"
                              value="${esc(sGet('sber_test_amount','0'))}"
                              style="width:150px;margin-top:0.3rem;padding:0.55rem 0.7rem;border:1.5px solid var(--a-input-border);border-radius:0.6rem;font-family:inherit;font-size:0.95rem;background:var(--a-input-bg);color:var(--a-text);"></label>
+                    <button class="btn-sm btn-outline" onclick="checkBank(this)">🏦 Проверить связь с банком</button>
                     <span style="color:var(--a-text-muted);font-size:0.8rem;">0 — брать настоящую цену</span>
                   </div>
                   <div class="note" style="margin-top:0.9rem;">
@@ -1827,13 +1820,13 @@
                     <label class="pay-model-row">
                       <input type="radio" name="payModel" value="agent" ${payModel !== 'split' ? 'checked' : ''} onchange="recalcIncome()">
                       <span><b>Агентская: эквайринг + выплаты отдельно</b><br>
-                        <span class="muted" style="font-size:0.78rem;">Деньги клиента приходят на счёт платформы (Робокасса / ЮKassa),
+                        <span class="muted" style="font-size:0.78rem;">Деньги клиента приходят на счёт платформы (эквайринг Сбербанка),
                         психологу платформа переводит сама — вручную или реестром через сервис выплат.
                         Дешевле по проценту, но выплаты и чеки самозанятых — отдельная задача.</span>
                       </span>
                     </label>
                     <div id="agentFields" style="padding-left:1.6rem;">
-                      ${fld('fee_acquiring','Эквайринг (Робокасса / ЮKassa)', acquiring, '%')}
+                      ${fld('fee_acquiring','Эквайринг (Сбербанк)', acquiring, '%')}
                     </div>
 
                     <label class="pay-model-row">
@@ -2032,8 +2025,8 @@
             if (fpf) payload.free_promo_fail_limit = String(parseInt(fpf.value, 10) || 0);
             const fpe = document.getElementById('free_promo_expires');
             if (fpe) payload.free_promo_expires = fpe.value.trim().replace('T', ' ');
-            const pp = document.getElementById('payment_provider');
-            if (pp) payload.payment_provider = pp.value;
+            // Провайдер один — Сбербанк, выбирать нечего: настройку payment_provider
+            // больше не пишем, оплата в любом случае идёт через sber_acquiring.php.
             const sta = document.getElementById('sber_test_amount');
             if (sta) payload.sber_test_amount = String(parseInt(sta.value, 10) || 0);
             const msg = document.getElementById('saveMsg');
@@ -3302,6 +3295,37 @@
                 document.getElementById(nid('body',code)).value = r.body || '';
                 const m = document.getElementById(nid('msg',code)); m.textContent = ' ↩ сброшено'; m.style.color = '#6B7280';
             } else alert(r.error || 'Ошибка');
+        }
+
+        // ── Связь со Сбербанком ─────────────────────────────────────────────
+        async function checkBank(btn){
+            var box = document.getElementById('bankCheckMsg');
+            if (!box) {
+                box = document.createElement('div');
+                box.id = 'bankCheckMsg';
+                box.style.cssText = 'margin-top:0.8rem;font-size:0.88rem;line-height:1.5;';
+                btn.parentNode.appendChild(box);
+            }
+            box.style.color = 'var(--a-text-sec)';
+            box.textContent = 'Спрашиваю банк...';
+            if (btn) btn.disabled = true;
+            try {
+                const r = await fetch('/api/sber_acquiring.php?action=bankcheck', { credentials:'include' });
+                const d = await r.json();
+                if (d && d['связь'] === 'есть') {
+                    box.style.color = '#16A34A';
+                    box.textContent = '✅ ' + d['вывод'] + ' Контур: ' + d['режим'] + '. Ответ банка: ' + d['ответ_банка'] + '.';
+                } else if (d && d['вывод']) {
+                    box.style.color = '#DC2626';
+                    box.textContent = '✕ ' + d['вывод'] + ' Ответ банка: ' + (d['ответ_банка'] || '—') + '.';
+                } else {
+                    box.style.color = '#DC2626';
+                    box.textContent = '✕ ' + ((d && (d['причина'] || d.error)) || 'Не удалось проверить');
+                }
+            } catch(e) {
+                box.style.color = '#DC2626';
+                box.textContent = '✕ Не удалось выполнить проверку';
+            } finally { if (btn) btn.disabled = false; }
         }
 
         // ── Robokassa ───────────────────────────────────────────────────────

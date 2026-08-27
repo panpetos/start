@@ -231,6 +231,40 @@ if (isset($_GET['appt']) && isset($pdo) && $pdo) {
     $r['appointments'] = $a;
 }
 
+// 4b. ?creds=1 — что реально лежит в psychologist_credentials. У психолога пропали
+//     сертификаты из карточки: карточка берёт их запросом с условиями по type и url,
+//     а его catch молчит при ошибке. Здесь видно, есть ли строки вообще, у скольких
+//     заполнен url и совпадает ли привязка (psychologist_id / user_id). Ссылок и
+//     самих ИНН наружу не отдаём — одни счётчики.
+if (isset($_GET['creds']) && isset($pdo) && $pdo) {
+    $c = [];
+    try {
+        foreach ($pdo->query("SELECT type,
+                                     COUNT(*) AS n,
+                                     SUM(CASE WHEN url IS NOT NULL AND url <> '' THEN 1 ELSE 0 END) AS with_url,
+                                     SUM(CASE WHEN psychologist_id IS NULL OR psychologist_id = '' THEN 1 ELSE 0 END) AS no_psy_id
+                                FROM psychologist_credentials GROUP BY type")->fetchAll(PDO::FETCH_ASSOC) as $row) {
+            $c['по_типам'][(string)$row['type']] = [
+                'всего' => (int)$row['n'],
+                'с_файлом' => (int)$row['with_url'],
+                'без_привязки_к_психологу' => (int)$row['no_psy_id'],
+            ];
+        }
+        $c['всего_строк'] = (int)$pdo->query("SELECT COUNT(*) FROM psychologist_credentials")->fetchColumn();
+    } catch (Exception $e) { $c['ошибка'] = substr($e->getMessage(), 0, 200); }
+    // Совпадает ли psychologist_id в документах с id из таблицы психологов: если
+    // регистрация записала туда user_id, публичный запрос карточки ничего не найдёт.
+    try {
+        $c['привязка_бьётся_с_psychologists'] = (int)$pdo->query(
+            "SELECT COUNT(*) FROM psychologist_credentials pc
+               JOIN psychologists p ON p.id = pc.psychologist_id")->fetchColumn();
+        $c['привязка_через_user_id'] = (int)$pdo->query(
+            "SELECT COUNT(*) FROM psychologist_credentials pc
+               JOIN psychologists p ON p.user_id = pc.user_id")->fetchColumn();
+    } catch (Exception $e) { $c['ошибка_привязки'] = substr($e->getMessage(), 0, 200); }
+    $r['credentials'] = $c;
+}
+
 // 5. ?bench=1 — сколько стоят типовые запросы сайта. Нужно, чтобы прикинуть,
 //    сколько людей хостинг вытянет, не устраивая проду настоящую нагрузку.
 //    Всё только на чтение, данные наружу не отдаются — одни тайминги.

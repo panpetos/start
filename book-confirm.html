@@ -392,7 +392,7 @@
                     ? `<div class="secure-badge"><i data-lucide="gift" style="width: 18px; height: 18px;"></i> Вводная сессия положена один раз у каждого психолога — платить не нужно</div>`
                     : promoOk
                     ? `<div class="secure-badge"><i data-lucide="check" style="width: 18px; height: 18px;"></i> Запись по промокоду — платить не нужно</div>`
-                    : `<div class="secure-badge"><i data-lucide="shield-check" style="width: 18px; height: 18px;"></i> Безопасная оплата через Robokassa</div>`);
+                    : `<div class="secure-badge"><i data-lucide="shield-check" style="width: 18px; height: 18px;"></i> Безопасная оплата картой через Сбербанк</div>`);
 
             document.getElementById('bookingCard').innerHTML = `
                 <div class="booking-heading">
@@ -456,6 +456,8 @@
 
                 ${secureBlock}
 
+                <div id="payTestNote"></div>
+
                 <a href="/book.html?id=${p.id}${isPackage ? '&pkg=' + encodeURIComponent(packageId) : ''}" class="back-link">
                     ← Назад к выбору времени
                 </a>
@@ -464,6 +466,28 @@
             if (typeof lucide !== 'undefined') {
                 lucide.createIcons();
             }
+            showTestAmountNote();
+        }
+
+        /**
+         * Пока идёт проверка оплат, сервер подменяет сумму на маленькую. Сказать об этом
+         * надо ДО нажатия «Перейти к оплате»: после создания заказа страница сразу уходит
+         * в банк, и человек увидел бы там 32 ₽ вместо цены, ничего не поняв. Побочная
+         * работа: молчит при любой ошибке, оплату не задерживает.
+         */
+        async function showTestAmountNote() {
+            try {
+                const box = document.getElementById('payTestNote');
+                if (!box) return;
+                const r = await fetch('/api/sber_acquiring.php?action=provider');
+                const d = await r.json();
+                const rub = (d && d.test_amount > 0) ? d.test_amount : 0;
+                if (!rub) { box.innerHTML = ''; return; }
+                box.innerHTML = '<div style="margin-top:0.75rem;background:#FFF8EC;color:#B45309;' +
+                    'border:1px solid #F0D9A8;border-radius:0.75rem;padding:0.7rem 0.9rem;' +
+                    'font-size:0.85rem;line-height:1.45;">⚠️ Идёт проверка приёма оплат: ' +
+                    'к списанию ' + rub + ' ₽ вместо полной стоимости.</div>';
+            } catch (e) {}
         }
 
         function selectFormat(format, element) {
@@ -624,21 +648,18 @@
         }
         window.proceedFreeIntro = proceedFreeIntro;
 
-        /** Какой эквайринг включён. Спрашиваем сервер: в браузере этому решению не место. */
-        let _payProvider = null;
+        /**
+         * Идёт ли сейчас проверка оплат уменьшенной суммой. Эквайринг один — Сбербанк,
+         * выбирать больше нечего, поэтому спрашиваем сервер только про тестовую сумму.
+         */
         let _payTestAmount = 0;
         async function paymentProvider() {
-            if (_payProvider) return _payProvider;
             try {
-                // Спрашиваем НАШ эндпоинт: settings.php?action=public отдаёт только
-                // свой белый список ключей, и payment_provider в него не входит —
-                // через него выбор админа до страницы оплаты не доходил вовсе.
                 const r = await fetch('/api/sber_acquiring.php?action=provider');
                 const d = await r.json();
-                _payProvider = (d && d.ok && d.provider) ? String(d.provider) : 'robokassa';
                 if (d && d.test_amount > 0) _payTestAmount = d.test_amount;
-            } catch (e) { _payProvider = 'robokassa'; }
-            return _payProvider;
+            } catch (e) {}
+            return 'sber';
         }
 
         async function proceedToPayment() {
@@ -647,13 +668,10 @@
             btn.innerHTML = '<i data-lucide="loader" style="width: 20px; height: 20px;"></i> Создание платежа...';
 
             try {
-                // Чем принимаем оплату — решает настройка в админке (payment_provider).
-                // Сбер отвечает formUrl, Робокасса — paymentUrl; ниже приводим к одному.
-                const provider = await paymentProvider();
-                const url = provider === 'sber'
-                    ? '/api/sber_acquiring.php?action=init'
-                    : '/api/robokassa.php?action=init';
-                const response = await fetch(url, {
+                // Оплату принимает Сбербанк. Ответ банка приходит в поле formUrl —
+                // ниже приводим его к общему paymentUrl, на который уходит страница.
+                await paymentProvider();
+                const response = await fetch('/api/sber_acquiring.php?action=init', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     credentials: 'include',
