@@ -132,6 +132,69 @@ function sberCall(PDO $pdo, $base, $userName, $password, $method, array $params,
  * credentials, а колонку берём лишь как запасной вариант и только если она есть
  * (SHOW COLUMNS без prepare — на проде emulate_prepares=false).
  */
+/**
+ * Снять брони, за которые так и не заплатили. Запись создаётся до перехода в банк и
+ * держит слот; если человек закрыл вкладку, слот остался бы занят навсегда. Через
+ * полчаса такая бронь отменяется. Побочная работа: молчит при любой ошибке.
+ */
+function sberDropStaleHolds(PDO $pdo, $psychId) {
+    try {
+        $pdo->prepare("UPDATE appointments SET status = 'cancelled'
+                        WHERE psychologist_id = ? AND status = 'pending_payment'
+                          AND created_at < DATE_SUB(NOW(), INTERVAL 30 MINUTE)")
+            ->execute([$psychId]);
+    } catch (Exception $e) {
+        // В таблице может не быть created_at — тогда просто не чистим.
+    }
+}
+
+function sberUuid(): string {
+    return sprintf('%04x%04x-%04x-%04x-%04x-%04x%04x%04x',
+        mt_rand(0, 0xffff), mt_rand(0, 0xffff), mt_rand(0, 0xffff),
+        mt_rand(0, 0x0fff) | 0x4000, mt_rand(0, 0x3fff) | 0x8000,
+        mt_rand(0, 0xffff), mt_rand(0, 0xffff), mt_rand(0, 0xffff));
+}
+
+/**
+ * Довести оплаченный заказ до записи в календаре.
+ *
+ * Сбер не обещает серверный колбэк — обратные вызовы включает банк отдельно. Поэтому
+ * не ждём его, а сами спрашиваем у банка статус: при возврате человека из банка и при
+ * любой проверке заказа. Иначе деньги списаны, а записи нет — как и было до этого.
+ *
+ * Возвращает id записи, если оплата подтверждена, иначе ''. Все побочные записи —
+ * в своих try/catch: если запнётся начисление или журнал, запись всё равно должна
+ * стать подтверждённой.
+ */
+function sberFinalize(PDO $pdo, array $order, $base, $userName, $password) {
+    $orderNumber = (string)$order['order_number'];
+    $apptId = (string)($order['appointment_id'] ?? '');
+    if (($order['status'] ?? '') === 'paid') return $apptId;
+
+    $res = sberCall($pdo, $base, $userName, $password, 'getOrderStatusExtended',
+                    ['orderId' => (string)$order['bank_order_id']], $orderNumber);
+    // 2 — «полная авторизация суммы заказа»: деньги списаны
+    if (((int)($res['orderStatus'] ?? -1)) !== 2) return '';
+
+    try {
+        $pdo->prepare("UPDATE sber_orders SET status = 'paid', paid_at = NOW() WHERE id = ?")
+            ->execute([$order['id']]);
+    } catch (Exception $e) {}
+    if ($apptId === '') return '';
+    try {
+        $pdo->prepare("UPDATE appointments SET status = 'scheduled' WHERE id = ?")->execute([$apptId]);
+    } catch (Exception $e) {}
+    try {
+        $st = $pdo->prepare("SELECT COUNT(*) FROM payments WHERE appointment_id = ? AND status = 'success'");
+        $st->execute([$apptId]);
+        if ((int)$st->fetchColumn() === 0) {
+            $pdo->prepare("INSERT INTO payments (id, appointment_id, amount, status, paid_at) VALUES (?, ?, ?, 'success', NOW())")
+                ->execute([sberUuid(), $apptId, round(((int)$order['amount_kop']) / 100, 2)]);
+        }
+    } catch (Exception $e) {}
+    return $apptId;
+}
+
 function sberSupplierInn(PDO $pdo, $psychologistId, $userId) {
     try {
         $st = $pdo->prepare("SELECT name FROM psychologist_credentials
@@ -269,7 +332,31 @@ if (!sberReady($userName, $password)) {
 
 if ($action === 'init' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!$userId) sberOut(['ok' => false, 'error' => 'Требуется авторизация'], 401);
-    $amount = (int)round(((float)($body['amount'] ?? 0)) * 100);          // банк считает в копейках
+
+    $psychId = (string)($body['psychologist_id'] ?? ($body['psychologistId'] ?? ''));
+    $dateTime = (string)($body['dateTime'] ?? ($body['date_time'] ?? ''));
+    $format = in_array(($body['format'] ?? 'video'), ['video', 'audio', 'chat'], true) ? (string)$body['format'] : 'video';
+    if ($psychId === '' || $dateTime === '') sberOut(['ok' => false, 'error' => 'Не указан психолог или время'], 400);
+
+    // Цену берём из базы, а не из браузера: присланную сумму можно подменить в консоли
+    // и оплатить консультацию за рубль.
+    try {
+        $st = $pdo->prepare("SELECT id, price FROM psychologists WHERE id = ? AND is_approved = 1 LIMIT 1");
+        $st->execute([$psychId]);
+        $psy = $st->fetch(PDO::FETCH_ASSOC);
+    } catch (Exception $e) { $psy = null; }
+    if (!$psy) sberOut(['ok' => false, 'error' => 'Психолог не найден'], 404);
+    $price = (float)$psy['price'];
+    if ($price <= 0) sberOut(['ok' => false, 'error' => 'У психолога не назначена цена'], 400);
+
+    sberDropStaleHolds($pdo, $psychId);
+    try {
+        $st = $pdo->prepare("SELECT id FROM appointments WHERE psychologist_id = ? AND date_time = ? AND status != 'cancelled' LIMIT 1");
+        $st->execute([$psychId, $dateTime]);
+        if ($st->fetch()) sberOut(['ok' => false, 'error' => 'Это время уже занято'], 409);
+    } catch (Exception $e) {}
+
+    $amount = (int)round($price * 100);                                   // банк считает в копейках
     if ($amount < 100) sberOut(['ok' => false, 'error' => 'Некорректная сумма'], 400);
 
     // ── ТЕСТОВАЯ СУММА ────────────────────────────────────────────────────────
@@ -285,8 +372,6 @@ if ($action === 'init' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         $amount = max(100, (int)round($testRub * 100));
         $isTestAmount = true;
     }
-    $psychId = (string)($body['psychologist_id'] ?? '');
-    $appointment = (string)($body['appointment_id'] ?? '');
     $orderNumber = 'psy-' . date('Ymd') . '-' . bin2hex(random_bytes(5));
 
     // Комиссия платформы: остальное принадлежит исполнителю
@@ -330,8 +415,22 @@ if ($action === 'init' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         ], JSON_UNESCAPED_UNICODE),
     ];
 
+    // Запись создаём ДО обращения в банк и держим в 'pending_payment': иначе слот
+    // остаётся свободным, пока человек платит, и его может занять кто-то другой.
+    $appointment = sberUuid();
+    try {
+        $pdo->prepare("INSERT INTO appointments (id, client_id, psychologist_id, date_time, duration, format, status, price)
+                       VALUES (?, ?, ?, ?, 50, ?, 'pending_payment', ?)")
+            ->execute([$appointment, $userId, $psychId, $dateTime, $format, $price]);
+    } catch (Exception $e) {
+        sberOut(['ok' => false, 'error' => 'Не удалось создать запись'], 500);
+    }
+
     $res = sberCall($pdo, $base, $userName, $password, 'register', $params, $orderNumber);
     if (!empty($res['errorCode']) && (string)$res['errorCode'] !== '0') {
+        // Банк отказал — снимаем бронь, иначе время осталось бы занятым навсегда.
+        try { $pdo->prepare("UPDATE appointments SET status = 'cancelled' WHERE id = ?")->execute([$appointment]); }
+        catch (Exception $e) {}
         sberOut(['ok' => false, 'error' => (string)($res['errorMessage'] ?? 'Банк отказал в создании заказа')], 502);
     }
     try {
@@ -339,9 +438,10 @@ if ($action === 'init' && $_SERVER['REQUEST_METHOD'] === 'POST') {
                                                 appointment_id, amount_kop, commission_kop, status, form_url, created_at)
                        VALUES (?, ?, ?, ?, ?, ?, ?, 'created', ?, NOW())")
             ->execute([$orderNumber, (string)($res['orderId'] ?? ''), $userId, $psychId ?: null,
-                       $appointment ?: null, $amount, $commission, (string)($res['formUrl'] ?? '')]);
+                       $appointment, $amount, $commission, (string)($res['formUrl'] ?? '')]);
     } catch (Exception $e) {}
     sberOut(['ok' => true, 'order_number' => $orderNumber, 'formUrl' => (string)($res['formUrl'] ?? ''),
+             'appointment_id' => $appointment,
              'test_amount' => $isTestAmount, 'amount_rub' => round($amount / 100, 2)]);
 }
 
@@ -354,23 +454,31 @@ if ($action === 'status') {
     $order = $st->fetch(PDO::FETCH_ASSOC);
     if (!$order) sberOut(['ok' => false, 'error' => 'Заказ не найден'], 404);
 
-    $res = sberCall($pdo, $base, $userName, $password, 'getOrderStatusExtended',
-                    ['orderId' => $order['bank_order_id']], $orderNumber);
-    // 2 — «полная авторизация суммы заказа», то есть деньги списаны
-    $paid = ((int)($res['orderStatus'] ?? -1)) === 2;
-    if ($paid && $order['status'] !== 'paid') {
-        try {
-            $pdo->prepare("UPDATE sber_orders SET status = 'paid', paid_at = NOW() WHERE id = ?")
-                ->execute([$order['id']]);
-        } catch (Exception $e) {}
-    }
-    sberOut(['ok' => true, 'paid' => $paid, 'bank_status' => $res['orderStatus'] ?? null]);
+    $apptId = sberFinalize($pdo, $order, $base, $userName, $password);
+    $paid = ($apptId !== '') || ($order['status'] === 'paid');
+    sberOut(['ok' => true, 'paid' => $paid, 'appointment_id' => $apptId ?: (string)($order['appointment_id'] ?? '')]);
 }
 
 if ($action === 'return' || $action === 'fail') {
-    // Человека возвращаем на понятную страницу, а не в JSON
-    header('Content-Type: text/html; charset=utf-8');
+    // Человека возвращаем на понятную страницу, а не в JSON.
+    //
+    // Возврат из банка — единственный надёжный момент, когда можно подтвердить оплату:
+    // серверные колбэки банк включает отдельно, и полагаться на них нельзя. Спрашиваем
+    // статус сами и только потом отправляем человека на страницу успеха.
+    $apptId = '';
+    if ($action === 'return') {
+        $bankOrderId = (string)($_GET['orderId'] ?? '');
+        try {
+            if ($bankOrderId !== '') {
+                $st = $pdo->prepare("SELECT * FROM sber_orders WHERE bank_order_id = ? LIMIT 1");
+                $st->execute([$bankOrderId]);
+                $order = $st->fetch(PDO::FETCH_ASSOC);
+                if ($order) $apptId = sberFinalize($pdo, $order, $base, $userName, $password);
+            }
+        } catch (Exception $e) {}
+    }
     $to = $action === 'return' ? '/payment-success.html' : '/payment-info.html';
+    if ($apptId !== '') $to .= '?appointment_id=' . urlencode($apptId);
     header('Location: ' . $to);
     exit;
 }
