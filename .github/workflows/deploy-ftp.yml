@@ -142,6 +142,7 @@ jobs:
             put api/scheduled.php -o api/scheduled.php;
             put api/calls.php -o api/calls.php;
             put api/rtc_calls.php -o api/rtc_calls.php;
+            put api/rtc_room.php -o api/rtc_room.php;
             put api/rtc_lib.php -o api/rtc_lib.php;
             put api/sync.php -o api/sync.php;
             put api/rtc_calls_config.sample.php -o api/rtc_calls_config.sample.php;

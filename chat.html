@@ -2536,6 +2536,52 @@
            остаётся открытой и ставить можно несколько раз подряд. */
         .react-pick.mine { background: rgba(4,120,87,0.28); box-shadow: inset 0 0 0 1.5px #047857; }
         .react-more { font-size: 1rem; opacity: 0.6; }
+        /* ── Групповой звонок ─────────────────────────────────────────────── */
+        .grc-screen {
+            display: none; position: fixed; inset: 0; z-index: 5000; background: #111418;
+            flex-direction: column; color: #fff;
+        }
+        .grc-screen.open { display: flex; }
+        .grc-head { padding: 0.9rem 1rem 0.5rem; text-align: center; flex-shrink: 0; }
+        .grc-title { font-size: 1rem; }
+        .grc-title span { opacity: 0.65; font-size: 0.85rem; margin-left: 0.4rem; }
+        .grc-hint { font-size: 0.8rem; opacity: 0.6; margin-top: 0.2rem; min-height: 1.1em; }
+        /* Плитки: сколько бы ни было участников, все влезают без прокрутки —
+           поэтому auto-fit по минимальной ширине, а не фиксированные колонки. */
+        .grc-grid {
+            flex: 1; min-height: 0; display: grid; gap: 6px; padding: 6px;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            align-content: center;
+        }
+        .grc-tile {
+            position: relative; background: #1C2126; border-radius: 0.85rem; overflow: hidden;
+            aspect-ratio: 3 / 4; display: flex; align-items: center; justify-content: center;
+        }
+        .grc-tile video { width: 100%; height: 100%; object-fit: cover; background: #1C2126; }
+        .grc-tile.me video { transform: scaleX(-1); }   /* своё видео зеркалим, как в зеркале */
+        .grc-ava {
+            width: 64px; height: 64px; border-radius: 50%; background: #2A3138;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.5rem; font-weight: 700; color: #9CA3AF;
+        }
+        .grc-tile.speaking { outline: 2.5px solid #22C55E; outline-offset: -2.5px; }
+        .grc-name {
+            position: absolute; left: 6px; bottom: 6px; right: 6px;
+            font-size: 0.75rem; padding: 2px 6px; border-radius: 6px;
+            background: rgba(0,0,0,0.5); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .grc-badge { position: absolute; top: 6px; right: 8px; font-size: 0.85rem; opacity: 0.9; }
+        .grc-bar { display: flex; gap: 0.75rem; justify-content: center; padding: 0.9rem; flex-shrink: 0; }
+        .grc-btn {
+            width: 52px; height: 52px; border-radius: 50%; border: none; cursor: pointer;
+            background: #2A3138; color: #fff; font-size: 1.25rem; font-family: inherit;
+        }
+        .grc-btn.off { background: #4B5563; opacity: 0.65; }
+        .grc-hang { background: #DC2626; }
+        @media (min-width: 900px) {
+            .grc-grid { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); padding: 12px; gap: 10px; }
+            .grc-tile { aspect-ratio: 4 / 3; }
+        }
         /* Окно «кто прочитал» */
         .readers-box { position: fixed; inset: 0; z-index: 4000; background: rgba(0,0,0,0.45);
             display: flex; align-items: center; justify-content: center; padding: 1rem; }
@@ -3727,6 +3773,23 @@
     <div id="videoModal" style="display:none;position:fixed;inset:0;background:rgba(18,42,34,0.6);z-index:1000;align-items:center;justify-content:center;padding:1rem;">
         <div style="background:#fff;border-radius:1.25rem;max-width:440px;width:100%;padding:2rem;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
             <div style="text-align:center;margin-bottom:1.25rem;">
+    <!-- ── Групповой звонок на своём сервере (см. api/rtc_room.php) ────────────
+         Раньше для группы открывался Яндекс.Телемост: человек уходил на чужой
+         сайт, создавал встречу руками и присылал ссылку. Для терапевтической
+         группы это и неудобно, и неуместно. Здесь всё внутри сервиса. -->
+    <div id="grcScreen" class="grc-screen">
+        <div class="grc-head">
+            <div class="grc-title"><b id="grcName">Групповой звонок</b><span id="grcCount"></span></div>
+            <div id="grcHint" class="grc-hint"></div>
+        </div>
+        <div class="grc-grid" id="grcGrid"></div>
+        <div class="grc-bar">
+            <button type="button" class="grc-btn" id="grcMicBtn" onclick="grcToggleMic()" title="Микрофон">🎤</button>
+            <button type="button" class="grc-btn" id="grcCamBtn" onclick="grcToggleCam()" title="Камера">📹</button>
+            <button type="button" class="grc-btn grc-hang" onclick="grcLeave()" title="Выйти из звонка">✕</button>
+        </div>
+    </div>
+
                 <div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#FF0000,#CC0000);display:flex;align-items:center;justify-content:center;margin:0 auto 0.75rem;font-size:2rem;">📹</div>
                 <h3 style="font-size:1.25rem;color:#1A1A1A;margin-bottom:0.25rem;">Видеовстреча в Телемост</h3>
                 <p style="font-size:0.875rem;color:#6B7280;line-height:1.5;">Создайте встречу в открывшейся вкладке Яндекс&nbsp;Телемоста и пришлите ссылку собеседнику.</p>
@@ -4471,12 +4534,12 @@
                 ${headerActionsHtml([
                     { icon: 'ℹ️', label: 'Участники и настройки', run: () => openGroupInfo(groupId) },
                     { icon: '👥', label: 'Добавить участников', run: () => openAddGroupMembers(groupId) },
-                    // Групповой звонок сразу со всеми участниками (просьба из задачи №77,
-                    // «как в Zoom/Телеграме») — своя P2P-система умеет только разговор
-                    // вдвоём, поэтому для группы встречу создаём в Телемосте (он уже
-                    // используется как запасной путь для личных звонков) и рассылаем
-                    // ссылку одним сообщением всем участникам сразу.
-                    { icon: '📹', label: 'Групповой видеозвонок', run: () => startGroupVideoCall(groupId) },
+                    // Групповой звонок — теперь на своём сервере (api/rtc_room.php),
+                    // а не через Телемост: разговор в терапевтической группе не должен
+                    // уходить на чужой сайт по ссылке, которую человек создаёт руками.
+                    // Телемост остался запасным путём — вторым пунктом ниже.
+                    { icon: '📹', label: 'Групповой видеозвонок', run: () => grcJoin(groupId) },
+                    { icon: '🔗', label: 'Встреча в Телемосте (запасной путь)', run: () => startGroupVideoCall(groupId) },
                     { icon: '🔎', label: 'Поиск по переписке', run: () => openChatSearch() },
                     { icon: 'A', label: 'Форматирование текста', run: () => openComposer() },
                     { icon: '🎨', label: 'Обои переписки', run: () => openWallpaperPicker() },
@@ -16820,6 +16883,284 @@
                 rtcShowFallback('Прямое соединение не установилось — так бывает, когда оба собеседника в мобильной или рабочей сети. Попробуйте другую сеть.');
             }
         }
+
+        // ══════════════════════════════════════════════════════════════════════
+        //  ГРУППОВОЙ ЗВОНОК НА СВОЁМ СЕРВЕРЕ (api/rtc_room.php)
+        //
+        //  Личный звонок вдвоём (rtcBuildPc и всё ниже) НЕ ТРОГАЕМ — он работает.
+        //  Здесь отдельная система: полносвязная сетка, каждый соединён с каждым
+        //  напрямую. Сервер только передаёт сигналы,媒иа через него не идёт —
+        //  для разговора о личном это важнее экономии трафика.
+        //
+        //  КТО КОМУ ЗВОНИТ. Инициатор — тот, кто вошёл ПОЗЖЕ: при входе он
+        //  получает список уже присутствующих и шлёт offer каждому. Так обе
+        //  стороны никогда не шлют offer одновременно (иначе «стеклянное»
+        //  состояние, из которого соединение не выходит).
+        // ══════════════════════════════════════════════════════════════════════
+        let grcRoom = null;          // номер комнаты
+        let grcGroupId = null;
+        let grcAfter = 0;            // последний прочитанный сигнал
+        let grcLocal = null;         // свой поток
+        const grcPeers = new Map();  // user_id → { pc, name, since }
+        let grcPollTimer = null, grcPingTimer = null;
+        let grcMicOn = true, grcCamOn = true;
+
+        function grcHint(t) { const e = document.getElementById('grcHint'); if (e) e.textContent = t || ''; }
+
+        function grcTile(id, name, isMe) {
+            const grid = document.getElementById('grcGrid');
+            if (!grid || document.getElementById('grc-t-' + id)) return;
+            const el = document.createElement('div');
+            el.className = 'grc-tile' + (isMe ? ' me' : '');
+            el.id = 'grc-t-' + id;
+            el.innerHTML = `<div class="grc-ava">${escapeHtml((name || '?').charAt(0).toUpperCase())}</div>
+                            <video autoplay playsinline ${isMe ? 'muted' : ''} style="display:none;"></video>
+                            <div class="grc-name">${escapeHtml(name || 'Участник')}${isMe ? ' (вы)' : ''}</div>
+                            <div class="grc-badge" id="grc-b-' + id + '"></div>`;
+            grid.appendChild(el);
+        }
+
+        function grcAttach(id, stream) {
+            const el = document.getElementById('grc-t-' + id);
+            if (!el) return;
+            const v = el.querySelector('video');
+            if (!v) return;
+            v.srcObject = stream;
+            const has = stream && stream.getVideoTracks().some(t => t.enabled && !t.muted);
+            v.style.display = has ? 'block' : 'none';
+            const ava = el.querySelector('.grc-ava');
+            if (ava) ava.style.display = has ? 'none' : 'flex';
+        }
+
+        function grcDropTile(id) {
+            const el = document.getElementById('grc-t-' + id);
+            if (el) el.remove();
+        }
+
+        function grcCount() {
+            const n = grcPeers.size + 1;
+            const e = document.getElementById('grcCount');
+            if (e) e.textContent = '· ' + n + ' ' + (n === 1 ? 'участник' : (n < 5 ? 'участника' : 'участников'));
+        }
+
+        async function grcSend(to, kind, payload) {
+            if (!grcRoom) return;
+            try {
+                await fetch('/api/rtc_room.php?action=signal', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+                    body: JSON.stringify({ room_id: grcRoom, to, kind, payload })
+                });
+            } catch (e) {}
+        }
+
+        /** Соединение с одним участником. initiator — мы шлём offer. */
+        async function grcConnect(peerId, name, initiator) {
+            if (grcPeers.has(peerId)) return grcPeers.get(peerId);
+            const pc = new RTCPeerConnection({
+                iceServers: rtcIceServers,      // общий список с личными звонками
+                iceCandidatePoolSize: 2, bundlePolicy: 'max-bundle',
+            });
+            const rec = { pc, name, since: Date.now(), tries: 0 };
+            grcPeers.set(peerId, rec);
+            grcTile(peerId, name, false);
+            grcCount();
+
+            if (grcLocal) grcLocal.getTracks().forEach(t => pc.addTrack(t, grcLocal));
+            pc.onicecandidate = ev => { if (ev.candidate) grcSend(peerId, 'ice', ev.candidate); };
+            pc.ontrack = ev => { if (ev.streams && ev.streams[0]) grcAttach(peerId, ev.streams[0]); };
+            pc.onconnectionstatechange = () => {
+                if (pc.connectionState === 'failed' && rec.tries < 2) {
+                    // Та же логика, что и в личном звонке: одна-две пересборки
+                    // маршрута спасают от разового обрыва в мобильной сети.
+                    rec.tries++;
+                    try { pc.restartIce(); } catch (e) {}
+                    if (initiator) grcOffer(peerId, true);
+                }
+            };
+            if (initiator) await grcOffer(peerId, false);
+            return rec;
+        }
+
+        async function grcOffer(peerId, restart) {
+            const rec = grcPeers.get(peerId);
+            if (!rec) return;
+            try {
+                const offer = await rec.pc.createOffer(restart ? { iceRestart: true } : undefined);
+                await rec.pc.setLocalDescription(offer);
+                grcSend(peerId, 'offer', { sdp: rec.pc.localDescription });
+            } catch (e) {}
+        }
+
+        async function grcOnSignal(sig) {
+            const from = sig.from;
+            if (sig.kind === 'bye') { grcDrop(from); return; }
+            let rec = grcPeers.get(from);
+            if (sig.kind === 'offer') {
+                // Нам предлагают соединение — значит инициатор он, мы отвечаем
+                if (!rec) rec = await grcConnect(from, sig.payload && sig.payload.name, false);
+                try {
+                    await rec.pc.setRemoteDescription(new RTCSessionDescription(sig.payload.sdp));
+                    const ans = await rec.pc.createAnswer();
+                    await rec.pc.setLocalDescription(ans);
+                    grcSend(from, 'answer', { sdp: rec.pc.localDescription });
+                } catch (e) {}
+                return;
+            }
+            if (!rec) return;
+            try {
+                if (sig.kind === 'answer') {
+                    await rec.pc.setRemoteDescription(new RTCSessionDescription(sig.payload.sdp));
+                } else if (sig.kind === 'ice') {
+                    await rec.pc.addIceCandidate(new RTCIceCandidate(sig.payload));
+                }
+            } catch (e) {}
+        }
+
+        function grcDrop(peerId) {
+            const rec = grcPeers.get(peerId);
+            if (rec) { try { rec.pc.close(); } catch (e) {} grcPeers.delete(peerId); }
+            grcDropTile(peerId);
+            grcCount();
+        }
+
+        async function grcPoll() {
+            if (!grcRoom) return;
+            try {
+                const r = await fetch(`/api/rtc_room.php?action=state&room_id=${grcRoom}&after=${grcAfter}`,
+                                      { credentials: 'include' });
+                const d = await r.json();
+                if (!d || !d.ok) return;
+                grcAfter = d.after || grcAfter;
+                for (const sig of (d.signals || [])) await grcOnSignal(sig);
+
+                // Кто вышел — убираем плитку, не дожидаясь «bye»
+                const live = new Set((d.peers || []).map(p => String(p.user_id)));
+                for (const id of [...grcPeers.keys()]) if (!live.has(id)) grcDrop(id);
+
+                // Запасной путь: участник есть в списке, а соединения нет и оно
+                // не появляется. Такое бывает, если его offer потерялся. Через
+                // 6 секунд инициируем сами — но только одна сторона, чтобы снова
+                // не столкнуться лбами: та, чей id меньше по алфавиту.
+                const me = String(currentUser.id);
+                for (const p of (d.peers || [])) {
+                    const id = String(p.user_id);
+                    if (id === me || grcPeers.has(id)) continue;
+                    if (!grcSeen[id]) { grcSeen[id] = Date.now(); continue; }
+                    if (Date.now() - grcSeen[id] > 6000 && me < id) {
+                        await grcConnect(id, p.name, true);
+                    }
+                }
+                grcHint(grcPeers.size ? '' : 'Ждём остальных…');
+            } catch (e) {}
+        }
+        let grcSeen = {};
+
+        async function grcPing() {
+            if (!grcRoom) return;
+            try {
+                await fetch('/api/rtc_room.php?action=ping', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include', body: JSON.stringify({ room_id: grcRoom })
+                });
+            } catch (e) {}
+        }
+
+        /** Войти в групповой звонок. */
+        async function grcJoin(groupId) {
+            if (grcRoom) return;                    // уже в звонке
+            const g = myGroups.find(x => String(x.id) === String(groupId)) || {};
+            document.getElementById('grcName').textContent = g.name || 'Групповой звонок';
+            document.getElementById('grcScreen').classList.add('open');
+            grcHint('Запрашиваем камеру и микрофон…');
+            try {
+                grcLocal = await navigator.mediaDevices.getUserMedia({
+                    audio: { echoCancellation: true, noiseSuppression: true },
+                    video: { width: { ideal: 640 }, height: { ideal: 480 } }
+                });
+            } catch (e) {
+                // Без камеры разговор всё равно возможен — пробуем только звук
+                try { grcLocal = await navigator.mediaDevices.getUserMedia({ audio: true }); grcCamOn = false; }
+                catch (e2) { grcHint('Нет доступа к микрофону — звонок невозможен'); setTimeout(grcLeave, 2500); return; }
+            }
+            grcTile('me', (currentUser.first_name || 'Вы'), true);
+            grcAttach('me', grcLocal);
+            grcSyncButtons();
+
+            grcHint('Подключаемся…');
+            try {
+                const r = await fetch('/api/rtc_room.php?action=join', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include', body: JSON.stringify({ group_id: groupId })
+                });
+                const d = await r.json();
+                if (!r.ok || !d.ok) throw new Error(d.error || 'сервер отказал');
+                grcRoom = d.room_id; grcAfter = d.after || 0; grcGroupId = groupId; grcSeen = {};
+                // Мы вошли позже всех, кто уже здесь → инициируем к каждому
+                for (const p of (d.peers || [])) await grcConnect(String(p.user_id), p.name, true);
+                grcCount();
+                grcHint(d.peers && d.peers.length ? '' : 'Ждём остальных…');
+            } catch (e) {
+                grcHint('Не удалось войти: ' + (e.message || 'нет связи'));
+                setTimeout(grcLeave, 2500); return;
+            }
+            if (grcPollTimer) clearInterval(grcPollTimer);
+            if (grcPingTimer) clearInterval(grcPingTimer);
+            grcPollTimer = setInterval(grcPoll, 1200);
+            grcPingTimer = setInterval(grcPing, 10000);
+        }
+        window.grcJoin = grcJoin;
+
+        async function grcLeave() {
+            const room = grcRoom;
+            grcRoom = null;
+            if (grcPollTimer) { clearInterval(grcPollTimer); grcPollTimer = null; }
+            if (grcPingTimer) { clearInterval(grcPingTimer); grcPingTimer = null; }
+            for (const id of [...grcPeers.keys()]) grcDrop(id);
+            grcDropTile('me');
+            if (grcLocal) { try { grcLocal.getTracks().forEach(t => t.stop()); } catch (e) {} grcLocal = null; }
+            document.getElementById('grcScreen').classList.remove('open');
+            grcHint('');
+            if (room) {
+                try {
+                    await fetch('/api/rtc_room.php?action=leave', {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        credentials: 'include', body: JSON.stringify({ room_id: room })
+                    });
+                } catch (e) {}
+            }
+        }
+        window.grcLeave = grcLeave;
+
+        function grcSyncButtons() {
+            const mb = document.getElementById('grcMicBtn'), cb = document.getElementById('grcCamBtn');
+            if (mb) { mb.classList.toggle('off', !grcMicOn); mb.textContent = grcMicOn ? '🎤' : '🔇'; }
+            if (cb) { cb.classList.toggle('off', !grcCamOn); cb.textContent = grcCamOn ? '📹' : '🚫'; }
+        }
+        function grcToggleMic() {
+            if (!grcLocal) return;
+            grcMicOn = !grcMicOn;
+            grcLocal.getAudioTracks().forEach(t => t.enabled = grcMicOn);
+            grcSyncButtons();
+        }
+        function grcToggleCam() {
+            if (!grcLocal) return;
+            grcCamOn = !grcCamOn;
+            grcLocal.getVideoTracks().forEach(t => t.enabled = grcCamOn);
+            grcAttach('me', grcLocal);
+            grcSyncButtons();
+        }
+        window.grcToggleMic = grcToggleMic;
+        window.grcToggleCam = grcToggleCam;
+
+        // Закрыли вкладку — выходим из комнаты, чтобы у остальных не висела
+        // плитка «мёртвого» участника до истечения таймаута.
+        window.addEventListener('pagehide', () => {
+            if (!grcRoom) return;
+            try {
+                navigator.sendBeacon('/api/rtc_room.php?action=leave',
+                    new Blob([JSON.stringify({ room_id: grcRoom })], { type: 'application/json' }));
+            } catch (e) {}
+        });
 
         function rtcBuildPc() {
             const pc = new RTCPeerConnection({
