@@ -133,6 +133,34 @@ function settingsCols(PDO $pdo): array {
 }
 
 /** Ключи настроек, которые разрешено читать/писать из админки. */
+/**
+ * Сохранить ИНН психолога. ИНН один на человека: если запись уже есть — обновляем,
+ * иначе создаём. Пустая строка стирает ИНН. Молчит при любой ошибке — это побочная
+ * запись, она не должна ронять сохранение профиля.
+ */
+function adminSetPsychInn(PDO $pdo, $psychId, $userId, string $raw) {
+    $inn = preg_replace('/\D+/', '', $raw);
+    try {
+        $st = $pdo->prepare("SELECT id FROM psychologist_credentials
+                              WHERE type = 'inn' AND (psychologist_id = ? OR user_id = ?)
+                              ORDER BY id DESC LIMIT 1");
+        $st->execute([$psychId, $userId ?: 0]);
+        $exist = $st->fetchColumn();
+        if ($inn === '') {
+            if ($exist) $pdo->prepare("DELETE FROM psychologist_credentials WHERE id = ?")->execute([$exist]);
+            return;
+        }
+        if ($exist) {
+            $pdo->prepare("UPDATE psychologist_credentials
+                              SET name = ?, psychologist_id = COALESCE(psychologist_id, ?)
+                            WHERE id = ?")->execute([$inn, $psychId, $exist]);
+        } else {
+            $pdo->prepare("INSERT INTO psychologist_credentials (user_id, psychologist_id, type, url, name, meta)
+                           VALUES (?,?,'inn',NULL,?,NULL)")->execute([$userId, $psychId, $inn]);
+        }
+    } catch (Exception $e) {}
+}
+
 function allowedSettingKeys(): array {
     // Модель приёма оплаты и процент сервиса-сплита: без них новые поля тарификации
     // молча не сохранялись бы — список ключей белый, лишнее сюда не пройдёт.
@@ -856,6 +884,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 } catch (Exception $e) { $errors[] = 'contacts'; }
             }
         }
+
+        // ИНН — не колонка psychologists, а запись в psychologist_credentials (type='inn'),
+        // туда же его кладёт регистрация и редактирование профиля. Оттуда его берёт
+        // эквайринг для supplierInfo в чеке. Своя функция со своим try/catch: если запись
+        // не удастся, остальные поля психолога всё равно должны сохраниться.
+        if (array_key_exists('inn', $body)) adminSetPsychInn($pdo, $pid, $uid, (string)$body['inn']);
 
         echo json_encode(['ok' => true, 'errors' => $errors]);
         exit;

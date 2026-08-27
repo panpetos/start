@@ -3825,6 +3825,11 @@
             pmField('whatsapp','WhatsApp',p.whatsapp) +
             pmField('max_msg','MAX',p.max_msg) +
 
+            '<div class="pm-section">Выплаты и чек</div>' +
+            pmField('inn','ИНН','') +
+            '<div class="pm-row"><div class="pm-label"></div><div class="pm-val" style="font-size:0.8rem;color:#888;line-height:1.4;">' +
+                'ИНН самозанятого или ИП. Без него банк не примет заказ: чек выписывается на исполнителя.</div></div>' +
+
             '<div class="pm-section">Документы и сертификаты</div>' +
             '<div id="pmCreds" class="pm-creds"><span class="pm-cred-empty">Загрузка...</span></div>' +
 
@@ -3846,6 +3851,10 @@
         try {
             var res = await apiPost('psychologist-credentials', { psychologist_id: psychId });
             var creds = (res && res.data) ? res.data : [];
+            var innRow = creds.filter(function(c){ return c.type === 'inn'; }).pop();
+            var innEl = document.getElementById('pm_inn');
+            if (innEl && innRow && innRow.name) innEl.value = String(innRow.name).replace(/\D+/g, '');
+            creds = creds.filter(function(c){ return c.type !== 'inn'; });
             if (!creds.length) { cont.innerHTML = '<span class="pm-cred-empty">Нет загруженных документов</span>'; return; }
             cont.innerHTML = creds.map(function(c) {
                 var typeLabel = c.type === 'cert' ? 'Сертификат' : (c.type === 'inn' ? 'ИНН' : 'Диплом');
@@ -3862,7 +3871,7 @@
 
     async function savePsychModal(psychId) {
         var data = { psychologist_id: psychId };
-        var fields = ['first_name','last_name','specialization','experience','price','education','description','not_working_with','phone','telegram','whatsapp','max_msg'];
+        var fields = ['first_name','last_name','specialization','experience','price','education','description','not_working_with','phone','telegram','whatsapp','max_msg','inn'];
         fields.forEach(function(f) {
             var el = document.getElementById('pm_'+f);
             if (el) data[f] = el.value;

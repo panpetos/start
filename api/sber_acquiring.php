@@ -125,22 +125,55 @@ function sberCall(PDO $pdo, $base, $userName, $password, $method, array $params,
 }
 
 /** Данные исполнителя для чека: банк требует ИНН и название самозанятого. */
+/**
+ * ИНН исполнителя. Хранится в psychologist_credentials (type='inn', ИНН в поле name) —
+ * туда его кладёт форма регистрации и редактирование профиля, оттуда его показывает
+ * админка. Колонки psychologists.inn на проде нет: запрос к ней падал, catch молчал, и
+ * ИНН всегда приезжал пустым — заказ в банк создать было нельзя. Поэтому читаем из
+ * credentials, а колонку берём лишь как запасной вариант и только если она есть
+ * (SHOW COLUMNS без prepare — на проде emulate_prepares=false).
+ */
+function sberSupplierInn(PDO $pdo, $psychologistId, $userId) {
+    try {
+        $st = $pdo->prepare("SELECT name FROM psychologist_credentials
+                              WHERE type = 'inn' AND (psychologist_id = ? OR user_id = ?)
+                              ORDER BY id DESC LIMIT 1");
+        $st->execute([$psychologistId, $userId ?: 0]);
+        $inn = preg_replace('/\D+/', '', (string)$st->fetchColumn());
+        if ($inn !== '') return $inn;
+    } catch (Exception $e) {}
+    try {
+        $has = false;
+        foreach ($pdo->query("SHOW COLUMNS FROM psychologists") as $c) {
+            if (($c['Field'] ?? '') === 'inn') { $has = true; break; }
+        }
+        if ($has) {
+            $st = $pdo->prepare("SELECT inn FROM psychologists WHERE id = ? LIMIT 1");
+            $st->execute([$psychologistId]);
+            return preg_replace('/\D+/', '', (string)$st->fetchColumn());
+        }
+    } catch (Exception $e) {}
+    return '';
+}
+
 function sberSupplier(PDO $pdo, $psychologistId) {
     $out = ['name' => '', 'inn' => '', 'phones' => []];
     if (!$psychologistId) return $out;
+    $userId = null;
     try {
-        $st = $pdo->prepare("SELECT u.first_name, u.last_name, u.phone, p.inn
+        $st = $pdo->prepare("SELECT u.id AS uid, u.first_name, u.last_name, u.phone
                                FROM psychologists p JOIN users u ON u.id = p.user_id
                               WHERE p.id = ? LIMIT 1");
         $st->execute([$psychologistId]);
         $r = $st->fetch(PDO::FETCH_ASSOC);
         if ($r) {
+            $userId = $r['uid'] ?? null;
             $out['name'] = trim(($r['first_name'] ?? '') . ' ' . ($r['last_name'] ?? ''));
-            $out['inn'] = preg_replace('/\D+/', '', (string)($r['inn'] ?? ''));
             $ph = preg_replace('/\D+/', '', (string)($r['phone'] ?? ''));
             if ($ph !== '') $out['phones'] = [$ph];
         }
     } catch (Exception $e) {}
+    $out['inn'] = sberSupplierInn($pdo, $psychologistId, $userId);
     return $out;
 }
 

@@ -378,6 +378,16 @@
                 </div>
 
                 <div class="form-group">
+                    <label>ИНН (самозанятость или ИП)</label>
+                    <div style="display:flex;gap:0.5rem;align-items:stretch;">
+                        <input type="text" id="psyInn" inputmode="numeric" maxlength="12" placeholder="10 или 12 цифр" style="flex:1;">
+                        <button type="button" id="psyInnCheckBtn" class="btn btn-outline" style="white-space:nowrap;padding:0 1.1rem;">Проверить</button>
+                    </div>
+                    <div id="psyInnResult" style="display:none;margin-top:0.5rem;font-size:0.85rem;border-radius:0.5rem;padding:0.55rem 0.75rem;line-height:1.45;"></div>
+                    <small>Нужен, чтобы платформа перечисляла вам оплату и пробивала чек на ваше имя. Виден только администратору.</small>
+                </div>
+
+                <div class="form-group">
                     <label>Специализация</label>
                     <input type="text" id="specialization" placeholder="Например: Семейная психология">
                 </div>
@@ -580,6 +590,7 @@
                         : 'уточняется (назначит администратор)';
                     window._psyId = mine.id;
                 }
+                loadMyInn();
             }
 
             // Save Client
@@ -633,8 +644,68 @@
                 }
             });
 
+            // ── ИНН психолога ─────────────────────────────────────────────────
+            // Хранится в psychologist_credentials (type='inn') — туда же его кладёт
+            // регистрация. Оттуда его берёт эквайринг для supplierInfo в чеке.
+            async function loadMyInn() {
+                const el = document.getElementById('psyInn');
+                if (!el) return;
+                try {
+                    const r = await fetch('/api/credentials.php?action=mine', { credentials: 'include' });
+                    const d = await r.json();
+                    const row = ((d && d.data) || []).find(c => c.type === 'inn');
+                    if (row && row.name) el.value = String(row.name).replace(/\D+/g, '');
+                } catch (e) {}
+            }
+
+            async function checkPsyInn() {
+                const el = document.getElementById('psyInn');
+                const box = document.getElementById('psyInnResult');
+                const btn = document.getElementById('psyInnCheckBtn');
+                if (!el || !box) return;
+                const inn = (el.value || '').replace(/\D+/g, '');
+                box.style.display = 'block';
+                if (!inn) { box.style.background = '#FEF2F2'; box.style.color = '#DC2626'; box.textContent = 'Введите ИНН'; return; }
+                if (btn) { btn.disabled = true; btn.dataset.old = btn.textContent; btn.textContent = '...'; }
+                try {
+                    const r = await fetch('/api/inn_check.php?action=check', {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ inn })
+                    });
+                    const d = await r.json();
+                    if (!d.valid) { box.style.background = '#FEF2F2'; box.style.color = '#DC2626'; box.textContent = '✕ ' + (d.message || 'ИНН некорректен'); }
+                    else {
+                        const ok = d.self_employed === true;
+                        box.style.background = ok ? '#F0FDF4' : '#FFF8E7';
+                        box.style.color = ok ? '#16A34A' : '#92400E';
+                        box.textContent = (ok ? '✅ ' : 'ℹ️ ') + (d.message || '') + (d.kind ? ' (' + d.kind + ')' : '');
+                    }
+                } catch (e) {
+                    box.style.background = '#FFF8E7'; box.style.color = '#92400E';
+                    box.textContent = 'Не удалось проверить сейчас — попробуйте позже.';
+                } finally {
+                    if (btn) { btn.disabled = false; btn.textContent = btn.dataset.old || 'Проверить'; }
+                }
+            }
+            document.getElementById('psyInnCheckBtn')?.addEventListener('click', checkPsyInn);
+
+            // Побочная запись: молчит при любой ошибке, чтобы не мешать сохранению профиля.
+            async function saveMyInn() {
+                try {
+                    const el = document.getElementById('psyInn');
+                    const inn = el ? (el.value || '').replace(/\D+/g, '') : '';
+                    if (!inn) return;
+                    await fetch('/api/credentials.php?action=add', {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+                        body: JSON.stringify({ type: 'inn', name: inn })
+                    });
+                } catch (e) {}
+            }
+
             // Save Psychologist
             document.getElementById('savePsychologistBtn')?.addEventListener('click', async () => {
+                await saveMyInn();
+
                 const userData = {
                     firstName: document.getElementById('psyFirstName').value,
                     lastName: document.getElementById('psyLastName').value,
