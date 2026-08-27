@@ -148,6 +148,21 @@ function sberDropStaleHolds(PDO $pdo, $psychId) {
     }
 }
 
+/**
+ * Адрес, куда банк вернёт человека. Банк дописывает к нему свои параметры (orderId,
+ * lang). Если в адресе уже есть «?», склейка ломается и orderId до нас не доходит — а
+ * без orderId оплату не с чем сопоставить, и запись так и останется неподтверждённой.
+ * Поэтому адрес с вопросительным знаком (а такой лежит в конфигах по старому образцу)
+ * молча заменяем на путь без него.
+ */
+function sberBackUrl($fromCfg, string $fallbackFile): string {
+    $u = trim((string)$fromCfg);
+    if ($u !== '' && strpos($u, '?') === false) return $u;
+    $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+    $host = (string)($_SERVER['HTTP_HOST'] ?? 'psytalk.pro');
+    return $scheme . '://' . $host . '/api/' . $fallbackFile;
+}
+
 function sberUuid(): string {
     return sprintf('%04x%04x-%04x-%04x-%04x-%04x%04x%04x',
         mt_rand(0, 0xffff), mt_rand(0, 0xffff), mt_rand(0, 0xffff),
@@ -275,6 +290,7 @@ if ($action === 'selftest') {
         // Видно, что на сервере лежит версия, которая доводит оплату до записи в
         // календаре, а не просто отправляет человека в банк.
         'после_оплаты' => 'запись создаётся и подтверждается при возврате из банка',
+        'адрес_возврата' => sberBackUrl($cfg['return_url'] ?? '', 'sber_return.php'),
         'чего_не_хватает' => array_values(array_filter([
             sberReady($userName, $password) ? null : 'логин и пароль от банка',
             (!empty($cfg['agent']['inn']) && strpos((string)$cfg['agent']['inn'], 'ВПИШИТЕ') === false) ? null : 'ИНН платформы как агента',
@@ -396,8 +412,8 @@ if ($action === 'init' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $params = [
         'orderNumber' => $orderNumber,
         'amount' => $amount,
-        'returnUrl' => (string)($cfg['return_url'] ?? ''),
-        'failUrl' => (string)($cfg['fail_url'] ?? ''),
+        'returnUrl' => sberBackUrl($cfg['return_url'] ?? '', 'sber_return.php'),
+        'failUrl' => sberBackUrl($cfg['fail_url'] ?? '', 'sber_fail.php'),
         'description' => $isTestAmount ? 'Проверка оплаты (psytalk.pro)' : 'Консультация психолога',
         // Чек: платформа — агент, услугу оказывает самозанятый
         'orderBundle' => json_encode([
@@ -471,13 +487,23 @@ if ($action === 'return' || $action === 'fail') {
     $apptId = '';
     if ($action === 'return') {
         $bankOrderId = (string)($_GET['orderId'] ?? '');
+        $order = null;
         try {
             if ($bankOrderId !== '') {
                 $st = $pdo->prepare("SELECT * FROM sber_orders WHERE bank_order_id = ? LIMIT 1");
                 $st->execute([$bankOrderId]);
-                $order = $st->fetch(PDO::FETCH_ASSOC);
-                if ($order) $apptId = sberFinalize($pdo, $order, $base, $userName, $password);
+                $order = $st->fetch(PDO::FETCH_ASSOC) ?: null;
             }
+            // Банк мог не передать orderId. Сессия при возврате обычно жива, поэтому
+            // берём последний неоплаченный заказ этого человека — лучше, чем бросить
+            // оплаченную консультацию без записи.
+            if (!$order && $userId) {
+                $st = $pdo->prepare("SELECT * FROM sber_orders WHERE client_id = ? AND status <> 'paid'
+                                     ORDER BY id DESC LIMIT 1");
+                $st->execute([$userId]);
+                $order = $st->fetch(PDO::FETCH_ASSOC) ?: null;
+            }
+            if ($order) $apptId = sberFinalize($pdo, $order, $base, $userName, $password);
         } catch (Exception $e) {}
     }
     $to = $action === 'return' ? '/payment-success.html' : '/payment-info.html';

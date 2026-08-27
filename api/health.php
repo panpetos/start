@@ -224,6 +224,10 @@ if (isset($_GET['appt']) && isset($pdo) && $pdo) {
         }
     } catch (Exception $e) { $a['status_error'] = substr($e->getMessage(), 0, 160); }
     try {
+        // Уборка неоплаченных броней опирается на created_at — надо видеть, есть ли он.
+        $cols = [];
+        foreach ($pdo->query("SHOW COLUMNS FROM appointments") as $c) $cols[] = (string)($c['Field'] ?? '');
+        $a['колонки'] = $cols;
         $a['appointments_rows'] = (int)$pdo->query("SELECT COUNT(*) FROM appointments")->fetchColumn();
         $a['engine'] = (string)$pdo->query("SELECT ENGINE FROM information_schema.TABLES
                                              WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'appointments'")->fetchColumn();

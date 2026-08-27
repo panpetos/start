@@ -40,9 +40,12 @@ return [
         'phone' => 'ВПИШИТЕ_ТЕЛЕФОН',
     ],
 
-    // Куда банк вернёт человека после оплаты
-    'return_url' => 'https://psytalk.pro/api/sber_acquiring.php?action=return',
-    'fail_url'   => 'https://psytalk.pro/api/sber_acquiring.php?action=fail',
+    // Куда банк вернёт человека после оплаты. Адрес БЕЗ вопросительного знака:
+    // банк дописывает к нему свои параметры (orderId), и на адресе с «?» склейка
+    // ломается — orderId не доходит, и оплата не превращается в запись.
+    // Можно оставить пустыми: тогда подставятся эти же адреса.
+    'return_url' => 'https://psytalk.pro/api/sber_return.php',
+    'fail_url'   => 'https://psytalk.pro/api/sber_fail.php',
 
     // Ставка НДС для позиции чека: 0 — «без НДС» (услуги самозанятого)
     'vat' => 0,
