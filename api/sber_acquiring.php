@@ -297,6 +297,13 @@ if ($action === 'init' && $_SERVER['REQUEST_METHOD'] === 'POST') {
 
     $sup = sberSupplier($pdo, $psychId);
     if ($sup['inn'] === '') sberOut(['ok' => false, 'error' => 'У специалиста не заполнен ИНН — чек выписать не на кого'], 400);
+    // Телефон исполнителя банк требует в чеке. Если психолог его не указал, подставляем
+    // телефон платформы из конфига: без телефона банк отказывает в заказе целиком, а
+    // человек в этот момент уже нажал «Оплатить» и видел бы непонятную ошибку.
+    if (!$sup['phones']) {
+        $agentPhone = preg_replace('/\D+/', '', (string)($cfg['agent']['phone'] ?? ''));
+        if ($agentPhone !== '') $sup['phones'] = [$agentPhone];
+    }
 
     $params = [
         'orderNumber' => $orderNumber,
