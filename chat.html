@@ -11076,6 +11076,73 @@
             aiThreadId = th.id;
             aiMessages = Array.isArray(th.messages) ? th.messages : [];
             try { localStorage.setItem(AI_CURRENT, aiThreadId); } catch (e) {}
+            aiPullRemote();
+        }
+
+        // ── История ассистента на сервере ───────────────────────────────────────
+        // Диалоги лежали только в localStorage: спросил с телефона — на компьютере
+        // этого разговора нет. Теперь тот же список хранится и на сервере
+        // (api/ai_threads.php), а устройства сливаются по времени изменения диалога.
+        let aiRemoteTimer = null;
+        let aiRemoteLoaded = false;
+
+        /** Слить два списка диалогов: у одинаковых id побеждает тот, что изменён позже. */
+        function aiMergeThreads(local, remote) {
+            const by = new Map();
+            const put = (t) => {
+                if (!t || !t.id) return;
+                const old = by.get(t.id);
+                if (!old || (t.at || 0) > (old.at || 0)) by.set(t.id, t);
+            };
+            (remote || []).forEach(put);
+            (local || []).forEach(put);
+            return [...by.values()].sort((a, b) => (b.at || 0) - (a.at || 0)).slice(0, 20);
+        }
+
+        /** Забрать историю с сервера и слить с местной. Молчит при любой ошибке. */
+        async function aiPullRemote() {
+            if (aiRemoteLoaded) return;
+            aiRemoteLoaded = true;
+            try {
+                const r = await fetch('/api/ai_threads.php?action=get', { credentials: 'include' });
+                const d = await r.json();
+                if (!d || !d.ok || !d.payload) return;
+                const remote = JSON.parse(d.payload);
+                if (!Array.isArray(remote) || !remote.length) return;
+                const merged = aiMergeThreads(aiThreads, remote);
+                aiThreads = merged;
+                // Открытый диалог мог прийти с сервера в более свежем виде.
+                const cur = aiThreads.find(t => t.id === aiThreadId);
+                if (cur) aiMessages = Array.isArray(cur.messages) ? cur.messages : [];
+                else if (aiThreads.length) { aiThreadId = aiThreads[0].id; aiMessages = aiThreads[0].messages || []; }
+                try { localStorage.setItem(AI_THREADS, JSON.stringify(aiThreads)); } catch (e) {}
+                if (typeof renderAiBar === 'function') renderAiBar();
+                if (typeof renderAiMessages === 'function') renderAiMessages();
+            } catch (e) { /* нет связи или битая история — остаёмся на местной копии */ }
+        }
+
+        /**
+         * Отправить историю на сервер. С задержкой: во время ответа ассистента список
+         * меняется на каждый кусок текста, и без неё мы били бы по серверу десятками
+         * запросов на одно сообщение.
+         */
+        function aiPushRemote() {
+            if (aiRemoteTimer) clearTimeout(aiRemoteTimer);
+            aiRemoteTimer = setTimeout(async () => {
+                aiRemoteTimer = null;
+                try {
+                    // На сервер кладём по сто последних реплик в каждом диалоге: этого
+                    // с запасом хватает для продолжения разговора на другом устройстве.
+                    const slim = (aiThreads || []).map(t => ({
+                        id: t.id, title: t.title, at: t.at,
+                        messages: (t.messages || []).slice(-100),
+                    }));
+                    await fetch('/api/ai_threads.php?action=save', {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        credentials: 'include', body: JSON.stringify({ payload: JSON.stringify(slim) }),
+                    });
+                } catch (e) {}
+            }, 1500);
         }
 
         function aiSave() {
@@ -11094,6 +11161,7 @@
                 localStorage.setItem(AI_CURRENT, aiThreadId);
                 localStorage.removeItem(AI_STORE);        // старое единственное хранилище больше не нужно
             } catch (e) {}
+            aiPushRemote();
         }
 
         /** Начать чистый диалог. Прежний остаётся в списке — ничего не теряется. */
@@ -11148,19 +11216,22 @@
         // сначала спрашиваем сервер, доступен ли поиск. Раньше при отказе переключатель
         // просто исчезал и было не понять, почему бот «тупенький» — теперь причина видна.
         const AI_SEARCH_KEY = 'ai_web_search';
-        const AI_SEARCH_LABELS = { off: 'выкл', auto: 'авто', on: 'вкл' };
+        // Только «вкл» и «выкл». Промежуточное «авто» убрано: по названию нельзя было
+        // понять, пойдёт ассистент в интернет или нет, и один и тот же вопрос отвечался
+        // то со свежими данными, то без них.
+        const AI_SEARCH_LABELS = { off: 'выкл', on: 'вкл' };
         let aiSearchAvailable = false;
         let aiSearchReason = '';
         let aiSearchIsAdmin = false;
 
-        /** Режим поиска: 'off' | 'auto' | 'on'. Прежнее значение '1'/'0' тоже понимаем. */
+        /** Режим поиска: 'off' | 'on'. Старые значения ('1'/'0'/'auto') тоже понимаем. */
         function aiSearchMode() {
             let v = '';
             try { v = localStorage.getItem(AI_SEARCH_KEY) || ''; } catch (e) {}
-            if (v === '1') return 'on';
-            if (v === '0') return 'off';
-            if (v === 'on' || v === 'off' || v === 'auto') return v;
-            return 'auto';      // по умолчанию — идти в интернет там, где вопрос про «сейчас»
+            if (v === '0' || v === 'off') return 'off';
+            // 'auto' у тех, кто пользовался прежней версией, — считаем как «вкл»:
+            // молча выключать интернет человеку, который его включал, неправильно.
+            return 'on';
         }
         function setAiSearchMode(m) { try { localStorage.setItem(AI_SEARCH_KEY, m); } catch (e) {} }
         /** Что отправляем серверу: если поиск недоступен, не притворяемся, что ищем. */
@@ -11180,19 +11251,17 @@
             }
         }
 
-        /** Переключатель идёт по кругу: выкл → авто → вкл. */
+        /** Переключатель: вкл ⇄ выкл. */
         function toggleAiSearch() {
             if (!aiSearchAvailable) {
                 toast((aiSearchReason || 'Поиск в интернете сейчас недоступен.')
                     + (aiSearchIsAdmin ? ' Включается в админке: «ИИ-ассистент» → «Разрешить поиск в интернете».' : ''));
                 return;
             }
-            const order = ['off', 'auto', 'on'];
-            const next = order[(order.indexOf(aiSearchMode()) + 1) % order.length];
+            const next = aiSearchMode() === 'on' ? 'off' : 'on';
             setAiSearchMode(next);
-            toast(next === 'on' ? 'Ассистент будет искать в интернете к каждому ответу'
-                : next === 'auto' ? 'Ассистент сам решит, когда нужен интернет'
-                : 'Ассистент отвечает только по своим знаниям');
+            toast(next === 'on' ? 'Ассистент будет искать в интернете'
+                                : 'Ассистент отвечает только по своим знаниям');
             renderAiBar();
             renderAiHeader();
         }
