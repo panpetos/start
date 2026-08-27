@@ -2606,16 +2606,22 @@
                     <button class="btn-sm btn-brand" style="margin-top:0.7rem;padding:0.65rem 1.4rem;" onclick="devAdd(this)">Добавить задачу</button>
                     <span id="devMsg" style="font-size:0.85rem;margin-left:0.5rem;"></span>
                 </div></div>` +
-                (tokenConfigured ? '' :
-                    `<div class="panel" style="margin-bottom:1rem;border-color:#FCD34D;"><div class="panel-head"><h2>⚙️ Токен автоматизации (один раз)</h2></div><div style="padding:1.1rem;">
-                        <p class="muted" style="font-size:0.85rem;margin-bottom:0.6rem;">Чтобы Клод мог забирать задачи по расписанию, задайте секретный токен. Сгенерируйте случайный и сохраните — он понадобится при настройке расписания.</p>
+                // Панель токена показываем ВСЕГДА. Раньше она пряталась, как только токен
+                // задан, — и сменить его было нечем: сам токен нигде не хранится в открытом
+                // виде, а забыть его проще простого. Теперь есть «Сгенерировать заново».
+                `<div class="panel" style="margin-bottom:1rem;border-color:${tokenConfigured ? 'var(--a-border)' : '#FCD34D'};">
+                    <div class="panel-head"><h2>⚙️ Токен автоматизации</h2></div><div style="padding:1.1rem;">
+                        <p class="muted" style="font-size:0.85rem;margin-bottom:0.6rem;">${tokenConfigured
+                            ? 'Токен задан. Показать его нельзя — на сервере он хранится и сверяется, но наружу не отдаётся. Забыли значение — сгенерируйте новый: старый перестанет действовать сразу.'
+                            : 'Чтобы Клод мог забирать задачи, задайте секретный токен. Сгенерируйте случайный и сохраните — его нужно будет передать Клоду.'}</p>
                         <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
-                          <input id="devToken" placeholder="секретный токен (мин. 16 символов)" style="flex:1;min-width:240px;padding:0.55rem 0.75rem;border:1.5px solid var(--a-input-border);border-radius:0.6rem;font-family:monospace;background:var(--a-input-bg);color:var(--a-text);">
+                          <input id="devToken" placeholder="${tokenConfigured ? 'новый токен (мин. 16 символов)' : 'секретный токен (мин. 16 символов)'}" style="flex:1;min-width:240px;padding:0.55rem 0.75rem;border:1.5px solid var(--a-input-border);border-radius:0.6rem;font-family:monospace;background:var(--a-input-bg);color:var(--a-text);">
                           <button class="btn-sm btn-outline" onclick="document.getElementById('devToken').value=[...crypto.getRandomValues(new Uint8Array(24))].map(b=>b.toString(16).padStart(2,'0')).join('')">🎲 Сгенерировать</button>
-                          <button class="btn-sm btn-brand" onclick="devSaveToken(this)">Сохранить токен</button>
+                          <button class="btn-sm btn-outline" onclick="devCopyToken(this)">📋 Скопировать</button>
+                          <button class="btn-sm btn-brand" onclick="devSaveToken(this)">${tokenConfigured ? 'Заменить токен' : 'Сохранить токен'}</button>
                         </div>
                         <span id="devTokMsg" style="font-size:0.85rem;"></span>
-                    </div></div>`) +
+                    </div></div>` +
                 `<h3 style="margin:0.5rem 0;font-size:1rem;">Задачи</h3>
                  <div id="devTabs" style="display:flex;gap:0.4rem;flex-wrap:wrap;margin-bottom:0.6rem;"></div>
                  <input id="devSearch" placeholder="🔍 Поиск по заголовку и тексту задачи..." value="${esc(devSearchQuery)}" oninput="setDevSearch(this.value)" style="width:100%;max-width:420px;padding:0.5rem 0.75rem;border:1.5px solid var(--a-input-border);border-radius:0.5rem;font-family:inherit;font-size:0.85rem;margin-bottom:0.75rem;background:var(--a-input-bg);color:var(--a-text);">` +
@@ -2774,6 +2780,18 @@
             if (r.ok){ devCloseModal(); devRefresh(); }
             else { msg.textContent = ' ' + (r.error || 'ошибка'); msg.style.color = '#DC2626'; }
         }
+        function devCopyToken(btn){
+            const el = document.getElementById('devToken');
+            const m = document.getElementById('devTokMsg');
+            const v = (el && el.value || '').trim();
+            if (!v) { m.textContent = ' сначала сгенерируйте токен'; m.style.color = '#DC2626'; return; }
+            const done = () => { m.textContent = ' ✅ скопирован'; m.style.color = '#16A34A'; };
+            try {
+                if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(v).then(done, () => { el.select(); done(); }); }
+                else { el.select(); document.execCommand('copy'); done(); }
+            } catch(e) { el.select(); m.textContent = ' выделен — скопируйте вручную'; m.style.color = '#92400E'; }
+        }
+
         async function devSaveToken(btn){ const t=document.getElementById('devToken').value.trim(); const m=document.getElementById('devTokMsg'); if(t.length<16){m.textContent=' минимум 16 символов';m.style.color='#DC2626';return;} btn.disabled=true; const r=await apiPostTo(DEV_API,'save-token',{token:t}); btn.disabled=false; if(r.ok){ m.textContent=' ✅ сохранён'; m.style.color='#16A34A'; alert('Токен сохранён. Передайте его Клоду в чате для настройки расписания:\n\n'+t);} else { m.textContent=' '+(r.error||'ошибка'); m.style.color='#DC2626'; } }
         async function apiPostTo(url, action, body){
             try { const r = await fetch(url+'?action='+action, { method:'POST', headers:{'Content-Type':'application/json'}, credentials:'include', body: JSON.stringify(body) }); return await r.json(); }
