@@ -11688,26 +11688,55 @@
                 const container = document.getElementById('messagesContainer');
                 const wasScrolledToBottom = container.scrollHeight - container.scrollTop <= container.clientHeight + 50;
 
-                dropRenderCache();      // ветка поддержки заполняет контейнер сама
-                container.innerHTML = msgs.map(m => {
+                // ── ПОЧЕМУ ЭТО БЫЛО «СТРАННО И БАГАНУТО» ──────────────────────────
+                // Поддержка рисовалась урезанной копией обычной переписки: у пузырей
+                // не было data-msg-id (значит ни меню, ни ответа, ни реакций), не было
+                // разделителей дат, голосовые показывались файлом вместо плеера,
+                // а ссылки в тексте оставались просто текстом. Плюс контейнер
+                // переписывался целиком на каждом опросе — отсюда мигание и прыжки
+                // прокрутки. Теперь здесь та же механика, что и в личной переписке.
+                const supDay = { prev: '' };
+                const html = msgs.map(m => {
                     const isMine = m.sender === 'admin';
                     const time = formatTime(m.created_at);
-                    let attachmentHtml = '';
-                    if (m.attachment_url) {
-                        const isImg = isImageAttachment(m);
-                        attachmentHtml = isVideoNote(m)
-                            ? videoNoteHtml(m.attachment_url, m.attachment_name)
-                            : (isImg
-                                ? `<div class="message-attachment">${chatImgHtml(m.attachment_url, m.attachment_name)}</div>`
-                                : `<div class="message-attachment"><a href="${m.attachment_url}" target="_blank" download="${m.attachment_name || 'file'}">📄 ${m.attachment_name || 'Скачать файл'}</a></div>`);
+                    const mid = m.id != null ? String(m.id) : '';
+                    const voiceKey = mid || ('sup-' + (m.created_at || '') + (m.attachment_url || ''));
+                    const attachmentHtml = attachmentHtmlFor(m, voiceKey);
+                    // msgText делает ссылки кликабельными и бережёт переносы строк —
+                    // раньше тут стоял голый escapeHtml, и ссылка оставалась текстом.
+                    const content = m.body ? msgText(m.body) : '';
+                    // Права для «⋮»: в поддержке правка и удаление чужой переписки не
+                    // предусмотрены сервером, поэтому только ответ, копирование и пересылка.
+                    if (mid) {
+                        msgCaps[mid] = {
+                            kind: 'support', author: isMine ? 'Вы' : (t.name || 'Гость'),
+                            text: m.body || '', canForward: true, canPin: false,
+                            canEdit: false, canDelete: false,
+                            voiceUrl: (m.attachment_type === 'voice' || isVideoNote(m)) ? (m.attachment_url || '') : '',
+                        };
                     }
-                    const content = m.body ? escapeHtml(m.body) : '';
-                    return `<div class="message ${isMine ? 'mine' : 'theirs'}">${content ? `<div>${content}</div>` : ''}${attachmentHtml}<div class="message-time">${time}</div></div>`;
+                    return daySepHtml(m.created_at, supDay) + `
+                        <div class="message ${isMine ? 'mine' : 'theirs'}" data-msg-id="${escapeHtml(mid)}">
+                            ${content ? `<div>${content}</div>` : ''}
+                            ${attachmentHtml}
+                            <div class="msg-foot"><div class="message-time">${time}</div>${mid ? msgHoverHtml(mid) : ''}</div>
+                        </div>`;
                 }).join('');
+                // renderIfChanged вместо прямой записи: при опросе раз в несколько секунд
+                // переписывать контейнер целиком — это мигание, сорванная прокрутка и
+                // остановленное воспроизведение голосового.
+                renderIfChanged(container, html);
+                rememberChatHtml(selectedUserId, html);
+                repaintAllVoice(); restoreVideoNote(); restoreFlash();
+                loadReactions();
 
                 if (wasScrolledToBottom) container.scrollTop = container.scrollHeight;
 
-                await loadConversations();
+                // Раньше здесь стоял loadConversations() на КАЖДЫЙ опрос — лишний
+                // запрос каждые несколько секунд. refreshConvListSoon сам не чаще
+                // раза в 10 секунд. Вызываем безусловно: сводный опрос обращения в
+                // поддержку не покрывает (syncPeer для него возвращает null).
+                refreshConvListSoon();
             } catch (e) { console.error('Load support thread error:', e); }
         }
 
@@ -14285,6 +14314,13 @@
             // Раньше здесь стоял presenceKey(), а он для «Избранного» отдаёт пустую
             // строку (там некому «быть в сети») — реакция молча не сохранялась вовсе.
             if (selectedUserId === FAVORITES_ID) return me ? ('fav|' + me) : '';
+            // Поддержка — тоже переписка, и реакции в ней должны сохраняться.
+            // presenceKey() для неё пустой (в обращении «быть в сети» некому),
+            // поэтому ключ строим от номера обращения.
+            if (typeof isSupportMode === 'function' && isSupportMode()) {
+                const th = supportThreadIdOf();
+                return th ? ('sup|' + th) : '';
+            }
             const k = presenceKey();
             if (!k) return '';
             if (isGroupKey(k)) return k;
