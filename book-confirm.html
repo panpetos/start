@@ -626,12 +626,17 @@
 
         /** Какой эквайринг включён. Спрашиваем сервер: в браузере этому решению не место. */
         let _payProvider = null;
+        let _payTestAmount = 0;
         async function paymentProvider() {
             if (_payProvider) return _payProvider;
             try {
-                const r = await fetch('/api/settings.php?action=public');
+                // Спрашиваем НАШ эндпоинт: settings.php?action=public отдаёт только
+                // свой белый список ключей, и payment_provider в него не входит —
+                // через него выбор админа до страницы оплаты не доходил вовсе.
+                const r = await fetch('/api/sber_acquiring.php?action=provider');
                 const d = await r.json();
-                _payProvider = (d && d.payment_provider) ? String(d.payment_provider) : 'robokassa';
+                _payProvider = (d && d.ok && d.provider) ? String(d.provider) : 'robokassa';
+                if (d && d.test_amount > 0) _payTestAmount = d.test_amount;
             } catch (e) { _payProvider = 'robokassa'; }
             return _payProvider;
         }
@@ -664,6 +669,14 @@
 
                 const data = await response.json();
                 if (data.formUrl && !data.paymentUrl) data.paymentUrl = data.formUrl;
+                // Сумма подменена на тестовую — предупреждаем, иначе человек увидит
+                // в банке 10 ₽ вместо трёх тысяч и решит, что сайт сломан.
+                if (data.test_amount) {
+                    document.getElementById('errorMsg').innerHTML =
+                        `<div class="error" style="background:#FFF8EC;color:#B45309;border-color:#F0D9A8;">
+                            ⚠️ Идёт проверка оплаты: к списанию ${data.amount_rub} ₽ вместо полной стоимости.
+                         </div>`;
+                }
 
                 if (data.error) {
                     document.getElementById('errorMsg').innerHTML =

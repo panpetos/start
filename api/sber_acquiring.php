@@ -150,6 +150,24 @@ $action = $_GET['action'] ?? '';
 $body = json_decode(file_get_contents('php://input'), true) ?: [];
 
 // ── Что настроено, а чего не хватает. Секретов не показывает. ─────────────────
+/**
+ * Какой эквайринг включён. Отдельное действие, потому что settings.php?action=public
+ * отдаёт лишь свой белый список ключей, а payment_provider в него не входит — файл
+ * серверный, править его нельзя. Без этого страница оплаты всегда уходила бы в
+ * Робокассу, сколько бы админ ни выбирал Сбер.
+ *
+ * Секретов не отдаём: только название провайдера и признак «тестовая сумма
+ * включена» — его полезно показать человеку перед оплатой.
+ */
+if ($action === 'provider') {
+    $prov = strtolower(trim(psySetting($pdo, 'payment_provider', 'robokassa')));
+    if (!in_array($prov, ['robokassa', 'sber'], true)) $prov = 'robokassa';
+    $testRub = (float)psySetting($pdo, 'sber_test_amount', '0');
+    echo json_encode(['ok' => true, 'provider' => $prov,
+                      'test_amount' => $testRub > 0 ? $testRub : 0], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
 if ($action === 'selftest') {
     $sup = sberSupplier($pdo, (string)($_GET['psychologist_id'] ?? ''));
     sberOut([
