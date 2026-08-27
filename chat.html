@@ -14267,8 +14267,13 @@
         const REACTIONS = ['👍', '❤️', '🔥', '😂', '😮', '😢', '🙏', '👏'];
         // Полная сетка — раскрывается стрелкой, как в Telegram. Быстрый ряд короткий
         // намеренно: он должен помещаться в одну строку на телефоне.
-        const REACTIONS_MORE = ['👍','❤️','🔥','😂','😮','😢','🙏','👏','🎉','💯','🤔','😍',
-                                '😅','🤗','👌','💪','✨','🥰','😴','🤝','☺️','😇','🙌','💔'];
+        //
+        // Список ЗАПАСНОЙ: настоящий приходит с сервера (reactions.php отдаёт его в
+        // поле allowed) и заменяет этот. Держать две копии оказалось ошибкой — я
+        // расширил сетку здесь, а на сервере осталось восемь смайлов, и половина
+        // отвечала «Такую реакцию поставить нельзя».
+        let REACTIONS_MORE = ['👍','❤️','🔥','😂','😮','😢','🙏','👏','🎉','💯','🤔','😍',
+                              '😅','🤗','👌','💪','✨','🥰','😴','🤝','☺️','😇','🙌','💔'];
         let reactionMap = {};      // id сообщения -> {эмодзи: {count, mine}}
 
         /** Ключ переписки для реакций. Для личной он ОБЯЗАН быть одинаковым у обеих
@@ -14292,7 +14297,12 @@
             try {
                 const r = await (await fetch('/api/reactions.php?action=list&chat_key=' + encodeURIComponent(key),
                                              { credentials: 'include' })).json();
-                if (r && r.ok) { reactionMap = r.data || {}; paintReactions(); }
+                if (r && r.ok) {
+                    // Список разрешённых смайлов — с сервера: только он решает, что
+                    // можно поставить, и только так две стороны не разъедутся.
+                    if (Array.isArray(r.allowed) && r.allowed.length) REACTIONS_MORE = r.allowed;
+                    reactionMap = r.data || {}; paintReactions();
+                }
             } catch (e) {}
         }
 
@@ -14368,7 +14378,7 @@
          */
         function reactRowHtml(msgId, expanded) {
             const set = reactionMap[msgId] || {};
-            const list = expanded ? REACTIONS_MORE : REACTIONS.slice(0, 7);
+            const list = expanded ? REACTIONS_MORE : REACTIONS_MORE.slice(0, 7);
             const btns = list.map(e =>
                 `<button type="button" class="react-pick${set[e] && set[e].mine ? ' mine' : ''}"
                          onclick="event.stopPropagation();pickReaction('${msgId}','${e}')">${e}</button>`).join('');
