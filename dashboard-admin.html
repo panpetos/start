@@ -3856,6 +3856,7 @@
 
             '<div class="pm-section">Документы и сертификаты</div>' +
             '<div id="pmCreds" class="pm-creds"><span class="pm-cred-empty">Загрузка...</span></div>' +
+            '<div id="pmOrphan"></div>' +
 
             '<div class="pm-actions">' +
                 '<button class="btn-sm btn-brand" onclick="savePsychModal(\''+esc(p.id)+'\')">Сохранить изменения</button>' +
@@ -3867,9 +3868,11 @@
         document.getElementById('psychModalContent').innerHTML = html;
         document.getElementById('psychModal').classList.add('active');
         loadPsychCredentials(p.id);
+        loadOrphanCreds(p.id);
     }
 
     var _pmInnLoaded = false;
+    var _pmOrphanIds = [];
 
     async function loadPsychCredentials(psychId) {
         _pmInnLoaded = false;
@@ -3897,6 +3900,52 @@
                 return '<span class="pm-cred-placeholder">'+esc(title)+'</span>';
             }).join('');
         } catch(e) { cont.innerHTML = '<span class="pm-cred-empty">Не удалось загрузить</span>'; }
+    }
+
+    /**
+     * Документы, оставшиеся без хозяина. Появились из-за старых INT-колонок: строковые
+     * id при записи схлопнулись в 2147483647 и 0, и карточка психолога перестала их
+     * находить. Показываем их отдельно, чтобы админ мог вернуть их владельцу.
+     * Отдельной функцией со своим try/catch: это довесок к карточке, он не должен
+     * мешать ей открываться.
+     */
+    async function loadOrphanCreds(psychId) {
+        var cont = document.getElementById('pmOrphan');
+        if (!cont) return;
+        try {
+            var res = await apiPost('orphan-credentials', {});
+            var rows = (res && res.data) ? res.data : [];
+            if (!rows.length) { cont.innerHTML = ''; return; }
+            _pmOrphanIds = rows.map(function(r){ return r.id; });
+            cont.innerHTML =
+                '<div style="margin-top:0.6rem;background:#FFF8EC;border:1px solid #F0D9A8;border-radius:0.6rem;padding:0.7rem 0.85rem;font-size:0.85rem;line-height:1.5;color:#92400E;">' +
+                '⚠️ Есть документы без владельца: ' + rows.length + ' шт. Они были загружены, когда база хранила id по-другому, и выпали из карточек.' +
+                '<div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-top:0.5rem;">' +
+                rows.map(function(r){
+                    return '<a href="'+esc(r.url)+'" target="_blank" title="'+esc(r.name||'')+'">' +
+                           '<img class="pm-cred-thumb" src="'+esc(r.url)+'" alt="документ" onerror="this.style.display=\'none\'"></a>';
+                }).join('') +
+                '</div>' +
+                '<button class="btn-sm btn-brand" style="margin-top:0.6rem;" onclick="attachOrphanCreds(\''+esc(psychId)+'\',this)">Привязать к этому психологу</button>' +
+                '<span id="pmOrphanMsg" style="margin-left:0.5rem;"></span>' +
+                '</div>';
+        } catch(e) { cont.innerHTML = ''; }
+    }
+
+    async function attachOrphanCreds(psychId, btn) {
+        if (!_pmOrphanIds.length) return;
+        if (!confirm('Привязать ' + _pmOrphanIds.length + ' документ(ов) к этому психологу? Убедитесь, что это его документы.')) return;
+        var msg = document.getElementById('pmOrphanMsg');
+        if (btn) btn.disabled = true;
+        try {
+            var res = await apiPost('attach-credentials', { psychologist_id: psychId, ids: _pmOrphanIds });
+            if (res && res.ok) {
+                if (msg) { msg.style.color = '#16A34A'; msg.textContent = '✓ Привязано: ' + (res['привязано'] || 0); }
+                loadPsychCredentials(psychId);
+            } else if (msg) { msg.style.color = '#DC2626'; msg.textContent = '✕ ' + ((res && res.error) || 'Не удалось'); }
+        } catch(e) {
+            if (msg) { msg.style.color = '#DC2626'; msg.textContent = '✕ Не удалось привязать'; }
+        } finally { if (btn) btn.disabled = false; }
     }
 
     async function savePsychModal(psychId) {

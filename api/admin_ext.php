@@ -895,6 +895,49 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
     }
 
+    /**
+     * Документы, потерявшие хозяина. Таблица psychologist_credentials когда-то имела
+     * колонки id-шников типа INT, а идентификаторы у нас строковые — MySQL сложил их в
+     * 2147483647 и 0. Строки, записанные до расширения колонок, теперь не находятся ни
+     * одним запросом: у психолога в карточке просто пусто. Здесь их видно, и админ может
+     * привязать их к нужному психологу.
+     *
+     * Только дипломы и сертификаты: осиротевший ИНН не трогаем — приписать чужой ИНН
+     * человеку хуже, чем оставить его висеть.
+     */
+    if ($action === 'orphan-credentials') {
+        try {
+            $st = $pdo->query("SELECT id, type, url, name, created_at
+                                 FROM psychologist_credentials pc
+                                WHERE pc.type IN ('diploma','cert')
+                                  AND pc.url IS NOT NULL AND pc.url <> ''
+                                  AND NOT EXISTS (SELECT 1 FROM psychologists p WHERE p.id = pc.psychologist_id)
+                                  AND NOT EXISTS (SELECT 1 FROM psychologists p2 WHERE p2.user_id = pc.user_id)
+                                ORDER BY pc.id ASC");
+            echo json_encode(['ok' => true, 'data' => $st->fetchAll(PDO::FETCH_ASSOC)], JSON_UNESCAPED_UNICODE);
+        } catch (Exception $e) { echo json_encode(['ok' => true, 'data' => []]); }
+        exit;
+    }
+
+    if ($action === 'attach-credentials') {
+        $pid = $body['psychologist_id'] ?? null;
+        $ids = $body['ids'] ?? [];
+        if (!$pid) { http_response_code(400); echo json_encode(['error' => 'psychologist_id обязателен']); exit; }
+        if (!is_array($ids) || !$ids) { http_response_code(400); echo json_encode(['error' => 'Не выбрано ни одного документа']); exit; }
+        $uid = null;
+        try { $st = $pdo->prepare("SELECT user_id FROM psychologists WHERE id = ? LIMIT 1"); $st->execute([$pid]); $uid = $st->fetchColumn(); } catch (Exception $e) {}
+        if (!$uid) { http_response_code(404); echo json_encode(['error' => 'Психолог не найден']); exit; }
+        $done = 0;
+        try {
+            $up = $pdo->prepare("UPDATE psychologist_credentials
+                                    SET psychologist_id = ?, user_id = ?
+                                  WHERE id = ? AND type IN ('diploma','cert')");
+            foreach ($ids as $id) { $up->execute([$pid, $uid, (int)$id]); $done += $up->rowCount(); }
+        } catch (Exception $e) { http_response_code(500); echo json_encode(['error' => 'Не удалось привязать документы']); exit; }
+        echo json_encode(['ok' => true, 'привязано' => $done], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
     if ($action === 'psychologist-credentials') {
         $pid = $body['psychologist_id'] ?? ($_GET['psychologist_id'] ?? null);
         if (!$pid) { http_response_code(400); echo json_encode(['error' => 'psychologist_id обязателен']); exit; }
