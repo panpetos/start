@@ -3697,20 +3697,19 @@
 
         /* 4. Время прижимается к концу последней строки, а не висит отдельной строкой —
               это главная примета Telegram: короткое сообщение занимает одну строку.
-              Работает там, где есть мышь: на тач-экранах в этой же строке лежат кнопки
-              действий, и они уехали бы вместе со временем. */
-        @media (hover: hover) {
-            .message:not(.img-only):not(.vn-only):not(.editing) > div[id^="msg-body-"],
-            .message:not(.img-only):not(.vn-only):not(.editing) > div[id^="msg-body-"] > div[id^="msg-content-"] {
-                display: inline;
-            }
-            .message:not(.img-only):not(.vn-only):not(.editing) > .msg-foot {
-                float: right;
-                margin: 0.3rem 0 0 0.55rem;
-            }
-            /* Плавающий блок обязан войти в высоту пузыря, иначе время вылезет наружу */
-            .message::after { content: ''; display: block; clear: both; }
+              На телефоне в этой же строке едут кнопки действий (реакция, ответ, «⋮»):
+              они компактные и встают следом за временем, а если не помещаются —
+              переносятся вниз, как это делает и сам Telegram с длинным текстом. */
+        .message:not(.img-only):not(.vn-only):not(.editing) > div[id^="msg-body-"],
+        .message:not(.img-only):not(.vn-only):not(.editing) > div[id^="msg-body-"] > div[id^="msg-content-"] {
+            display: inline;
         }
+        .message:not(.img-only):not(.vn-only):not(.editing) > .msg-foot {
+            float: right;
+            margin: 0.3rem 0 0 0.55rem;
+        }
+        /* Плавающий блок обязан войти в высоту пузыря, иначе время вылезет наружу */
+        .message::after { content: ''; display: block; clear: both; }
         .message-time { font-size: 0.7rem; margin-top: 0; white-space: nowrap; }
 
         /* 5. Плашка с датой: без рамки, полупрозрачная и залипает при прокрутке */
@@ -3769,6 +3768,35 @@
             /* Свои обои-фото рисуются слоем во всю область чата: без скругления
                их прямые углы вылезали бы за округлённые края панели. */
             body[data-wall="photo"] #chatContent::before { border-radius: 16px; }
+        }
+
+        /* 11. Телефон: та же округлость, но по мобильным пропорциям.
+               Панель здесь на весь экран, поэтому скругляем не панели, а то, что
+               внутри — папки, строки чатов, пузыри и поле ввода. */
+        @media (max-width: 768px) {
+            /* Папки — «таблетки» с обводкой: выбранная залита, остальные contour-only.
+               Раньше невыбранные были серыми плашками и спорили за внимание. */
+            .folder-tab { background: transparent; border: 1.5px solid #E5E7EB; }
+            .folder-tab.active { background: #047857; border-color: #047857; color: #fff; }
+            .folder-tab-add { border-style: dashed; border-color: #6EE7B7; }
+            body.dark .folder-tab { background: transparent; border-color: #3A3A3A; }
+            body.dark .folder-tab.active { background: #047857; border-color: #047857; }
+            body.dark .folder-tab-add { border-color: #1F6B4F; }
+
+            /* Строки чатов — скруглённые «таблетки» с полем по краям */
+            .conversation-item { border-radius: 14px; margin: 0 0.3rem; }
+
+            /* Пузыри круглее и шире: на узком экране 72% оставляли пустое поле,
+               в мобильном Telegram сообщение занимает почти всю ширину. */
+            .message { border-radius: 16px; max-width: 85%; }
+            .message.mine { border-bottom-right-radius: 6px; }
+            .message.theirs { border-bottom-left-radius: 6px; }
+            .message.mine:has(+ .message.mine) { border-bottom-right-radius: 16px; }
+            .message.theirs:has(+ .message.theirs) { border-bottom-left-radius: 16px; }
+
+            /* Поле ввода — пилюля, как в мобильном Telegram */
+            .chat-input textarea { border-radius: 20px; }
+            .chat-back-btn { border-radius: 50%; }
         }
     </style>
     <!-- Приложение: манифест, сервис-воркер, уведомления (в т.ч. на iOS) -->
