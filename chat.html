@@ -4933,7 +4933,7 @@
                          а аватарка тут 88px — она вылезала за нижний край рамки и наезжала
                          на название группы, стоящее следом. -->
                     <div class="chat-ava-edit" style="margin:0 auto 0.5rem;width:88px;height:88px;">
-                        <div class="conversation-avatar" id="giAvatar" style="width:88px;height:88px;background:linear-gradient(135deg,#059669,#059669);font-size:2rem;">${g.avatar_url ? `<img src="${escapeHtml(g.avatar_url)}" alt="">` : '👥'}</div>
+                        <div class="conversation-avatar" id="giAvatar" style="width:88px;height:88px;background:linear-gradient(135deg,#059669,#059669);font-size:2rem;">${g.avatar_url ? `<img src="${escapeHtml(g.avatar_url)}" data-full="${escapeHtml(g.avatar_url)}" data-zoom alt="" title="Открыть фото" style="cursor:zoom-in;">` : '👥'}</div>
                         ${isOwner ? `<label class="chat-ava-btn" title="Сменить аватарку группы">📷
                             <input tabindex="-1" type="file" accept="image/*" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0;padding:0;margin:-1px;" onchange="uploadGroupAvatar(event)">
                         </label>` : ''}
@@ -6223,7 +6223,13 @@
                 const c = await r.json();
                 if (!c || !c.ok) { body.innerHTML = '<div style="padding:2rem;text-align:center;color:#DC2626;">Не удалось загрузить карточку</div>'; return; }
                 const name = `${c.first_name || ''} ${c.last_name || ''}`.trim() || 'Пользователь';
-                const avatarHtml = c.avatar ? `<img src="${c.avatar}" alt="${name}" style="width:100%;height:100%;object-fit:cover;">` : name.charAt(0);
+                // Фото открывается в полный рост по нажатию: те же data-zoom/data-full,
+                // что и у снимков в переписке. Раньше аватарку можно было разглядывать
+                // только такой, какой она влезла в кружок 64 пикселя.
+                const avatarHtml = c.avatar
+                    ? `<img src="${c.avatar}" data-full="${escapeHtml(c.avatar)}" data-zoom alt="${escapeHtml(name)}"
+                            title="Открыть фото" style="width:100%;height:100%;object-fit:cover;cursor:zoom-in;">`
+                    : name.charAt(0);
                 const since = c.member_since ? new Date(c.member_since).toLocaleDateString('ru-RU', { year: 'numeric', month: 'long' }) : '';
                 if (c.role === 'psychologist' && c.psychologist_id) {
                     const rating = c.rating ? `⭐ ${c.rating} (${c.reviews_count || 0})` : 'Пока нет отзывов';
@@ -12117,8 +12123,12 @@
 
             document.getElementById('chatHeader').innerHTML = `
                 <button class="chat-back-btn" onclick="goBackToList()" title="Назад к диалогам">←</button>
-                <div class="avatar" style="background:linear-gradient(135deg,#F59E0B,#FBBF24);"><span class="ava-ico">${ICO_STAR}</span></div>
-                <div style="flex:1;min-width:0;">
+                <!-- Нажатие на значок открывает вложения: искать файлы привычно именно
+                     так — через значок чата, как в личной переписке и в группе. -->
+                <div class="avatar" style="background:linear-gradient(135deg,#F59E0B,#FBBF24);cursor:pointer;"
+                     onclick="openFavoritesMedia()" title="Медиа, файлы и ссылки"><span class="ava-ico">${ICO_STAR}</span></div>
+                <div style="flex:1;min-width:0;cursor:pointer;" onclick="openFavoritesMedia()"
+                     title="Медиа, файлы и ссылки">
                     <div class="name">Избранное</div>
                     <div class="role">Заметки для себя</div>
                 </div>
