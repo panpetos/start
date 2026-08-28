@@ -319,6 +319,29 @@ if (isset($_GET['support']) && isset($pdo) && $pdo) {
     $r['support'] = $sp;
 }
 
+// 4d. ?dm=1 — личные сообщения в целом. У админа диалог показывает превью
+//     последнего сообщения, а сама переписка открывается пустой. Надо отделить
+//     «сообщения не дошли до базы» от «дошли, но не читаются». Только счётчики и
+//     время последнего — ни текстов, ни имён.
+if (isset($_GET['dm']) && isset($pdo) && $pdo) {
+    $dm = [];
+    try {
+        $dm['сообщений_всего'] = (int)$pdo->query("SELECT COUNT(*) FROM messages")->fetchColumn();
+        $dm['последнее'] = (string)$pdo->query("SELECT MAX(created_at) FROM messages")->fetchColumn();
+        $dm['с_вложением'] = (int)$pdo->query("SELECT COUNT(*) FROM messages
+                                                WHERE attachment_url IS NOT NULL AND attachment_url <> ''")->fetchColumn();
+        $dm['последнее_с_вложением'] = (string)$pdo->query("SELECT MAX(created_at) FROM messages
+                                                             WHERE attachment_url IS NOT NULL AND attachment_url <> ''")->fetchColumn();
+        // Сообщения за последние двое суток — по дням, чтобы видеть, идут ли они вообще.
+        foreach ($pdo->query("SELECT DATE(created_at) d, COUNT(*) n FROM messages
+                               WHERE created_at > DATE_SUB(NOW(), INTERVAL 3 DAY)
+                               GROUP BY d ORDER BY d")->fetchAll(PDO::FETCH_ASSOC) as $row) {
+            $dm['по_дням'][(string)$row['d']] = (int)$row['n'];
+        }
+    } catch (Exception $e) { $dm['ошибка'] = substr($e->getMessage(), 0, 200); }
+    $r['messages'] = $dm;
+}
+
 // 5. ?bench=1 — сколько стоят типовые запросы сайта. Нужно, чтобы прикинуть,
 //    сколько людей хостинг вытянет, не устраивая проду настоящую нагрузку.
 //    Всё только на чтение, данные наружу не отдаются — одни тайминги.
