@@ -87,6 +87,7 @@ $limit = max(10, min(200, (int)($_GET['limit'] ?? 60)));
 $offset = max(0, (int)($_GET['offset'] ?? 0));
 $peer = trim((string)($_GET['peer'] ?? ''));
 $groupId = (int)($_GET['group_id'] ?? 0);
+$favorites = !empty($_GET['favorites']);
 
 // Сколько строк переписки просматриваем. Ссылки и файлы ищем по тексту и вложениям,
 // поэтому берём с запасом и отбираем уже в PHP: условия по LIKE на большой таблице
@@ -95,7 +96,14 @@ $SCAN = 3000;
 
 $rows = [];
 try {
-    if ($groupId > 0) {
+    if ($favorites) {
+        // «Избранное» — это заметки самого человека: чужого здесь быть не может,
+        // выбираем строго по своему user_id.
+        $st = $pdo->prepare("SELECT id, content, created_at, attachment_url, attachment_type, attachment_name
+                               FROM favorite_messages WHERE user_id = ? ORDER BY id DESC LIMIT $SCAN");
+        $st->execute([$userId]);
+        $rows = $st->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    } elseif ($groupId > 0) {
         $st = $pdo->prepare("SELECT role FROM chat_group_members WHERE group_id = ? AND user_id = ? LIMIT 1");
         $st->execute([$groupId, $userId]);
         if (!$st->fetchColumn()) cmOut(['ok' => false, 'error' => 'Вы не участник этой группы'], 403);

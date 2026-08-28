@@ -67,6 +67,45 @@ function mpHasColumn(PDO $pdo, $col) {
 
 $peer = trim((string)($_GET['with'] ?? ''));
 if ($peer === '') mpOut(['ok' => false, 'error' => 'Не указан собеседник'], 400);
+
+// ── Почему переписка открылась пустой ────────────────────────────────────────
+// Своё и только своё: считаем сообщения между мной и этим собеседником и смотрим,
+// в каком виде там лежат идентификаторы. Именно из-за их вида переписка и может
+// «пропасть»: если в базе id собеседника записан иначе, чем приходит из списка
+// диалогов (иной регистр, пробел по краям), точное сравнение ничего не находит,
+// хотя список диалогов ту же переписку показывает. Текстов сообщений не отдаём.
+if (!empty($_GET['diag'])) {
+    $peerRaw = trim((string)($_GET['with'] ?? ''));
+    $d = ['спрошенный_id' => $peerRaw, 'мой_id' => (string)$userId];
+    try {
+        $st = $pdo->prepare("SELECT COUNT(*) FROM messages
+                              WHERE (sender_id = ? AND receiver_id = ?) OR (sender_id = ? AND receiver_id = ?)");
+        $st->execute([$userId, $peerRaw, $peerRaw, $userId]);
+        $d['точное_совпадение'] = (int)$st->fetchColumn();
+
+        $st = $pdo->prepare("SELECT COUNT(*) FROM messages
+                              WHERE (TRIM(LOWER(sender_id)) = TRIM(LOWER(?)) AND TRIM(LOWER(receiver_id)) = TRIM(LOWER(?)))
+                                 OR (TRIM(LOWER(sender_id)) = TRIM(LOWER(?)) AND TRIM(LOWER(receiver_id)) = TRIM(LOWER(?)))");
+        $st->execute([$userId, $peerRaw, $peerRaw, $userId]);
+        $d['без_учёта_регистра_и_пробелов'] = (int)$st->fetchColumn();
+
+        $st = $pdo->prepare("SELECT COUNT(*) FROM messages WHERE sender_id = ? OR receiver_id = ?");
+        $st->execute([$peerRaw, $peerRaw]);
+        $d['всего_у_собеседника'] = (int)$st->fetchColumn();
+
+        $st = $pdo->prepare("SELECT SUM(attachment_url IS NOT NULL AND attachment_url <> '') AS с_вложением,
+                                    SUM(content IS NULL OR content = '') AS без_текста
+                               FROM messages
+                              WHERE (sender_id = ? AND receiver_id = ?) OR (sender_id = ? AND receiver_id = ?)");
+        $st->execute([$userId, $peerRaw, $peerRaw, $userId]);
+        $r = $st->fetch(PDO::FETCH_ASSOC) ?: [];
+        $d['из_них_с_вложением'] = (int)($r['с_вложением'] ?? 0);
+        $d['из_них_без_текста'] = (int)($r['без_текста'] ?? 0);
+    } catch (Exception $e) { $d['ошибка'] = substr($e->getMessage(), 0, 200); }
+    $d['колонки'] = mpColumns($pdo);
+    mpOut(['ok' => true, 'диагностика' => $d]);
+}
+
 $limit = max(10, min(200, (int)($_GET['limit'] ?? 50)));
 $before = trim((string)($_GET['before'] ?? ''));
 

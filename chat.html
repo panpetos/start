@@ -6124,7 +6124,8 @@
             const body = document.getElementById('cmBody');
             if (!body || !cmScope) return;
             if (!cmOffset) body.innerHTML = '<div class="cm-empty">Загрузка…</div>';
-            const q = (cmScope.group ? 'group_id=' + encodeURIComponent(cmScope.group)
+            const q = (cmScope.favorites ? 'favorites=1'
+                     : cmScope.group ? 'group_id=' + encodeURIComponent(cmScope.group)
                                      : 'peer=' + encodeURIComponent(cmScope.peer))
                     + '&kind=' + cmKind + '&limit=60&offset=' + cmOffset;
             let d = null;
@@ -6189,11 +6190,32 @@
         function chatMediaMore() { cmOffset = cmItems.length; chatMediaLoad(); }
         window.chatMediaMore = chatMediaMore;
 
+        /**
+         * Вложения «Избранного» тем же окном, что и у чатов. «Избранное» — не переписка
+         * с кем-то, карточки собеседника у него нет, поэтому вход отдельным пунктом в
+         * шапке: искать сохранённый файл прокруткой заметок так же неудобно, как в чате.
+         */
+        function openFavoritesMedia() {
+            const modal = document.getElementById('userCardModal');
+            const body = document.getElementById('userCardBody');
+            const title = modal.querySelector('div[style*="font-weight:700"]');
+            if (title) title.textContent = 'Избранное: вложения';
+            modal.style.display = 'flex';
+            body.innerHTML = chatMediaTabsHtml(false);
+            cmScope = { favorites: true };
+            cmKind = 'media'; cmOffset = 0; cmItems = [];
+            chatMediaLoad();
+        }
+        window.openFavoritesMedia = openFavoritesMedia;
+
         async function openUserCard(userId) {
             if (!userId || userId === FAVORITES_ID) return;
             const modal = document.getElementById('userCardModal');
             await presenceRefresh();    // ждём ответ, иначе в карточке будет «уточняется…»
             const body = document.getElementById('userCardBody');
+            // Заголовок общий с окном вложений «Избранного» — возвращаем свой.
+            const t = modal.querySelector('div[style*="font-weight:700"]');
+            if (t) t.textContent = 'Карточка собеседника';
             modal.style.display = 'flex';
             body.innerHTML = '<div style="padding:2rem;text-align:center;color:#9CA3AF;">Загрузка…</div>';
             try {
@@ -12102,6 +12124,7 @@
                 </div>
                 ${headerActionsHtml([
                     { icon: '🔎', label: 'Поиск по переписке', run: () => openChatSearch() },
+                    { icon: '📎', label: 'Медиа, файлы и ссылки', run: () => openFavoritesMedia() },
                     { icon: 'A', label: 'Форматирование текста', run: () => openComposer() },
                     { icon: '🎨', label: 'Обои переписки', run: () => openWallpaperPicker() },
                 ], '')}`;
