@@ -3658,6 +3658,85 @@
         body.dark #notesList [style*="color:#1A1A1A"] { color: #E6E6E6 !important; }
         body.dark .note-text-edit { background: #1E1E1E !important; border-color: #047857 !important; color: #E6E6E6 !important; }
         body.dark #chatThemeToggle { background: #2A2A2A; border-color: #444; color: #E6E6E6; }
+
+        /* ══════════════════════════════════════════════════════════════════════════
+           Стиль Telegram: плотность ленты, форма пузырей, время в строке текста.
+           Слой намеренно идёт последним и правит только геометрию и цвета — разметку
+           и поведение не трогает, поэтому ответы, выделение, обои и вложения
+           продолжают работать как раньше.
+           ══════════════════════════════════════════════════════════════════════════ */
+
+        /* 1. Лента плотнее. В Telegram сообщения одного автора идут вплотную,
+              а воздух появляется только на стыке собеседников. */
+        .messages-container { gap: 0.14rem; padding: 0.6rem 1rem 1rem; }
+        .message.mine + .message.theirs,
+        .message.theirs + .message.mine,
+        .g-msg-row + .message.mine,
+        .message.mine + .g-msg-row,
+        .g-msg-row + .g-msg-row { margin-top: 0.45rem; }
+
+        /* 2. Пузырь компактнее и без тени — в Telegram пузыри плоские. Чужому
+              вместо тени даём тонкую границу, иначе он теряется на светлых обоях. */
+        .message {
+            padding: 0.4rem 0.68rem;
+            border-radius: 14px;
+            line-height: 1.38;
+            max-width: min(72%, 32rem);
+        }
+        .message.mine { border-bottom-right-radius: 5px; }
+        .message.theirs {
+            border-bottom-left-radius: 5px;
+            box-shadow: none;
+            border: 1px solid rgba(0,0,0,0.06);
+        }
+        body.dark .message.theirs { box-shadow: none; border-color: rgba(255,255,255,0.07); }
+
+        /* 3. Срезанный уголок («хвостик») — только у последнего сообщения в серии */
+        .message.mine:has(+ .message.mine) { border-bottom-right-radius: 14px; }
+        .message.theirs:has(+ .message.theirs) { border-bottom-left-radius: 14px; }
+
+        /* 4. Время прижимается к концу последней строки, а не висит отдельной строкой —
+              это главная примета Telegram: короткое сообщение занимает одну строку.
+              Работает там, где есть мышь: на тач-экранах в этой же строке лежат кнопки
+              действий, и они уехали бы вместе со временем. */
+        @media (hover: hover) {
+            .message:not(.img-only):not(.vn-only):not(.editing) > div[id^="msg-body-"],
+            .message:not(.img-only):not(.vn-only):not(.editing) > div[id^="msg-body-"] > div[id^="msg-content-"] {
+                display: inline;
+            }
+            .message:not(.img-only):not(.vn-only):not(.editing) > .msg-foot {
+                float: right;
+                margin: 0.3rem 0 0 0.55rem;
+            }
+            /* Плавающий блок обязан войти в высоту пузыря, иначе время вылезет наружу */
+            .message::after { content: ''; display: block; clear: both; }
+        }
+        .message-time { font-size: 0.7rem; margin-top: 0; white-space: nowrap; }
+
+        /* 5. Плашка с датой: без рамки, полупрозрачная и залипает при прокрутке */
+        .day-sep { position: sticky; top: 0.2rem; z-index: 3; pointer-events: none; }
+        .day-sep span { border: none; background: rgba(0,0,0,0.10); color: #4B5563; font-weight: 600; }
+        body.dark .day-sep span { background: rgba(255,255,255,0.12); color: #D0D0D0; }
+
+        /* 6. Список диалогов: строки-«таблетки» без разделительных линий,
+              выбранный чат залит акцентом — как в Telegram Desktop. */
+        .conversation-item:not(.conv-sep) { border-bottom: none; }
+        .conversation-item { border-radius: 10px; margin: 0 0.3rem; padding: 0.55rem 0.6rem; }
+        .conversation-item:hover { background: #F0F4F2; }
+        .conversation-item.active { background: #047857; }
+        .conversation-item.active .conversation-name,
+        .conversation-item.active .conversation-name .cn-text,
+        .conversation-item.active .conversation-preview,
+        .conversation-item.active .conversation-time { color: #fff; }
+        .conversation-item.active .conversation-preview { opacity: 0.88; }
+        .conversation-item.active .unread-badge { background: #fff; color: #047857; }
+        body.dark .conversation-item:hover { background: #262626; }
+        body.dark .conversation-item.active { background: #065F46; }
+
+        /* 7. Поле ввода: мягкая граница сверху и скруглённое поле */
+        .chat-input { border-top-color: rgba(0,0,0,0.07); }
+        body.dark .chat-input { border-top-color: rgba(255,255,255,0.08); }
+        .chat-input textarea { border-radius: 18px; }
     </style>
     <!-- Приложение: манифест, сервис-воркер, уведомления (в т.ч. на iOS) -->
     <script src="/js/app.js?v=20260821" defer></script>
