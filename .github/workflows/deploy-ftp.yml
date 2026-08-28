@@ -141,6 +141,7 @@ jobs:
             put api/message_edit.php -o api/message_edit.php;
             put api/group_chat.php -o api/group_chat.php;
             put api/chat_folders.php -o api/chat_folders.php;
+            put api/chat_media.php -o api/chat_media.php;
             put api/chat_pins.php -o api/chat_pins.php;
             put api/scheduled.php -o api/scheduled.php;
             put api/calls.php -o api/calls.php;

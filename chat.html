@@ -1913,6 +1913,52 @@
         }
         .dict-interim { opacity: 0.55; font-style: italic; }
 
+        /* Вложения чата в карточке: медиа, файлы, ссылки, голосовые.
+           Раньше найти присланный месяц назад документ можно было только прокруткой
+           переписки руками — место в карточке было, данных для него не было. */
+        .cm-tabs {
+            display: flex; gap: 0.25rem; overflow-x: auto; scrollbar-width: none;
+            border-bottom: 1px solid #EFEFEF; margin: 0.9rem 0 0.6rem; padding-bottom: 0.35rem;
+        }
+        .cm-tabs::-webkit-scrollbar { display: none; }
+        body.dark .cm-tabs { border-bottom-color: #333; }
+        .cm-tab {
+            flex: 0 0 auto; border: none; background: transparent; cursor: pointer;
+            font-family: inherit; font-size: 0.82rem; font-weight: 600; color: #6B7280;
+            padding: 0.35rem 0.7rem; border-radius: 0.5rem; white-space: nowrap;
+        }
+        .cm-tab:hover { background: #F3F4F6; }
+        body.dark .cm-tab:hover { background: #333; }
+        .cm-tab.active { background: #D1FAE5; color: #047857; }
+        body.dark .cm-tab.active { background: #10402F; color: #6EE7B7; }
+        .cm-body { min-height: 60px; }
+        .cm-empty { color: #9CA3AF; font-size: 0.85rem; padding: 0.9rem 0; text-align: center; }
+        .cm-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 0.35rem; }
+        .cm-cell {
+            position: relative; aspect-ratio: 1 / 1; border-radius: 0.5rem; overflow: hidden;
+            background: #F3F4F6; display: block;
+        }
+        body.dark .cm-cell { background: #2E2E2E; }
+        .cm-cell img, .cm-cell video { width: 100%; height: 100%; object-fit: cover; display: block; }
+        .cm-play {
+            position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+            color: #fff; font-size: 1.4rem; text-shadow: 0 1px 6px rgba(0,0,0,0.6); pointer-events: none;
+        }
+        .cm-row {
+            display: flex; align-items: center; gap: 0.6rem; padding: 0.5rem 0;
+            border-bottom: 1px solid #F2F2F2; text-decoration: none; color: inherit;
+        }
+        body.dark .cm-row { border-bottom-color: #333; }
+        .cm-ico { font-size: 1.15rem; flex-shrink: 0; width: 1.7rem; text-align: center; }
+        .cm-meta { min-width: 0; flex: 1; }
+        .cm-title { font-size: 0.86rem; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .cm-sub { font-size: 0.74rem; color: #9CA3AF; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .cm-more {
+            display: block; width: 100%; margin-top: 0.6rem; border: 1px solid #D1FAE5; background: transparent;
+            color: #047857; border-radius: 0.5rem; padding: 0.45rem; font-family: inherit;
+            font-size: 0.82rem; font-weight: 700; cursor: pointer;
+        }
+
         /* Сообщение из одной картинки: рамка в 3 пикселя вместо полного отступа пузыря.
            Иначе вокруг фото оставалось поле шириной с текстовые поля — заметно широкое. */
         .message.img-only { padding: 3px; }
@@ -4890,9 +4936,12 @@
                 <button onclick="openAddGroupMembers(${gid})" style="width:100%;border:none;background:#15803D;color:#fff;border-radius:0.6rem;padding:0.6rem;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:0.5rem;">➕ Добавить участников</button>
                 ${isOwner ? `<button onclick="showGroupInvite(${gid})" style="width:100%;border:1.5px solid #6EE7B7;background:transparent;color:#047857;border-radius:0.6rem;padding:0.6rem;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:0.8rem;">🔗 Ссылка-приглашение</button>` : ''}
                 <div id="grInviteBox" style="margin-bottom:0.8rem;"></div>
-                <div style="font-weight:700;font-size:0.82rem;color:#6B7280;margin-bottom:0.3rem;">Участники</div>
-                <div>${rows}</div>
+                ${chatMediaTabsHtml(true)}
+                <div id="giMembers">${rows}</div>
                 <button onclick="leaveGroupChat(${gid})" style="width:100%;border:1.5px solid #DC2626;background:transparent;color:#DC2626;border-radius:0.6rem;padding:0.6rem;font-weight:700;cursor:pointer;font-family:inherit;margin-top:0.9rem;">🚪 Выйти из группы</button>`;
+            // Вложения группы — теми же вкладками, что и в личной карточке.
+            cmScope = { group: gid };
+            cmKind = 'media'; cmOffset = 0; cmItems = [];
         }
 
         /** Название + описание группы одним запросом (владелец). */
@@ -6013,6 +6062,113 @@
         }
 
         // ── Мини-карточка собеседника (клик по аватару/имени в шапке чата) ──
+        // ══════════════════════════════════════════════════════════════════════════
+        //  ВЛОЖЕНИЯ ЧАТА: медиа, файлы, ссылки, голосовые
+        //
+        //  Один и тот же блок стоит и в карточке собеседника, и в карточке группы —
+        //  различается только тем, чей это чат. Данные берёт api/chat_media.php: из
+        //  открытой переписки их не собрать, она грузится порциями по пятьдесят.
+        // ══════════════════════════════════════════════════════════════════════════
+        const CM_KINDS = [
+            { id: 'media', label: 'Медиа' },
+            { id: 'files', label: 'Файлы' },
+            { id: 'links', label: 'Ссылки' },
+            { id: 'voice', label: 'Голосовые' },
+        ];
+        let cmScope = null;      // {peer} | {group}
+        let cmKind = 'media';
+        let cmOffset = 0;
+        let cmItems = [];
+
+        /** Полоса вкладок и место под список. withMembers — для группы. */
+        function chatMediaTabsHtml(withMembers) {
+            const tabs = (withMembers ? [{ id: 'members', label: 'Участники' }] : []).concat(CM_KINDS);
+            return '<div class="cm-tabs">' + tabs.map(t =>
+                `<button type="button" class="cm-tab${t.id === (withMembers ? 'members' : 'media') ? ' active' : ''}"
+                         data-cm="${t.id}" onclick="chatMediaTab('${t.id}')">${t.label}</button>`).join('') +
+                '</div><div class="cm-body" id="cmBody"></div>';
+        }
+
+        function chatMediaTab(kind) {
+            document.querySelectorAll('.cm-tab').forEach(b => b.classList.toggle('active', b.dataset.cm === kind));
+            const members = document.getElementById('giMembers');
+            const body = document.getElementById('cmBody');
+            if (kind === 'members') {
+                if (members) members.style.display = '';
+                if (body) body.innerHTML = '';
+                return;
+            }
+            if (members) members.style.display = 'none';
+            cmKind = kind; cmOffset = 0; cmItems = [];
+            chatMediaLoad();
+        }
+        window.chatMediaTab = chatMediaTab;
+
+        async function chatMediaLoad() {
+            const body = document.getElementById('cmBody');
+            if (!body || !cmScope) return;
+            if (!cmOffset) body.innerHTML = '<div class="cm-empty">Загрузка…</div>';
+            const q = (cmScope.group ? 'group_id=' + encodeURIComponent(cmScope.group)
+                                     : 'peer=' + encodeURIComponent(cmScope.peer))
+                    + '&kind=' + cmKind + '&limit=60&offset=' + cmOffset;
+            let d = null;
+            try {
+                d = await (await fetch('/api/chat_media.php?' + q, { credentials: 'include' })).json();
+            } catch (e) { d = null; }
+            if (!d || !d.ok) { body.innerHTML = '<div class="cm-empty">Не удалось загрузить</div>'; return; }
+            cmItems = cmItems.concat(d.data || []);
+            chatMediaRender(!!d.has_more);
+        }
+
+        function chatMediaRender(hasMore) {
+            const body = document.getElementById('cmBody');
+            if (!body) return;
+            if (!cmItems.length) {
+                const empty = { media: 'Здесь пока нет фото и видео', files: 'Здесь пока нет файлов',
+                                links: 'В переписке пока нет ссылок', voice: 'Здесь пока нет голосовых и кружков' };
+                body.innerHTML = `<div class="cm-empty">${empty[cmKind] || 'Пусто'}</div>`;
+                return;
+            }
+            const when = (t) => { try { return new Date(String(t).replace(' ', 'T')).toLocaleDateString('ru-RU'); } catch (e) { return ''; } };
+            let html;
+            if (cmKind === 'media') {
+                html = '<div class="cm-grid">' + cmItems.map(it => {
+                    const isVid = /\.(mp4|mov|m4v|webm|ogv|3gp|mkv)(\?|$)/i.test(it.url) ||
+                                  String(it.type || '').indexOf('video') >= 0;
+                    return isVid
+                        ? `<a class="cm-cell" href="${escapeHtml(it.url)}" target="_blank" title="${escapeHtml(it.name || 'Видео')}">
+                               <video src="${escapeHtml(it.url)}" preload="metadata" muted></video><span class="cm-play">▶</span></a>`
+                        : `<a class="cm-cell" href="${escapeHtml(it.url)}" target="_blank" title="${escapeHtml(it.name || 'Фото')}">
+                               <img src="${escapeHtml(it.url)}" alt="" loading="lazy"></a>`;
+                }).join('') + '</div>';
+            } else if (cmKind === 'links') {
+                html = cmItems.map(it => `
+                    <a class="cm-row" href="${escapeHtml(it.url)}" target="_blank" rel="noopener">
+                        <span class="cm-ico">🔗</span>
+                        <span class="cm-meta">
+                            <span class="cm-title">${escapeHtml(it.url)}</span>
+                            <span class="cm-sub">${escapeHtml(it.sender || '')}${it.sender ? ' · ' : ''}${when(it.created_at)}</span>
+                        </span>
+                    </a>`).join('');
+            } else {
+                const ico = cmKind === 'voice' ? '🎤' : '📄';
+                html = cmItems.map(it => `
+                    <a class="cm-row" href="${escapeHtml(it.url)}" target="_blank"
+                       ${cmKind === 'files' ? `download="${escapeHtml(it.name || 'file')}"` : ''}>
+                        <span class="cm-ico">${ico}</span>
+                        <span class="cm-meta">
+                            <span class="cm-title">${escapeHtml(it.name || (cmKind === 'voice' ? 'Голосовое сообщение' : 'Файл'))}</span>
+                            <span class="cm-sub">${escapeHtml(it.sender || '')}${it.sender ? ' · ' : ''}${when(it.created_at)}</span>
+                        </span>
+                    </a>`).join('');
+            }
+            body.innerHTML = html + (hasMore
+                ? '<button type="button" class="cm-more" onclick="chatMediaMore()">Показать ещё</button>' : '');
+        }
+
+        function chatMediaMore() { cmOffset = cmItems.length; chatMediaLoad(); }
+        window.chatMediaMore = chatMediaMore;
+
         async function openUserCard(userId) {
             if (!userId || userId === FAVORITES_ID) return;
             const modal = document.getElementById('userCardModal');
@@ -6051,7 +6207,8 @@
                         <div style="display:flex;gap:0.6rem;margin-top:1.2rem;flex-wrap:wrap;" id="userCardActions">
                             <button class="session-btn" onclick="closeUserCard();writeToUser('${escapeHtml(String(userId))}')" title="Написать лично">✉️ Написать</button>
                             <a href="/book.html?id=${encodeURIComponent(c.psychologist_id)}" class="session-btn" style="background:#15803D;text-decoration:none;" title="Записаться на консультацию">📅 Записаться</a>
-                        </div>`;
+                        </div>
+                        ${chatMediaTabsHtml(false)}`;
                     // Каналы подгружаем отдельно: их может не быть вовсе, и тогда кнопки нет
                     addChannelButtons(c.psychologist_id, name);
                 } else {
@@ -6066,8 +6223,14 @@
                         </div>
                         <div style="display:flex;gap:0.6rem;margin-top:1.2rem;flex-wrap:wrap;">
                             <button class="session-btn" onclick="closeUserCard();writeToUser('${escapeHtml(String(userId))}')" title="Написать лично">✉️ Написать</button>
-                        </div>`;
+                        </div>
+                        ${chatMediaTabsHtml(false)}`;
                 }
+                // Вложения этой переписки — сразу под карточкой. Отдельной функцией:
+                // если список не загрузится, сама карточка всё равно останется на месте.
+                cmScope = { peer: String(userId) };
+                cmKind = 'media'; cmOffset = 0; cmItems = [];
+                chatMediaLoad();
             } catch (e) { body.innerHTML = '<div style="padding:2rem;text-align:center;color:#DC2626;">Не удалось загрузить карточку</div>'; }
         }
         /** Подпись «в сети / был(а) …» для карточки собеседника. */
