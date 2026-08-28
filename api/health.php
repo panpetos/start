@@ -332,6 +332,13 @@ if (isset($_GET['dm']) && isset($pdo) && $pdo) {
                                                 WHERE attachment_url IS NOT NULL AND attachment_url <> ''")->fetchColumn();
         $dm['последнее_с_вложением'] = (string)$pdo->query("SELECT MAX(created_at) FROM messages
                                                              WHERE attachment_url IS NOT NULL AND attachment_url <> ''")->fetchColumn();
+        // Сообщения, адресованные не человеку, а «support»: так пишут те, кто
+        // выбрал «Тех поддержку» в своём списке чатов. Их читает админ, и если их
+        // запрос ищет строго переписку двух людей, такие строки в неё не попадают.
+        $dm['адресовано_support'] = (int)$pdo->query("SELECT COUNT(*) FROM messages WHERE receiver_id = 'support'")->fetchColumn();
+        $dm['отправлено_от_support'] = (int)$pdo->query("SELECT COUNT(*) FROM messages WHERE sender_id = 'support'")->fetchColumn();
+        $dm['последнее_к_support'] = (string)$pdo->query("SELECT MAX(created_at) FROM messages WHERE receiver_id = 'support'")->fetchColumn();
+
         // Сообщения за последние двое суток — по дням, чтобы видеть, идут ли они вообще.
         foreach ($pdo->query("SELECT DATE(created_at) d, COUNT(*) n FROM messages
                                WHERE created_at > DATE_SUB(NOW(), INTERVAL 3 DAY)
