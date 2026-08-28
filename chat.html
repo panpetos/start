@@ -13296,6 +13296,56 @@
         //  Enter отправляет, Shift+Enter переносит строку и растягивает поле — как в Telegram.
         //  Отдельная кнопка открывает окно с панелью форматирования и предпросмотром.
         // ══════════════════════════════════════════════════════════════════════════════
+        // ── Полоса «^ ⌄ ✓» над клавиатурой ──────────────────────────────────────
+        //
+        // Это не наш элемент: полосу над клавиатурой рисует сама операционная система.
+        // Стрелки «вверх/вниз» в ней — переход к предыдущему и следующему полю ввода
+        // на странице, и появляются они только тогда, когда такие поля есть. У нас их
+        // на странице сорок с лишним (поиск по чатам, поиск в переписке, промокод,
+        // переименование группы и прочее) — поэтому система и предлагает по ним ходить,
+        // хотя человек просто пишет сообщение.
+        //
+        // Пока курсор в поле сообщения, убираем остальные поля из обхода: стрелки
+        // становятся неактивны и полоса схлопывается до одной кнопки «Готово». Как
+        // только фокус ушёл — возвращаем всё как было, иначе сломается переход по Tab
+        // на компьютере и работа с экранными читалками.
+        //
+        // Убрать полосу целиком со стороны сайта нельзя: на айфоне её рисует сам
+        // браузер поверх клавиатуры, и веб-странице она не подчиняется.
+        let kbTabHidden = null;
+
+        function kbHideFieldNav(active) {
+            const box = document.getElementById('messageInput');
+            if (!box) return;
+            if (active) {
+                if (kbTabHidden) return;
+                kbTabHidden = [];
+                document.querySelectorAll('input, textarea, select, [contenteditable="true"]').forEach(el => {
+                    if (el === box) return;
+                    kbTabHidden.push([el, el.getAttribute('tabindex')]);
+                    el.setAttribute('tabindex', '-1');
+                });
+            } else {
+                if (!kbTabHidden) return;
+                kbTabHidden.forEach(([el, prev]) => {
+                    if (prev === null) el.removeAttribute('tabindex');
+                    else el.setAttribute('tabindex', prev);
+                });
+                kbTabHidden = null;
+            }
+        }
+
+        // Только на устройствах с сенсорным вводом: на компьютере полосы нет, а обход
+        // полей по Tab там нужен.
+        if (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) {
+            document.addEventListener('focusin', (e) => {
+                if (e.target && e.target.id === 'messageInput') kbHideFieldNav(true);
+            });
+            document.addEventListener('focusout', (e) => {
+                if (e.target && e.target.id === 'messageInput') setTimeout(() => kbHideFieldNav(false), 0);
+            });
+        }
+
         /**
          * Прибрать за отправкой: вернуть полю ввода высоту в одну строку и увести
          * переписку к последнему сообщению.
