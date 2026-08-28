@@ -1933,7 +1933,23 @@
         body.dark .cm-tab.active { background: #10402F; color: #6EE7B7; }
         .cm-body { min-height: 60px; }
         .cm-empty { color: #9CA3AF; font-size: 0.85rem; padding: 0.9rem 0; text-align: center; }
-        .cm-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 0.35rem; }
+        /* Карточка чата и группы: раньше обе были шириной 420px, и сетка вложений
+           получалась из крошечных плиток — разобрать, что на фото, было нельзя.
+           На компьютере окно широкое, на телефоне — во весь экран, как в Telegram. */
+        .psy-wide-box { max-width: min(980px, 94vw); max-height: 92vh; }
+        @media (max-width: 768px) {
+            .psy-wide-ov { padding: 0 !important; }
+            .psy-wide-box {
+                max-width: none; width: 100%;
+                height: 100vh; height: 100dvh; max-height: none;
+                border-radius: 0 !important;
+            }
+        }
+
+        .cm-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 0.4rem; }
+        @media (max-width: 480px) {
+            .cm-grid { grid-template-columns: repeat(auto-fill, minmax(108px, 1fr)); }
+        }
         .cm-cell {
             position: relative; aspect-ratio: 1 / 1; border-radius: 0.5rem; overflow: hidden;
             background: #F3F4F6; display: block;
@@ -3984,8 +4000,8 @@
     </div>
 
     <!-- Экран группы: участники, переименование, выход -->
-    <div id="groupInfoModal" style="display:none;position:fixed;inset:0;background:rgba(18,42,34,0.6);z-index:1310;align-items:center;justify-content:center;padding:1rem;">
-        <div style="background:#fff;border-radius:1rem;max-width:420px;width:100%;max-height:85vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+    <div id="groupInfoModal" class="psy-wide-ov" style="display:none;position:fixed;inset:0;background:rgba(18,42,34,0.6);z-index:1310;align-items:center;justify-content:center;padding:1rem;">
+        <div class="psy-wide-box" style="background:#fff;border-radius:1rem;width:100%;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
             <div style="padding:1rem 1.25rem;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;">
                 <div style="font-weight:700;">Группа</div>
                 <button onclick="closeGroupInfo()" style="background:none;border:none;font-size:1.2rem;cursor:pointer;color:#6B7280;">✕</button>
@@ -4177,13 +4193,13 @@
     </div>
 
     <!-- Мини-карточка собеседника (клик по аватару в шапке чата) -->
-    <div id="userCardModal" style="display:none;position:fixed;inset:0;background:rgba(18,42,34,0.6);z-index:1300;align-items:center;justify-content:center;padding:1rem;">
-        <div style="background:#fff;border-radius:1rem;max-width:420px;width:100%;max-height:85vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
-            <div style="padding:1rem 1.25rem;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center;">
+    <div id="userCardModal" class="psy-wide-ov" style="display:none;position:fixed;inset:0;background:rgba(18,42,34,0.6);z-index:1300;align-items:center;justify-content:center;padding:1rem;">
+        <div class="psy-wide-box" style="background:#fff;border-radius:1rem;width:100%;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+            <div style="padding:1rem 1.25rem;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;">
                 <div style="font-weight:700;">Карточка собеседника</div>
                 <button onclick="closeUserCard()" style="background:none;border:none;font-size:1.2rem;cursor:pointer;color:#6B7280;">✕</button>
             </div>
-            <div id="userCardBody" style="padding:1.25rem;"></div>
+            <div id="userCardBody" style="padding:1.25rem;overflow-y:auto;flex:1;min-height:0;"></div>
         </div>
     </div>
 
@@ -6135,11 +6151,15 @@
                 html = '<div class="cm-grid">' + cmItems.map(it => {
                     const isVid = /\.(mp4|mov|m4v|webm|ogv|3gp|mkv)(\?|$)/i.test(it.url) ||
                                   String(it.type || '').indexOf('video') >= 0;
+                    // Фото открываем встроенным просмотрщиком (data-zoom/data-full — те же
+                    // атрибуты, что и у снимков в переписке), а не новой вкладкой: так
+                    // между ними можно листать, не выходя из карточки.
                     return isVid
                         ? `<a class="cm-cell" href="${escapeHtml(it.url)}" target="_blank" title="${escapeHtml(it.name || 'Видео')}">
                                <video src="${escapeHtml(it.url)}" preload="metadata" muted></video><span class="cm-play">▶</span></a>`
-                        : `<a class="cm-cell" href="${escapeHtml(it.url)}" target="_blank" title="${escapeHtml(it.name || 'Фото')}">
-                               <img src="${escapeHtml(it.url)}" alt="" loading="lazy"></a>`;
+                        : `<span class="cm-cell" title="${escapeHtml(it.name || 'Фото')}">
+                               <img src="${escapeHtml(it.url)}" data-full="${escapeHtml(it.url)}" data-zoom
+                                    data-group="cm-media" alt="" loading="lazy"></span>`;
                 }).join('') + '</div>';
             } else if (cmKind === 'links') {
                 html = cmItems.map(it => `
