@@ -263,6 +263,48 @@ if ($action === 'upload') {
 // ── Админские действия ──────────────────────────────────────────────────────────
 if (!isAdmin($pdo, $userId)) { http_response_code(403); echo json_encode(['error' => 'Доступ только для администратора']); exit; }
 
+/**
+ * Куда легло обращение. Админ говорит: человек писал в поддержку, а обращения в
+ * списке нет. Причин может быть три: обращение создалось на другое имя (виджет
+ * заводит его по токену браузера и может не знать, кто это), сообщение ушло не в
+ * поддержку, а в личную переписку, либо его нет вовсе. Здесь видно всё сразу —
+ * по каждому обращению кто, сколько сообщений и когда последнее.
+ *
+ * Только администратору (проверка ниже по файлу общая) и только то, что он и так
+ * видит в разделе обращений.
+ */
+if ($action === 'threads-diag') {
+    $out = [];
+    try {
+        $rows = $pdo->query("SELECT id, name, email, user_id, created_at, last_at, admin_read_at
+                               FROM support_threads ORDER BY last_at DESC LIMIT 200")->fetchAll(PDO::FETCH_ASSOC);
+        foreach ($rows as $t) {
+            $n = 0; $lastFrom = ''; $lastAt = '';
+            try {
+                $st = $pdo->prepare("SELECT COUNT(*) FROM support_messages WHERE thread_id = ?");
+                $st->execute([(int)$t['id']]);
+                $n = (int)$st->fetchColumn();
+                $st = $pdo->prepare("SELECT sender, created_at FROM support_messages WHERE thread_id = ? ORDER BY id DESC LIMIT 1");
+                $st->execute([(int)$t['id']]);
+                $l = $st->fetch(PDO::FETCH_ASSOC) ?: [];
+                $lastFrom = (string)($l['sender'] ?? '');
+                $lastAt = (string)($l['created_at'] ?? '');
+            } catch (Exception $e) {}
+            $out[] = [
+                'обращение' => (int)$t['id'],
+                'имя' => (string)($t['name'] ?? ''),
+                'email' => (string)($t['email'] ?? ''),
+                'привязано_к_пользователю' => (string)($t['user_id'] ?? '') !== '',
+                'сообщений' => $n,
+                'последнее_от' => $lastFrom,
+                'последнее_когда' => $lastAt,
+            ];
+        }
+    } catch (Exception $e) { $out = ['ошибка' => substr($e->getMessage(), 0, 200)]; }
+    echo json_encode(['ok' => true, 'обращения' => $out], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
 if ($action === 'threads') {
     try {
         $rows = $pdo->query("SELECT * FROM support_threads ORDER BY last_at DESC LIMIT 1000")->fetchAll(PDO::FETCH_ASSOC);
