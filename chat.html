@@ -12878,6 +12878,11 @@
                                     ${chatImgHtml(m.attachment_url, m.attachment_name, groupAttr)}
                                 </div>
                             `;
+                        } else if (isVideoAttachment(m)) {
+                            // Личная переписка собирает вложения своим кодом, а не общим
+                            // attachmentHtmlFor: без этой ветки видео и здесь оставалось бы
+                            // строкой «скачать файл», хотя в группах плеер уже появился.
+                            attachmentHtml = videoAttachHtml(m.attachment_url, m.attachment_name);
                         } else {
                             attachmentHtml = `
                                 <div class="message-attachment">
