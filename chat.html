@@ -3773,6 +3773,9 @@
             body[data-wall="photo"] #chatContent::before { border-radius: 16px; }
         }
 
+        /* Нижняя панель разделов — только для телефона (включается ниже) */
+        .mob-tabbar { display: none; }
+
         /* 11. Телефон: та же округлость, но по мобильным пропорциям.
                Панель здесь на весь экран, поэтому скругляем не панели, а то, что
                внутри — папки, строки чатов, пузыри и поле ввода. */
@@ -3841,6 +3844,40 @@
             }
             .sel-bar button { border-radius: 999px; }
             body.selecting .chat-input { display: none; }
+
+            /* 14. Нижняя панель разделов, как в Telegram. Раньше «кабинет», «поиск»
+                   и «настройки» стояли кружками в самом верху — до них приходилось
+                   тянуться через весь экран. Теперь они внизу, под пальцем. */
+            .mob-tabbar {
+                display: flex; flex-shrink: 0; align-items: stretch;
+                background: #fff; border-top: 1px solid #ECECF2;
+                padding: 0.2rem 0.2rem max(0.2rem, env(safe-area-inset-bottom));
+            }
+            .mtab {
+                flex: 1; min-width: 0;
+                display: flex; flex-direction: column; align-items: center; gap: 0.15rem;
+                border: none; background: transparent; cursor: pointer;
+                font-family: inherit; font-size: 0.68rem; font-weight: 600;
+                color: #8A8F98; padding: 0.4rem 0.2rem; border-radius: 12px;
+            }
+            .mtab svg { width: 22px; height: 22px; }
+            .mtab.active { color: #047857; }
+            .mtab:active { background: #F0F4F2; }
+            body.dark .mob-tabbar { background: #202020; border-top-color: #333; }
+            body.dark .mtab { color: #9A9A9A; }
+            body.dark .mtab.active { color: #6EE7B7; }
+            body.dark .mtab:active { background: #2A2A2A; }
+
+            /* Внутри открытого диалога панель не нужна — место под переписку */
+            .chat-container.mobile-chat-open .mob-tabbar { display: none; }
+
+            /* Те же действия из верхней шапки убираем, чтобы не дублировались */
+            .chat-sb-head #sbCabinetBtn,
+            .chat-sb-head #sbSearchBtn,
+            .chat-sb-head #sbSettingsBtn { display: none; }
+
+            /* Плавающий «＋» поднимаем над панелью, иначе он ложится на неё */
+            .chat-sb-new { bottom: 80px; }
         }
         @keyframes psySheetIn { from { transform: translateY(100%); } to { transform: none; } }
         @media (prefers-reduced-motion: reduce) { .folder-picker { animation: none; } }
@@ -3931,6 +3968,28 @@
             </div>
             </div>
             <!-- Край для перетаскивания ширины списка -->
+            <!-- Нижняя панель разделов (телефон). В Telegram основные разделы стоят
+                 внизу, под большим пальцем, а не в верхней шапке — так до них можно
+                 дотянуться одной рукой. На компьютере панель скрыта: там те же
+                 действия остаются кружками в шапке списка. -->
+            <nav class="mob-tabbar" id="mobTabbar" aria-label="Разделы">
+                <button type="button" class="mtab active" onclick="mobTabChats()" aria-current="page">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 01-9 8.4 9.3 9.3 0 01-3.3-.6L3 21l1.8-5.1A8.2 8.2 0 013.5 11.5 8.4 8.4 0 0112 3.1a8.4 8.4 0 019 8.4z"/></svg>
+                    <span>Чаты</span>
+                </button>
+                <button type="button" class="mtab" onclick="openSbSearch()">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+                    <span>Поиск</span>
+                </button>
+                <button type="button" class="mtab" onclick="openChatSettings()">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06A1.65 1.65 0 005 15.4a1.65 1.65 0 00-1.51-1H3.4a2 2 0 110-4h.09A1.65 1.65 0 005 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06A1.65 1.65 0 009 5.4a1.65 1.65 0 001-1.51V3.4a2 2 0 114 0v.09A1.65 1.65 0 0015 5.4a1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06A1.65 1.65 0 0019 9c.36.24.83.4 1.31.4H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+                    <span>Настройки</span>
+                </button>
+                <button type="button" class="mtab" onclick="goToCabinet()">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8"/><path d="M5 10v9a1 1 0 001 1h3v-6h6v6h3a1 1 0 001-1v-9"/></svg>
+                    <span>Кабинет</span>
+                </button>
+            </nav>
             <div class="pane-resizer" id="paneResizer" title="Потяните, чтобы изменить ширину"></div>
         </div>
 
@@ -8755,6 +8814,13 @@
          * на телефоне — строкой под шапкой, как в мобильном Telegram. Флексбоксом это не
          * выразить: шапка лежит внутри .conversations-list, поэтому переносим сам элемент.
          */
+        /** Вкладка «Чаты» в нижней панели: мы уже здесь, поэтому просто возвращаем
+            список к началу — как это делает Telegram при повторном нажатии. */
+        function mobTabChats() {
+            const list = document.getElementById('conversationsList');
+            if (list) list.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
         function syncFolderPlacement() {
             const box = document.getElementById('chatFolders');
             const pane = document.getElementById('conversationsPane');
