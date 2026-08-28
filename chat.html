@@ -13172,6 +13172,28 @@
                     `;
                 }).join('');
                 if (stale()) return;
+                // Пустая переписка не должна выглядеть пустым экраном. Раньше при нуле
+                // сообщений в ленту уходила пустая строка, и человек видел ровно ничего —
+                // не отличить «сообщений нет» от «не загрузилось». А когда в списке
+                // диалогов при этом есть превью последнего сообщения, это точно сбой,
+                // и о нём надо сказать прямо, а не молчать.
+                if (!messages.length) {
+                    const ok = !!(page && page.ok);
+                    const preview = (convCache.find(c => String(c.user_id) === String(peerAtStart)) || {}).last_message;
+                    const html = ok && !preview
+                        ? '<div class="empty-state"><div><p style="color:#9CA3AF;">Здесь пока нет сообщений — напишите первым.</p></div></div>'
+                        : `<div class="empty-state"><div>
+                               <p style="color:#DC2626;">Не удалось загрузить переписку.</p>
+                               <p style="color:#9CA3AF;font-size:0.85rem;margin-top:0.35rem;">
+                                   ${ok ? 'Сервер вернул пустой список, хотя в диалоге есть сообщения.' : 'Сервер не ответил.'}
+                               </p>
+                               <button type="button" onclick="loadMessages()"
+                                       style="margin-top:0.8rem;border:1px solid #D1FAE5;background:transparent;color:#047857;border-radius:0.5rem;padding:0.45rem 1rem;font-family:inherit;font-weight:700;cursor:pointer;">
+                                   Попробовать ещё раз</button>
+                           </div></div>`;
+                    renderIfChanged(container, html);
+                    return;
+                }
                 renderIfChanged(container, dmHtml);
                 // Запоминаем разметку: при следующем открытии этой переписки она появится
                 // мгновенно, ещё до ответа сервера (см. showChatFromCache).
