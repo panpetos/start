@@ -126,8 +126,32 @@ if (!$known) {
     $sel = $cols ? implode(', ', array_map(fn($c) => 'm.' . $c, $cols)) : 'm.*';
 }
 
+/**
+ * Обращения в поддержку, написанные из списка чатов.
+ *
+ * Когда человек пишет «Тех поддержке» у себя в чатах, сообщение уходит НЕ конкретному
+ * администратору, а на служебного получателя 'support' — и ответы приходят от него же.
+ * Список диалогов у админа такие строки показывает (с именем человека и превью), а
+ * этот запрос искал строго переписку двух людей и не находил ничего: диалог
+ * открывался пустым, хотя в списке рядом висело «📷 Фото».
+ *
+ * Поэтому администратору добавляем в выборку и переписку этого человека с 'support'.
+ * Только администратору: иначе чужие обращения в поддержку смог бы прочитать любой.
+ */
+$isAdmin = false;
+try {
+    $st = $pdo->prepare("SELECT role FROM users WHERE id = ? LIMIT 1");
+    $st->execute([$userId]);
+    $isAdmin = ((string)$st->fetchColumn() === 'admin');
+} catch (Exception $e) {}
+
 $where = "((m.sender_id = ? AND m.receiver_id = ?) OR (m.sender_id = ? AND m.receiver_id = ?))";
 $args = [$userId, $peer, $peer, $userId];
+if ($isAdmin && $peer !== 'support') {
+    $where = "(" . $where . " OR (m.sender_id = ? AND m.receiver_id = 'support')"
+                   . " OR (m.sender_id = 'support' AND m.receiver_id = ?))";
+    array_push($args, $peer, $peer);
+}
 
 // Курсор: берём то, что старее указанной точки
 if ($before !== '') {
@@ -215,6 +239,14 @@ try {
                 $up->execute($flag === 'is_read'
                     ? [$peer, $userId]
                     : [date('Y-m-d H:i:s'), $peer, $userId]);
+                // Обращение, написанное «Тех поддержке», адресовано 'support', а не
+                // администратору лично: без этой строки админ прочитал бы сообщение,
+                // а счётчик непрочитанного у диалога продолжал бы гореть.
+                if ($isAdmin && $peer !== 'support') {
+                    $up->execute($flag === 'is_read'
+                        ? [$peer, 'support']
+                        : [date('Y-m-d H:i:s'), $peer, 'support']);
+                }
                 // Клиент рисует галочки по этим же полям — отдаём уже обновлённое состояние
                 foreach ($rows as &$row) {
                     if ((string)($row['sender_id'] ?? '') !== (string)$peer) continue;

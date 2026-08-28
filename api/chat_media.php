@@ -121,13 +121,28 @@ try {
             // а не падаем: карточка чата должна открыться в любом случае.
             cmOut(['ok' => true, 'data' => [], 'has_more' => false]);
         }
+        // Обращения в поддержку из списка чатов уходят служебному получателю 'support',
+        // а не конкретному администратору. Админу показываем и их — иначе вложения
+        // такой переписки в карточке не нашлись бы (см. пояснение в messages_page.php).
+        $isAdmin = false;
+        try {
+            $q = $pdo->prepare("SELECT role FROM users WHERE id = ? LIMIT 1");
+            $q->execute([$userId]);
+            $isAdmin = ((string)$q->fetchColumn() === 'admin');
+        } catch (Exception $e) {}
+        $where = "((m.sender_id = ? AND m.receiver_id = ?) OR (m.sender_id = ? AND m.receiver_id = ?))";
+        $args = [$userId, $peer, $peer, $userId];
+        if ($isAdmin && $peer !== 'support') {
+            $where = "(" . $where . " OR (m.sender_id = ? AND m.receiver_id = 'support')"
+                           . " OR (m.sender_id = 'support' AND m.receiver_id = ?))";
+            array_push($args, $peer, $peer);
+        }
         $st = $pdo->prepare("SELECT m.id, m.content, m.created_at, m.attachment_url, m.attachment_type,
                                     m.attachment_name, u.first_name, u.last_name
                                FROM messages m LEFT JOIN users u ON u.id = m.sender_id
-                              WHERE (m.sender_id = ? AND m.receiver_id = ?)
-                                 OR (m.sender_id = ? AND m.receiver_id = ?)
+                              WHERE $where
                               ORDER BY m.created_at DESC, m.id DESC LIMIT $SCAN");
-        $st->execute([$userId, $peer, $peer, $userId]);
+        $st->execute($args);
         $rows = $st->fetchAll(PDO::FETCH_ASSOC) ?: [];
     } else {
         cmOut(['ok' => false, 'error' => 'Не указан чат'], 400);
