@@ -3712,8 +3712,11 @@
         .message::after { content: ''; display: block; clear: both; }
         .message-time { font-size: 0.7rem; margin-top: 0; white-space: nowrap; }
 
-        /* 5. Плашка с датой: без рамки, полупрозрачная и залипает при прокрутке */
-        .day-sep { position: sticky; top: 0.2rem; z-index: 3; pointer-events: none; }
+        /* 5. Плашка с датой: без рамки, полупрозрачная.
+              Залипание (position: sticky) убрано: плашки — соседи в общем списке,
+              поэтому липли ВСЕ сразу и наезжали друг на друга, копясь слоями при
+              прокрутке. Одна «плавающая» дата требует, чтобы каждый день лежал в
+              своей обёртке, — это переделка разметки, пока просто едет со списком. */
         .day-sep span { border: none; background: rgba(0,0,0,0.10); color: #4B5563; font-weight: 600; }
         body.dark .day-sep span { background: rgba(255,255,255,0.12); color: #D0D0D0; }
 
@@ -3797,7 +3800,50 @@
             /* Поле ввода — пилюля, как в мобильном Telegram */
             .chat-input textarea { border-radius: 20px; }
             .chat-back-btn { border-radius: 50%; }
+
+            /* 12. Меню «⋮» на телефоне — нижняя шторка, а не крошечное выпадающее
+                   окошко у края экрана: до края пальцем не дотянуться, а пункты
+                   были мелкими. Позиция перебивает инлайновые left/top из JS,
+                   поэтому !important — иначе меню осталось бы у кнопки. */
+            .folder-picker {
+                position: fixed !important;
+                left: 0 !important; right: 0 !important;
+                top: auto !important; bottom: 0 !important;
+                width: 100% !important; min-width: 0; max-width: none;
+                max-height: 72vh;
+                border: none; border-radius: 20px 20px 0 0;
+                padding: 0.6rem 0.5rem max(0.6rem, env(safe-area-inset-bottom));
+                box-shadow: 0 -8px 40px rgba(0,0,0,0.35);
+                animation: psySheetIn 0.18s ease-out;
+            }
+            /* «Ручка» сверху — знак, что это шторка снизу */
+            .folder-picker::before {
+                content: ''; display: block; width: 36px; height: 4px;
+                margin: 0 auto 0.55rem; border-radius: 2px; background: rgba(0,0,0,0.18);
+            }
+            body.dark .folder-picker::before { background: rgba(255,255,255,0.22); }
+            /* Пункты крупнее — под палец, а не под курсор */
+            .folder-picker-row {
+                font-size: 0.98rem; padding: 0.8rem 0.9rem;
+                border-radius: 12px; gap: 0.7rem;
+            }
+            .folder-picker-row .fp-mark { width: 22px; font-size: 1.05rem; text-align: center; }
+
+            /* 13. Панель выделенных — снизу «таблеткой», как в Telegram, а не полосой
+                   сверху. На время выделения она заменяет поле ввода: писать всё
+                   равно нельзя, а действия оказываются под большим пальцем. */
+            .sel-bar {
+                order: 9;
+                border-bottom: none;
+                border-radius: 999px;
+                margin: 0.4rem 0.6rem max(0.5rem, env(safe-area-inset-bottom));
+                box-shadow: 0 6px 20px rgba(0,0,0,0.16);
+            }
+            .sel-bar button { border-radius: 999px; }
+            body.selecting .chat-input { display: none; }
         }
+        @keyframes psySheetIn { from { transform: translateY(100%); } to { transform: none; } }
+        @media (prefers-reduced-motion: reduce) { .folder-picker { animation: none; } }
     </style>
     <!-- Приложение: манифест, сервис-воркер, уведомления (в т.ч. на iOS) -->
     <script src="/js/app.js?v=20260821" defer></script>
