@@ -343,6 +343,19 @@
             border: 4px solid rgba(255,255,255,0.18); pointer-events: none;
         }
         .vn-progress.rec { border-color: #e94560; animation: vnPulse 1.1s infinite; }
+        /* Кнопка смены камеры — на самом кружке, в нижнем правом углу. Внутри круга,
+           а не под ним: ряд кнопок под кружком на телефоне и так переносится. */
+        .vn-flip {
+            position: absolute; right: 6px; bottom: 10px; z-index: 2;
+            width: 44px; height: 44px; border-radius: 50%; border: none; cursor: pointer;
+            background: rgba(18,18,26,0.6); color: #fff;
+            display: flex; align-items: center; justify-content: center;
+            transition: background 0.15s, transform 0.12s;
+        }
+        .vn-flip:hover { background: rgba(18,18,26,0.82); }
+        .vn-flip:active { transform: scale(0.92); }
+        .vn-flip:disabled { opacity: 0.5; cursor: default; }
+        .vn-flip svg { width: 22px; height: 22px; }
         @keyframes vnPulse { 0%,100% { opacity: 1; } 50% { opacity: 0.45; } }
         /* Ряд кнопок под кружком: на телефоне их бывает четыре (Отмена/Посмотреть/Заново/
            Отправить) — без переноса они вылезали за края экрана. Теперь переносятся и по центру. */
@@ -4392,6 +4405,19 @@
             <div class="vn-ring">
                 <video id="vnPreview" playsinline muted autoplay></video>
                 <div class="vn-progress" id="vnProgress"></div>
+                <!-- Смена камеры прямо на кружке, как в Telegram: до неё дотягиваешься
+                     тем же пальцем, что держит телефон. Показывается только если
+                     вторая камера действительно есть (см. paintVnFlipBtn). -->
+                <button type="button" id="vnFlipBtn" class="vn-flip" style="display:none;"
+                        onclick="flipVideoNoteCamera()" title="Переключить камеру" aria-label="Переключить камеру">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M20 7h-3l-1.4-2H8.4L7 7H4a1 1 0 00-1 1v10a1 1 0 001 1h16a1 1 0 001-1V8a1 1 0 00-1-1z"/>
+                        <path d="M9.4 13.6a2.8 2.8 0 014.6-2.5"/>
+                        <path d="M14.6 13.4a2.8 2.8 0 01-4.6 2.5"/>
+                        <path d="M14.3 8.9V11h-2.1"/>
+                        <path d="M9.7 18.1V16h2.1"/>
+                    </svg>
+                </button>
             </div>
             <div id="vnTime" style="color:#fff;font-weight:700;font-variant-numeric:tabular-nums;font-size:1rem;">00:00</div>
             <div id="vnHint" style="color:rgba(255,255,255,0.72);font-size:0.82rem;text-align:center;max-width:280px;line-height:1.45;">Нажмите «Записать» — кружок пишется до 60 секунд</div>
@@ -15783,7 +15809,12 @@
         // Теперь кадр собираем сами: вырезаем квадрат из центра и, если включено
         // зеркало, отражаем — ровно то, что человек видит на превью. Пишем уже
         // этот кадр, поэтому отправленное совпадает с показанным.
-        const vnMirror = true;        // всегда как в зеркале — так человек себя и видит
+        // Зеркалим только фронтальную камеру: себя человек привык видеть как в зеркале.
+        // Основную (тыловую) зеркалить нельзя — на ней снимают мир, и надписи в кадре
+        // ушли бы задом наперёд.
+        let vnMirror = true;
+        let vnFacing = 'user';        // 'user' — фронтальная, 'environment' — основная
+        let vnFlipping = false;       // защита от повторных нажатий, пока камера меняется
         let vnCanvas = null, vnCanvasCtx = null, vnRaf = 0, vnDrawing = false;
         const VN_SIZE = 480;          // сторона квадрата записи
 
@@ -15795,6 +15826,67 @@
             // Класс только на живой камере: у записи зеркало уже внутри файла,
             // второй раз отражать — значит показать не то, что отправится.
             if (prev) prev.classList.toggle('vn-mirror', vnMirror && !!prev.srcObject);
+        }
+
+        /** Показывать кнопку смены камеры только там, где вторая камера есть.
+            На ноутбуке с одной камерой она бы всё равно ничего не переключила. */
+        async function paintVnFlipBtn() {
+            const btn = vnEl('vnFlipBtn');
+            if (!btn) return;
+            let many = false;
+            try {
+                const devs = await navigator.mediaDevices.enumerateDevices();
+                many = devs.filter(d => d.kind === 'videoinput').length > 1;
+            } catch (e) {}
+            btn.style.display = many ? '' : 'none';
+        }
+
+        /** Переключить фронтальную камеру на основную и обратно.
+            Меняем ТОЛЬКО видеодорожку: звук идёт отдельной дорожкой и уже подключён
+            к записи — если пересоздать весь поток, у начатой записи пропадёт голос.
+            Поэтому переключать можно и прямо во время записи, как в Telegram. */
+        async function flipVideoNoteCamera() {
+            if (vnFlipping || !videoNoteStream) return;
+            const btn = vnEl('vnFlipBtn');
+            vnFlipping = true;
+            if (btn) btn.disabled = true;
+            const next = (vnFacing === 'user') ? 'environment' : 'user';
+            let cam = null;
+            try {
+                cam = await navigator.mediaDevices.getUserMedia({
+                    video: { width: { ideal: 640 }, height: { ideal: 640 }, facingMode: { ideal: next } },
+                    audio: false
+                });
+            } catch (e) {
+                vnFlipping = false;
+                if (btn) btn.disabled = false;
+                vnEl('vnHint').textContent = 'Вторую камеру включить не удалось';
+                return;
+            }
+            const track = cam.getVideoTracks()[0];
+            if (!track) {
+                try { cam.getTracks().forEach(t => t.stop()); } catch (e) {}
+                vnFlipping = false;
+                if (btn) btn.disabled = false;
+                return;
+            }
+            try {
+                videoNoteStream.getVideoTracks().forEach(t => {
+                    try { t.stop(); } catch (e) {}
+                    try { videoNoteStream.removeTrack(t); } catch (e) {}
+                });
+                videoNoteStream.addTrack(track);
+            } catch (e) {}
+            vnFacing = next;
+            vnMirror = (next === 'user');
+            const prev = vnEl('vnPreview');
+            if (prev) {
+                prev.srcObject = videoNoteStream;
+                try { await prev.play(); } catch (e) {}
+            }
+            paintVnMirrorBtn();
+            vnFlipping = false;
+            if (btn) btn.disabled = false;
         }
 
         /** Рисовать квадратный (и при желании зеркальный) кадр, пока идёт запись. */
@@ -15853,12 +15945,15 @@
             videoNoteBlob = null;
             videoNoteChunks = [];
             videoNoteSeconds = 0;
+            // Каждая запись начинается с фронтальной: кружок почти всегда снимают о себе
+            vnFacing = 'user';
+            vnMirror = true;
             const myGen = micGen;      // если за время ожидания разрешения тапом отменят — не залипнем
             let stream;
             try {
                 // квадратный запрос по кадру: круг из квадрата не обрезает лицо по бокам
                 stream = await navigator.mediaDevices.getUserMedia({
-                    video: { width: { ideal: 640 }, height: { ideal: 640 }, facingMode: 'user' },
+                    video: { width: { ideal: 640 }, height: { ideal: 640 }, facingMode: vnFacing },
                     audio: true
                 });
             } catch (e) {
@@ -15884,6 +15979,7 @@
             vnEl('vnAgainBtn').style.display = 'none';
             vnEl('vnProgress').classList.remove('rec');
             paintVnMirrorBtn();
+            paintVnFlipBtn();          // список камер виден только после выданного доступа
             vnEl('videoNoteModal').style.display = 'flex';
         }
 
@@ -15986,6 +16082,9 @@
             prev.src = vnPlaybackUrl;
             prev.currentTime = 0;
             prev.play().catch(() => {});
+            // Показывается запись, а не камера — переключать нечего
+            const flip = vnEl('vnFlipBtn');
+            if (flip) flip.style.display = 'none';
         }
 
         function replayVideoNote() {
@@ -16012,6 +16111,7 @@
                 prev.autoplay = true;
                 if (videoNoteStream) { prev.srcObject = videoNoteStream; prev.play().catch(() => {}); }
                 paintVnMirrorBtn();
+                paintVnFlipBtn();      // снова живая камера — кнопка смены нужна
             }
             vnEl('vnTime').textContent = '00:00';
             vnEl('vnHint').textContent = 'Нажмите «Записать» — кружок пишется до 60 секунд';
