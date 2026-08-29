@@ -15828,17 +15828,50 @@
             if (prev) prev.classList.toggle('vn-mirror', vnMirror && !!prev.srcObject);
         }
 
-        /** Показывать кнопку смены камеры только там, где вторая камера есть.
-            На ноутбуке с одной камерой она бы всё равно ничего не переключила. */
+        /** Показывать ли кнопку смены камеры.
+            На телефоне показываем всегда: iOS Safari отдаёт в enumerateDevices()
+            ОДНУ камеру, даже когда их две, — по этому списку кнопка не появилась бы
+            там, где она нужнее всего. На компьютере спрашиваем список: с одной
+            камерой переключать нечего. */
         async function paintVnFlipBtn() {
             const btn = vnEl('vnFlipBtn');
             if (!btn) return;
-            let many = false;
+            let show = false;
+            try { show = window.matchMedia('(pointer: coarse)').matches; } catch (e) {}
+            if (!show) {
+                try {
+                    const devs = await navigator.mediaDevices.enumerateDevices();
+                    show = devs.filter(d => d.kind === 'videoinput').length > 1;
+                } catch (e) {}
+            }
+            btn.style.display = show ? '' : 'none';
+        }
+
+        /** Получить поток со ВТОРОЙ камеры. Только видео: звук трогать нельзя. */
+        async function vnGetCamera(facing) {
+            const size = { width: { ideal: 640 }, height: { ideal: 640 } };
+            // exact — единственный способ заставить браузер взять другую камеру.
+            // С ideal он имеет право вернуть ту же самую, и на экране просто ничего
+            // не меняется — со стороны это выглядит как «кнопка не работает».
             try {
-                const devs = await navigator.mediaDevices.enumerateDevices();
-                many = devs.filter(d => d.kind === 'videoinput').length > 1;
+                return await navigator.mediaDevices.getUserMedia({
+                    video: Object.assign({ facingMode: { exact: facing } }, size), audio: false
+                });
             } catch (e) {}
-            btn.style.display = many ? '' : 'none';
+            // Запасной путь для браузеров, которые facingMode не понимают: берём любую
+            // камеру из списка, кроме той, что работает сейчас.
+            try {
+                const cur = videoNoteStream && videoNoteStream.getVideoTracks()[0];
+                const curId = (cur && cur.getSettings) ? (cur.getSettings().deviceId || '') : '';
+                const devs = await navigator.mediaDevices.enumerateDevices();
+                const other = devs.filter(d => d.kind === 'videoinput' && d.deviceId && d.deviceId !== curId)[0];
+                if (other) {
+                    return await navigator.mediaDevices.getUserMedia({
+                        video: Object.assign({ deviceId: { exact: other.deviceId } }, size), audio: false
+                    });
+                }
+            } catch (e) {}
+            return null;
         }
 
         /** Переключить фронтальную камеру на основную и обратно.
@@ -15851,23 +15884,13 @@
             vnFlipping = true;
             if (btn) btn.disabled = true;
             const next = (vnFacing === 'user') ? 'environment' : 'user';
-            let cam = null;
-            try {
-                cam = await navigator.mediaDevices.getUserMedia({
-                    video: { width: { ideal: 640 }, height: { ideal: 640 }, facingMode: { ideal: next } },
-                    audio: false
-                });
-            } catch (e) {
-                vnFlipping = false;
-                if (btn) btn.disabled = false;
-                vnEl('vnHint').textContent = 'Вторую камеру включить не удалось';
-                return;
-            }
-            const track = cam.getVideoTracks()[0];
+            const cam = await vnGetCamera(next);
+            const track = cam ? cam.getVideoTracks()[0] : null;
             if (!track) {
-                try { cam.getTracks().forEach(t => t.stop()); } catch (e) {}
+                if (cam) { try { cam.getTracks().forEach(t => t.stop()); } catch (e) {} }
                 vnFlipping = false;
                 if (btn) btn.disabled = false;
+                vnEl('vnHint').textContent = 'Вторая камера недоступна на этом устройстве';
                 return;
             }
             try {
@@ -15881,7 +15904,11 @@
             vnMirror = (next === 'user');
             const prev = vnEl('vnPreview');
             if (prev) {
-                prev.srcObject = videoNoteStream;
+                // Отдаём НОВЫЙ объект потока: если присвоить тот же самый, браузер
+                // вправе счесть, что ничего не изменилось, и оставить старую картинку.
+                // Превью беззвучное, поэтому в него кладём только видео.
+                try { prev.srcObject = new MediaStream(videoNoteStream.getVideoTracks()); }
+                catch (e) { prev.srcObject = videoNoteStream; }
                 try { await prev.play(); } catch (e) {}
             }
             paintVnMirrorBtn();
