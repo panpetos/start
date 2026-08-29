@@ -15847,30 +15847,44 @@
             btn.style.display = show ? '' : 'none';
         }
 
-        /** Получить поток со ВТОРОЙ камеры. Только видео: звук трогать нельзя. */
-        async function vnGetCamera(facing) {
+        let vnLastCamError = '';      // причина последней неудачи — показываем человеку
+
+        /** Взять поток с камеры `facing`, но НЕ с камеры `skipId` (её мы и меняем).
+            Только видео: звук идёт отдельной дорожкой, её трогать нельзя.
+            Пробуем три способа — устройства ведут себя по-разному. */
+        async function vnGetCamera(facing, skipId) {
             const size = { width: { ideal: 640 }, height: { ideal: 640 } };
-            // exact — единственный способ заставить браузер взять другую камеру.
-            // С ideal он имеет право вернуть ту же самую, и на экране просто ничего
-            // не меняется — со стороны это выглядит как «кнопка не работает».
+            const sameAsBefore = (s) => {
+                const t = s.getVideoTracks()[0];
+                const id = (t && t.getSettings) ? (t.getSettings().deviceId || '') : '';
+                return !!(skipId && id && id === skipId);
+            };
+            // 1. Строгий запрос стороны: единственный способ заставить взять другую камеру.
             try {
                 return await navigator.mediaDevices.getUserMedia({
                     video: Object.assign({ facingMode: { exact: facing } }, size), audio: false
                 });
-            } catch (e) {}
-            // Запасной путь для браузеров, которые facingMode не понимают: берём любую
-            // камеру из списка, кроме той, что работает сейчас.
+            } catch (e) { vnLastCamError = e && e.name ? e.name : 'ошибка'; }
+            // 2. Мягкий запрос: вдруг устройство не понимает строгий. Но проверяем,
+            //    что дали действительно другую камеру, а не ту же самую.
             try {
-                const cur = videoNoteStream && videoNoteStream.getVideoTracks()[0];
-                const curId = (cur && cur.getSettings) ? (cur.getSettings().deviceId || '') : '';
+                const s = await navigator.mediaDevices.getUserMedia({
+                    video: Object.assign({ facingMode: facing }, size), audio: false
+                });
+                if (!sameAsBefore(s)) return s;
+                try { s.getTracks().forEach(t => t.stop()); } catch (e) {}
+            } catch (e) { vnLastCamError = e && e.name ? e.name : vnLastCamError; }
+            // 3. По списку устройств: любая камера, кроме текущей.
+            try {
                 const devs = await navigator.mediaDevices.enumerateDevices();
-                const other = devs.filter(d => d.kind === 'videoinput' && d.deviceId && d.deviceId !== curId)[0];
+                const other = devs.filter(d => d.kind === 'videoinput' && d.deviceId && d.deviceId !== skipId)[0];
                 if (other) {
                     return await navigator.mediaDevices.getUserMedia({
                         video: Object.assign({ deviceId: { exact: other.deviceId } }, size), audio: false
                     });
                 }
-            } catch (e) {}
+                vnLastCamError = vnLastCamError || 'вторая камера не найдена';
+            } catch (e) { vnLastCamError = e && e.name ? e.name : vnLastCamError; }
             return null;
         }
 
@@ -15883,25 +15897,49 @@
             const btn = vnEl('vnFlipBtn');
             vnFlipping = true;
             if (btn) btn.disabled = true;
-            const next = (vnFacing === 'user') ? 'environment' : 'user';
-            const cam = await vnGetCamera(next);
-            const track = cam ? cam.getVideoTracks()[0] : null;
-            if (!track) {
-                if (cam) { try { cam.getTracks().forEach(t => t.stop()); } catch (e) {} }
-                vnFlipping = false;
-                if (btn) btn.disabled = false;
-                vnEl('vnHint').textContent = 'Вторая камера недоступна на этом устройстве';
-                return;
-            }
+            const prevFacing = vnFacing;
+            const next = (prevFacing === 'user') ? 'environment' : 'user';
+            vnLastCamError = '';
+
+            // Какая камера работает сейчас — запоминаем ДО остановки, иначе потом
+            // не отличить её от новой.
+            const cur = videoNoteStream.getVideoTracks()[0];
+            const curId = (cur && cur.getSettings) ? (cur.getSettings().deviceId || '') : '';
+
+            // Телефон обычно не даёт держать две камеры разом: пока жива фронтальная,
+            // запрос основной падает. Поэтому сначала гасим текущую и только потом
+            // просим другую. Раньше порядок был обратный — и переключение молча
+            // не срабатывало.
             try {
                 videoNoteStream.getVideoTracks().forEach(t => {
                     try { t.stop(); } catch (e) {}
                     try { videoNoteStream.removeTrack(t); } catch (e) {}
                 });
-                videoNoteStream.addTrack(track);
             } catch (e) {}
-            vnFacing = next;
-            vnMirror = (next === 'user');
+
+            let cam = await vnGetCamera(next, curId);
+            let facing = next;
+            if (!cam) {                       // не вышло — возвращаем прежнюю камеру,
+                cam = await vnGetCamera(prevFacing, '');   // иначе кружок остался бы без картинки
+                facing = prevFacing;
+            }
+            const track = cam ? cam.getVideoTracks()[0] : null;
+            if (!track) {
+                vnFlipping = false;
+                if (btn) btn.disabled = false;
+                vnEl('vnHint').textContent = 'Не удалось включить камеру'
+                    + (vnLastCamError ? ' (' + vnLastCamError + ')' : '');
+                return;
+            }
+            try { videoNoteStream.addTrack(track); } catch (e) {}
+            if (facing === prevFacing) {      // вернулись к той же — честно об этом говорим
+                vnEl('vnHint').textContent = 'Вторая камера недоступна'
+                    + (vnLastCamError ? ' (' + vnLastCamError + ')' : '');
+            } else {                          // видно, что переключение сработало
+                vnEl('vnHint').textContent = (facing === 'user') ? 'Камера: фронтальная' : 'Камера: основная';
+            }
+            vnFacing = facing;
+            vnMirror = (facing === 'user');
             const prev = vnEl('vnPreview');
             if (prev) {
                 // Отдаём НОВЫЙ объект потока: если присвоить тот же самый, браузер
