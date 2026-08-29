@@ -819,6 +819,15 @@
         const typingDiv = appendTyping();
         msgEl.scrollTop = msgEl.scrollHeight;
 
+        // Лента едет за ответом, только пока человек сам держится внизу. Раньше
+        // прокрутка стояла безусловно на каждом куске потока: стоило поднять переписку,
+        // чтобы читать, — следующий кусок дёргал обратно вниз.
+        let stickBottom = true;
+        const onStreamScroll = () => {
+            stickBottom = (msgEl.scrollHeight - msgEl.scrollTop - msgEl.clientHeight) <= 80;
+        };
+        msgEl.addEventListener('scroll', onStreamScroll, { passive: true });
+
         let fullText = '';
         try {
             const response = await fetch('/api/ai_chat.php?action=chat', {
@@ -838,6 +847,7 @@
                 } catch(e) {}
                 appendAiMsg(errMsg);
                 isStreaming = false;
+                msgEl.removeEventListener('scroll', onStreamScroll);
                 document.getElementById('sendBtn').disabled = false;
                 input.focus();
                 return;
@@ -873,7 +883,7 @@
                         if (delta) {
                             fullText += delta;
                             contentEl.innerHTML = renderMarkdown(fullText);
-                            msgEl.scrollTop = msgEl.scrollHeight;
+                            if (stickBottom) msgEl.scrollTop = msgEl.scrollHeight;
                         }
                     } catch(e) {}
                 }
@@ -896,6 +906,7 @@
         }
 
         isStreaming = false;
+        msgEl.removeEventListener('scroll', onStreamScroll);
         document.getElementById('sendBtn').disabled = false;
         input.focus();
     }

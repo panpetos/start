@@ -11952,6 +11952,10 @@
         function renderAiMessages() {
             const c = document.getElementById('messagesContainer');
             if (!c) return;
+            // Замеряем ДО перерисовки: после подстановки innerHTML высота уже другая.
+            // Прыгаем вниз только если человек и так был внизу — иначе перерисовка
+            // (например, когда ответ дописан) уносила от места, которое он читал.
+            const stickBottom = (c.scrollHeight - c.scrollTop - c.clientHeight) <= 80;
             dropRenderCache();
             if (!aiMessages.length) {
                 // Пустой экран с одной фразой ничего не подсказывает. Даём готовые начала —
@@ -11981,7 +11985,7 @@
                     ${aiHoverHtml(i, m.role !== 'user')}
                 </div>`;
             }).join('') + '<div id="aiTail"></div>';
-            c.scrollTop = c.scrollHeight;
+            if (stickBottom) c.scrollTop = c.scrollHeight;
             aiSpeakPaint();   // переписка перерисовалась — вернуть подсветку читаемому сейчас ответу
         }
 
@@ -12268,9 +12272,20 @@
             let statusHtml = '<div class="ai-typing">…</div>';
             let preface = '';           // что пошло не так с поиском — остаётся в переписке
             let sources = [];
+            // Лента едет за ответом, только пока человек сам держится внизу. Раньше
+            // прокрутка стояла безусловно на каждом куске потока: стоило поднять
+            // переписку, чтобы перечитать начало, — следующий кусок дёргал вниз, и
+            // длинный ответ прочитать было нельзя. Теперь достаточно прокрутить вверх,
+            // чтобы «прилипание» отключилось, и вернуться вниз, чтобы включить обратно.
+            const STICK_NEAR = 80;      // px — считаем, что человек всё ещё внизу
+            let stickBottom = true;
+            const onAiScroll = () => {
+                stickBottom = (c.scrollHeight - c.scrollTop - c.clientHeight) <= STICK_NEAR;
+            };
+            c.addEventListener('scroll', onAiScroll, { passive: true });
             const paint = () => {
                 bubble.innerHTML = statusHtml + ((preface || full) ? `<div>${msgText(preface + full)}</div>` : '');
-                c.scrollTop = c.scrollHeight;
+                if (stickBottom) c.scrollTop = c.scrollHeight;
             };
             paint();
             try {
@@ -12345,6 +12360,7 @@
             }
             aiBusy = false;
             aiAbort = null;
+            c.removeEventListener('scroll', onAiScroll);
             document.body.classList.remove('ai-answering');
             bubble.remove();
             // Источники дописываем в само сообщение: тогда они переживут перезагрузку
