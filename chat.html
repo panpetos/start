@@ -18550,10 +18550,27 @@
                         await grcConnect(id, p.name, true);
                     }
                 }
-                grcHint(grcPeers.size ? '' : 'Ждём остальных…');
-            } catch (e) {}
+                grcHint(grcStatusText((d.peers || []).length));
+            } catch (e) {
+                // Молчание тут дорого стоит: если опрос падает, человек вечно видит
+                // «ждём остальных» и не понимает, что связи с сервером просто нет.
+                grcHint('Нет связи с сервером — пробуем ещё раз…');
+            }
         }
         let grcSeen = {};
+
+        /** Что показать под заголовком звонка.
+            Номер комнаты виден намеренно: если два человека жмут «позвонить», но
+            попадают в разные комнаты, это единственное, по чему такое видно снаружи. */
+        function grcStatusText(peersTotal) {
+            const others = Math.max(0, (peersTotal || 0) - 1);
+            const connected = [...grcPeers.values()]
+                .filter(r => r.pc && (r.pc.connectionState === 'connected' || r.pc.iceConnectionState === 'connected')).length;
+            const room = grcRoom ? 'Комната №' + grcRoom : '';
+            if (!others) return room + ' · пока вы один — ждём остальных…';
+            if (connected) return '';
+            return room + ' · в комнате ещё ' + others + ' — соединяемся…';
+        }
 
         async function grcPing() {
             if (!grcRoom) return;
@@ -18598,7 +18615,9 @@
                 // Мы вошли позже всех, кто уже здесь → инициируем к каждому
                 for (const p of (d.peers || [])) await grcConnect(String(p.user_id), p.name, true);
                 grcCount();
-                grcHint(d.peers && d.peers.length ? '' : 'Ждём остальных…');
+                // В ответе join'а нас самих в списке нет — прибавляем, чтобы счёт
+                // совпадал с тем, что показывает опрос.
+                grcHint(grcStatusText((d.peers || []).length + 1));
             } catch (e) {
                 grcHint('Не удалось войти: ' + (e.message || 'нет связи'));
                 setTimeout(grcLeave, 2500); return;
