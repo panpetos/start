@@ -4242,23 +4242,6 @@
     <div id="videoModal" style="display:none;position:fixed;inset:0;background:rgba(18,42,34,0.6);z-index:1000;align-items:center;justify-content:center;padding:1rem;">
         <div style="background:#fff;border-radius:1.25rem;max-width:440px;width:100%;padding:2rem;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
             <div style="text-align:center;margin-bottom:1.25rem;">
-    <!-- ── Групповой звонок на своём сервере (см. api/rtc_room.php) ────────────
-         Раньше для группы открывался Яндекс.Телемост: человек уходил на чужой
-         сайт, создавал встречу руками и присылал ссылку. Для терапевтической
-         группы это и неудобно, и неуместно. Здесь всё внутри сервиса. -->
-    <div id="grcScreen" class="grc-screen">
-        <div class="grc-head">
-            <div class="grc-title"><b id="grcName">Групповой звонок</b><span id="grcCount"></span></div>
-            <div id="grcHint" class="grc-hint"></div>
-        </div>
-        <div class="grc-grid" id="grcGrid"></div>
-        <div class="grc-bar">
-            <button type="button" class="grc-btn" id="grcMicBtn" onclick="grcToggleMic()" title="Микрофон">🎤</button>
-            <button type="button" class="grc-btn" id="grcCamBtn" onclick="grcToggleCam()" title="Камера">📹</button>
-            <button type="button" class="grc-btn grc-hang" onclick="grcLeave()" title="Выйти из звонка">✕</button>
-        </div>
-    </div>
-
                 <div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#FF0000,#CC0000);display:flex;align-items:center;justify-content:center;margin:0 auto 0.75rem;font-size:2rem;">📹</div>
                 <h3 style="font-size:1.25rem;color:#1A1A1A;margin-bottom:0.25rem;">Видеовстреча в Телемост</h3>
                 <p style="font-size:0.875rem;color:#6B7280;line-height:1.5;">Создайте встречу в открывшейся вкладке Яндекс&nbsp;Телемоста и пришлите ссылку собеседнику.</p>
@@ -4280,6 +4263,23 @@
                 <a id="telemostOpenAgain" href="https://telemost.yandex.ru/" target="_blank" rel="noopener" style="flex:1;text-align:center;padding:0.625rem;border:1.5px solid #E5E7EB;border-radius:0.75rem;color:#374151;text-decoration:none;font-size:0.875rem;font-weight:600;">Открыть Телемост ↗</a>
                 <button onclick="closeVideoModal()" style="flex:1;padding:0.625rem;background:#F3F4F6;border:none;border-radius:0.75rem;color:#374151;font-weight:600;font-size:0.875rem;cursor:pointer;font-family:inherit;">Закрыть</button>
             </div>
+        </div>
+    </div>
+
+    <!-- ── Групповой звонок на своём сервере (см. api/rtc_room.php) ────────────
+         Раньше для группы открывался Яндекс.Телемост: человек уходил на чужой
+         сайт, создавал встречу руками и присылал ссылку. Для терапевтической
+         группы это и неудобно, и неуместно. Здесь всё внутри сервиса. -->
+    <div id="grcScreen" class="grc-screen">
+        <div class="grc-head">
+            <div class="grc-title"><b id="grcName">Групповой звонок</b><span id="grcCount"></span></div>
+            <div id="grcHint" class="grc-hint"></div>
+        </div>
+        <div class="grc-grid" id="grcGrid"></div>
+        <div class="grc-bar">
+            <button type="button" class="grc-btn" id="grcMicBtn" onclick="grcToggleMic()" title="Микрофон">🎤</button>
+            <button type="button" class="grc-btn" id="grcCamBtn" onclick="grcToggleCam()" title="Камера">📹</button>
+            <button type="button" class="grc-btn grc-hang" onclick="grcLeave()" title="Выйти из звонка">✕</button>
         </div>
     </div>
 
