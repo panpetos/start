@@ -1592,6 +1592,9 @@
         body.dark .ai-file { background: rgba(255,255,255,.08); }
         .ai-file.bad { color: #B91C1C; }
         body.dark .ai-file.bad { color: #FCA5A5; }
+        /* Картинка, которую нарисовал ассистент */
+        .ai-file-img { margin-top: .5rem; }
+        .ai-file-img img { max-width: min(320px, 100%); border-radius: .75rem; display: block; cursor: zoom-in; }
         /* Выбор модели — обычный список, а не окно с номерами */
         .ai-select { font-family: inherit; font-size: .8rem; font-weight: 600; line-height: 1;
                      padding: .35rem 1.4rem .35rem .6rem; border-radius: 999px;
@@ -11940,6 +11943,8 @@
                 ? `<div class="ai-file">📎 ${escapeHtml(short(f.name))} · читаю…</div>`
                 : f.error
                 ? `<div class="ai-file bad">📎 ${escapeHtml(short(f.name))} — ${escapeHtml(f.error)}</div>`
+                : f.image
+                ? `<div class="ai-file-img"><img src="${escapeAttr(f.url)}" alt="${escapeAttr(short(f.name))}" loading="lazy" onclick="window.open('${escapeAttr(f.url)}','_blank')"></div>`
                 : `<div class="ai-file">📎 ${escapeHtml(short(f.name))} · прочитано ${Math.round((f.chars || 0) / 1000 * 10) / 10} тыс. знаков</div>`
             ).join('');
         }
@@ -12354,6 +12359,68 @@
             renderAiBar();          // диалог мог получить название по первому вопросу
             renderAiMessages();
         }
+
+        /**
+         * Генерация картинок по описанию — pollinations.ai: бесплатный сервис без ключей
+         * и без оплаты (задача №91, пункт 6). Картинку показываем в самой переписке, как
+         * обычное вложение к ответу ассистента, а не отдельным окном.
+         */
+        function aiDrawImage() {
+            if (aiBusy) { toast('Дождитесь ответа ассистента'); return; }
+            const inp = document.getElementById('messageInput');
+            let promptText = (inp && inp.value || '').trim();
+            if (!promptText) {
+                promptText = (window.prompt('Что нарисовать? Опишите картинку.') || '').trim();
+            }
+            if (!promptText) return;
+            if (inp) { inp.value = ''; if (typeof autoGrowInput === 'function') autoGrowInput(inp); }
+            aiGenerateImage(promptText);
+        }
+        window.aiDrawImage = aiDrawImage;
+
+        async function aiGenerateImage(promptText) {
+            aiBusy = true;
+            document.body.classList.add('ai-answering');
+            aiMessages.push({ role: 'user', content: '🎨 Нарисуй: ' + promptText });
+            aiSave();
+            renderAiMessages();
+            const c = document.getElementById('messagesContainer');
+            const bubble = document.createElement('div');
+            bubble.className = 'message theirs';
+            bubble.innerHTML = '<div class="ai-status">🎨 Рисую…</div>';
+            c.appendChild(bubble);
+            c.scrollTop = c.scrollHeight;
+
+            // Сервис рисует по прямой ссылке-картинке — без бэкенда, ключей и запросов
+            // на оплату. seed — чтобы повторный такой же запрос не отдавал кэш прошлой картинки.
+            const seed = Math.floor(Math.random() * 1e9);
+            const url = 'https://image.pollinations.ai/prompt/' + encodeURIComponent(promptText)
+                + '?width=1024&height=1024&nologo=true&seed=' + seed;
+
+            const ok = await new Promise(resolve => {
+                const img = new Image();
+                const timer = setTimeout(() => resolve(false), 60000);
+                img.onload = () => { clearTimeout(timer); resolve(true); };
+                img.onerror = () => { clearTimeout(timer); resolve(false); };
+                img.src = url;
+            });
+
+            bubble.remove();
+            aiBusy = false;
+            document.body.classList.remove('ai-answering');
+
+            if (ok) {
+                aiMessages.push({ role: 'assistant', content: 'Готово 🎨',
+                    files: [{ name: promptText.slice(0, 60) || 'Изображение', url, image: true }] });
+            } else {
+                aiMessages.push({ role: 'assistant',
+                    content: 'Не получилось нарисовать: сервис не ответил вовремя. Попробуйте ещё раз или измените описание.' });
+            }
+            aiSave();
+            renderAiBar();
+            renderAiMessages();
+        }
+        window.aiGenerateImage = aiGenerateImage;
 
         async function openFavorites() {
             saveDraft(); restoreDraft(FAVORITES_ID);   // черновики не теряются при переключении
@@ -14719,6 +14786,7 @@
                 items.push({ ico: '🎥', label: 'Видеосообщение-кружок', run: () => startVideoNote() });
             }
             if (ai) items.push({ ico: '🎤', label: 'Продиктовать голосом', run: () => toggleDictation() });
+            if (ai) items.push({ ico: '🎨', label: 'Нарисовать картинку', run: () => aiDrawImage() });
             if (!mob) items.push({ ico: 'A', label: 'Форматирование текста', run: () => openComposer() });
             // Схему часто рисуют без остального оформления — пусть будет отдельным
             // пунктом, а не только кнопкой внутри окна форматирования.
