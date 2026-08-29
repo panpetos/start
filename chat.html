@@ -356,6 +356,61 @@
         .vn-flip:active { transform: scale(0.92); }
         .vn-flip:disabled { opacity: 0.5; cursor: default; }
         .vn-flip svg { width: 22px; height: 22px; }
+
+        /* ── Просмотр кружка во весь экран ──────────────────────────────────────
+           В ленте кружок маленький: что происходит в кадре, толком не разглядеть.
+           По нажатию открываем крупно, как в Telegram, и дальше кружки идут
+           подряд — закончился, включается следующий; кончились — окно закрылось. */
+        .vn-viewer {
+            position: fixed; inset: 0; z-index: 1450;
+            background: rgba(8,10,14,0.94);
+            display: none; align-items: center; justify-content: center;
+            flex-direction: column; gap: 0.9rem; padding: 1rem;
+        }
+        .vn-viewer.open { display: flex; }
+        .vnv-round {
+            position: relative; flex-shrink: 0;
+            width: min(86vw, 62vh); height: min(86vw, 62vh);
+            border-radius: 50%; overflow: hidden; background: #000; cursor: pointer;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.55);
+        }
+        .vnv-round video { width: 100%; height: 100%; object-fit: cover; display: block; }
+        /* Значок паузы появляется только на паузе — иначе он закрывал бы лицо */
+        .vnv-pause {
+            position: absolute; inset: 0; display: none;
+            align-items: center; justify-content: center;
+            background: rgba(0,0,0,0.34); color: #fff; font-size: 3rem;
+        }
+        .vn-viewer.paused .vnv-pause { display: flex; }
+        .vnv-track {
+            width: min(86vw, 62vh); height: 3px; border-radius: 3px;
+            background: rgba(255,255,255,0.22); overflow: hidden; flex-shrink: 0;
+        }
+        .vnv-track i { display: block; height: 100%; width: 0; background: #fff; border-radius: 3px; }
+        .vnv-meta {
+            display: flex; align-items: center; gap: 0.8rem;
+            color: rgba(255,255,255,0.8); font-size: 0.85rem;
+            font-variant-numeric: tabular-nums;
+        }
+        .vnv-close {
+            position: absolute; top: max(0.8rem, env(safe-area-inset-top)); right: 0.9rem;
+            width: 42px; height: 42px; border-radius: 50%; border: none; cursor: pointer;
+            background: rgba(255,255,255,0.14); color: #fff; font-size: 1.15rem;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .vnv-close:hover { background: rgba(255,255,255,0.26); }
+        .vnv-nav {
+            position: absolute; top: 50%; transform: translateY(-50%);
+            width: 46px; height: 46px; border-radius: 50%; border: none; cursor: pointer;
+            background: rgba(255,255,255,0.12); color: #fff; font-size: 1.7rem; line-height: 1;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .vnv-nav:hover { background: rgba(255,255,255,0.24); }
+        .vnv-nav:disabled { opacity: 0.28; cursor: default; }
+        .vnv-prev { left: 0.6rem; }
+        .vnv-next { right: 0.6rem; }
+        /* Под окном переписка скроллиться не должна */
+        body.vnv-open { overflow: hidden; }
         @keyframes vnPulse { 0%,100% { opacity: 1; } 50% { opacity: 0.45; } }
         /* Ряд кнопок под кружком: на телефоне их бывает четыре (Отмена/Посмотреть/Заново/
            Отправить) — без переноса они вылезали за края экрана. Теперь переносятся и по центру. */
@@ -4429,6 +4484,23 @@
                 <button id="vnAgainBtn" onclick="redoVideoNote()" class="vn-btn vn-btn-ghost" style="display:none;" title="Записать заново">↻ Заново</button>
                 <button id="vnSendBtn" onclick="sendVideoNote()" class="vn-btn vn-btn-send" style="display:none;" title="Отправить кружок">Отправить</button>
             </div>
+        </div>
+    </div>
+
+    <!-- Просмотр кружка во весь экран: в ленте он маленький, лица не рассмотреть.
+         Кружки идут подряд — закончился, сам включается следующий; кончились — закрываемся. -->
+    <div id="vnViewer" class="vn-viewer" onclick="closeVnViewer(event)">
+        <button type="button" class="vnv-close" onclick="event.stopPropagation();closeVnViewer()" aria-label="Закрыть">✕</button>
+        <button type="button" class="vnv-nav vnv-prev" id="vnvPrev" onclick="event.stopPropagation();vnvStep(-1)" aria-label="Предыдущий">‹</button>
+        <button type="button" class="vnv-nav vnv-next" id="vnvNext" onclick="event.stopPropagation();vnvStep(1)" aria-label="Следующий">›</button>
+        <div class="vnv-round" onclick="event.stopPropagation();vnvTogglePlay()">
+            <video id="vnvVideo" playsinline></video>
+            <div class="vnv-pause">▶</div>
+        </div>
+        <div class="vnv-track"><i id="vnvBar"></i></div>
+        <div class="vnv-meta">
+            <span id="vnvTime">0:00</span>
+            <span id="vnvCount"></span>
         </div>
     </div>
 
@@ -16275,7 +16347,7 @@
             // Скорость у кружка своя кнопка, как у голосового: значение общее на все записи,
             // раньше менять её у кружка было нечем (фидбэк админа).
             return `
-                <div class="video-note" onclick="toggleVideoNotePlay(this)" title="Видеосообщение">
+                <div class="video-note" onclick="openVnViewer(this)" title="Смотреть во весь экран">
                     <video src="${escapeHtml(url)}" playsinline preload="auto"></video>
                     <div class="vn-play">▶</div>
                     ${label ? `<div class="vn-dur">${escapeHtml(label)}</div>` : ''}
@@ -16437,6 +16509,104 @@
                 updateStickyPlayer();
             }
         }
+
+        // ── Просмотр кружков во весь экран ───────────────────────────────────────
+        // Список берём из самой ленты, в том порядке, в каком кружки идут в переписке.
+        let vnvList = [];
+        let vnvIndex = -1;
+
+        function openVnViewer(box) {
+            const first = box ? box.querySelector('video') : null;
+            const url = first ? first.getAttribute('src') : '';
+            if (!url) return;
+            // В ленте ничего играть не должно: иначе звук пойдёт в два голоса
+            pauseAnyVideoNote();
+            if (currentPlayingVoiceId) stopVoicePlayer(currentPlayingVoiceId, false);
+            playQueueOn = false;          // очередь ленты тут не при делах
+            vnvList = [...document.querySelectorAll('.video-note video')]
+                .map(v => v.getAttribute('src')).filter(Boolean);
+            vnvIndex = Math.max(0, vnvList.indexOf(url));
+            const wrap = document.getElementById('vnViewer');
+            if (wrap) wrap.classList.add('open');
+            document.body.classList.add('vnv-open');
+            vnvPlay();
+        }
+
+        function vnvPlay() {
+            const v = document.getElementById('vnvVideo');
+            const wrap = document.getElementById('vnViewer');
+            const url = vnvList[vnvIndex];
+            if (!v || !wrap) return;
+            if (!url) { closeVnViewer(); return; }
+            wrap.classList.remove('paused');
+            v.src = url;
+            try { v.playbackRate = voiceSpeed; } catch (e) {}   // скорость общая с голосовыми
+            v.play().catch(() => {});
+            const bar = document.getElementById('vnvBar');
+            if (bar) bar.style.width = '0';
+            vnvPaintMeta();
+        }
+
+        function vnvPaintMeta() {
+            const cnt = document.getElementById('vnvCount');
+            if (cnt) cnt.textContent = vnvList.length > 1 ? (vnvIndex + 1) + ' / ' + vnvList.length : '';
+            const p = document.getElementById('vnvPrev');
+            const n = document.getElementById('vnvNext');
+            if (p) p.disabled = vnvIndex <= 0;
+            if (n) n.disabled = vnvIndex >= vnvList.length - 1;
+        }
+
+        /** Шаг по кружкам. Ушли за последний — закрываемся: так это и должно
+            заканчиваться, а не замирать на чёрном кадре. */
+        function vnvStep(d) {
+            const i = vnvIndex + d;
+            if (i < 0 || i >= vnvList.length) { closeVnViewer(); return; }
+            vnvIndex = i;
+            vnvPlay();
+        }
+
+        function vnvTogglePlay() {
+            const v = document.getElementById('vnvVideo');
+            const wrap = document.getElementById('vnViewer');
+            if (!v || !wrap) return;
+            if (v.paused) { v.play().catch(() => {}); wrap.classList.remove('paused'); }
+            else { v.pause(); wrap.classList.add('paused'); }
+        }
+
+        function closeVnViewer(evt) {
+            // Нажатие по самому кружку — это пауза, закрывает только фон и крестик
+            if (evt && evt.target && evt.target.id !== 'vnViewer') return;
+            const v = document.getElementById('vnvVideo');
+            const wrap = document.getElementById('vnViewer');
+            if (v) {
+                try { v.pause(); } catch (e) {}
+                v.removeAttribute('src');
+                try { v.load(); } catch (e) {}   // иначе файл продолжает качаться в фоне
+            }
+            if (wrap) wrap.classList.remove('open', 'paused');
+            document.body.classList.remove('vnv-open');
+            vnvList = [];
+            vnvIndex = -1;
+        }
+
+        (function wireVnViewer() {
+            const v = document.getElementById('vnvVideo');
+            if (!v) return;
+            v.addEventListener('timeupdate', () => {
+                const bar = document.getElementById('vnvBar');
+                if (bar && v.duration) bar.style.width = Math.min(100, (v.currentTime / v.duration) * 100) + '%';
+                const t = document.getElementById('vnvTime');
+                if (t) t.textContent = formatDuration(Math.floor(v.currentTime || 0));
+            });
+            v.addEventListener('ended', () => vnvStep(1));
+            document.addEventListener('keydown', (e) => {
+                if (!document.body.classList.contains('vnv-open')) return;
+                if (e.key === 'Escape') closeVnViewer();
+                else if (e.key === 'ArrowRight') vnvStep(1);
+                else if (e.key === 'ArrowLeft') vnvStep(-1);
+                else if (e.key === ' ') { e.preventDefault(); vnvTogglePlay(); }
+            });
+        })();
 
         /** Вернуть воспроизведение кружка после перерисовки списка сообщений. */
         function restoreVideoNote() {
