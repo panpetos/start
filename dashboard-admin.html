@@ -359,6 +359,9 @@
                     <button class="sidebar-item" data-tab="tariffs" onclick="switchTab('tariffs')">
                         <span class="sidebar-item-icon">📋</span> Тарифы
                     </button>
+                    <button class="sidebar-item" data-tab="payouts" onclick="switchTab('payouts')">
+                        <span class="sidebar-item-icon">💸</span> Выплаты психологам
+                    </button>
                 </div>
 
                 <div class="sidebar-group">
@@ -574,7 +577,7 @@
             document.getElementById('sidebar').classList.remove('open');
             document.getElementById('sidebarOverlay').classList.remove('open');
             wrapTablesSoon();
-            ({ overview:renderOverview, support:renderSupport, users:renderUsers, psychologists:renderPsych, tariffs:renderTariffs, robokassa:renderRobokassa, yookassa:renderYookassa, devtasks:renderDevTasks, appointments:renderAppointments, replacements:renderReplacements, supervision:renderSupervision, calls:renderCalls, payments:renderPayments, subscribers:renderSubscribers, referrals:renderReferrals, activity:renderActivity, notes:renderNotes, notifications:renderNotifications, adminperms:renderAdminPerms, metrics:renderMetrics, sitemap:renderSitemap, content:renderContentMod, complaints:renderComplaints }[tab])();
+            ({ overview:renderOverview, support:renderSupport, users:renderUsers, psychologists:renderPsych, tariffs:renderTariffs, robokassa:renderRobokassa, yookassa:renderYookassa, devtasks:renderDevTasks, appointments:renderAppointments, replacements:renderReplacements, supervision:renderSupervision, calls:renderCalls, payments:renderPayments, payouts:renderPayouts, subscribers:renderSubscribers, referrals:renderReferrals, activity:renderActivity, notes:renderNotes, notifications:renderNotifications, adminperms:renderAdminPerms, metrics:renderMetrics, sitemap:renderSitemap, content:renderContentMod, complaints:renderComplaints }[tab])();
         }
 
         /**
@@ -2796,6 +2799,59 @@
         async function apiPostTo(url, action, body){
             try { const r = await fetch(url+'?action='+action, { method:'POST', headers:{'Content-Type':'application/json'}, credentials:'include', body: JSON.stringify(body) }); return await r.json(); }
             catch(e){ return { error:'сеть' }; }
+        }
+
+        // ── Выплаты психологам ───────────────────────────────────────────────
+        // Начисления считаются по фактически оплаченным записям, поэтому раздел
+        // работает при любом эквайринге — и пока провайдер не выбран, выплаты
+        // можно делать вручную, ничего не теряя из виду.
+        const PAYOUTS_API = '/api/payouts.php';
+        async function renderPayouts(){
+            let res = {};
+            try { res = await (await fetch(PAYOUTS_API + '?action=summary', { credentials:'include' })).json(); } catch(e){}
+            if (!res.ok) { document.getElementById('content').innerHTML = '<div class="empty">Не удалось загрузить</div>'; return; }
+            const rows = res.data || [];
+            const pct = res['комиссия_%'] ?? 0;
+            const sum = (k) => rows.reduce((a, r) => a + (Number(r[k]) || 0), 0);
+
+            const table = rows.length ? `<table id="dataTable"><thead><tr>
+                    <th>Психолог</th><th>Сессий</th><th>Комиссия платформы</th>
+                    <th>Выплачено</th><th>К выплате</th><th>Действия</th></tr></thead><tbody>` +
+                rows.map(r => `<tr>
+                    <td>${esc(r['имя'])}</td>
+                    <td>${r['сессий']}</td>
+                    <td class="muted">${fmtMoney(r['комиссия_платформы'])} ₽</td>
+                    <td class="muted">${fmtMoney(r['выплачено'])} ₽</td>
+                    <td><b style="color:#047857;">${fmtMoney(r['к_выплате'])} ₽</b></td>
+                    <td>${Number(r['к_выплате']) > 0
+                        ? `<button class="btn-sm btn-purple" onclick="payoutMarkPaid('${esc(r.psychologist_id)}','${esc(r['имя'])}',${r['к_выплате']})">Отметить выплаченным</button>`
+                        : '<span class="muted">—</span>'}</td>
+                </tr>`).join('') + '</tbody></table>'
+                : '<div class="empty">Пока нет оплаченных сессий — начислять нечего.</div>';
+
+            document.getElementById('content').innerHTML =
+                `<div class="note">💸 Начисления считаются автоматически по <b>фактически оплаченным</b> сессиям:
+                    комиссия платформы — ${pct}%, остальное причитается психологу. Раздел не зависит от того,
+                    какой эквайринг подключён, поэтому выплаты можно делать и вручную — перевёл и отметил здесь.</div>` +
+                `<div class="stats-grid" style="margin-bottom:1rem;">
+                    <div class="stat"><div class="v">${fmtMoney(sum('к_выплате'))} ₽</div><div class="l">К выплате сейчас</div></div>
+                    <div class="stat"><div class="v">${fmtMoney(sum('выплачено'))} ₽</div><div class="l">Уже выплачено</div></div>
+                    <div class="stat"><div class="v">${fmtMoney(sum('комиссия_платформы'))} ₽</div><div class="l">Комиссия платформы</div></div>
+                    <div class="stat"><div class="v">${pct}%</div><div class="l">Ставка комиссии</div></div>
+                 </div>` +
+                `<div style="margin-bottom:1rem;display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;">
+                    <button class="btn-sm btn-outline" onclick="renderPayouts()">↻ Обновить</button>
+                    <span class="muted" style="font-size:0.8rem;">Начисления досоздаются сами при открытии раздела.</span>
+                 </div>` +
+                panel('По психологам', 'sPayouts', table);
+        }
+
+        async function payoutMarkPaid(psyId, name, amount){
+            if (!confirm('Отметить выплаченными ' + fmtMoney(amount) + ' ₽ для «' + name + '»?\n\n'
+                + 'Деньги перечисляются отдельно (переводом или через эквайринг) — здесь только отметка в учёте.')) return;
+            const note = prompt('Комментарий к выплате (необязательно): например, номер перевода') || '';
+            const r = await apiPostTo(PAYOUTS_API, 'mark-paid', { psychologist_id: psyId, note });
+            if (r.ok) renderPayouts(); else alert(r.error || 'Не удалось отметить');
         }
 
         // ── Уведомления: каналы + шаблоны сообщений ──────────────────────────
