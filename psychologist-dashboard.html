@@ -305,6 +305,19 @@
                 </div>
             </div>
 
+            <!-- Начисления. Раньше психолог видел только «доход за месяц» и должен был
+                 верить на слово; здесь он видит те же строки, что и админ в разделе
+                 выплат: с какой оплаченной сессии сколько начислено и что уже выплачено. -->
+            <div class="card">
+                <h2>
+                    <i data-lucide="wallet" style="width: 24px; height: 24px;"></i>
+                    Мои начисления
+                </h2>
+                <div id="payoutsBox">
+                    <div class="loading">Загрузка...</div>
+                </div>
+            </div>
+
             <div class="card">
                 <h2>
                     <i data-lucide="graduation-cap" style="width: 24px; height: 24px;"></i>
@@ -410,6 +423,7 @@
                     await loadCommission();
                     await loadAppointments();
                     await initChannel();
+                    loadMyPayouts();   // не await: начисления не должны задерживать кабинет
 
                     if (typeof lucide !== 'undefined') {
                         lucide.createIcons();
@@ -418,6 +432,63 @@
                     console.error('Init error:', error);
                     window.location.href = '/login.html';
                 }
+            }
+
+            // ── Мои начисления ──────────────────────────────────────────────
+            // Данные те же, что видит администратор: начисление создаётся по факту
+            // успешной оплаты, комиссия фиксируется в момент начисления.
+            function payMoney(n) {
+                return (Math.round((Number(n) || 0) * 100) / 100)
+                    .toLocaleString('ru-RU', { minimumFractionDigits: 0, maximumFractionDigits: 2 }) + ' ₽';
+            }
+
+            async function loadMyPayouts() {
+                const box = document.getElementById('payoutsBox');
+                if (!box) return;
+                let d = null;
+                try {
+                    d = await (await fetch('/api/payouts.php?action=mine', { credentials: 'include' })).json();
+                } catch (e) {}
+                if (!d || !d.ok) { box.innerHTML = '<p style="color:var(--d-text-sec);font-size:0.88rem;">Не удалось загрузить начисления.</p>'; return; }
+
+                const t = d['итого'] || {};
+                const rows = (d.data || []).slice(0, 8);
+                const npd = d['налоговый_статус'] || {};
+                const npdColor = { yes: '#047857', no: '#b91c1c', none: '#b45309' }[npd['код']] || 'var(--d-text-sec)';
+                // Статус НПД показываем только когда он о чём-то говорит: «не проверен»
+                // — это про нашу проверку, а не про человека, и пугать им незачем.
+                const npdLine = (npd['код'] && npd['код'] !== 'unknown')
+                    ? `<div style="font-size:0.8rem;color:${npdColor};margin-bottom:0.6rem;">Налоговый статус: ${escapeChannelHtml(npd['текст'] || '')}${
+                        npd['код'] === 'none' ? ' — <a href="/edit-profile.html" style="color:#047857;font-weight:600;">укажите ИНН</a>, без него выплату отправить нельзя' : ''}</div>`
+                    : '';
+
+                const list = rows.length ? rows.map(r => {
+                    const dt = r.date_time ? new Date(r.date_time.replace(' ', 'T')) : null;
+                    const when = dt && !isNaN(dt) ? dt.toLocaleDateString('ru', { day: 'numeric', month: 'short' }) : '—';
+                    const paid = r.status === 'paid';
+                    return `<div style="display:flex;justify-content:space-between;gap:0.5rem;padding:0.35rem 0;border-bottom:1px solid var(--d-border);font-size:0.85rem;">
+                        <span style="color:var(--d-text-sec);">${when} · сессия ${payMoney(r.amount_total)}</span>
+                        <span><b>${payMoney(r.amount_to_psy)}</b>
+                            <span style="color:${paid ? '#047857' : 'var(--d-text-sec)'};font-size:0.78rem;">${paid ? '✓ выплачено' : 'ждёт выплаты'}</span></span>
+                    </div>`;
+                }).join('') : '<p style="color:var(--d-text-sec);font-size:0.86rem;">Пока нет оплаченных сессий.</p>';
+
+                box.innerHTML =
+                    `<div style="display:flex;gap:0.6rem;flex-wrap:wrap;margin-bottom:0.7rem;">
+                        <div style="flex:1;min-width:110px;background:var(--d-panel-alt);border-radius:0.6rem;padding:0.5rem 0.7rem;">
+                            <div style="font-weight:700;color:#047857;">${payMoney(t['к_выплате'])}</div>
+                            <div style="font-size:0.75rem;color:var(--d-text-sec);">К выплате</div>
+                        </div>
+                        <div style="flex:1;min-width:110px;background:var(--d-panel-alt);border-radius:0.6rem;padding:0.5rem 0.7rem;">
+                            <div style="font-weight:700;">${payMoney(t['выплачено'])}</div>
+                            <div style="font-size:0.75rem;color:var(--d-text-sec);">Уже выплачено</div>
+                        </div>
+                        <div style="flex:1;min-width:110px;background:var(--d-panel-alt);border-radius:0.6rem;padding:0.5rem 0.7rem;">
+                            <div style="font-weight:700;">${payMoney(t['начислено'])}</div>
+                            <div style="font-size:0.75rem;color:var(--d-text-sec);">Всего начислено</div>
+                        </div>
+                     </div>` + npdLine + list +
+                    `<p style="font-size:0.75rem;color:var(--d-text-sec);margin-top:0.6rem;">Суммы указаны после вычета комиссии платформы. Налог со своего дохода вы платите сами через «Мой налог».</p>`;
             }
 
             // ── Мой канал (задача #29, MVP) ──

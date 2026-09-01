@@ -18,6 +18,7 @@
  *   GET  ?action=mine               — свои начисления (психолог)
  *   POST ?action=sync               — досоздать начисления по оплаченным записям (админ)
  *   POST ?action=mark-paid {ids, note} — отметить выплаченными (админ)
+ *   POST ?action=npd-recheck {psychologist_id} — перепроверить статус НПД в ФНС (админ)
  */
 
 header('Content-Type: application/json; charset=utf-8');
@@ -32,6 +33,7 @@ if (!function_exists('getDB') && !function_exists('getDbConnection') && !functio
     require_once __DIR__ . '/db.php';
 }
 require_once __DIR__ . '/settings_lib.php';
+require_once __DIR__ . '/npd_lib.php';
 if (!function_exists('psy_schema_once')) require_once __DIR__ . '/schema_util.php';
 
 $pdo = function_exists('getDB') ? getDB()
@@ -54,7 +56,13 @@ try {
 $isAdmin = ($role === 'admin');
 
 // ── Схема ────────────────────────────────────────────────────────────────────
-psy_schema_once('psy_payouts_schema_v1', 3600, function () use ($pdo) {
+psy_schema_once('psy_payouts_schema_v2', 3600, function () use ($pdo) {
+    $pdo->exec("CREATE TABLE IF NOT EXISTS psy_npd_checks (
+        psychologist_id VARCHAR(64) NOT NULL PRIMARY KEY,
+        inn VARCHAR(16) NULL,
+        status VARCHAR(8) NOT NULL DEFAULT 'unknown',   -- yes | no | unknown | none
+        checked_at DATETIME NULL
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
     $pdo->exec("CREATE TABLE IF NOT EXISTS psy_payouts (
         id INT AUTO_INCREMENT PRIMARY KEY,
         appointment_id VARCHAR(64) NOT NULL,
@@ -78,6 +86,97 @@ function poCommissionPct(PDO $pdo) {
     if ($v < 0) $v = 0;
     if ($v > 100) $v = 100;
     return $v;
+}
+
+/**
+ * ИНН психолога. Лежит в psychologist_credentials (type='inn', сам ИНН в поле name) —
+ * туда его кладёт регистрация; колонки psychologists.inn на проде нет. Ищем и по
+ * psychologist_id, и по user_id: у старых записей заполнено только одно из двух.
+ */
+function poPsyInn(PDO $pdo, string $pid): string {
+    $uid = 0;
+    try {
+        $st = $pdo->prepare("SELECT user_id FROM psychologists WHERE id = ? LIMIT 1");
+        $st->execute([$pid]);
+        $uid = $st->fetchColumn();
+    } catch (Exception $e) {}
+    try {
+        $st = $pdo->prepare("SELECT name FROM psychologist_credentials
+                              WHERE type = 'inn' AND (psychologist_id = ? OR user_id = ?)
+                              ORDER BY id DESC LIMIT 1");
+        $st->execute([$pid, $uid ?: 0]);
+        return preg_replace('/\D+/', '', (string)$st->fetchColumn());
+    } catch (Exception $e) {}
+    return '';
+}
+
+/** Сохранённый статус НПД. Только чтение кэша, без похода в ФНС. */
+function poNpdCached(PDO $pdo, string $pid): array {
+    try {
+        $st = $pdo->prepare("SELECT inn, status, checked_at FROM psy_npd_checks WHERE psychologist_id = ? LIMIT 1");
+        $st->execute([$pid]);
+        $r = $st->fetch(PDO::FETCH_ASSOC);
+        if ($r) return ['инн' => (string)$r['inn'], 'статус' => (string)$r['status'], 'проверено' => $r['checked_at']];
+    } catch (Exception $e) {}
+    return ['инн' => '', 'статус' => 'unknown', 'проверено' => null];
+}
+
+/**
+ * Проверить статус самозанятого в ФНС и запомнить.
+ *
+ * Платформа-агент обязана убедиться, что исполнитель на момент расчёта — плательщик
+ * НПД: иначе чек уйдёт не с тем признаком, а человеку прилетит доход, который он не
+ * сможет провести через «Мой налог». Ответ кэшируем на неделю: у ФНС нет обязательств
+ * по нагрузке, а статус меняется редко.
+ *
+ * status: yes — подтверждён, no — ФНС статус не подтверждает, unknown — сервис не
+ * ответил, none — ИНН вообще не указан.
+ */
+function poNpdCheck(PDO $pdo, string $pid, bool $force = false): array {
+    $cached = poNpdCached($pdo, $pid);
+    $inn = poPsyInn($pdo, $pid);
+    if ($inn === '') {
+        poNpdRemember($pdo, $pid, '', 'none');
+        return ['инн' => '', 'статус' => 'none', 'проверено' => null];
+    }
+    // «unknown» не считаем свежим: сервис мог просто моргнуть, спрашиваем снова.
+    if (!$force && $cached['инн'] === $inn && $cached['проверено']
+        && $cached['статус'] !== 'unknown'
+        && strtotime((string)$cached['проверено']) > time() - 7 * 86400) {
+        return $cached;
+    }
+    if (!validInn($inn)) {
+        poNpdRemember($pdo, $pid, $inn, 'no');
+        return ['инн' => $inn, 'статус' => 'no', 'проверено' => date('Y-m-d H:i:s'), 'note' => 'ИНН не проходит проверку контрольной суммы'];
+    }
+    $res = checkSelfEmployed($inn);
+    $status = $res === true ? 'yes' : ($res === false ? 'no' : 'unknown');
+    poNpdRemember($pdo, $pid, $inn, $status);
+    return ['инн' => $inn, 'статус' => $status, 'проверено' => date('Y-m-d H:i:s')];
+}
+
+/**
+ * Запомнить результат проверки. Отдельная функция со своим try/catch: это побочная
+ * работа, и если запись в кэш не удалась (нет таблицы, ALTER ещё не прошёл), человек
+ * всё равно должен получить ответ проверки, а выплата — не застрять.
+ */
+function poNpdRemember(PDO $pdo, string $pid, string $inn, string $status): void {
+    try {
+        $st = $pdo->prepare("INSERT INTO psy_npd_checks (psychologist_id, inn, status, checked_at)
+                             VALUES (?, ?, ?, NOW())
+                             ON DUPLICATE KEY UPDATE inn = VALUES(inn), status = VALUES(status), checked_at = NOW()");
+        $st->execute([$pid, $inn, $status]);
+    } catch (Exception $e) {}
+}
+
+/** Человеческая подпись статуса — чтобы админка не расшифровывала коды сама. */
+function poNpdLabel(string $status): string {
+    switch ($status) {
+        case 'yes':  return 'Самозанятый (НПД) подтверждён';
+        case 'no':   return 'ФНС не подтверждает статус НПД';
+        case 'none': return 'ИНН не указан';
+        default:     return 'Статус не проверен (ФНС не ответила)';
+    }
 }
 
 /**
@@ -147,8 +246,12 @@ if ($action === 'mine') {
             else $acc += (float)$r['amount_to_psy'];
         }
     } catch (Exception $e) {}
+    $npd = poNpdCached($pdo, $pid);
     poOut(['ok' => true, 'итого' => ['начислено' => round($acc + $paid, 2),
-           'выплачено' => round($paid, 2), 'к_выплате' => round($acc, 2)], 'data' => $data]);
+           'выплачено' => round($paid, 2), 'к_выплате' => round($acc, 2)],
+           'налоговый_статус' => ['код' => $npd['статус'], 'текст' => poNpdLabel($npd['статус']),
+                                  'проверено' => $npd['проверено']],
+           'data' => $data]);
 }
 
 // ── Дальше только администратор ──────────────────────────────────────────────
@@ -181,13 +284,21 @@ if ($action === 'summary') {
             }
         } catch (Exception $e) {}
         foreach ($rows as $r) {
+            $pid = (string)$r['psychologist_id'];
+            // Статус НПД — только из кэша: в сводке могут быть десятки психологов,
+            // и ходить за каждым в ФНС значило бы вешать страницу на полминуты.
+            // Живая проверка — по кнопке (npd-recheck) и перед самой выплатой.
+            $npd = poNpdCached($pdo, $pid);
             $out[] = [
-                'psychologist_id' => (string)$r['psychologist_id'],
-                'имя' => $names[(string)$r['psychologist_id']] ?? 'Психолог',
+                'psychologist_id' => $pid,
+                'имя' => $names[$pid] ?? 'Психолог',
                 'к_выплате' => round((float)$r['to_pay'], 2),
                 'выплачено' => round((float)$r['paid'], 2),
                 'комиссия_платформы' => round((float)$r['commission'], 2),
                 'сессий' => (int)$r['cnt'],
+                'нпд' => $npd['статус'],
+                'нпд_текст' => poNpdLabel($npd['статус']),
+                'нпд_проверено' => $npd['проверено'],
             ];
         }
         usort($out, fn($a, $b) => $b['к_выплате'] <=> $a['к_выплате']);
@@ -211,10 +322,51 @@ if ($action === 'list') {
     } catch (Exception $e) { poOut(['ok' => true, 'data' => []]); }
 }
 
+if ($action === 'npd-recheck' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    $psy = (string)($body['psychologist_id'] ?? '');
+    if ($psy === '') poOut(['error' => 'Не указан психолог'], 400);
+    $r = poNpdCheck($pdo, $psy, true);
+    poOut(['ok' => true, 'нпд' => $r['статус'], 'нпд_текст' => poNpdLabel($r['статус']),
+           'инн' => $r['инн'], 'проверено' => $r['проверено'], 'note' => $r['note'] ?? null]);
+}
+
 if ($action === 'mark-paid' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $ids = $body['ids'] ?? [];
     $psy = (string)($body['psychologist_id'] ?? '');
     $note = mb_substr(trim((string)($body['note'] ?? '')), 0, 255);
+    $force = !empty($body['force']);
+
+    // Отмечать можно двумя способами: всё разом одному психологу или отдельные
+    // строки по id. Проверять налоговый статус надо в обоих — иначе шлюз обходится
+    // сменой способа отметки. Для строк берём их психологов из самих строк.
+    $toCheck = $psy !== '' ? [$psy] : [];
+    if ($psy === '' && is_array($ids) && $ids) {
+        try {
+            $tmp = array_slice(array_map('intval', $ids), 0, 500);
+            $in = implode(',', array_fill(0, count($tmp), '?'));
+            $st = $pdo->prepare("SELECT DISTINCT psychologist_id FROM psy_payouts WHERE id IN ($in)");
+            $st->execute($tmp);
+            $toCheck = array_map('strval', $st->fetchAll(PDO::FETCH_COLUMN));
+        } catch (Exception $e) {}
+    }
+
+    // Перед выплатой — свежая проверка статуса НПД. Отказываем только когда ФНС
+    // ответила «нет»: неотвеченный сервис не повод задерживать людям деньги, но
+    // предупредить об этом надо. Отметка «всё равно выплатил» остаётся за админом.
+    foreach ($toCheck as $checkPsy) {
+        if ($force) break;
+        $npd = poNpdCheck($pdo, $checkPsy);
+        if ($npd['статус'] === 'no' || $npd['статус'] === 'none') {
+            poOut(['error' => 'npd', 'нпд' => $npd['статус'], 'сообщение' => poNpdLabel($npd['статус'])
+                   . '. Платформа работает по агентской схеме: выплачивать можно только плательщику НПД.'
+                   . ' Попросите психолога указать корректный ИНН и подтвердить самозанятость,'
+                   . ' либо отметьте выплату принудительно, если рассчитались по другому договору.',
+                   'psychologist_id' => $checkPsy, 'можно_принудительно' => true], 409);
+        }
+        if ($npd['статус'] === 'unknown' && strpos($note, 'НПД не проверен') === false) {
+            $note = mb_substr(trim($note . ' [статус НПД не проверен: ФНС не ответила]'), 0, 255);
+        }
+    }
     try {
         if ($psy !== '') {
             // Отметить всё, что причитается одному психологу — обычный случай:

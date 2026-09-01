@@ -106,6 +106,7 @@ jobs:
             put api/notifications_config.sample.php -o api/notifications_config.sample.php;
             put api/orders.php -o api/orders.php;
             put api/payouts.php -o api/payouts.php;
+            put api/npd_lib.php -o api/npd_lib.php;
             put api/replace.php -o api/replace.php;
             put api/packages.php -o api/packages.php;
             put api/support.php -o api/support.php;

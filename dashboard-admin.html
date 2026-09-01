@@ -2814,12 +2814,25 @@
             const pct = res['комиссия_%'] ?? 0;
             const sum = (k) => rows.reduce((a, r) => a + (Number(r[k]) || 0), 0);
 
+            // Значок налогового статуса. Выплата самозанятому — это агентская схема:
+            // если ФНС статус не подтверждает, деньги отправлять нельзя, и видно это
+            // должно быть до нажатия кнопки, а не в тексте ошибки после.
+            const npdBadge = (r) => {
+                const s = r['нпд'] || 'unknown';
+                const c = { yes:'#047857', no:'#b91c1c', none:'#b45309', unknown:'#6b7280' }[s] || '#6b7280';
+                const t = { yes:'✅ НПД', no:'⛔ не НПД', none:'⚠️ нет ИНН', unknown:'❔ не проверен' }[s] || '❔';
+                return `<span style="color:${c};font-size:0.82rem;" title="${esc(r['нпд_текст'] || '')}${r['нпд_проверено'] ? ' · проверено ' + esc(r['нпд_проверено']) : ''}">${t}</span>`;
+            };
+
             const table = rows.length ? `<table id="dataTable"><thead><tr>
-                    <th>Психолог</th><th>Сессий</th><th>Комиссия платформы</th>
+                    <th>Психолог</th><th>Сессий</th><th>Налоговый статус</th><th>Комиссия платформы</th>
                     <th>Выплачено</th><th>К выплате</th><th>Действия</th></tr></thead><tbody>` +
                 rows.map(r => `<tr>
                     <td>${esc(r['имя'])}</td>
                     <td>${r['сессий']}</td>
+                    <td>${npdBadge(r)}
+                        <button class="btn-sm btn-outline" style="margin-left:.4rem;padding:.1rem .4rem;font-size:.72rem;"
+                            onclick="payoutNpdRecheck('${esc(r.psychologist_id)}')" title="Спросить ФНС заново">↻</button></td>
                     <td class="muted">${fmtMoney(r['комиссия_платформы'])} ₽</td>
                     <td class="muted">${fmtMoney(r['выплачено'])} ₽</td>
                     <td><b style="color:#047857;">${fmtMoney(r['к_выплате'])} ₽</b></td>
@@ -2846,13 +2859,31 @@
                 panel('По психологам', 'sPayouts', table);
         }
 
-        async function payoutMarkPaid(psyId, name, amount){
-            if (!confirm('Отметить выплаченными ' + fmtMoney(amount) + ' ₽ для «' + name + '»?\n\n'
-                + 'Деньги перечисляются отдельно (переводом или через эквайринг) — здесь только отметка в учёте.')) return;
-            const note = prompt('Комментарий к выплате (необязательно): например, номер перевода') || '';
-            const r = await apiPostTo(PAYOUTS_API, 'mark-paid', { psychologist_id: psyId, note });
-            if (r.ok) renderPayouts(); else alert(r.error || 'Не удалось отметить');
+        async function payoutNpdRecheck(psyId){
+            const r = await apiPostTo(PAYOUTS_API, 'npd-recheck', { psychologist_id: psyId });
+            if (r.ok) { alert((r['нпд_текст'] || '') + (r['инн'] ? '\nИНН: ' + r['инн'] : '') + (r.note ? '\n' + r.note : '')); renderPayouts(); }
+            else alert(r.error || 'Не удалось проверить');
         }
+
+        async function payoutMarkPaid(psyId, name, amount, force){
+            if (!force && !confirm('Отметить выплаченными ' + fmtMoney(amount) + ' ₽ для «' + name + '»?\n\n'
+                + 'Деньги перечисляются отдельно (переводом или через эквайринг) — здесь только отметка в учёте.')) return;
+            const note = force ? (payoutPendingNote || '')
+                : (prompt('Комментарий к выплате (необязательно): например, номер перевода') || '');
+            payoutPendingNote = note;
+            const r = await apiPostTo(PAYOUTS_API, 'mark-paid', { psychologist_id: psyId, note, force: !!force });
+            if (r.ok) { payoutPendingNote = ''; renderPayouts(); return; }
+            // Отказ по налоговому статусу — не «ошибка сети», а сознательный стоп:
+            // объясняем причину и оставляем выход, если рассчитались по другому договору.
+            if (r.error === 'npd' && r['можно_принудительно']) {
+                if (confirm(r['сообщение'] + '\n\nВсё равно отметить выплату?')) {
+                    return payoutMarkPaid(psyId, name, amount, true);
+                }
+                return;
+            }
+            alert(r.error || 'Не удалось отметить');
+        }
+        let payoutPendingNote = '';
 
         // ── Уведомления: каналы + шаблоны сообщений ──────────────────────────
         const NOTIF_API = '/api/notifications.php';
