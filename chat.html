@@ -3499,7 +3499,12 @@
             .chat-input .cin-mic, .chat-input .cin-format { display: none; }
             /* Кнопка отправки появляется, когда есть текст или вложение — тогда голосовое/кружок
                прячем, чтобы не тесниться, как в Telegram (пусто — запись, есть текст — отправка). */
-            .chat-input .cin-send { display: none; }
+            /* Именно #chatInputBar, а не любая .chat-input: у поддержки своя строка
+               ввода с тем же классом, но без голосового и кружка — правило по классу
+               убирало у неё кнопку отправки, а вернуть её было нечему (правило
+               has-text ниже написано только для #chatInputBar). Человек видел полосу
+               ввода, в которую можно печатать, и не мог отправить написанное. */
+            #chatInputBar .cin-send { display: none; }
             #chatInputBar.has-text .cin-voice,
             #chatInputBar.has-text .cin-video { display: none; }
             #chatInputBar.has-text .cin-send { order: 6; display: inline-flex; }
@@ -3538,9 +3543,11 @@
            слева. Правила идут ПОСЛЕ мобильного блока намеренно: иначе они не перебьют
            display:inline-flex у .cin-voice/.cin-dictate, заданный там и выше. */
         .cin-more { order: 0; }
-        .chat-input .cin-emoji,
-        .chat-input .cin-attach,
-        .chat-input .cin-format { display: none; }
+        /* Только основная строка ввода: иконки уехали в её меню «⋮», а у поддержки
+           меню нет — по классу правило прятало бы там единственную скрепку. */
+        #chatInputBar .cin-emoji,
+        #chatInputBar .cin-attach,
+        #chatInputBar .cin-format { display: none; }
         body.ai-chat .chat-input .cin-dictate { display: none; }
         /* Голосовое и кружок прячем только на широком экране: на телефоне они стоят
            справа и меняются местами с отправкой — эту привычную механику не трогаем. */
@@ -4201,6 +4208,16 @@
                      под системную полосу. Раньше она рисовалась ВНУТРИ прокрутки сообщений
                      и потому висела посреди экрана, оторванная от низа. -->
                 <div class="chat-input" id="supportInputBar" style="display:none;">
+                    <!-- Скрепка: в поддержку чаще всего нужно прислать снимок экрана, а
+                         отправить его было нечем — приходилось описывать словами. Приём
+                         вложений в api/support.php был готов давно, не хватало кнопки. -->
+                    <input type="file" id="supportFileInput" style="display:none;"
+                           accept="image/*,application/pdf,.doc,.docx,.txt,audio/*,video/*"
+                           onchange="sendSupportAttachment(this)">
+                    <button type="button" class="icon-btn cin-attach" title="Прикрепить файл" aria-label="Прикрепить файл"
+                            onclick="document.getElementById('supportFileInput').click()">
+                        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21.4 11.05l-9.19 9.19a5 5 0 01-7.07-7.07l9.19-9.19a3.5 3.5 0 014.95 4.95l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/></svg>
+                    </button>
                     <textarea id="mySupportInput" rows="1" placeholder="Сообщение в поддержку..."
                         oninput="growSupportInput(this)" onkeydown="onSupportKeyDown(event)"></textarea>
                     <button onclick="sendMySupportMessage()" class="send-btn cin-send" title="Отправить" aria-label="Отправить">
@@ -4628,7 +4645,7 @@
 
     <script src="/js/api.js?v=20260821"></script>
     <script src="/js/auth.js?v=20260821"></script>
-    <script src="/js/lightbox.js?v=6"></script>
+    <script src="/js/lightbox.js?v=7"></script>
     <script src="/js/post-format.js?v=20260823b"></script>
     <!-- Редакционные статьи блога (window.PSY_ARTICLES). Их же показывает /blog.html
          рядом со статьями психологов из БД — без этого файла раздел «Блог» в чате
@@ -11239,6 +11256,53 @@
             tick();
             mySupportPollTimer = setInterval(psyPollGuard(unlessSync(tick)), 5000);
         }
+
+        /**
+         * Файл в поддержку. Сначала кладём его на сайт (у api/support.php свой
+         * загрузчик — общий upload.php требует сессию, которой у гостя нет), потом
+         * отправляем обычным сообщением с ссылкой на вложение. Текст из строки ввода,
+         * если он набран, уходит подписью к файлу.
+         */
+        async function sendSupportAttachment(fileInput) {
+            const file = fileInput && fileInput.files && fileInput.files[0];
+            fileInput.value = '';                 // чтобы один и тот же файл можно было выбрать снова
+            if (!file) return;
+            if (file.size > 50 * 1024 * 1024) { alert('Файл больше 50 МБ — поддержка такой не примет.'); return; }
+            const box = document.getElementById('mySupportInput');
+            const caption = box ? box.value.trim() : '';
+            try {
+                const fd = new FormData();
+                fd.append('file', file);
+                const up = await (await fetch('/api/support.php?action=upload', {
+                    method: 'POST', credentials: 'include', body: fd })).json();
+                if (!up || !up.ok || !up.url) throw new Error((up && up.error) || 'Не удалось загрузить файл');
+                const payload = {
+                    message: caption, attachment_url: up.url,
+                    attachment_type: file.type || '', attachment_name: file.name || '',
+                };
+                let d;
+                if (!mySupportToken) {
+                    d = await (await fetch('/api/support.php?action=start', {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        credentials: 'include', body: JSON.stringify(payload) })).json();
+                    if (!d || !d.ok || !d.token) throw new Error((d && d.error) || 'Не удалось отправить');
+                    mySupportToken = d.token;
+                    try { localStorage.setItem(mySupportTokenKey(), mySupportToken); } catch (e) {}
+                    startMySupportPolling();
+                } else {
+                    payload.token = mySupportToken;
+                    d = await (await fetch('/api/support.php?action=send', {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        credentials: 'include', body: JSON.stringify(payload) })).json();
+                    if (!d || !d.ok) throw new Error((d && d.error) || 'Не удалось отправить');
+                }
+                if (box && caption) { box.value = ''; growSupportInput(box); }
+                await loadMySupportMessages();
+            } catch (e) {
+                alert('Файл не отправлен: ' + e.message);
+            }
+        }
+        window.sendSupportAttachment = sendSupportAttachment;
 
         async function sendMySupportMessage() {
             const input = document.getElementById('mySupportInput');
