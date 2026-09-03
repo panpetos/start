@@ -1418,6 +1418,28 @@
            позиционируется абсолютно, и position:relative её бы сорвал с места. */
         body[data-wall="photo"] #chatContent > *:not(.scroll-down-btn) { position: relative; z-index: 1; }
         body[data-wall="photo"] .messages-container { background: transparent !important; }
+        /* ── Узор (как в WhatsApp/Telegram), с выбором цвета ──────────────────────
+           Сам рисунок лежит в /assets/chat-pattern.svg. Красим его не заливкой внутри
+           файла, а CSS-маской: цвет узора = цвет фона слоя, а фигуры вырезаются маской.
+           Это даёт две вещи разом — свой цвет узора и авто-контраст: на светлой теме
+           узор по умолчанию тёмный, на тёмной — светлый, и он не «перекрывает» чат,
+           потому что задаётся полупрозрачным.
+           Слой рисуется под перепиской (как у фото-обоев), поэтому сообщения поверх. */
+        body[data-wall="doodle"] #chatContent { position: relative; }
+        body[data-wall="doodle"] .messages-container { background: var(--doodle-surface, #F3F1FA) !important; }
+        body[data-wall="doodle"] #chatContent > *:not(.scroll-down-btn) { position: relative; z-index: 1; }
+        body[data-wall="doodle"] #chatContent::before {
+            content: ''; position: absolute; inset: 0; z-index: 0; pointer-events: none;
+            background-color: var(--doodle-color, rgba(58, 53, 89, 0.10));
+            -webkit-mask: url("/assets/chat-pattern.svg?v=1") repeat; mask: url("/assets/chat-pattern.svg?v=1") repeat;
+            -webkit-mask-size: 300px 300px; mask-size: 300px 300px;
+        }
+        /* Тёмная тема: светлый узор на тёмной подложке — если человек не выбрал свой цвет. */
+        body.dark[data-wall="doodle"] .messages-container { background: var(--doodle-surface, #15181F) !important; }
+        body.dark[data-wall="doodle"] #chatContent::before {
+            background-color: var(--doodle-color, rgba(255, 255, 255, 0.06));
+        }
+
         /* Свои цвета пузырей. Работают только когда человек их задал: без атрибута
            остаются фирменные, чтобы «сброс» действительно возвращал исходный вид. */
         body[data-own-color] .message.mine {
@@ -3927,6 +3949,7 @@
             /* Свои обои-фото рисуются слоем во всю область чата: без скругления
                их прямые углы вылезали бы за округлённые края панели. */
             body[data-wall="photo"] #chatContent::before { border-radius: 16px; }
+            body[data-wall="doodle"] #chatContent::before { border-radius: 16px; }
         }
 
         /* Нижняя панель разделов — только для телефона (включается ниже) */
@@ -8043,6 +8066,18 @@
             { id: 'sand',  label: 'Песок' },
             { id: 'paper', label: 'Бумага' },
             { id: 'stars', label: 'Звёзды' },
+            { id: 'doodle', label: 'Узор' },
+        ];
+        // Цвета для узора. Первый — «Авто»: тёмный узор на светлой теме и светлый на
+        // тёмной, ненавязчивый (это и есть значение по умолчанию, свой цвет не задан).
+        const DOODLE_COLORS = [
+            { id: 'auto',   label: 'Авто',   css: '' },
+            { id: 'violet', label: 'Сирень', css: 'rgba(124,58,237,0.16)' },
+            { id: 'green',  label: 'Зелёный', css: 'rgba(4,120,87,0.16)' },
+            { id: 'blue',   label: 'Синий',  css: 'rgba(2,132,199,0.16)' },
+            { id: 'rose',   label: 'Роза',   css: 'rgba(219,39,119,0.15)' },
+            { id: 'amber',  label: 'Янтарь', css: 'rgba(217,119,6,0.16)' },
+            { id: 'gray',   label: 'Графит', css: 'rgba(100,116,139,0.18)' },
         ];
         // Готовые фото на фон. Лежат у нас же в uploads — не тянем чужие домены:
         // каждый показ чата иначе стучался бы на сторонний сервер.
@@ -8093,6 +8128,16 @@
             if (id === 'photo' && url) {
                 document.documentElement.style.setProperty('--wall-img', `url("${url.replace(/"/g, '%22')}")`);
             }
+        }
+
+        /**
+         * Цвет узора. Пустая строка — «Авто»: снимаем переменную, и работает
+         * авто-контраст из CSS (тёмный узор на светлой теме, светлый на тёмной).
+         */
+        function applyDoodleColor(css) {
+            const root = document.documentElement;
+            if (css) root.style.setProperty('--doodle-color', css);
+            else root.style.removeProperty('--doodle-color');
         }
 
         /** Плотность заливки поверх фото: 0 — фото как есть, 90 — почти однотонный фон. */
@@ -8150,6 +8195,7 @@
                 applyWallDim(localStorage.getItem('psy-chat-wall-dim') || WALL_DIM_DEFAULT);
                 applyChatColors(localStorage.getItem('psy-chat-own') || '',
                                 localStorage.getItem('psy-chat-own2') || '');
+                applyDoodleColor(localStorage.getItem('psy-chat-doodle') || '');
                 applyPaneWidth(localStorage.getItem('psy-chat-pane-w') || PANE_DEFAULT);
             } catch (e) { applyWallpaper('none'); }
         }
@@ -8167,6 +8213,8 @@
                     } catch (e) {}
                 }
                 if (p.wall_dim != null) { applyWallDim(p.wall_dim); try { localStorage.setItem('psy-chat-wall-dim', String(p.wall_dim)); } catch (e) {} }
+                applyDoodleColor(p.doodle_color || '');
+                try { localStorage.setItem('psy-chat-doodle', p.doodle_color || ''); } catch (e) {}
                 applyChatColors(p.own_color || '', p.own_color2 || '');
                 try {
                     localStorage.setItem('psy-chat-own', p.own_color || '');
@@ -8228,6 +8276,20 @@
                         сливаются со светлым снимком, и переписку не прочитать.</div>
                 </div>
 
+                <div class="wall-tune" id="doodleColorRow" style="${cur === 'doodle' ? '' : 'display:none;'}">
+                    <label>Цвет узора</label>
+                    <div class="theme-row">
+                        ${DOODLE_COLORS.map(c => `
+                            <button type="button" class="theme-dot ${currentColor('psy-chat-doodle', '') === c.css ? 'on' : ''}"
+                                    onclick="pickDoodleColor('${c.css}')" title="${escapeHtml(c.label)}">
+                                <span style="background:${c.css || (document.body.classList.contains('dark') ? 'rgba(255,255,255,0.14)' : 'rgba(58,53,89,0.16)')};border:1px solid rgba(0,0,0,0.1);"></span>
+                                <i>${escapeHtml(c.label)}</i>
+                            </button>`).join('')}
+                    </div>
+                    <div class="wall-note">«Авто» подстраивается под тему: светлый узор в тёмной теме и наоборот.
+                        Узор нарочно бледный, чтобы не мешать читать переписку.</div>
+                </div>
+
                 <div class="wall-tune">
                     <label>Цвет моих сообщений</label>
                     <div class="theme-row">
@@ -8266,8 +8328,31 @@
             applyWallpaper(id);
             try { localStorage.setItem('psy-chat-wall', id); } catch (e) {}
             savePref('wallpaper', id);
+            // У узора есть выбор цвета — не закрываем окно, а открываем ряд цветов,
+            // чтобы человек тут же подобрал оттенок. Остальные обои применяются сразу.
+            if (id === 'doodle') {
+                const row = document.getElementById('doodleColorRow');
+                if (row) row.style.display = '';
+                document.querySelectorAll('#wallpaperBody .wall-item').forEach(b => b.classList.remove('on'));
+                const self = document.querySelector(`#wallpaperBody .wall-item[onclick*="'doodle'"]`);
+                if (self) self.classList.add('on');
+                return;
+            }
+            const row = document.getElementById('doodleColorRow');
+            if (row) row.style.display = 'none';
             closeWallpaperPicker();
         }
+
+        function pickDoodleColor(css) {
+            applyDoodleColor(css);
+            try { localStorage.setItem('psy-chat-doodle', css || ''); } catch (e) {}
+            savePref('doodle_color', css || '');
+            document.querySelectorAll('#doodleColorRow .theme-dot').forEach(b => b.classList.remove('on'));
+            const esc = (css || '').replace(/'/g, "\\'");
+            const self = document.querySelector(`#doodleColorRow .theme-dot[onclick="pickDoodleColor('${esc}')"]`);
+            if (self) self.classList.add('on');
+        }
+        window.pickDoodleColor = pickDoodleColor;
 
         /** Готовое фото из набора. */
         function pickPhotoWallpaper(url) {
