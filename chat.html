@@ -951,16 +951,32 @@
         /* Окно публикации в свой канал — стоит над лентой постов */
         .ch-composer {
             background: #fff; border: 1.5px solid #D1FAE5; border-radius: 1rem;
-            padding: 0.85rem 1rem; margin: 0 auto 0.9rem; max-width: 620px; width: 100%;
+            padding: 1.1rem 1.25rem; margin: 0 auto 0.9rem; max-width: 900px; width: 100%;
             box-shadow: 0 2px 8px rgba(0,0,0,0.06);
         }
-        .ch-composer-title { font-size: 0.78rem; font-weight: 700; color: #047857; margin-bottom: 0.5rem; }
+        .ch-composer-title { font-size: 1rem; font-weight: 700; color: #047857; margin-bottom: 0.6rem; }
+        /* Панель форматирования и кнопок ИИ над полем ввода поста. */
+        .ch-fmt-bar { display: flex; align-items: center; gap: 0.35rem; flex-wrap: wrap; margin-bottom: 0.55rem; }
+        .ch-fmt {
+            border: 1.5px solid #E5E7EB; background: #fff; color: #374151; cursor: pointer;
+            min-width: 2.2rem; height: 2.2rem; padding: 0 0.6rem; border-radius: 0.55rem;
+            font-family: inherit; font-size: 0.95rem; font-weight: 600; line-height: 1;
+            display: inline-flex; align-items: center; justify-content: center; gap: 0.3rem;
+        }
+        .ch-fmt:hover { border-color: #6EE7B7; background: #F0FDF9; }
+        .ch-fmt.ch-ai { color: #047857; border-color: #A7F3D0; background: #ECFDF5; font-size: 0.9rem; }
+        .ch-fmt.ch-ai:hover { background: #D1FAE5; }
+        .ch-fmt-sep { flex: 0 0 1px; width: 1px; height: 1.6rem; background: #E5E7EB; margin: 0 0.25rem; }
         .ch-composer-text {
-            width: 100%; border: 1.5px solid #E5E7EB; border-radius: 0.7rem; padding: 0.6rem 0.7rem;
-            font-family: inherit; font-size: 0.94rem; line-height: 1.45; color: #333;
-            resize: vertical; outline: none; background: #fff; box-sizing: border-box;
+            width: 100%; border: 1.5px solid #E5E7EB; border-radius: 0.7rem; padding: 0.8rem 0.9rem;
+            font-family: inherit; font-size: 1.06rem; line-height: 1.55; color: #222;
+            resize: vertical; outline: none; background: #fff; box-sizing: border-box; min-height: 190px;
         }
         .ch-composer-text:focus { border-color: #6EE7B7; }
+        body.dark .ch-fmt { background: #2A2A2A; border-color: #444; color: #D0D0D0; }
+        body.dark .ch-fmt:hover { border-color: #047857; background: #10402F; }
+        body.dark .ch-fmt.ch-ai { background: #0B3B2E; border-color: #14503B; color: #6EE7B7; }
+        body.dark .ch-fmt-sep { background: #444; }
         .ch-composer-preview { position: relative; margin-top: 0.5rem; }
         .ch-composer-preview img { width: 100%; max-height: 220px; object-fit: cover; border-radius: 0.7rem; display: block; }
         .ch-composer-drop {
@@ -5772,11 +5788,22 @@
             return `
             <div class="ch-composer" id="chComposer">
                 <div class="ch-composer-title">Новый пост в вашем канале</div>
-                <textarea id="chComposerText" class="ch-composer-text" rows="3"
-                          placeholder="О чём рассказать подписчикам?"></textarea>
+                <div class="ch-fmt-bar" role="toolbar" aria-label="Форматирование">
+                    <button type="button" class="ch-fmt" onclick="chFmtWrap('**')" title="Полужирный"><b>Ж</b></button>
+                    <button type="button" class="ch-fmt" onclick="chFmtWrap('_')" title="Курсив"><i>К</i></button>
+                    <button type="button" class="ch-fmt" onclick="chFmtLine('## ')" title="Заголовок">H</button>
+                    <button type="button" class="ch-fmt" onclick="chFmtLine('- ')" title="Список">☰</button>
+                    <button type="button" class="ch-fmt" onclick="chFmtLine('> ')" title="Цитата">❝</button>
+                    <span class="ch-fmt-sep"></span>
+                    <button type="button" class="ch-fmt ch-ai" onclick="chAiGenerate()" title="Сгенерировать текст ИИ">✨ Сгенерировать</button>
+                    <button type="button" class="ch-fmt ch-ai" onclick="chAiRewrite()" title="Переписать текст ИИ">🔄 Переписать</button>
+                    <button type="button" class="ch-fmt ch-ai" onclick="chAiImage()" title="Сгенерировать картинку ИИ">🖼️ Картинку ИИ</button>
+                </div>
+                <textarea id="chComposerText" class="ch-composer-text" rows="7"
+                          placeholder="О чём рассказать подписчикам? Можно попросить ИИ — кнопка «✨ Сгенерировать»."></textarea>
                 <div class="ch-composer-preview" id="chComposerPreview" style="display:none;"></div>
                 <div class="ch-composer-bar">
-                    <label class="ch-composer-attach" title="Добавить картинку">🖼️
+                    <label class="ch-composer-attach" title="Добавить картинку с устройства">🖼️
                         <input tabindex="-1" type="file" accept="image/*" onchange="pickChannelImage(event)"
                                style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;clip:rect(0 0 0 0);">
                     </label>
@@ -5786,6 +5813,92 @@
                 </div>
             </div>`;
         }
+
+        // ── Форматирование текста поста ──────────────────────────────────────────
+        /** Обернуть выделение парным маркером (**жирный**, _курсив_). */
+        function chFmtWrap(mark) {
+            const ta = document.getElementById('chComposerText');
+            if (!ta) return;
+            const s = ta.selectionStart, e = ta.selectionEnd, v = ta.value;
+            const sel = v.slice(s, e) || 'текст';
+            ta.value = v.slice(0, s) + mark + sel + mark + v.slice(e);
+            ta.focus();
+            ta.selectionStart = s + mark.length;
+            ta.selectionEnd = s + mark.length + sel.length;
+        }
+        window.chFmtWrap = chFmtWrap;
+        /** Поставить маркер в начало строки (## заголовок, - список, > цитата). */
+        function chFmtLine(prefix) {
+            const ta = document.getElementById('chComposerText');
+            if (!ta) return;
+            const v = ta.value, s = ta.selectionStart;
+            const ls = v.lastIndexOf('\n', s - 1) + 1;
+            ta.value = v.slice(0, ls) + prefix + v.slice(ls);
+            ta.focus();
+            ta.selectionStart = ta.selectionEnd = s + prefix.length;
+        }
+        window.chFmtLine = chFmtLine;
+
+        // ── Помощник-ИИ для постов ───────────────────────────────────────────────
+        async function chAiText(mode) {
+            const ta = document.getElementById('chComposerText');
+            const msg = document.getElementById('chComposerMsg');
+            if (!ta) return;
+            const current = ta.value.trim();
+            let prompt = '';
+            if (mode === 'generate') {
+                prompt = (window.prompt('О чём написать пост? Например: «важность режима сна для тревожных клиентов»') || '').trim();
+                if (!prompt) return;
+            } else if (!current) { if (msg) msg.textContent = 'Сначала напишите или сгенерируйте текст.'; return; }
+            if (msg) msg.textContent = mode === 'rewrite' ? 'ИИ переписывает…' : 'ИИ пишет пост…';
+            ta.disabled = true;
+            try {
+                const r = await fetch('/api/ai_post.php?action=text', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+                    body: JSON.stringify({ mode, prompt, current }),
+                });
+                const d = await r.json().catch(() => ({}));
+                if (!r.ok || !d.ok) throw new Error(d.error || ('HTTP ' + r.status));
+                ta.value = d.text;
+                if (msg) msg.textContent = 'Готово — проверьте и опубликуйте.';
+            } catch (e) {
+                if (msg) msg.textContent = 'ИИ: ' + (e.message || 'ошибка');
+            } finally {
+                ta.disabled = false; ta.focus();
+            }
+        }
+        function chAiGenerate() { chAiText('generate'); }
+        function chAiRewrite() { chAiText('rewrite'); }
+        window.chAiGenerate = chAiGenerate;
+        window.chAiRewrite = chAiRewrite;
+
+        async function chAiImage() {
+            const ta = document.getElementById('chComposerText');
+            const msg = document.getElementById('chComposerMsg');
+            const base = ta ? ta.value.trim().slice(0, 200) : '';
+            const prompt = (window.prompt('Что нарисовать? Опишите картинку к посту:', base) || '').trim();
+            if (!prompt) return;
+            if (msg) msg.textContent = 'ИИ рисует картинку (это до минуты)…';
+            try {
+                const r = await fetch('/api/ai_post.php?action=image', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+                    body: JSON.stringify({ prompt }),
+                });
+                const d = await r.json().catch(() => ({}));
+                if (!r.ok || !d.ok) throw new Error(d.error || ('HTTP ' + r.status));
+                chComposerImage = d.url;
+                const prev = document.getElementById('chComposerPreview');
+                if (prev) {
+                    prev.style.display = 'block';
+                    prev.innerHTML = `<img src="${escapeHtml(d.url)}" alt="">` +
+                        `<button type="button" class="ch-composer-drop" onclick="dropChannelImage()" title="Убрать картинку">✕</button>`;
+                }
+                if (msg) msg.textContent = 'Картинка готова.';
+            } catch (e) {
+                if (msg) msg.textContent = 'Картинка: ' + (e.message || 'ошибка');
+            }
+        }
+        window.chAiImage = chAiImage;
 
         let chComposerImage = null;   // адрес уже загруженной картинки поста
 
