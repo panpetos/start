@@ -546,7 +546,11 @@
 
     <script>
     let user = null;
-    let chats = JSON.parse(localStorage.getItem('ai_chats') || '[]');
+    // История ИИ-чатов у каждого аккаунта своя. Раньше она лежала под общим ключом
+    // ai_chats — и на одном браузере следующий вошедший видел чужие диалоги. Теперь
+    // ключ привязан к id пользователя; читаем историю уже ПОСЛЕ входа (в init).
+    let chats = [];
+    function chatsKey() { return 'ai_chats_' + (user && user.id != null ? user.id : 'anon'); }
     let currentChatId = null;
     let isStreaming = false;
     let attachedFiles = [];
@@ -564,6 +568,16 @@
 
         const backLink = document.querySelector('.ai-sidebar-footer a');
         if (user.role === 'admin') backLink.href = '/dashboard-admin.html';
+
+        // Своя история этого аккаунта. Разовый перенос старой общей истории в ключ
+        // текущего пользователя (на своём устройстве она почти наверняка его), после
+        // чего общий ключ удаляем — чтобы он больше никому не «утекал».
+        try {
+            const legacy = localStorage.getItem('ai_chats');
+            if (legacy && !localStorage.getItem(chatsKey())) localStorage.setItem(chatsKey(), legacy);
+            if (legacy) localStorage.removeItem('ai_chats');
+        } catch (e) {}
+        try { chats = JSON.parse(localStorage.getItem(chatsKey()) || '[]'); } catch (e) { chats = []; }
 
         await loadModels();
         renderChatList();
@@ -598,7 +612,7 @@
         }
     }
 
-    function saveChats() { localStorage.setItem('ai_chats', JSON.stringify(chats)); }
+    function saveChats() { try { localStorage.setItem(chatsKey(), JSON.stringify(chats)); } catch (e) {} }
 
     function renderChatList() {
         const el = document.getElementById('chatList');

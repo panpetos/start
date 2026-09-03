@@ -1456,19 +1456,27 @@
            Это даёт две вещи разом — свой цвет узора и авто-контраст: на светлой теме
            узор по умолчанию тёмный, на тёмной — светлый, и он не «перекрывает» чат,
            потому что задаётся полупрозрачным.
-           Слой рисуется под перепиской (как у фото-обоев), поэтому сообщения поверх. */
+           Слой рисуется под перепиской (как у фото-обоев), поэтому сообщения поверх.
+           ДВА слоя: ::before — ровная подложка нужного цвета, ::after — сам узор маской
+           поверх неё. Раньше подложку вешали на .messages-container (непрозрачную), и
+           она закрывала узор — обои «уходили не туда»: рисунок был виден только в щелях
+           у краёв. Теперь .messages-container прозрачна, оба слоя видны насквозь. */
         body[data-wall="doodle"] #chatContent { position: relative; }
-        body[data-wall="doodle"] .messages-container { background: var(--doodle-surface, #F3F1FA) !important; }
+        body[data-wall="doodle"] .messages-container { background: transparent !important; }
         body[data-wall="doodle"] #chatContent > *:not(.scroll-down-btn) { position: relative; z-index: 1; }
         body[data-wall="doodle"] #chatContent::before {
+            content: ''; position: absolute; inset: 0; z-index: 0; pointer-events: none;
+            background: var(--doodle-surface, #F3F1FA);
+        }
+        body[data-wall="doodle"] #chatContent::after {
             content: ''; position: absolute; inset: 0; z-index: 0; pointer-events: none;
             background-color: var(--doodle-color, rgba(58, 53, 89, 0.10));
             -webkit-mask: url("/assets/chat-pattern.svg?v=1") repeat; mask: url("/assets/chat-pattern.svg?v=1") repeat;
             -webkit-mask-size: 300px 300px; mask-size: 300px 300px;
         }
         /* Тёмная тема: светлый узор на тёмной подложке — если человек не выбрал свой цвет. */
-        body.dark[data-wall="doodle"] .messages-container { background: var(--doodle-surface, #15181F) !important; }
-        body.dark[data-wall="doodle"] #chatContent::before {
+        body.dark[data-wall="doodle"] #chatContent::before { background: var(--doodle-surface, #15181F); }
+        body.dark[data-wall="doodle"] #chatContent::after {
             background-color: var(--doodle-color, rgba(255, 255, 255, 0.06));
         }
 
@@ -3981,7 +3989,8 @@
             /* Свои обои-фото рисуются слоем во всю область чата: без скругления
                их прямые углы вылезали бы за округлённые края панели. */
             body[data-wall="photo"] #chatContent::before { border-radius: 16px; }
-            body[data-wall="doodle"] #chatContent::before { border-radius: 16px; }
+            body[data-wall="doodle"] #chatContent::before,
+            body[data-wall="doodle"] #chatContent::after { border-radius: 16px; }
         }
 
         /* Нижняя панель разделов — только для телефона (включается ниже) */
@@ -4765,7 +4774,7 @@
     <script src="/js/api.js?v=20260821"></script>
     <script src="/js/auth.js?v=20260821"></script>
     <script src="/js/lightbox.js?v=7"></script>
-    <script src="/js/post-format.js?v=20260823b"></script>
+    <script src="/js/post-format.js?v=20260904"></script>
     <!-- Редакционные статьи блога (window.PSY_ARTICLES). Их же показывает /blog.html
          рядом со статьями психологов из БД — без этого файла раздел «Блог» в чате
          показывал бы «статей нет», пока в базе пусто. -->
@@ -11997,7 +12006,14 @@
         // Раньше это была отдельная страница ai-chat.html в меню кабинета. По просьбе админа
         // ассистент переехал в чаты: обычный диалог, только собеседник — модель.
         const AI_ID = '__ai__';
-        const AI_STORE = 'psy-chat-ai';        // переписка с ботом хранится локально
+        // Ключи истории ассистента — свои у каждого аккаунта: на общем браузере
+        // следующий вошедший не должен видеть (и тем более сливать на сервер) чужие
+        // диалоги. Раньше ключи были общими — отсюда и «история у всех одна».
+        function aiUidPart() { return (currentUser && currentUser.id != null) ? String(currentUser.id) : 'anon'; }
+        function aiStoreKey()   { return 'psy-chat-ai-' + aiUidPart(); }
+        function aiThreadsKey()  { return 'psy-chat-ai-threads-' + aiUidPart(); }
+        function aiCurrentKey()  { return 'psy-chat-ai-current-' + aiUidPart(); }
+        const AI_STORE = 'psy-chat-ai';        // старый общий ключ — только для разового переноса
         const AI_MODEL_KEY = 'ai_model';
         let aiMessages = [];                   // [{role:'user'|'assistant', content}]
         let aiModels = [];
@@ -12015,12 +12031,12 @@
 
         function aiReadThreads() {
             let list = [];
-            try { list = JSON.parse(localStorage.getItem(AI_THREADS) || '[]') || []; } catch (e) { list = []; }
+            try { list = JSON.parse(localStorage.getItem(aiThreadsKey()) || '[]') || []; } catch (e) { list = []; }
             if (!Array.isArray(list)) list = [];
             if (!list.length) {
                 // Перенос старой единственной переписки — терять её нельзя
                 let old = [];
-                try { old = JSON.parse(localStorage.getItem(AI_STORE) || '[]') || []; } catch (e) { old = []; }
+                try { old = JSON.parse(localStorage.getItem(aiStoreKey()) || localStorage.getItem(AI_STORE) || '[]') || []; } catch (e) { old = []; }
                 if (Array.isArray(old) && old.length) {
                     list = [{ id: 'legacy', title: aiThreadTitle(old), at: Date.now(), messages: old }];
                 }
@@ -12039,7 +12055,7 @@
         function aiLoad() {
             aiThreads = aiReadThreads();
             let cur = null;
-            try { cur = localStorage.getItem(AI_CURRENT); } catch (e) {}
+            try { cur = localStorage.getItem(aiCurrentKey()); } catch (e) {}
             let th = aiThreads.find(t => t.id === cur) || aiThreads[0];
             if (!th) {
                 th = { id: 'n' + Date.now(), title: 'Новый диалог', at: Date.now(), messages: [] };
@@ -12047,7 +12063,7 @@
             }
             aiThreadId = th.id;
             aiMessages = Array.isArray(th.messages) ? th.messages : [];
-            try { localStorage.setItem(AI_CURRENT, aiThreadId); } catch (e) {}
+            try { localStorage.setItem(aiCurrentKey(), aiThreadId); } catch (e) {}
             aiPullRemote();
         }
 
@@ -12087,7 +12103,7 @@
                 const cur = aiThreads.find(t => t.id === aiThreadId);
                 if (cur) aiMessages = Array.isArray(cur.messages) ? cur.messages : [];
                 else if (aiThreads.length) { aiThreadId = aiThreads[0].id; aiMessages = aiThreads[0].messages || []; }
-                try { localStorage.setItem(AI_THREADS, JSON.stringify(aiThreads)); } catch (e) {}
+                try { localStorage.setItem(aiThreadsKey(), JSON.stringify(aiThreads)); } catch (e) {}
                 if (typeof renderAiBar === 'function') renderAiBar();
                 if (typeof renderAiMessages === 'function') renderAiMessages();
             } catch (e) { /* нет связи или битая история — остаёмся на местной копии */ }
@@ -12129,9 +12145,9 @@
             aiThreads.sort((a, b) => (b.at || 0) - (a.at || 0));
             aiThreads = aiThreads.slice(0, 20);
             try {
-                localStorage.setItem(AI_THREADS, JSON.stringify(aiThreads));
-                localStorage.setItem(AI_CURRENT, aiThreadId);
-                localStorage.removeItem(AI_STORE);        // старое единственное хранилище больше не нужно
+                localStorage.setItem(aiThreadsKey(), JSON.stringify(aiThreads));
+                localStorage.setItem(aiCurrentKey(), aiThreadId);
+                try { localStorage.removeItem(aiStoreKey()); localStorage.removeItem(AI_STORE); } catch(e){}        // старое единственное хранилище больше не нужно
             } catch (e) {}
             aiPushRemote();
         }
@@ -12159,7 +12175,7 @@
             aiStopSpeak();      // читаемый ответ остаётся в другом диалоге
             aiThreadId = th.id;
             aiMessages = Array.isArray(th.messages) ? th.messages : [];
-            try { localStorage.setItem(AI_CURRENT, aiThreadId); } catch (e) {}
+            try { localStorage.setItem(aiCurrentKey(), aiThreadId); } catch (e) {}
             renderAiBar();
             renderAiMessages();
         }
