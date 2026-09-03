@@ -967,21 +967,28 @@
         .ch-fmt.ch-ai { color: #047857; border-color: #A7F3D0; background: #ECFDF5; font-size: 0.9rem; }
         .ch-fmt.ch-ai:hover { background: #D1FAE5; }
         .ch-fmt-sep { flex: 0 0 1px; width: 1px; height: 1.6rem; background: #E5E7EB; margin: 0 0.25rem; }
+        /* Поле поста — contenteditable: оформление показывается сразу в самом поле
+           (жирный жирным), символов разметки не видно. Блочные стили — как в постах. */
         .ch-composer-text {
             width: 100%; border: 1.5px solid #E5E7EB; border-radius: 0.7rem; padding: 0.8rem 0.9rem;
             font-family: inherit; font-size: 1.06rem; line-height: 1.55; color: #222;
-            resize: vertical; outline: none; background: #fff; box-sizing: border-box; min-height: 190px;
+            outline: none; background: #fff; box-sizing: border-box; min-height: 190px;
+            max-height: 55vh; overflow-y: auto; word-break: break-word; text-align: left;
         }
         .ch-composer-text:focus { border-color: #6EE7B7; }
-        /* Живой предпросмотр под полем ввода. */
-        .ch-live-wrap { margin-top: 0.7rem; border: 1.5px dashed #D1FAE5; border-radius: 0.7rem; padding: 0.6rem 0.85rem; background: #F7FDFB; }
-        .ch-live-label { font-size: 0.72rem; font-weight: 700; color: #059669; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 0.4rem; }
-        .ch-live-preview { font-size: 1.02rem; line-height: 1.55; color: #222; overflow-wrap: anywhere; }
-        .ch-live-preview :first-child { margin-top: 0; }
-        .ch-live-preview :last-child { margin-bottom: 0; }
-        body.dark .ch-live-wrap { background: #14201B; border-color: #14503B; }
-        body.dark .ch-live-label { color: #6EE7B7; }
-        body.dark .ch-live-preview { color: #E6E6E6; }
+        .ch-composer-text:empty::before { content: attr(data-placeholder); color: #9CA3AF; pointer-events: none; }
+        .ch-composer-text :is(h2, h3) { font-size: 1.12rem; margin: 0.4rem 0; font-weight: 700; }
+        .ch-composer-text blockquote { margin: 0.4rem 0; padding: 0.3rem 0.85rem; border-left: 3px solid #047857; opacity: 0.92; }
+        .ch-composer-text ul, .ch-composer-text ol { margin: 0.4rem 0 0.4rem 1.35rem; padding: 0; }
+        .ch-composer-text code { background: rgba(127,127,127,0.18); padding: 0.05em 0.3em; border-radius: 0.25em; font-size: 0.92em; }
+        .ch-composer-text a { color: #047857; }
+        .ch-fmt.b { font-weight: 800; }
+        .ch-fmt.i { font-style: italic; }
+        .ch-fmt.u { text-decoration: underline; }
+        .ch-fmt.s { text-decoration: line-through; }
+        .ch-fmt.on { background: #D1FAE5; border-color: #6EE7B7; color: #065F46; }
+        body.dark .ch-composer-text a { color: #6EE7B7; }
+        body.dark .ch-fmt.on { background: #10402F; border-color: #047857; color: #6EE7B7; }
         body.dark .ch-fmt { background: #2A2A2A; border-color: #444; color: #D0D0D0; }
         body.dark .ch-fmt:hover { border-color: #047857; background: #10402F; }
         body.dark .ch-fmt.ch-ai { background: #0B3B2E; border-color: #14503B; color: #6EE7B7; }
@@ -5797,27 +5804,26 @@
             return `
             <div class="ch-composer" id="chComposer">
                 <div class="ch-composer-title">Новый пост в вашем канале</div>
+                <!-- Панель — те же кнопки, что и в «Форматировании текста» обычных чатов,
+                     и работают так же: выделил, нажал «Ж» — текст СРАЗУ жирный прямо в поле,
+                     символов разметки не видно. Поле — contenteditable, оформление
+                     применяется только к выделенному. В базу уходит markdown-lite
+                     (cmpToMarkdown), как и у сообщений, поэтому пост везде выглядит одинаково. -->
                 <div class="ch-fmt-bar" role="toolbar" aria-label="Форматирование">
-                    <button type="button" class="ch-fmt" onclick="chFmtWrap('**')" title="Полужирный"><b>Ж</b></button>
-                    <button type="button" class="ch-fmt" onclick="chFmtWrap('_')" title="Курсив"><i>К</i></button>
-                    <button type="button" class="ch-fmt" onclick="chFmtLine('## ')" title="Заголовок">H</button>
-                    <button type="button" class="ch-fmt" onclick="chFmtLine('- ')" title="Список">☰</button>
-                    <button type="button" class="ch-fmt" onclick="chFmtLine('> ')" title="Цитата">❝</button>
+                    <button type="button" class="ch-fmt b" onmousedown="event.preventDefault()" onclick="chCmd('bold')" title="Жирный">Ж</button>
+                    <button type="button" class="ch-fmt i" onmousedown="event.preventDefault()" onclick="chCmd('italic')" title="Курсив">К</button>
+                    <button type="button" class="ch-fmt u" onmousedown="event.preventDefault()" onclick="chCmd('underline')" title="Подчёркнутый">Ч</button>
+                    <button type="button" class="ch-fmt s" onmousedown="event.preventDefault()" onclick="chCmd('strikeThrough')" title="Зачёркнутый">З</button>
+                    <button type="button" class="ch-fmt" onmousedown="event.preventDefault()" onclick="chBlock('H3')" title="Заголовок">H</button>
+                    <button type="button" class="ch-fmt" onmousedown="event.preventDefault()" onclick="chBlock('BLOCKQUOTE')" title="Цитата">❝</button>
+                    <button type="button" class="ch-fmt" onmousedown="event.preventDefault()" onclick="chCmd('insertUnorderedList')" title="Список">•—</button>
                     <span class="ch-fmt-sep"></span>
                     <button type="button" class="ch-fmt ch-ai" onclick="chAiGenerate()" title="Сгенерировать текст ИИ">✨ Сгенерировать</button>
                     <button type="button" class="ch-fmt ch-ai" onclick="chAiRewrite()" title="Переписать текст ИИ">🔄 Переписать</button>
                     <button type="button" class="ch-fmt ch-ai" onclick="chAiImage()" title="Сгенерировать картинку ИИ">🖼️ Картинку ИИ</button>
                 </div>
-                <textarea id="chComposerText" class="ch-composer-text" rows="7" oninput="chUpdatePreview()"
-                          placeholder="О чём рассказать подписчикам? Можно попросить ИИ — кнопка «✨ Сгенерировать»."></textarea>
-                <!-- Живой предпросмотр: сразу показывает, как пост будет выглядеть у
-                     подписчиков — жирный жирным, список списком, без символов разметки.
-                     Рисуется тем же formatPostText(), что и опубликованный пост, поэтому
-                     форматирование не «растекается» на весь текст, а только на выделенное. -->
-                <div class="ch-live-wrap" id="chLiveWrap" style="display:none;">
-                    <div class="ch-live-label">Как увидят подписчики</div>
-                    <div class="ch-live-preview ch-post-text" id="chLivePreview"></div>
-                </div>
+                <div id="chComposerText" class="ch-composer-text" contenteditable="true" role="textbox"
+                     aria-multiline="true" data-placeholder="О чём рассказать подписчикам? Выделите текст и нажмите кнопку сверху. Можно попросить ИИ — «✨ Сгенерировать»."></div>
                 <div class="ch-composer-preview" id="chComposerPreview" style="display:none;"></div>
                 <div class="ch-composer-bar">
                     <label class="ch-composer-attach" title="Добавить картинку с устройства">🖼️
@@ -5831,59 +5837,52 @@
             </div>`;
         }
 
-        /** Живой предпросмотр поста: тем же формателем, что и опубликованный пост. */
-        function chUpdatePreview() {
-            const ta = document.getElementById('chComposerText');
-            const wrap = document.getElementById('chLiveWrap');
-            const box = document.getElementById('chLivePreview');
-            if (!ta || !wrap || !box) return;
-            const t = ta.value.trim();
-            if (!t) { wrap.style.display = 'none'; box.innerHTML = ''; return; }
-            box.innerHTML = (typeof formatPostText === 'function') ? formatPostText(ta.value) : escapeHtml(ta.value);
-            wrap.style.display = 'block';
+        // ── Форматирование поста: то же, что «Форматирование текста» в чатах ──────
+        // Поле поста — contenteditable, поэтому переиспользуем готовые cmpCmd/cmpBlock
+        // (execCommand со <b>/<i>, а не style) и сериализацию cmpToMarkdown. На время
+        // нажатия подставляем поле поста как активное (cmpTargetEl).
+        function chWith(fn) {
+            const el = document.getElementById('chComposerText');
+            if (!el) return;
+            cmpTargetEl = el;
+            try { fn(); } finally { cmpTargetEl = null; }
         }
-        window.chUpdatePreview = chUpdatePreview;
+        function chCmd(cmd) { chWith(() => cmpCmd(cmd)); }
+        function chBlock(tag) { chWith(() => cmpBlock(tag)); }
+        window.chCmd = chCmd;
+        window.chBlock = chBlock;
 
-        // ── Форматирование текста поста ──────────────────────────────────────────
-        /** Обернуть выделение парным маркером (**жирный**, _курсив_). */
-        function chFmtWrap(mark) {
-            const ta = document.getElementById('chComposerText');
-            if (!ta) return;
-            const s = ta.selectionStart, e = ta.selectionEnd, v = ta.value;
-            const sel = v.slice(s, e) || 'текст';
-            ta.value = v.slice(0, s) + mark + sel + mark + v.slice(e);
-            ta.focus();
-            ta.selectionStart = s + mark.length;
-            ta.selectionEnd = s + mark.length + sel.length;
-            chUpdatePreview();
+        /** Текст поста как markdown-lite (для отправки и для ИИ). */
+        function chGetMarkdown() {
+            const el = document.getElementById('chComposerText');
+            return el ? cmpToMarkdown(el) : '';
         }
-        window.chFmtWrap = chFmtWrap;
-        /** Поставить маркер в начало строки (## заголовок, - список, > цитата). */
-        function chFmtLine(prefix) {
-            const ta = document.getElementById('chComposerText');
-            if (!ta) return;
-            const v = ta.value, s = ta.selectionStart;
-            const ls = v.lastIndexOf('\n', s - 1) + 1;
-            ta.value = v.slice(0, ls) + prefix + v.slice(ls);
-            ta.focus();
-            ta.selectionStart = ta.selectionEnd = s + prefix.length;
-            chUpdatePreview();
+        /** Показать в поле готовый текст оформленным (черновик / ответ ИИ). */
+        function chSetMarkdown(md) {
+            const el = document.getElementById('chComposerText');
+            if (!el) return;
+            el.innerHTML = (md && md.trim() && typeof formatPostText === 'function')
+                ? formatPostText(md) : '';
+            el.focus();
+            try {
+                const r = document.createRange(); r.selectNodeContents(el); r.collapse(false);
+                const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(r);
+            } catch (e) {}
         }
-        window.chFmtLine = chFmtLine;
 
         // ── Помощник-ИИ для постов ───────────────────────────────────────────────
         async function chAiText(mode) {
             const ta = document.getElementById('chComposerText');
             const msg = document.getElementById('chComposerMsg');
             if (!ta) return;
-            const current = ta.value.trim();
+            const current = chGetMarkdown();
             let prompt = '';
             if (mode === 'generate') {
                 prompt = (window.prompt('О чём написать пост? Например: «важность режима сна для тревожных клиентов»') || '').trim();
                 if (!prompt) return;
             } else if (!current) { if (msg) msg.textContent = 'Сначала напишите или сгенерируйте текст.'; return; }
             if (msg) msg.textContent = mode === 'rewrite' ? 'ИИ переписывает…' : 'ИИ пишет пост…';
-            ta.disabled = true;
+            ta.setAttribute('contenteditable', 'false');
             try {
                 const r = await fetch('/api/ai_post.php?action=text', {
                     method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
@@ -5891,13 +5890,13 @@
                 });
                 const d = await r.json().catch(() => ({}));
                 if (!r.ok || !d.ok) throw new Error(d.error || ('HTTP ' + r.status));
-                ta.value = d.text;
-                chUpdatePreview();
+                ta.setAttribute('contenteditable', 'true');
+                chSetMarkdown(d.text);
                 if (msg) msg.textContent = 'Готово — проверьте и опубликуйте.';
             } catch (e) {
                 if (msg) msg.textContent = 'ИИ: ' + (e.message || 'ошибка');
             } finally {
-                ta.disabled = false; ta.focus();
+                ta.setAttribute('contenteditable', 'true');
             }
         }
         function chAiGenerate() { chAiText('generate'); }
@@ -5906,9 +5905,8 @@
         window.chAiRewrite = chAiRewrite;
 
         async function chAiImage() {
-            const ta = document.getElementById('chComposerText');
             const msg = document.getElementById('chComposerMsg');
-            const base = ta ? ta.value.trim().slice(0, 200) : '';
+            const base = chGetMarkdown().slice(0, 200);
             const prompt = (window.prompt('Что нарисовать? Опишите картинку к посту:', base) || '').trim();
             if (!prompt) return;
             if (msg) msg.textContent = 'ИИ рисует картинку (это до минуты)…';
@@ -5974,7 +5972,7 @@
             const ta = document.getElementById('chComposerText');
             const btn = document.getElementById('chComposerSend');
             const msg = document.getElementById('chComposerMsg');
-            const text = ta ? ta.value.trim() : '';
+            const text = chGetMarkdown();
             if (!text && !chComposerImage) { if (msg) msg.textContent = 'Напишите текст или добавьте картинку'; return; }
             if (btn) btn.disabled = true;
             if (msg) msg.textContent = 'Публикуем…';
@@ -5985,8 +5983,7 @@
                 });
                 const d = await r.json().catch(() => ({}));
                 if (!r.ok || d.ok === false) throw new Error(d.error || ('HTTP ' + r.status));
-                if (ta) ta.value = '';
-                chUpdatePreview();
+                if (ta) ta.innerHTML = '';
                 dropChannelImage();
                 if (msg) msg.textContent = '';
                 const chanId = await resolveMyChannelId();
@@ -14827,7 +14824,12 @@
             ).join('');
         }
 
-        function cmpArea() { return document.getElementById('composerText'); }
+        // Активное поле форматирования. Обычно это окно «Форматирование текста»
+        // (#composerText). Редактор поста канала — то же самое, но встроенное: на время
+        // работы кнопок подставляем его сюда, чтобы переиспользовать cmpCmd/cmpBlock и
+        // сериализацию cmpToMarkdown без второй копии логики.
+        let cmpTargetEl = null;
+        function cmpArea() { return cmpTargetEl || document.getElementById('composerText'); }
 
         /** Применить оформление к выделенному. */
         function cmpCmd(cmd) {
