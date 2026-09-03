@@ -123,5 +123,48 @@ if ($action === 'list') {
     exit;
 }
 
+/**
+ * Кто поставил реакции на сообщение. Отдаём список по эмодзи с именами — чтобы в
+ * чате можно было посмотреть, кто отреагировал (как «прочитали» у сообщения).
+ * Имена берём отдельным запросом по собранным id: JOIN к users мог бы упасть на
+ * расхождении типов колонок (id где-то VARCHAR, где-то INT), а список реакций
+ * нужен человеку целиком.
+ */
+if ($action === 'who') {
+    $mid = trim((string)($_GET['message_id'] ?? ''));
+    if ($mid === '') { echo json_encode(['ok' => true, 'data' => []]); exit; }
+    $rows = [];
+    try {
+        $st = $pdo->prepare("SELECT emoji, user_id FROM message_reactions WHERE message_id = ? ORDER BY id ASC");
+        $st->execute([$mid]);
+        $rows = $st->fetchAll(PDO::FETCH_ASSOC);
+    } catch (Exception $e) { echo json_encode(['ok' => true, 'data' => []]); exit; }
+
+    $names = [];
+    $ids = array_values(array_unique(array_map(fn($r) => (string)$r['user_id'], $rows)));
+    if ($ids) {
+        try {
+            $in = implode(',', array_fill(0, count($ids), '?'));
+            $q = $pdo->prepare("SELECT id, first_name, last_name FROM users WHERE id IN ($in)");
+            $q->execute($ids);
+            foreach ($q->fetchAll(PDO::FETCH_ASSOC) as $u) {
+                $n = trim((string)($u['first_name'] ?? '') . ' ' . (string)($u['last_name'] ?? ''));
+                $names[(string)$u['id']] = $n !== '' ? $n : 'Пользователь';
+            }
+        } catch (Exception $e) {}
+    }
+    $out = [];
+    foreach ($rows as $r) {
+        $e = (string)$r['emoji'];
+        if (!isset($out[$e])) $out[$e] = [];
+        $out[$e][] = [
+            'name' => $names[(string)$r['user_id']] ?? 'Пользователь',
+            'mine' => ((string)$r['user_id'] === (string)$userId),
+        ];
+    }
+    echo json_encode(['ok' => true, 'data' => $out], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
 http_response_code(400);
 echo json_encode(['error' => 'Неизвестное действие']);

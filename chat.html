@@ -2021,7 +2021,14 @@
         /* Карточка чата и группы: раньше обе были шириной 420px, и сетка вложений
            получалась из крошечных плиток — разобрать, что на фото, было нельзя.
            На компьютере окно широкое, на телефоне — во весь экран, как в Telegram. */
-        .psy-wide-box { max-width: min(980px, 94vw); max-height: 92vh; }
+        /* Карточка собеседника и сведения о группе — не маленький попап посреди чата,
+           а окно во весь экран, как в Telegram: внутри вкладки с медиа, файлами и
+           голосовыми, и в узком окне разглядывать их было нечем. Высота фиксированная,
+           а не «по содержимому»: иначе окно скакало при переключении вкладок. */
+        .psy-wide-box { width: min(1100px, 96vw); max-width: min(1100px, 96vw); height: 92vh; max-height: 92vh; }
+        /* Место под список вкладки задано заранее — при переключении «Медиа → Файлы»
+           содержимое больше не пляшет, пока грузится следующий список. */
+        .cm-body { min-height: 320px; }
         @media (max-width: 768px) {
             .psy-wide-ov { padding: 0 !important; }
             .psy-wide-box {
@@ -2045,10 +2052,29 @@
             position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
             color: #fff; font-size: 1.4rem; text-shadow: 0 1px 6px rgba(0,0,0,0.6); pointer-events: none;
         }
-        .cm-row {
-            display: flex; align-items: center; gap: 0.6rem; padding: 0.5rem 0;
-            border-bottom: 1px solid #F2F2F2; text-decoration: none; color: inherit;
+        /* Кнопка «перейти к сообщению» у плитки: угол, проявляется при наведении.
+           На телефоне hover нет — там она видна всегда (правило ниже, в мобильном блоке). */
+        .cm-jump {
+            position: absolute; top: 4px; right: 4px; width: 26px; height: 26px; border: none;
+            border-radius: 50%; background: rgba(12,26,21,0.6); color: #fff; cursor: pointer;
+            display: flex; align-items: center; justify-content: center; opacity: 0;
+            transition: opacity 0.15s, background 0.15s; z-index: 2;
         }
+        .cm-cell:hover .cm-jump, .cm-row:hover .cm-jump { opacity: 1; }
+        .cm-jump:hover { background: #047857; }
+        /* На телефоне навести нельзя — кнопка видна всегда. */
+        @media (hover: none) { .cm-cell .cm-jump { opacity: 1; } }
+        .cm-row {
+            display: flex; align-items: center; gap: 0.4rem; padding: 0.5rem 0;
+            border-bottom: 1px solid #F2F2F2; color: inherit; position: relative;
+        }
+        /* У строк файлов/ссылок кнопка перехода стоит рядом, а не в углу — места хватает. */
+        .cm-row .cm-jump { position: static; opacity: 1; flex-shrink: 0; width: 30px; height: 30px;
+            background: transparent; color: #9CA3AF; }
+        .cm-row .cm-jump:hover { background: #D1FAE5; color: #047857; }
+        body.dark .cm-row .cm-jump:hover { background: #10402F; color: #6EE7B7; }
+        .cm-row-main { display: flex; align-items: center; gap: 0.6rem; flex: 1; min-width: 0;
+            text-decoration: none; color: inherit; }
         body.dark .cm-row { border-bottom-color: #333; }
         .cm-ico { font-size: 1.15rem; flex-shrink: 0; width: 1.7rem; text-align: center; }
         .cm-meta { min-width: 0; flex: 1; }
@@ -3818,6 +3844,44 @@
         .conversation-item { border-radius: 12px; margin: 0 0.25rem; padding: 0.55rem 0.5rem; }
 
         /* 7. Поле ввода: мягкая граница сверху и скруглённое поле */
+        /* ── Полосы прокрутки ────────────────────────────────────────────────────
+           Системная полоса в поле ввода — белая, квадратная, со стрелками: на тёмной
+           теме она светится посреди тёмной строки. Красим сами: тонкая, без стрелок,
+           цвет от темы. Только внутри чата, чтобы не менять вид остального сайта. */
+        .chat-input textarea, .messages-container, .conversations-list,
+        .cm-body, #userCardBody, #groupInfoBody, .cin-menu, .folder-picker {
+            scrollbar-width: thin;
+            scrollbar-color: rgba(0,0,0,0.22) transparent;
+        }
+        body.dark .chat-input textarea, body.dark .messages-container,
+        body.dark .conversations-list, body.dark .cm-body, body.dark #userCardBody,
+        body.dark #groupInfoBody, body.dark .cin-menu, body.dark .folder-picker {
+            scrollbar-color: rgba(255,255,255,0.24) transparent;
+        }
+        .chat-input textarea::-webkit-scrollbar, .messages-container::-webkit-scrollbar,
+        .conversations-list::-webkit-scrollbar, .cm-body::-webkit-scrollbar,
+        #userCardBody::-webkit-scrollbar, #groupInfoBody::-webkit-scrollbar,
+        .cin-menu::-webkit-scrollbar, .folder-picker::-webkit-scrollbar { width: 8px; height: 8px; }
+        .chat-input textarea::-webkit-scrollbar-track, .messages-container::-webkit-scrollbar-track,
+        .conversations-list::-webkit-scrollbar-track, .cm-body::-webkit-scrollbar-track,
+        #userCardBody::-webkit-scrollbar-track, #groupInfoBody::-webkit-scrollbar-track { background: transparent; }
+        .chat-input textarea::-webkit-scrollbar-thumb, .messages-container::-webkit-scrollbar-thumb,
+        .conversations-list::-webkit-scrollbar-thumb, .cm-body::-webkit-scrollbar-thumb,
+        #userCardBody::-webkit-scrollbar-thumb, #groupInfoBody::-webkit-scrollbar-thumb {
+            background: rgba(0,0,0,0.2); border-radius: 8px;
+            border: 2px solid transparent; background-clip: content-box;
+        }
+        body.dark .chat-input textarea::-webkit-scrollbar-thumb,
+        body.dark .messages-container::-webkit-scrollbar-thumb,
+        body.dark .conversations-list::-webkit-scrollbar-thumb,
+        body.dark .cm-body::-webkit-scrollbar-thumb,
+        body.dark #userCardBody::-webkit-scrollbar-thumb,
+        body.dark #groupInfoBody::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.22); background-clip: content-box; }
+        /* Стрелки вверх/вниз по краям полосы — их и видно как «квадратики» */
+        .chat-input textarea::-webkit-scrollbar-button, .messages-container::-webkit-scrollbar-button,
+        .conversations-list::-webkit-scrollbar-button, .cm-body::-webkit-scrollbar-button,
+        #userCardBody::-webkit-scrollbar-button, #groupInfoBody::-webkit-scrollbar-button { display: none; height: 0; width: 0; }
+
         .chat-input { border-top-color: rgba(0,0,0,0.07); }
         body.dark .chat-input { border-top-color: rgba(255,255,255,0.08); }
         .chat-input textarea { border-radius: 18px; }
@@ -6497,6 +6561,32 @@
         }
         window.chatMediaTab = chatMediaTab;
 
+        /**
+         * Кнопка «перейти к сообщению» у любого вложения в карточке — как в Telegram:
+         * из галереи медиа/файлов/голосовых можно прыгнуть к тому месту переписки, где
+         * файл прислали. id вложения — это id самого сообщения (его отдаёт chat_media.php).
+         * Показываем только там, где переход осмыслен: в переписке и в группе. В галерее
+         * «Избранного» это те же заметки — прыгать некуда.
+         */
+        function cmJumpBtnHtml(it) {
+            if (!it || !it.id || (cmScope && cmScope.favorites)) return '';
+            return `<button type="button" class="cm-jump" title="Показать в переписке"
+                        onclick="cmJumpTo(event, '${escapeHtml(String(it.id))}')" aria-label="Показать в переписке">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+                    </button>`;
+        }
+        /** Закрыть карточку/сведения и перемотать переписку к сообщению. */
+        function cmJumpTo(evt, id) {
+            if (evt) evt.stopPropagation();
+            closeUserCard();
+            const gi = document.getElementById('groupInfoModal');
+            if (gi) gi.style.display = 'none';
+            // Даём модалке закрыться, потом ищем сообщение: пока она поверх, scrollIntoView
+            // отработает по перекрытому элементу и человек ничего не увидит.
+            setTimeout(function () { jumpToMessage(null, id); }, 60);
+        }
+        window.cmJumpTo = cmJumpTo;
+
         async function chatMediaLoad() {
             const body = document.getElementById('cmBody');
             if (!body || !cmScope) return;
@@ -6532,33 +6622,44 @@
                     // Фото открываем встроенным просмотрщиком (data-zoom/data-full — те же
                     // атрибуты, что и у снимков в переписке), а не новой вкладкой: так
                     // между ними можно листать, не выходя из карточки.
+                    // В плитку 150×150 ставим уменьшенную копию (api/thumb.php, 320px):
+                    // раньше сюда грузились оригиналы прямо с телефона, по несколько
+                    // мегабайт каждый — отсюда и «фото долго грузятся в профиле».
+                    // Видео не показываем метаданными (это десятки запросов разом) —
+                    // тёмная плитка со значком, само видео грузится по нажатию.
                     return isVid
                         ? `<a class="cm-cell" href="${escapeHtml(it.url)}" target="_blank" title="${escapeHtml(it.name || 'Видео')}">
-                               <video src="${escapeHtml(it.url)}" preload="metadata" muted></video><span class="cm-play">▶</span></a>`
+                               <video src="${escapeHtml(it.url)}" preload="none" muted></video><span class="cm-play">▶</span>
+                               ${cmJumpBtnHtml(it)}</a>`
                         : `<span class="cm-cell" title="${escapeHtml(it.name || 'Фото')}">
-                               <img src="${escapeHtml(it.url)}" data-full="${escapeHtml(it.url)}" data-zoom
-                                    data-group="cm-media" alt="" loading="lazy"></span>`;
+                               <img src="${escapeHtml(thumbUrl(it.url, 320))}" data-full="${escapeHtml(it.url)}" data-zoom
+                                    data-group="cm-media" alt="" loading="lazy" decoding="async">
+                               ${cmJumpBtnHtml(it)}</span>`;
                 }).join('') + '</div>';
             } else if (cmKind === 'links') {
                 html = cmItems.map(it => `
-                    <a class="cm-row" href="${escapeHtml(it.url)}" target="_blank" rel="noopener">
-                        <span class="cm-ico">🔗</span>
-                        <span class="cm-meta">
-                            <span class="cm-title">${escapeHtml(it.url)}</span>
-                            <span class="cm-sub">${escapeHtml(it.sender || '')}${it.sender ? ' · ' : ''}${when(it.created_at)}</span>
-                        </span>
-                    </a>`).join('');
+                    <div class="cm-row">
+                        <a class="cm-row-main" href="${escapeHtml(it.url)}" target="_blank" rel="noopener">
+                            <span class="cm-ico">🔗</span>
+                            <span class="cm-meta">
+                                <span class="cm-title">${escapeHtml(it.url)}</span>
+                                <span class="cm-sub">${escapeHtml(it.sender || '')}${it.sender ? ' · ' : ''}${when(it.created_at)}</span>
+                            </span>
+                        </a>${cmJumpBtnHtml(it)}
+                    </div>`).join('');
             } else {
                 const ico = cmKind === 'voice' ? '🎤' : '📄';
                 html = cmItems.map(it => `
-                    <a class="cm-row" href="${escapeHtml(it.url)}" target="_blank"
-                       ${cmKind === 'files' ? `download="${escapeHtml(it.name || 'file')}"` : ''}>
-                        <span class="cm-ico">${ico}</span>
-                        <span class="cm-meta">
-                            <span class="cm-title">${escapeHtml(it.name || (cmKind === 'voice' ? 'Голосовое сообщение' : 'Файл'))}</span>
-                            <span class="cm-sub">${escapeHtml(it.sender || '')}${it.sender ? ' · ' : ''}${when(it.created_at)}</span>
-                        </span>
-                    </a>`).join('');
+                    <div class="cm-row">
+                        <a class="cm-row-main" href="${escapeHtml(it.url)}" target="_blank"
+                           ${cmKind === 'files' ? `download="${escapeHtml(it.name || 'file')}"` : ''}>
+                            <span class="cm-ico">${ico}</span>
+                            <span class="cm-meta">
+                                <span class="cm-title">${escapeHtml(it.name || (cmKind === 'voice' ? 'Голосовое сообщение' : 'Файл'))}</span>
+                                <span class="cm-sub">${escapeHtml(it.sender || '')}${it.sender ? ' · ' : ''}${when(it.created_at)}</span>
+                            </span>
+                        </a>${cmJumpBtnHtml(it)}
+                    </div>`).join('');
             }
             body.innerHTML = html + (hasMore
                 ? '<button type="button" class="cm-more" onclick="chatMediaMore()">Показать ещё</button>' : '');
@@ -15609,15 +15710,71 @@
                     box.className = 'msg-reacts';
                     el.appendChild(box);
                 }
+                // Долгое нажатие (палец) и правый клик (мышь) по реакции показывают,
+                // кто её поставил — как в Telegram. Обычный клик по-прежнему ставит/снимает.
                 box.innerHTML = Object.keys(set).map(e =>
                     `<button type="button" class="react-chip${set[e].mine ? ' mine' : ''}"
-                             onclick="toggleReaction(event,'${id}','${e}')">${e}<span>${set[e].count}</span></button>`
+                             onclick="toggleReaction(event,'${id}','${e}')"
+                             oncontextmenu="showReactedBy(event,'${id}')"
+                             ontouchstart="reactChipTouchStart(event,'${id}')"
+                             ontouchend="reactChipTouchEnd()" ontouchmove="reactChipTouchEnd()"
+                             >${e}<span>${set[e].count}</span></button>`
                 ).join('');
             });
         }
 
+        /**
+         * Кто поставил реакции на сообщение — тем же окном, что «кто прочитал».
+         * Долгое нажатие пальцем или правый клик по любой реакции. Список приходит
+         * с сервера (reactions.php?action=who) и группируется по эмодзи.
+         */
+        let reactTouchTimer = null;
+        function reactChipTouchStart(evt, msgId) {
+            reactChipTouchEnd();
+            reactTouchTimer = setTimeout(function () {
+                reactTouchTimer = null;
+                if (navigator.vibrate) { try { navigator.vibrate(10); } catch (e) {} }
+                showReactedBy(null, msgId, evt);
+            }, 480);
+        }
+        function reactChipTouchEnd() { if (reactTouchTimer) { clearTimeout(reactTouchTimer); reactTouchTimer = null; } }
+        window.reactChipTouchStart = reactChipTouchStart;
+        window.reactChipTouchEnd = reactChipTouchEnd;
+
+        async function showReactedBy(evt, msgId, touchEvt) {
+            if (evt) { evt.preventDefault(); evt.stopPropagation(); }
+            // Долгое нажатие вызовет и обычный click по отпускании — гасим его.
+            if (touchEvt) { const s = touchEvt.target; if (s) { s.dataset.suppressClick = '1'; setTimeout(() => { delete s.dataset.suppressClick; }, 500); } }
+            openReadersBox('Кто реагировал', '<div class="rd-empty">Загрузка…</div>');
+            let d = null;
+            try {
+                d = await (await fetch('/api/reactions.php?action=who&message_id=' + encodeURIComponent(msgId),
+                                       { credentials: 'include' })).json();
+            } catch (e) {}
+            const box = document.getElementById('readersBox');
+            if (!box) return;
+            const data = (d && d.ok && d.data) ? d.data : {};
+            const emojis = Object.keys(data);
+            if (!emojis.length) {
+                box.querySelector('.rd-body').innerHTML = '<div class="rd-empty">Пока никто не реагировал.</div>';
+                return;
+            }
+            let total = 0; emojis.forEach(e => total += data[e].length);
+            let html = '';
+            emojis.forEach(e => {
+                data[e].forEach(p => {
+                    html += `<div class="rd-row"><span>${escapeHtml(p.name)}${p.mine ? ' (вы)' : ''}</span><i>${e}</i></div>`;
+                });
+            });
+            box.querySelector('.rd-head b').textContent = 'Реагировали · ' + total;
+            box.querySelector('.rd-body').innerHTML = html;
+        }
+        window.showReactedBy = showReactedBy;
+
         async function toggleReaction(evt, msgId, emoji) {
             if (evt) evt.stopPropagation();
+            // Клик, пришедший следом за долгим нажатием (показ «кто реагировал»), гасим.
+            if (evt && evt.target && evt.target.dataset && evt.target.dataset.suppressClick) return;
             const key = reactionChatKey();
             if (!key) return;
             // Рисуем сразу, не дожидаясь сервера: иначе нажатие кажется «залипшим».
