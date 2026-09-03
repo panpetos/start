@@ -973,6 +973,15 @@
             resize: vertical; outline: none; background: #fff; box-sizing: border-box; min-height: 190px;
         }
         .ch-composer-text:focus { border-color: #6EE7B7; }
+        /* Живой предпросмотр под полем ввода. */
+        .ch-live-wrap { margin-top: 0.7rem; border: 1.5px dashed #D1FAE5; border-radius: 0.7rem; padding: 0.6rem 0.85rem; background: #F7FDFB; }
+        .ch-live-label { font-size: 0.72rem; font-weight: 700; color: #059669; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 0.4rem; }
+        .ch-live-preview { font-size: 1.02rem; line-height: 1.55; color: #222; overflow-wrap: anywhere; }
+        .ch-live-preview :first-child { margin-top: 0; }
+        .ch-live-preview :last-child { margin-bottom: 0; }
+        body.dark .ch-live-wrap { background: #14201B; border-color: #14503B; }
+        body.dark .ch-live-label { color: #6EE7B7; }
+        body.dark .ch-live-preview { color: #E6E6E6; }
         body.dark .ch-fmt { background: #2A2A2A; border-color: #444; color: #D0D0D0; }
         body.dark .ch-fmt:hover { border-color: #047857; background: #10402F; }
         body.dark .ch-fmt.ch-ai { background: #0B3B2E; border-color: #14503B; color: #6EE7B7; }
@@ -5799,8 +5808,16 @@
                     <button type="button" class="ch-fmt ch-ai" onclick="chAiRewrite()" title="Переписать текст ИИ">🔄 Переписать</button>
                     <button type="button" class="ch-fmt ch-ai" onclick="chAiImage()" title="Сгенерировать картинку ИИ">🖼️ Картинку ИИ</button>
                 </div>
-                <textarea id="chComposerText" class="ch-composer-text" rows="7"
+                <textarea id="chComposerText" class="ch-composer-text" rows="7" oninput="chUpdatePreview()"
                           placeholder="О чём рассказать подписчикам? Можно попросить ИИ — кнопка «✨ Сгенерировать»."></textarea>
+                <!-- Живой предпросмотр: сразу показывает, как пост будет выглядеть у
+                     подписчиков — жирный жирным, список списком, без символов разметки.
+                     Рисуется тем же formatPostText(), что и опубликованный пост, поэтому
+                     форматирование не «растекается» на весь текст, а только на выделенное. -->
+                <div class="ch-live-wrap" id="chLiveWrap" style="display:none;">
+                    <div class="ch-live-label">Как увидят подписчики</div>
+                    <div class="ch-live-preview ch-post-text" id="chLivePreview"></div>
+                </div>
                 <div class="ch-composer-preview" id="chComposerPreview" style="display:none;"></div>
                 <div class="ch-composer-bar">
                     <label class="ch-composer-attach" title="Добавить картинку с устройства">🖼️
@@ -5814,6 +5831,19 @@
             </div>`;
         }
 
+        /** Живой предпросмотр поста: тем же формателем, что и опубликованный пост. */
+        function chUpdatePreview() {
+            const ta = document.getElementById('chComposerText');
+            const wrap = document.getElementById('chLiveWrap');
+            const box = document.getElementById('chLivePreview');
+            if (!ta || !wrap || !box) return;
+            const t = ta.value.trim();
+            if (!t) { wrap.style.display = 'none'; box.innerHTML = ''; return; }
+            box.innerHTML = (typeof formatPostText === 'function') ? formatPostText(ta.value) : escapeHtml(ta.value);
+            wrap.style.display = 'block';
+        }
+        window.chUpdatePreview = chUpdatePreview;
+
         // ── Форматирование текста поста ──────────────────────────────────────────
         /** Обернуть выделение парным маркером (**жирный**, _курсив_). */
         function chFmtWrap(mark) {
@@ -5825,6 +5855,7 @@
             ta.focus();
             ta.selectionStart = s + mark.length;
             ta.selectionEnd = s + mark.length + sel.length;
+            chUpdatePreview();
         }
         window.chFmtWrap = chFmtWrap;
         /** Поставить маркер в начало строки (## заголовок, - список, > цитата). */
@@ -5836,6 +5867,7 @@
             ta.value = v.slice(0, ls) + prefix + v.slice(ls);
             ta.focus();
             ta.selectionStart = ta.selectionEnd = s + prefix.length;
+            chUpdatePreview();
         }
         window.chFmtLine = chFmtLine;
 
@@ -5860,6 +5892,7 @@
                 const d = await r.json().catch(() => ({}));
                 if (!r.ok || !d.ok) throw new Error(d.error || ('HTTP ' + r.status));
                 ta.value = d.text;
+                chUpdatePreview();
                 if (msg) msg.textContent = 'Готово — проверьте и опубликуйте.';
             } catch (e) {
                 if (msg) msg.textContent = 'ИИ: ' + (e.message || 'ошибка');
@@ -5953,6 +5986,7 @@
                 const d = await r.json().catch(() => ({}));
                 if (!r.ok || d.ok === false) throw new Error(d.error || ('HTTP ' + r.status));
                 if (ta) ta.value = '';
+                chUpdatePreview();
                 dropChannelImage();
                 if (msg) msg.textContent = '';
                 const chanId = await resolveMyChannelId();
