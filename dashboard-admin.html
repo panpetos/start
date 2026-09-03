@@ -3458,6 +3458,7 @@
                     <tr><td>PROD Password#1 / #2</td><td>${yn(diag.prod_password1_set)} ${yn(diag.prod_password2_set)}</td></tr>
                 </tbody></table>`;
             const fld = (id,label,type,ph) => `<label style="display:block;margin-bottom:0.7rem;"><span style="display:block;font-size:0.82rem;color:var(--a-text-sec);margin-bottom:0.25rem;font-weight:600;">${label}</span><input id="${id}" type="${type}" placeholder="${ph||''}" autocomplete="off" style="width:100%;max-width:420px;padding:0.55rem 0.7rem;border:1.5px solid var(--a-input-border);border-radius:0.6rem;font-family:inherit;font-size:0.9rem;background:var(--a-input-bg);color:var(--a-text);"></label>`;
+            const selFld = (id,label,opts,val) => `<label style="display:block;margin-bottom:0.2rem;"><span style="display:block;font-size:0.82rem;color:var(--a-text-sec);margin-bottom:0.25rem;font-weight:600;">${label}</span><select id="${id}" style="padding:0.55rem 0.7rem;border:1.5px solid var(--a-input-border);border-radius:0.6rem;font-family:inherit;font-size:0.9rem;background:var(--a-input-bg);color:var(--a-text);">${opts.map(o=>`<option value="${o[0]}" ${o[0]===val?'selected':''}>${o[1]}</option>`).join('')}</select></label>`;
             document.getElementById('content').innerHTML =
                 '<div class="note">🔐 Ключи Робокассы хранятся в файле <b>api/robokassa_config.php</b> на сервере (не в git). Здесь можно записать их безопасно — поля с паролями не показывают текущее значение; пустое поле = «не менять». После сохранения проверьте статус «Приём платежей: готово».</div>' +
                 '<div class="panel"><div class="panel-head"><h2>Ключи и режим Робокассы</h2><button class="btn-sm btn-outline" onclick="renderRobokassa()">↻ Обновить статус</button></div>' +
@@ -3471,8 +3472,17 @@
                     '<div style="font-weight:700;margin:0.6rem 0 0.4rem;">Боевые пароли</div>' +
                     fld('rkProd1','PROD Password #1','password','оставьте пустым — не менять') +
                     fld('rkProd2','PROD Password #2','password','оставьте пустым — не менять') +
-                    `<label style="display:flex;align-items:center;gap:0.5rem;margin:0.5rem 0 1rem;cursor:pointer;"><input type="checkbox" id="rkReceipt" ${diag.receipt_enabled?'checked':''} style="width:18px;height:18px;accent-color:#047857;"> Фискализация чеков (Receipt, УСН доход)</label>` +
-                    '<button class="btn-sm btn-brand" style="padding:0.7rem 1.6rem;" onclick="saveRobokassa(this)">💾 Сохранить ключи</button> <span id="rkMsg" style="font-size:0.88rem;margin-left:0.5rem;"></span>' +
+                    `<label style="display:flex;align-items:center;gap:0.5rem;margin:0.5rem 0 0.5rem;cursor:pointer;"><input type="checkbox" id="rkReceipt" ${diag.receipt_enabled?'checked':''} style="width:18px;height:18px;accent-color:#047857;"> Фискализация чеков (Receipt)</label>` +
+                    '<div style="display:flex;gap:0.6rem;flex-wrap:wrap;margin:0 0 0.6rem;">' +
+                      selFld('rkSno','Система налогообложения',[['usn_income','УСН доход'],['usn_income_outcome','УСН доход-расход'],['osn','ОСН'],['patent','Патент'],['envd','ЕНВД'],['esn','ЕСХН']], diag.receipt_sno||'usn_income') +
+                      selFld('rkTax','Ставка НДС',[['none','Без НДС'],['vat0','0%'],['vat10','10%'],['vat20','20%'],['vat110','10/110'],['vat120','20/120']], diag.receipt_tax||'none') +
+                    '</div>' +
+                    `<label style="display:flex;align-items:center;gap:0.5rem;margin:0.2rem 0 0.3rem;cursor:pointer;"><input type="checkbox" id="rkAgent" ${diag.receipt_agent_enabled?'checked':''} style="width:18px;height:18px;accent-color:#047857;"> Агентская схема — признак агента и данные психолога в чеке <b style="color:#B45309;">(только для «Robokassa Онлайн»)</b></label>` +
+                    `<div style="display:${diag.receipt_agent_enabled?'flex':'flex'};gap:0.6rem;flex-wrap:wrap;margin:0 0 1rem;">` +
+                      selFld('rkAgentType','Тип агента',[['agent','Агент'],['commission_agent','Комиссионер'],['attorney','Поверенный'],['payment_agent','Платёжный агент'],['payment_subagent','Платёжный субагент']], diag.receipt_agent_type||'agent') +
+                    '</div>' +
+                    '<div class="note" style="font-size:0.8rem;margin-bottom:0.8rem;">Агентскую схему включайте только после подключения «Robokassa Онлайн» (своей облачной кассы). ИНН психолога берётся из его профиля; если не заполнен — чек уйдёт обычным, оплата не сорвётся.</div>' +
+                    '<button class="btn-sm btn-brand" style="padding:0.7rem 1.6rem;" onclick="saveRobokassa(this)">💾 Сохранить</button> <span id="rkMsg" style="font-size:0.88rem;margin-left:0.5rem;"></span>' +
                 '</div></div>';
         }
         async function saveRobokassa(btn){
@@ -3483,7 +3493,11 @@
                 test_password2: document.getElementById('rkTest2').value,
                 prod_password1: document.getElementById('rkProd1').value,
                 prod_password2: document.getElementById('rkProd2').value,
-                receipt_enabled: document.getElementById('rkReceipt').checked
+                receipt_enabled: document.getElementById('rkReceipt').checked,
+                receipt_sno: document.getElementById('rkSno').value,
+                receipt_tax: document.getElementById('rkTax').value,
+                receipt_agent_enabled: document.getElementById('rkAgent').checked,
+                receipt_agent_type: document.getElementById('rkAgentType').value
             };
             const msg = document.getElementById('rkMsg');
             btn.disabled = true; msg.textContent = 'Сохраняем...'; msg.style.color = 'var(--a-text-sec)';

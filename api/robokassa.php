@@ -44,6 +44,35 @@ function genUUID(): string {
         mt_rand(0, 0xffff), mt_rand(0, 0xffff), mt_rand(0, 0xffff));
 }
 
+/**
+ * Данные поставщика-психолога для чека по агентской схеме (54-ФЗ): ИНН, имя, телефон.
+ * ИНН лежит в psychologist_credentials (type='inn', в поле name) — туда его кладёт
+ * регистрация; колонки psychologists.inn на проде нет. Если ИНН не найден, вернём
+ * пустой inn — вызывающий код тогда НЕ добавит агентские поля, и оплата не сорвётся.
+ */
+function robokassaSupplier(PDO $pdo, $psychologistId): array {
+    $out = ['inn' => '', 'name' => '', 'phone' => ''];
+    $userId = null;
+    try {
+        $st = $pdo->prepare("SELECT user_id, first_name, last_name FROM psychologists p
+                             LEFT JOIN users u ON u.id = p.user_id WHERE p.id = ? LIMIT 1");
+        $st->execute([$psychologistId]);
+        if ($r = $st->fetch(PDO::FETCH_ASSOC)) {
+            $userId = $r['user_id'] ?? null;
+            $out['name'] = trim(($r['first_name'] ?? '') . ' ' . ($r['last_name'] ?? ''));
+        }
+    } catch (Exception $e) {}
+    try {
+        $st = $pdo->prepare("SELECT name FROM psychologist_credentials
+                              WHERE type = 'inn' AND (psychologist_id = ? OR user_id = ?)
+                              ORDER BY id DESC LIMIT 1");
+        $st->execute([$psychologistId, $userId ?: 0]);
+        $out['inn'] = preg_replace('/\D+/', '', (string)$st->fetchColumn());
+    } catch (Exception $e) {}
+    if ($out['name'] === '') $out['name'] = 'Психолог';
+    return $out;
+}
+
 // ── Схема: таблица инвойсов + задел под сплит (Shop ID психолога) ───────────────
 function ensureSchema(PDO $pdo): void {
     try {
@@ -97,6 +126,10 @@ if ($action === 'diag') {
         'active_creds_used'    => $isTest ? 'test' : 'prod',
         'active_configured'    => robokassaConfigured($password1, $password2),
         'receipt_enabled'      => !empty($receiptCfg['enabled']),
+        'receipt_sno'          => $receiptCfg['sno'] ?? 'usn_income',
+        'receipt_tax'          => $receiptCfg['tax'] ?? 'none',
+        'receipt_agent_enabled' => !empty($receiptCfg['agent_enabled']),
+        'receipt_agent_type'   => $receiptCfg['agent_type'] ?? 'agent',
     ]);
 }
 
@@ -128,10 +161,13 @@ if ($action === 'save-config' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         ],
         'receipt' => [
             'enabled'        => !empty($b['receipt_enabled']),
-            'sno'            => $cur['receipt']['sno'] ?? 'usn_income',
+            'sno'            => $b['receipt_sno'] ?? ($cur['receipt']['sno'] ?? 'usn_income'),
             'payment_method' => $cur['receipt']['payment_method'] ?? 'full_payment',
             'payment_object' => $cur['receipt']['payment_object'] ?? 'service',
-            'tax'            => $cur['receipt']['tax'] ?? 'none',
+            'tax'            => $b['receipt_tax'] ?? ($cur['receipt']['tax'] ?? 'none'),
+            // Агентская схема (Robokassa Онлайн): признак агента и данные психолога в чеке.
+            'agent_enabled'  => array_key_exists('receipt_agent_enabled', $b) ? !empty($b['receipt_agent_enabled']) : !empty($cur['receipt']['agent_enabled']),
+            'agent_type'     => $b['receipt_agent_type'] ?? ($cur['receipt']['agent_type'] ?? 'agent'),
         ],
     ];
 
@@ -213,16 +249,33 @@ if ($action === 'init' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         'Culture' => 'ru',
     ];
     if (!empty($receiptCfg['enabled'])) {
+        $item = [
+            'name' => $description,
+            'quantity' => 1,
+            'sum' => (float)$outSum,
+            'payment_method' => $receiptCfg['payment_method'] ?? 'full_payment',
+            'payment_object' => $receiptCfg['payment_object'] ?? 'service',
+            'tax' => $receiptCfg['tax'] ?? 'none',
+        ];
+        // Агентская схема (Robokassa Онлайн): в чеке — признак агента и данные
+        // поставщика-психолога (принципала). Включается флагом agent_enabled в
+        // настройках. Если у психолога не заполнен ИНН, агентские поля не добавляем —
+        // иначе касса отклонит чек; оплата при этом всё равно проходит обычным чеком.
+        if (!empty($receiptCfg['agent_enabled'])) {
+            $sup = robokassaSupplier($pdo, $psychologistId);
+            if ($sup['inn'] !== '') {
+                $item['payment_agent_type'] = $receiptCfg['agent_type'] ?? 'agent';
+                $item['agent_info'] = ['type' => $receiptCfg['agent_type'] ?? 'agent'];
+                $item['supplier_info'] = [
+                    'name' => mb_substr($sup['name'], 0, 239),
+                    'inn'  => $sup['inn'],
+                ];
+                if ($sup['phone'] !== '') $item['supplier_info']['phones'] = [$sup['phone']];
+            }
+        }
         $receipt = [
             'sno' => $receiptCfg['sno'] ?? 'usn_income',
-            'items' => [[
-                'name' => $description,
-                'quantity' => 1,
-                'sum' => (float)$outSum,
-                'payment_method' => $receiptCfg['payment_method'] ?? 'full_payment',
-                'payment_object' => $receiptCfg['payment_object'] ?? 'service',
-                'tax' => $receiptCfg['tax'] ?? 'none',
-            ]],
+            'items' => [$item],
         ];
         $receiptEnc = urlencode(json_encode($receipt, JSON_UNESCAPED_UNICODE));
         $sig = md5("$login:$outSum:$invId:$receiptEnc:$password1");
