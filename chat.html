@@ -967,6 +967,22 @@
         .ch-fmt.ch-ai { color: #047857; border-color: #A7F3D0; background: #ECFDF5; font-size: 0.9rem; }
         .ch-fmt.ch-ai:hover { background: #D1FAE5; }
         .ch-fmt-sep { flex: 0 0 1px; width: 1px; height: 1.6rem; background: #E5E7EB; margin: 0 0.25rem; }
+        /* Панель смайлов над кнопкой */
+        .ch-fmt-pos { position: relative; display: inline-flex; }
+        .ch-emoji-pop {
+            position: absolute; bottom: calc(100% + 6px); left: 0; z-index: 60; width: 300px; max-width: 84vw;
+            background: #fff; border: 1px solid #E5E7EB; border-radius: 0.8rem; box-shadow: 0 10px 34px rgba(0,0,0,0.18); padding: 0.4rem;
+        }
+        .ch-emoji-tabs { display: flex; gap: 0.15rem; margin-bottom: 0.3rem; }
+        .ch-emoji-tabs .emoji-tab { border: none; background: none; cursor: pointer; font-size: 1.1rem; padding: 0.2rem 0.35rem; border-radius: 0.4rem; opacity: 0.7; }
+        .ch-emoji-tabs .emoji-tab.active { background: #D1FAE5; opacity: 1; }
+        .ch-emoji-grid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 0.1rem; max-height: 190px; overflow-y: auto; }
+        .ch-emoji-grid span { cursor: pointer; font-size: 1.25rem; text-align: center; padding: 0.15rem 0; border-radius: 0.35rem; }
+        .ch-emoji-grid span:hover { background: #F0FDF4; }
+        .ch-emoji-grid .emoji-empty { grid-column: 1 / -1; color: #9CA3AF; font-size: 0.8rem; padding: 0.6rem; text-align: center; }
+        body.dark .ch-emoji-pop { background: #252525; border-color: #444; }
+        body.dark .ch-emoji-tabs .emoji-tab.active { background: #10402F; }
+        body.dark .ch-emoji-grid span:hover { background: #333; }
         /* Поле поста — contenteditable: оформление показывается сразу в самом поле
            (жирный жирным), символов разметки не видно. Блочные стили — как в постах. */
         .ch-composer-text {
@@ -5826,12 +5842,20 @@
                     <button type="button" class="ch-fmt" onmousedown="event.preventDefault()" onclick="chBlock('H3')" title="Заголовок">H</button>
                     <button type="button" class="ch-fmt" onmousedown="event.preventDefault()" onclick="chBlock('BLOCKQUOTE')" title="Цитата">❝</button>
                     <button type="button" class="ch-fmt" onmousedown="event.preventDefault()" onclick="chCmd('insertUnorderedList')" title="Список">•—</button>
+                    <span class="ch-fmt-pos">
+                        <button type="button" class="ch-fmt" onmousedown="event.preventDefault()" onclick="chToggleEmoji(event)" title="Смайлы">😊</button>
+                        <div class="ch-emoji-pop" id="chEmojiPop" style="display:none;">
+                            <div class="ch-emoji-tabs" id="chEmojiTabs"></div>
+                            <div class="ch-emoji-grid emoji-grid" id="chEmojiGrid"></div>
+                        </div>
+                    </span>
                     <span class="ch-fmt-sep"></span>
                     <button type="button" class="ch-fmt ch-ai" onclick="chAiGenerate()" title="Сгенерировать текст ИИ">✨ Сгенерировать</button>
                     <button type="button" class="ch-fmt ch-ai" onclick="chAiRewrite()" title="Переписать текст ИИ">🔄 Переписать</button>
                     <button type="button" class="ch-fmt ch-ai" onclick="chAiImage()" title="Сгенерировать картинку ИИ">🖼️ Картинку ИИ</button>
                 </div>
                 <div id="chComposerText" class="ch-composer-text" contenteditable="true" role="textbox"
+                     oninput="chSaveDraft()" onblur="chSaveDraft()"
                      aria-multiline="true" data-placeholder="О чём рассказать подписчикам? Выделите текст и нажмите кнопку сверху. Можно попросить ИИ — «✨ Сгенерировать»."></div>
                 <div class="ch-composer-preview" id="chComposerPreview" style="display:none;"></div>
                 <div class="ch-composer-bar">
@@ -5878,6 +5902,80 @@
                 const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(r);
             } catch (e) {}
         }
+
+        // ── Смайлы в посте (наш общий набор EMOJI_SETS) ──────────────────────────
+        let chEmojiTab = null;
+        function chToggleEmoji(evt) {
+            if (evt) { evt.preventDefault(); evt.stopPropagation(); }
+            const pop = document.getElementById('chEmojiPop');
+            if (!pop) return;
+            const show = pop.style.display === 'none';
+            pop.style.display = show ? 'block' : 'none';
+            if (show) {
+                chRenderEmoji();
+                setTimeout(() => document.addEventListener('click', chEmojiOutside), 0);
+            }
+        }
+        function chEmojiOutside(e) {
+            const pop = document.getElementById('chEmojiPop');
+            if (pop && !e.target.closest('.ch-fmt-pos')) { pop.style.display = 'none'; document.removeEventListener('click', chEmojiOutside); }
+        }
+        function chRenderEmoji() {
+            const tabs = document.getElementById('chEmojiTabs');
+            const grid = document.getElementById('chEmojiGrid');
+            if (!tabs || !grid || typeof EMOJI_SETS === 'undefined') return;
+            EMOJI_SETS[0].list = recentEmoji();
+            if (chEmojiTab == null) chEmojiTab = EMOJI_SETS[0].list.length ? 0 : 1;
+            tabs.innerHTML = EMOJI_SETS.map((s, i) =>
+                `<button type="button" class="emoji-tab${i === chEmojiTab ? ' active' : ''}" title="${escapeHtml(s.name)}"
+                         onclick="event.stopPropagation();chEmojiTab=${i};chRenderEmoji()">${s.t}</button>`).join('');
+            const list = EMOJI_SETS[chEmojiTab].list;
+            grid.innerHTML = list.length
+                ? list.map(e => `<span onclick="chInsertEmoji('${e}')">${e}</span>`).join('')
+                : '<div class="emoji-empty">Здесь появятся смайлики, которыми вы пользуетесь чаще всего.</div>';
+        }
+        window.chToggleEmoji = chToggleEmoji;
+        function chInsertEmoji(e) {
+            const el = document.getElementById('chComposerText');
+            if (!el) return;
+            el.focus();
+            try { document.execCommand('insertText', false, e); }
+            catch (err) { el.appendChild(document.createTextNode(e)); }
+            if (typeof rememberEmoji === 'function') rememberEmoji(e);
+            chRenderEmoji();
+            chSaveDraft();
+        }
+        window.chInsertEmoji = chInsertEmoji;
+
+        // ── Черновик поста: текст и картинка не теряются при уходе со страницы ────
+        function chDraftKey() { return 'psy-ch-draft-' + (currentUser && currentUser.id != null ? currentUser.id : 'anon'); }
+        function chSaveDraft() {
+            const md = chGetMarkdown();
+            try {
+                if (!md && !chComposerImage) { localStorage.removeItem(chDraftKey()); return; }
+                localStorage.setItem(chDraftKey(), JSON.stringify({ text: md, image: chComposerImage || '' }));
+            } catch (e) {}
+        }
+        function chClearDraft() { try { localStorage.removeItem(chDraftKey()); } catch (e) {} }
+        /** Вернуть черновик в только что показанный редактор. */
+        function chRestoreDraft() {
+            let d = null;
+            try { d = JSON.parse(localStorage.getItem(chDraftKey()) || 'null'); } catch (e) {}
+            if (!d) return;
+            if (d.text) chSetMarkdown(d.text);
+            if (d.image) {
+                chComposerImage = d.image;
+                const prev = document.getElementById('chComposerPreview');
+                if (prev) {
+                    prev.style.display = 'block';
+                    prev.innerHTML = `<img src="${escapeHtml(d.image)}" alt="">` +
+                        `<button type="button" class="ch-composer-drop" onclick="dropChannelImage()" title="Убрать картинку">✕</button>`;
+                }
+            }
+            const msg = document.getElementById('chComposerMsg');
+            if (msg && (d.text || d.image)) msg.textContent = 'Восстановлен черновик.';
+        }
+        window.chRestoreDraft = chRestoreDraft;
 
         // ── Помощник-ИИ для постов ───────────────────────────────────────────────
         async function chAiText(mode) {
@@ -5934,6 +6032,7 @@
                         `<button type="button" class="ch-composer-drop" onclick="dropChannelImage()" title="Убрать картинку">✕</button>`;
                 }
                 if (msg) msg.textContent = 'Картинка готова.';
+                chSaveDraft();
             } catch (e) {
                 if (msg) msg.textContent = 'Картинка: ' + (e.message || 'ошибка');
             }
@@ -5963,6 +6062,7 @@
                         `<button type="button" class="ch-composer-drop" onclick="dropChannelImage()" title="Убрать картинку">✕</button>`;
                 }
                 if (msg) msg.textContent = '';
+                chSaveDraft();
             } catch (err) {
                 chComposerImage = null;
                 if (msg) msg.textContent = 'Не удалось загрузить: ' + (err.message || 'ошибка');
@@ -5974,6 +6074,7 @@
             chComposerImage = null;
             const prev = document.getElementById('chComposerPreview');
             if (prev) { prev.style.display = 'none'; prev.innerHTML = ''; }
+            if (typeof chSaveDraft === 'function') chSaveDraft();
         }
         window.dropChannelImage = dropChannelImage;
 
@@ -5993,6 +6094,7 @@
                 const d = await r.json().catch(() => ({}));
                 if (!r.ok || d.ok === false) throw new Error(d.error || ('HTTP ' + r.status));
                 if (ta) ta.innerHTML = '';
+                chClearDraft();
                 dropChannelImage();
                 if (msg) msg.textContent = '';
                 const chanId = await resolveMyChannelId();
@@ -6025,13 +6127,16 @@
                     ? `<div class="empty-state"><div><p style="color:#9CA3AF;">📡 Канал пока пустой. Первый пост увидят подписчики и Лента.</p></div></div>`
                     : `<div class="empty-state"><div><p style="color:#9CA3AF;">📡 Здесь появятся публикации автора — писать в этот раздел нельзя, это только чтение и комментарии к постам.</p></div></div>`);
                 dropRenderCache();
+                if (isOwn) chRestoreDraft();
                 return;
             }
             chPostCache = {};
             rows.forEach(p => { chPostCache[String(p.id)] = p; });
             chPostChannel = psychId;
+            chPostsOwn = !!isOwn;
             container.innerHTML = composer + rows.map(chPostHtml).join('');
             dropRenderCache();      // канал писал в контейнер напрямую
+            if (isOwn) chRestoreDraft();
         }
 
         // ── «Лента» разделом чата ──────────────────────────────────────────────────
@@ -6427,7 +6532,7 @@
         // Пост из канала можно отправить своим контактам, не выходя из чата.
         // Пересылаем через тот же механизм, что и обычные сообщения, — получатель
         // видит текст, картинку и ссылку на пост, чтобы дойти до канала целиком.
-        let chPostCache = {}, chPostChannel = null;
+        let chPostCache = {}, chPostChannel = null, chPostsOwn = false;
 
         /** Ссылка вида ?share=post:<id>:<психолог> или ?share=link:<заголовок>:<адрес>.
          *  Открывает выбор получателя с уже готовым сообщением. */
@@ -6500,10 +6605,84 @@
                         <span class="ch-pbtn" style="cursor:default;">👁 ${p.views_count || 0}</span>
                         <button class="ch-pbtn" onclick="chToggleComments(${p.id}, this)">💬 <span>${p.comments_count || 0}</span></button>
                         <button class="ch-pbtn" onclick="chSharePost(${p.id})" title="Отправить пост своим контактам">↗ <span>Поделиться</span></button>
+                        ${chPostsOwn ? `<button class="ch-pbtn" onclick="chEditPost(${p.id})" title="Редактировать пост">✏️ <span>Изменить</span></button>
+                        <button class="ch-pbtn" onclick="chDeletePost(${p.id})" title="Удалить пост">🗑</button>` : ''}
                     </div>
                     <div class="ch-comments-box" id="chComments-${p.id}" style="display:none;"></div>
                 </div>`;
         }
+
+        /** Правка своего поста прямо в ленте канала — тем же WYSIWYG, что и новый пост. */
+        function chEditPost(id) {
+            const post = document.querySelector('.ch-post[data-post-id="' + id + '"]');
+            const p = chPostCache[String(id)];
+            if (!post || !p) return;
+            if (post.querySelector('.ch-edit-box')) return;   // уже открыт
+            const box = document.createElement('div');
+            box.className = 'ch-edit-box';
+            box.innerHTML = `
+                <div class="ch-fmt-bar" role="toolbar" style="margin-bottom:0.4rem;">
+                    <button type="button" class="ch-fmt b" onmousedown="event.preventDefault()" onclick="chEditCmd(${id},'bold')" title="Жирный">Ж</button>
+                    <button type="button" class="ch-fmt i" onmousedown="event.preventDefault()" onclick="chEditCmd(${id},'italic')" title="Курсив">К</button>
+                    <button type="button" class="ch-fmt" onmousedown="event.preventDefault()" onclick="chEditBlock(${id},'H3')" title="Заголовок">H</button>
+                    <button type="button" class="ch-fmt" onmousedown="event.preventDefault()" onclick="chEditBlock(${id},'BLOCKQUOTE')" title="Цитата">❝</button>
+                    <button type="button" class="ch-fmt" onmousedown="event.preventDefault()" onclick="chEditCmd(${id},'insertUnorderedList')" title="Список">•—</button>
+                </div>
+                <div id="chEdit-${id}" class="ch-composer-text" contenteditable="true" style="min-height:120px;">${p.text ? formatPostText(p.text) : ''}</div>
+                <div style="display:flex;gap:0.5rem;margin-top:0.5rem;">
+                    <button type="button" class="ch-composer-send" onclick="chSaveEdit(${id})">Сохранить</button>
+                    <button type="button" class="ch-fmt" onclick="chCancelEdit(${id})">Отмена</button>
+                </div>`;
+            const textEl = post.querySelector('.ch-post-text');
+            (textEl || post.querySelector('.ch-post-date')).insertAdjacentElement('afterend', box);
+            if (textEl) textEl.style.display = 'none';
+            const ed = document.getElementById('chEdit-' + id);
+            if (ed) ed.focus();
+        }
+        function chEditCmd(id, cmd) { const el = document.getElementById('chEdit-' + id); if (el) { cmpTargetEl = el; try { cmpCmd(cmd); } finally { cmpTargetEl = null; } } }
+        function chEditBlock(id, tag) { const el = document.getElementById('chEdit-' + id); if (el) { cmpTargetEl = el; try { cmpBlock(tag); } finally { cmpTargetEl = null; } } }
+        window.chEditCmd = chEditCmd; window.chEditBlock = chEditBlock; window.chEditPost = chEditPost;
+        function chCancelEdit(id) {
+            const post = document.querySelector('.ch-post[data-post-id="' + id + '"]');
+            if (!post) return;
+            const box = post.querySelector('.ch-edit-box'); if (box) box.remove();
+            const textEl = post.querySelector('.ch-post-text'); if (textEl) textEl.style.display = '';
+        }
+        window.chCancelEdit = chCancelEdit;
+        async function chSaveEdit(id) {
+            const el = document.getElementById('chEdit-' + id);
+            if (!el) return;
+            const text = cmpToMarkdown(el);
+            try {
+                const r = await fetch('/api/channels.php?action=edit-post', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+                    body: JSON.stringify({ id, text })
+                });
+                const d = await r.json().catch(() => ({}));
+                if (!r.ok || d.ok === false) throw new Error(d.error || ('HTTP ' + r.status));
+                if (chPostCache[String(id)]) chPostCache[String(id)].text = text;
+                const post = document.querySelector('.ch-post[data-post-id="' + id + '"]');
+                let textEl = post && post.querySelector('.ch-post-text');
+                if (textEl) { textEl.innerHTML = formatPostText(text); textEl.style.display = ''; }
+                else if (post) { const nd = document.createElement('div'); nd.className = 'ch-post-text'; nd.innerHTML = formatPostText(text); post.querySelector('.ch-post-date').insertAdjacentElement('afterend', nd); }
+                chCancelEdit(id);
+            } catch (e) { alert('Не удалось сохранить: ' + (e.message || 'ошибка')); }
+        }
+        window.chSaveEdit = chSaveEdit;
+        async function chDeletePost(id) {
+            if (!confirm('Удалить этот пост? Его больше не увидят подписчики и Лента.')) return;
+            try {
+                const r = await fetch('/api/channels.php?action=delete-post', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+                    body: JSON.stringify({ id })
+                });
+                const d = await r.json().catch(() => ({}));
+                if (!r.ok || d.ok === false) throw new Error(d.error || ('HTTP ' + r.status));
+                const post = document.querySelector('.ch-post[data-post-id="' + id + '"]');
+                if (post) post.remove();
+            } catch (e) { alert('Не удалось удалить: ' + (e.message || 'ошибка')); }
+        }
+        window.chDeletePost = chDeletePost;
 
         async function chToggleLike(postId, btn) {
             try {
