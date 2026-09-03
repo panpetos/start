@@ -211,12 +211,11 @@
         }
         window.onPostBodyClick = onPostBodyClick;
 
+        // Пост открывается ОТДЕЛЬНОЙ страницей (/post.php) — не попапом. Так у поста
+        // свой адрес, серверные мета-теги и картинка для соцсетей: он читается в
+        // интернете и продвигает сервис. Попап оставлен только как запасной путь.
         function openPost(postId) {
-            const p = postsById[postId];
-            if (!p) return;
-            document.getElementById('pmBody').innerHTML = postCardHtml(p, true);
-            document.getElementById('postModal').classList.add('open');
-            document.body.style.overflow = 'hidden';
+            window.location.href = '/post.php?id=' + encodeURIComponent(postId);
         }
         window.openPost = openPost;
 

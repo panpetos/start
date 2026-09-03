@@ -6605,6 +6605,7 @@
                         <span class="ch-pbtn" style="cursor:default;">👁 ${p.views_count || 0}</span>
                         <button class="ch-pbtn" onclick="chToggleComments(${p.id}, this)">💬 <span>${p.comments_count || 0}</span></button>
                         <button class="ch-pbtn" onclick="chSharePost(${p.id})" title="Отправить пост своим контактам">↗ <span>Поделиться</span></button>
+                        <a class="ch-pbtn" href="/post.php?id=${p.id}" target="_blank" rel="noopener" title="Открыть пост отдельной страницей">🔗 <span>Открыть</span></a>
                         ${chPostsOwn ? `<button class="ch-pbtn" onclick="chEditPost(${p.id})" title="Редактировать пост">✏️ <span>Изменить</span></button>
                         <button class="ch-pbtn" onclick="chDeletePost(${p.id})" title="Удалить пост">🗑</button>` : ''}
                     </div>

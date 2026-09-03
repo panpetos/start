@@ -59,6 +59,7 @@ jobs:
             put ai-chat.html;
             put psychologist-profile.html;
             put feed.html;
+            put post.php;
             put dashboard-admin.html;
             put admin.html;
             put consultation.html;
