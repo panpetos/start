@@ -351,6 +351,7 @@ if ($action === 'activity') {
                 'type' => 'register',
                 'actor' => $name,
                 'actor_role' => $u['role'] ?? '',
+                'uid' => (string)($u['id'] ?? ''),   // для подстановки IP/устройства из журнала входов
                 'summary' => 'Регистрация: ' . $name . ' (' . ($u['role'] ?? '') . ')',
             ];
         }
@@ -368,6 +369,7 @@ if ($action === 'activity') {
                 'ts' => pick($a, ['created_at', 'date_time'], ''),
                 'type' => 'appointment',
                 'actor' => $cn,
+                'uid' => $cid,   // клиент — для подстановки IP/устройства из журнала входов
                 'summary' => "Запись: $cn → $pn (" . pick($a, ['status'], '') . ')',
             ];
         }

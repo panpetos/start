@@ -635,6 +635,15 @@
           // Фиксируем факт согласий (152-ФЗ): общее + спецкатегория (для клиента)
           try { await recordConsents(data.role); } catch (e) {}
 
+          // Сразу пишем IP/устройство нового участника в журнал входов — чтобы у его
+          // регистрации в админском журнале был реальный IP, а не «последний известный».
+          try {
+            fetch('/api/consent.php?action=log-session', {
+              method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+              body: JSON.stringify({ page: '/register.html' })
+            }).catch(() => {});
+          } catch (e) {}
+
           // Дипломы/сертификаты + ИНН — сохраняем после регистрации
           if (data.role === 'psychologist') {
             try { await savePsychCredentials(); } catch (e) {}

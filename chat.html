@@ -1484,11 +1484,15 @@
             content: ''; position: absolute; inset: 0; z-index: 0; pointer-events: none;
             background: var(--doodle-surface, #F3F1FA);
         }
+        /* Узор — наш собственный набор SVG-плиток (встроены как data-URI, не тянутся
+           со стороннего домена). Плитку задаёт --doodle-pattern, размер — --doodle-size;
+           по умолчанию «Пузырьки». Красится маской: цвет = --doodle-color. */
         body[data-wall="doodle"] #chatContent::after {
             content: ''; position: absolute; inset: 0; z-index: 0; pointer-events: none;
             background-color: var(--doodle-color, rgba(58, 53, 89, 0.10));
-            -webkit-mask: url("/assets/chat-pattern.svg?v=1") repeat; mask: url("/assets/chat-pattern.svg?v=1") repeat;
-            -webkit-mask-size: 300px 300px; mask-size: 300px 300px;
+            -webkit-mask: var(--doodle-pattern, url("data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20width%3D'96'%20height%3D'96'%20viewBox%3D'0%200%2096%2096'%3E%3Cg%20fill%3D'black'%3E%3Cpath%20d%3D'M12%2016h30a9%209%200%200%201%209%209v11a9%209%200%200%201-9%209H26l-9%208v-8h-5a9%209%200%200%201-9-9V25a9%209%200%200%201%209-9z'%2F%3E%3Cpath%20d%3D'M60%2056h22a8%208%200%200%201%208%208v9a8%208%200%200%201-8%208H70l-8%207v-7h-2a8%208%200%200%201-8-8v-9a8%208%200%200%201%208-8z'%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E")) repeat;
+            mask: var(--doodle-pattern, url("data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20width%3D'96'%20height%3D'96'%20viewBox%3D'0%200%2096%2096'%3E%3Cg%20fill%3D'black'%3E%3Cpath%20d%3D'M12%2016h30a9%209%200%200%201%209%209v11a9%209%200%200%201-9%209H26l-9%208v-8h-5a9%209%200%200%201-9-9V25a9%209%200%200%201%209-9z'%2F%3E%3Cpath%20d%3D'M60%2056h22a8%208%200%200%201%208%208v9a8%208%200%200%201-8%208H70l-8%207v-7h-2a8%208%200%200%201-8-8v-9a8%208%200%200%201%208-8z'%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E")) repeat;
+            -webkit-mask-size: var(--doodle-size, 96px); mask-size: var(--doodle-size, 96px);
         }
         /* Тёмная тема: светлый узор на тёмной подложке — если человек не выбрал свой цвет. */
         body.dark[data-wall="doodle"] #chatContent::before { background: var(--doodle-surface, #15181F); }
@@ -8412,6 +8416,18 @@
             { id: 'amber',  label: 'Янтарь', css: 'rgba(217,119,6,0.16)' },
             { id: 'gray',   label: 'Графит', css: 'rgba(100,116,139,0.18)' },
         ];
+        // Наши собственные узоры (нарисованы нами, не скопированы). SVG встроены как
+        // data-URI: не тянутся со стороннего домена и красятся CSS-маской в любой цвет
+        // (см. --doodle-color). Первый — «Пузырьки» — стоит по умолчанию.
+        const DOODLE_PATTERNS = [
+            { id: 'bubbles', label: 'Пузырьки', size: '96px',     css: "url(\"data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20width%3D'96'%20height%3D'96'%20viewBox%3D'0%200%2096%2096'%3E%3Cg%20fill%3D'black'%3E%3Cpath%20d%3D'M12%2016h30a9%209%200%200%201%209%209v11a9%209%200%200%201-9%209H26l-9%208v-8h-5a9%209%200%200%201-9-9V25a9%209%200%200%201%209-9z'%2F%3E%3Cpath%20d%3D'M60%2056h22a8%208%200%200%201%208%208v9a8%208%200%200%201-8%208H70l-8%207v-7h-2a8%208%200%200%201-8-8v-9a8%208%200%200%201%208-8z'%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E\")" },
+            { id: 'waves',   label: 'Волны',    size: '88px 44px', css: "url(\"data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20width%3D'88'%20height%3D'44'%20viewBox%3D'0%200%2088%2044'%3E%3Cg%20fill%3D'none'%20stroke%3D'black'%20stroke-width%3D'2.6'%20stroke-linecap%3D'round'%3E%3Cpath%20d%3D'M0%2022q11-13%2022%200t22%200%2022%200%2022%200'%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E\")" },
+            { id: 'leaves',  label: 'Листья',   size: '104px',     css: "url(\"data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20width%3D'104'%20height%3D'104'%20viewBox%3D'0%200%20104%20104'%3E%3Cg%20fill%3D'black'%3E%3Cg%20transform%3D'translate(22%2026)%20rotate(-20)'%3E%3Cpath%20d%3D'M0%200C10-8%2022-6%2030%202%2020%2010%208%208%200%200z'%2F%3E%3Crect%20x%3D'-1'%20y%3D'0'%20width%3D'2'%20height%3D'16'%20rx%3D'1'%2F%3E%3C%2Fg%3E%3Cg%20transform%3D'translate(66%2066)%20rotate(24)'%3E%3Cpath%20d%3D'M0%200C10-8%2022-6%2030%202%2020%2010%208%208%200%200z'%2F%3E%3Crect%20x%3D'-1'%20y%3D'0'%20width%3D'2'%20height%3D'16'%20rx%3D'1'%2F%3E%3C%2Fg%3E%3C%2Fg%3E%3C%2Fsvg%3E\")" },
+            { id: 'rings',   label: 'Рябь',     size: '92px',      css: "url(\"data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20width%3D'92'%20height%3D'92'%20viewBox%3D'0%200%2092%2092'%3E%3Cg%20fill%3D'none'%20stroke%3D'black'%20stroke-width%3D'2.2'%3E%3Ccircle%20cx%3D'23'%20cy%3D'23'%20r%3D'7'%2F%3E%3Ccircle%20cx%3D'23'%20cy%3D'23'%20r%3D'15'%2F%3E%3Ccircle%20cx%3D'69'%20cy%3D'69'%20r%3D'7'%2F%3E%3Ccircle%20cx%3D'69'%20cy%3D'69'%20r%3D'15'%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E\")" },
+            { id: 'plus',    label: 'Плюсики',  size: '56px',      css: "url(\"data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20width%3D'56'%20height%3D'56'%20viewBox%3D'0%200%2056%2056'%3E%3Cg%20fill%3D'black'%3E%3Cpath%20d%3D'M12%207h4v5h5v4h-5v5h-4v-5H7v-4h5z'%2F%3E%3Cpath%20d%3D'M40%2035h4v5h5v4h-5v5h-4v-5h-5v-4h5z'%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E\")" },
+            { id: 'facets',  label: 'Огранка',  size: '76px',      css: "url(\"data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20width%3D'76'%20height%3D'76'%20viewBox%3D'0%200%2076%2076'%3E%3Cg%20fill%3D'black'%3E%3Cpath%20d%3D'M19%2015l11%2018H8z'%2F%3E%3Cpath%20d%3D'M57%2043l11%2018H46z'%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E\")" },
+        ];
+        const DOODLE_PATTERN_DEFAULT = 'bubbles';
         // Готовые фото на фон. Лежат у нас же в uploads — не тянем чужие домены:
         // каждый показ чата иначе стучался бы на сторонний сервер.
         const PHOTO_WALLS = [
@@ -8473,6 +8489,19 @@
             else root.style.removeProperty('--doodle-color');
         }
 
+        /** Выбранный узор (id из DOODLE_PATTERNS). Пусто/неизвестно → узор по умолчанию. */
+        function applyDoodlePattern(id) {
+            const root = document.documentElement;
+            const p = DOODLE_PATTERNS.find(x => x.id === id) || DOODLE_PATTERNS.find(x => x.id === DOODLE_PATTERN_DEFAULT);
+            if (!p) { root.style.removeProperty('--doodle-pattern'); root.style.removeProperty('--doodle-size'); return; }
+            root.style.setProperty('--doodle-pattern', p.css);
+            root.style.setProperty('--doodle-size', p.size);
+        }
+        function currentDoodlePattern() {
+            try { return localStorage.getItem('psy-chat-doodle-pat') || DOODLE_PATTERN_DEFAULT; }
+            catch (e) { return DOODLE_PATTERN_DEFAULT; }
+        }
+
         /** Плотность заливки поверх фото: 0 — фото как есть, 90 — почти однотонный фон. */
         function applyWallDim(percent) {
             const v = Math.min(90, Math.max(0, parseInt(percent, 10)));
@@ -8529,6 +8558,7 @@
                 applyChatColors(localStorage.getItem('psy-chat-own') || '',
                                 localStorage.getItem('psy-chat-own2') || '');
                 applyDoodleColor(localStorage.getItem('psy-chat-doodle') || '');
+                applyDoodlePattern(currentDoodlePattern());
                 applyPaneWidth(localStorage.getItem('psy-chat-pane-w') || PANE_DEFAULT);
             } catch (e) { applyWallpaper('none'); }
         }
@@ -8548,6 +8578,8 @@
                 if (p.wall_dim != null) { applyWallDim(p.wall_dim); try { localStorage.setItem('psy-chat-wall-dim', String(p.wall_dim)); } catch (e) {} }
                 applyDoodleColor(p.doodle_color || '');
                 try { localStorage.setItem('psy-chat-doodle', p.doodle_color || ''); } catch (e) {}
+                { const pat = p.doodle_pattern || DOODLE_PATTERN_DEFAULT; applyDoodlePattern(pat);
+                  try { localStorage.setItem('psy-chat-doodle-pat', pat); } catch (e) {} }
                 applyChatColors(p.own_color || '', p.own_color2 || '');
                 try {
                     localStorage.setItem('psy-chat-own', p.own_color || '');
@@ -8610,7 +8642,16 @@
                 </div>
 
                 <div class="wall-tune" id="doodleColorRow" style="${cur === 'doodle' ? '' : 'display:none;'}">
-                    <label>Цвет узора</label>
+                    <label>Узор</label>
+                    <div class="theme-row">
+                        ${DOODLE_PATTERNS.map(p => `
+                            <button type="button" class="theme-dot ${currentDoodlePattern() === p.id ? 'on' : ''}"
+                                    onclick="pickDoodlePattern('${p.id}')" title="${escapeHtml(p.label)}">
+                                <span style="background:${document.body.classList.contains('dark') ? 'rgba(255,255,255,0.16)' : 'rgba(58,53,89,0.22)'};-webkit-mask:${p.css} center/22px;mask:${p.css} center/22px;"></span>
+                                <i>${escapeHtml(p.label)}</i>
+                            </button>`).join('')}
+                    </div>
+                    <label style="margin-top:0.6rem;">Цвет узора</label>
                     <div class="theme-row">
                         ${DOODLE_COLORS.map(c => `
                             <button type="button" class="theme-dot ${currentColor('psy-chat-doodle', '') === c.css ? 'on' : ''}"
@@ -8619,8 +8660,8 @@
                                 <i>${escapeHtml(c.label)}</i>
                             </button>`).join('')}
                     </div>
-                    <div class="wall-note">«Авто» подстраивается под тему: светлый узор в тёмной теме и наоборот.
-                        Узор нарочно бледный, чтобы не мешать читать переписку.</div>
+                    <div class="wall-note">Наши собственные узоры. «Авто» подстраивает цвет под тему: светлый узор в тёмной теме и наоборот.
+                        Узор нарочно бледный, чтобы не мешать читать переписку — и работает в обеих темах.</div>
                 </div>
 
                 <div class="wall-tune">
@@ -8686,6 +8727,25 @@
             if (self) self.classList.add('on');
         }
         window.pickDoodleColor = pickDoodleColor;
+
+        function pickDoodlePattern(id) {
+            applyDoodlePattern(id);
+            try { localStorage.setItem('psy-chat-doodle-pat', id); } catch (e) {}
+            savePref('doodle_pattern', id);
+            // Если узор ещё не выбран как обои — включим его, чтобы выбор был виден сразу.
+            if ((document.body.getAttribute('data-wall') || '') !== 'doodle') {
+                applyWallpaper('doodle');
+                try { localStorage.setItem('psy-chat-wall', 'doodle'); } catch (e) {}
+                savePref('wallpaper', 'doodle');
+                document.querySelectorAll('#wallpaperBody .wall-item').forEach(b => b.classList.remove('on'));
+                const self = document.querySelector(`#wallpaperBody .wall-item[onclick*="'doodle'"]`);
+                if (self) self.classList.add('on');
+            }
+            document.querySelectorAll('#doodleColorRow .theme-dot[onclick^="pickDoodlePattern"]').forEach(b => b.classList.remove('on'));
+            const self2 = document.querySelector(`#doodleColorRow .theme-dot[onclick="pickDoodlePattern('${id}')"]`);
+            if (self2) self2.classList.add('on');
+        }
+        window.pickDoodlePattern = pickDoodlePattern;
 
         /** Готовое фото из набора. */
         function pickPhotoWallpaper(url) {

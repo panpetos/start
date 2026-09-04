@@ -733,7 +733,7 @@
             ];
             document.getElementById('content').innerHTML =
                 '<div class="stats-grid">' + cards.map(c => `<div class="stat"><div class="v">${esc(c[1])}</div><div class="l">${esc(c[0])}</div></div>`).join('') + '</div>' +
-                '<div class="note">📊 Сводка по реальным данным БД. Раздел «Журнал активности» собирает события (регистрации, записи, оплаты, звонки) в единую ленту — это аудит на основе данных. Детальный аудит действий (входы, правки полей) требует логирующих хуков в бэкенде — добавлю, когда дашь доступ к серверной части.</div>' +
+                '<div class="note">📊 Сводка по реальным данным БД. Раздел «Журнал» собирает бизнес-события (регистрации, записи, оплаты, звонки) вместе с журналом входов по IP и устройствам, а также правками сообщений в чатах — в единую ленту. По каждому пользователю подставляется его последний известный IP.</div>' +
                 '<div id="serverStats" style="margin-top:1.25rem;"></div>';
             renderServerStats();
         }
@@ -1561,7 +1561,7 @@
 
         async function renderActivity(){
             document.getElementById('content').innerHTML =
-                `<div class="note">🧾 Единый журнал: бизнес-события системы (регистрации, записи, оплаты, звонки) вместе с журналом входов по IP — в одной ленте, отсортированной по времени. Вход по IP пишется не чаще раза в 30 мин на юзера. Строки с ⚠️ — сообщения в чате, похожие на попытку обменяться контактами в обход платформы; отправитель получил предупреждение, но всё равно отправил.</div>
+                `<div class="note">🧾 Единый журнал: бизнес-события системы (регистрации, записи, оплаты, звонки) вместе с журналом входов по IP — в одной ленте, отсортированной по времени. Вход по IP пишется не чаще раза в 30 мин на юзера. У регистраций и записей своего IP нет, поэтому подставляется <b>последний известный IP этого пользователя</b> из журнала входов (помечен «≈»). Исторические записи, сделанные до включения журнала входов, остаются без IP. Строки с ⚠️ — сообщения в чате, похожие на попытку обменяться контактами в обход платформы; отправитель получил предупреждение, но всё равно отправил.</div>
                 <div class="panel" style="margin-top:0.75rem;"><div class="panel-head"><h2>Журнал (события + вход по IP)</h2></div>
                     <div style="padding:1rem 1.1rem;">
                         <div style="display:flex;gap:0.5rem;flex-wrap:wrap;align-items:end;margin-bottom:0.8rem;">
@@ -1616,18 +1616,35 @@
             const events = (actRes && actRes.ok ? actRes.data : []) || [];
             const audits = (auditRes && auditRes.ok ? auditRes.data : []) || [];
 
+            // Карта «пользователь → его известный IP/устройство» из журнала входов
+            // (audit_log, действие session). Записи идут по убыванию времени, поэтому
+            // первое встреченное значение для юзера — самое свежее. Ею дополняем
+            // бизнес-события (регистрации, записи), у которых своего IP нет.
+            const ipByUser = {};
+            audits.forEach(r => {
+                const uid = String(r.user_id || '');
+                if (uid && (r.ip || r.user_agent) && !ipByUser[uid]) {
+                    ipByUser[uid] = { ip: r.ip || '', ua: r.user_agent || '' };
+                }
+            });
+
             let merged = [];
-            events.forEach(e => merged.push({
-                ts: e.ts, kind: 'event', typeLabel: JOURNAL_TYPE_LABELS[e.type] || e.type,
-                who: e.actor || '—', role: e.actor_role || '', ip: '', ua: '', risk: false, snippet: ''
-            }));
+            events.forEach(e => {
+                const known = e.uid ? ipByUser[String(e.uid)] : null;
+                merged.push({
+                    ts: e.ts, kind: 'event', typeLabel: JOURNAL_TYPE_LABELS[e.type] || e.type,
+                    who: e.actor || '—', role: e.actor_role || '',
+                    ip: known ? known.ip : '', ua: known ? known.ua : '',
+                    ipGuess: !!known, risk: false, snippet: ''
+                });
+            });
             audits.forEach(r => {
                 const name = `${r.first_name||''} ${r.last_name||''}`.trim() || (r.email || r.user_id || '—');
                 let meta = {}; try { meta = r.meta ? JSON.parse(r.meta) : {}; } catch(e){}
                 const isRisk = r.action === 'contact_share_warning';
                 merged.push({
                     ts: r.created_at, kind: 'audit', typeLabel: JOURNAL_ACTION_LABELS[r.action] || r.action || '—',
-                    who: name, role: r.role || '', ip: r.ip || '', ua: r.user_agent || '', risk: isRisk,
+                    who: name, role: r.role || '', ip: r.ip || '', ua: r.user_agent || '', ipGuess: false, risk: isRisk,
                     snippet: isRisk && meta.snippet ? meta.snippet : ''
                 });
             });
@@ -1646,7 +1663,10 @@
             box.innerHTML = `<table id="auditTable"><thead><tr><th>Дата/время</th><th>Событие</th><th>Пользователь</th><th>Роль</th><th>IP</th><th>Устройство</th></tr></thead><tbody>` +
                 merged.map(r => {
                     const snippetHtml = r.snippet ? `<div class="muted" style="font-size:0.76rem;margin-top:0.15rem;max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">«${esc(r.snippet)}»</div>` : '';
-                    return `<tr style="${r.risk ? 'background:#FFF1F2;' : ''}"><td class="muted">${fmtDateTime(r.ts)}</td><td>${esc(r.typeLabel)}${snippetHtml}</td><td>${esc(r.who)}</td><td>${esc(r.role||'—')}</td><td>${r.ip ? `<code>${esc(r.ip)}</code>` : '<span class="muted">—</span>'}</td><td class="muted" style="font-size:0.78rem;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(r.ua||'—')}</td></tr>`;
+                    const ipCell = r.ip
+                        ? `<code>${esc(r.ip)}</code>${r.ipGuess ? '<span class="muted" title="IP последнего входа этого пользователя — точного IP у бизнес-события нет" style="font-size:0.7rem;"> ≈</span>' : ''}`
+                        : '<span class="muted">—</span>';
+                    return `<tr style="${r.risk ? 'background:#FFF1F2;' : ''}"><td class="muted">${fmtDateTime(r.ts)}</td><td>${esc(r.typeLabel)}${snippetHtml}</td><td>${esc(r.who)}</td><td>${esc(r.role||'—')}</td><td>${ipCell}</td><td class="muted" style="font-size:0.78rem;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(r.ua||'—')}</td></tr>`;
                 }).join('') + '</tbody></table>';
         }
         function exportAuditLogCsv(){
