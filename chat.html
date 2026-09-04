@@ -1048,8 +1048,19 @@
         }
         .ch-post-author button:hover { text-decoration: underline; }
         body.dark .ch-post-author button { color: #6EE7B7; }
-        .ch-post-actions { display: flex; align-items: center; gap: 0.3rem; margin-top: 0.7rem; padding-top: 0.6rem; border-top: 1px solid #eee; }
-        .ch-pbtn { display: inline-flex; align-items: center; gap: 0.3rem; background: none; border: none; cursor: pointer; color: #666; font-size: 0.85rem; font-family: inherit; padding: 0.3rem 0.55rem; border-radius: 0.5rem; }
+        /* Кнопки под постом должны переноситься, иначе на телефоне «Поделиться»,
+           «Открыть» и (у автора) «Изменить»/«Удалить» уезжали за правый край и были
+           не видны — казалось, что редактировать/удалять пост нельзя. */
+        .ch-post-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 0.2rem 0.3rem; margin-top: 0.7rem; padding-top: 0.6rem; border-top: 1px solid #eee; }
+        .ch-pbtn { display: inline-flex; align-items: center; gap: 0.3rem; background: none; border: none; cursor: pointer; color: #666; font-size: 0.85rem; font-family: inherit; padding: 0.3rem 0.55rem; border-radius: 0.5rem; white-space: nowrap; }
+        /* Кнопки автора выделяем, чтобы их было легко найти */
+        .ch-pbtn.ch-own { color: #047857; }
+        .ch-pbtn.ch-own.ch-del { color: #BE123C; }
+        @media (max-width: 480px) {
+            /* На узком экране прячем текстовые подписи действий (кроме счётчиков),
+               оставляя иконки — строка помещается без переноса на десятки кнопок. */
+            .ch-post-actions .ch-pbtn.ch-lbl span { display: none; }
+        }
         .ch-pbtn:hover { background: #f0f0f0; }
         .ch-pbtn.liked { color: #DC2626; font-weight: 700; }
         .ch-comments-box { margin-top: 0.6rem; padding-top: 0.6rem; border-top: 1px solid #eee; }
@@ -6608,10 +6619,10 @@
                         <button class="ch-pbtn ${p.liked_by_me ? 'liked' : ''}" onclick="chToggleLike(${p.id}, this)">${p.liked_by_me ? '❤️' : '🤍'} <span>${p.likes_count || 0}</span></button>
                         <span class="ch-pbtn" style="cursor:default;">👁 ${p.views_count || 0}</span>
                         <button class="ch-pbtn" onclick="chToggleComments(${p.id}, this)">💬 <span>${p.comments_count || 0}</span></button>
-                        <button class="ch-pbtn" onclick="chSharePost(${p.id})" title="Отправить пост своим контактам">↗ <span>Поделиться</span></button>
-                        <a class="ch-pbtn" href="/post.php?id=${p.id}" target="_blank" rel="noopener" title="Открыть пост отдельной страницей">🔗 <span>Открыть</span></a>
-                        ${chPostsOwn ? `<button class="ch-pbtn" onclick="chEditPost(${p.id})" title="Редактировать пост">✏️ <span>Изменить</span></button>
-                        <button class="ch-pbtn" onclick="chDeletePost(${p.id})" title="Удалить пост">🗑</button>` : ''}
+                        <button class="ch-pbtn ch-lbl" onclick="chSharePost(${p.id})" title="Отправить пост своим контактам">↗ <span>Поделиться</span></button>
+                        <a class="ch-pbtn ch-lbl" href="/post.php?id=${p.id}" target="_blank" rel="noopener" title="Открыть пост отдельной страницей">🔗 <span>Открыть</span></a>
+                        ${chPostsOwn ? `<button class="ch-pbtn ch-lbl ch-own" onclick="chEditPost(${p.id})" title="Редактировать пост">✏️ <span>Изменить</span></button>
+                        <button class="ch-pbtn ch-lbl ch-own ch-del" onclick="chDeletePost(${p.id})" title="Удалить пост">🗑 <span>Удалить</span></button>` : ''}
                     </div>
                     <div class="ch-comments-box" id="chComments-${p.id}" style="display:none;"></div>
                 </div>`;
