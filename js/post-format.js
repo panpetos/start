@@ -325,6 +325,99 @@
         textarea.setSelectionRange(start + prefix.length, start + prefix.length);
     }
 
+    // ── Общий WYSIWYG-редактор («Форматирование текста») ────────────────────
+    // Тот же механизм, что в композере канала: кнопки применяют оформление к
+    // выделению (через execCommand с тегами <b>/<i>…), а не вставляют символы.
+    // Используется и в чате, и в блоге — чтобы поведение было одинаковым.
+    function escAttr(s){ return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+    function ceInside(el, tag) {
+        const sel = window.getSelection();
+        if (!sel || !sel.anchorNode) return false;
+        let n = sel.anchorNode;
+        while (n && n !== el) { if (n.nodeType === 1 && n.tagName === tag) return true; n = n.parentNode; }
+        return false;
+    }
+    function ceCmd(el, cmd) {
+        if (!el) return;
+        el.focus();
+        const sel = window.getSelection();
+        const hadSelection = !!(sel && sel.rangeCount && !sel.isCollapsed);
+        try { document.execCommand('styleWithCSS', false, false); } catch (e) {}
+        try { document.execCommand(cmd, false, null); } catch (e) {}
+        if (hadSelection) {
+            try { sel.collapseToEnd(); if (document.queryCommandState(cmd)) document.execCommand(cmd, false, null); } catch (e) {}
+        }
+    }
+    function ceBlock(el, tag) {
+        if (!el) return;
+        el.focus();
+        const already = ceInside(el, tag);
+        try { document.execCommand('formatBlock', false, already ? 'DIV' : tag); } catch (e) {}
+    }
+    function ceLink(el) {
+        if (!el) return;
+        const sel = window.getSelection();
+        const url = prompt('Ссылка (http://, https:// или /внутренний-путь):', 'https://');
+        if (url === null) return;
+        const u = url.trim();
+        if (!/^(https?:\/\/|\/)/.test(u)) { alert('Такая ссылка не поддерживается.'); return; }
+        el.focus();
+        if (sel && sel.rangeCount && !sel.getRangeAt(0).collapsed) {
+            try { document.execCommand('createLink', false, u); } catch (e) {}
+        } else {
+            try { document.execCommand('insertHTML', false, '<a href="' + escAttr(u) + '">' + escapeHtml(u) + '</a>&nbsp;'); } catch (e) {}
+        }
+    }
+    function ceToMarkdown(root) {
+        if (!root) return '';
+        const walk = (node) => {
+            if (node.nodeType === 3) return node.nodeValue.replace(/ /g, ' ');
+            if (node.nodeType !== 1) return '';
+            const kids = () => Array.from(node.childNodes).map(walk).join('');
+            switch (node.tagName) {
+                case 'BR': return '\n';
+                case 'B': case 'STRONG': { const t = kids(); return t.trim() ? '**' + t + '**' : t; }
+                case 'I': case 'EM': { const t = kids(); return t.trim() ? '*' + t + '*' : t; }
+                case 'U': { const t = kids(); return t.trim() ? '__' + t + '__' : t; }
+                case 'S': case 'STRIKE': case 'DEL': { const t = kids(); return t.trim() ? '~~' + t + '~~' : t; }
+                case 'CODE': { const t = kids(); return t.trim() ? '`' + t + '`' : t; }
+                case 'A': {
+                    const href = node.getAttribute('href') || '';
+                    const t = kids().trim();
+                    if (!href) return t;
+                    return (t && t !== href) ? '[' + t + '](' + href + ')' : href;
+                }
+                case 'H1': case 'H2': return '## ' + kids().trim() + '\n';
+                case 'H3': case 'H4': return '### ' + kids().trim() + '\n';
+                case 'BLOCKQUOTE': return kids().trim().split('\n').map(l => '> ' + l).join('\n') + '\n';
+                case 'UL': return Array.from(node.children).map(li => '- ' + walk(li).trim()).join('\n') + '\n';
+                case 'OL': return Array.from(node.children).map((li, i) => (i + 1) + '. ' + walk(li).trim()).join('\n') + '\n';
+                case 'LI': return kids();
+                case 'DIV': case 'P': { const t = kids(); return t.endsWith('\n') ? t : t + '\n'; }
+                default: return kids();
+            }
+        };
+        return Array.from(root.childNodes).map(walk).join('')
+            .replace(/\n{3,}/g, '\n\n').replace(/[ \t]+\n/g, '\n').trim();
+    }
+    // Вставка из буфера — только простым текстом, чтобы в поле не попадал чужой HTML.
+    function bindPlainPaste(el) {
+        if (!el || el._psyPasteBound) return;
+        el._psyPasteBound = true;
+        el.addEventListener('paste', function (e) {
+            e.preventDefault();
+            const t = (e.clipboardData || window.clipboardData).getData('text/plain');
+            try { document.execCommand('insertText', false, t); } catch (_) {}
+        });
+    }
+    global.psyEditor = {
+        cmd: ceCmd, block: ceBlock, link: ceLink, inside: ceInside,
+        toMarkdown: ceToMarkdown,
+        getMarkdown: function (el) { return ceToMarkdown(el); },
+        setMarkdown: function (el, md) { if (el) el.innerHTML = md ? formatPostText(md) : ''; },
+        bindPaste: bindPlainPaste
+    };
+
     global.formatPostText = formatPostText;
     // Тем же правилом отрезает лишнее от адреса карточка ссылки в чате —
     // чтобы адрес в карточке совпадал с тем, что стало ссылкой в тексте.

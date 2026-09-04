@@ -21,7 +21,7 @@
     <script src="/js/lightbox.js?v=7"></script>
     <script src="/js/api.js?v=20260821"></script>
     <script src="/js/auth.js?v=20260821"></script>
-    <script src="/js/post-format.js?v=20260904"></script>
+    <script src="/js/post-format.js?v=20260905"></script>
     <script src="/js/dash-sidebar.js?v=20260824a"></script>
     <style>
         *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
@@ -74,9 +74,22 @@
         input.f, textarea.f, select.f { width: 100%; padding: .6rem .8rem; border: 1.5px solid var(--d-border-accent); border-radius: .6rem; font-family: inherit; font-size: .92rem; background: var(--d-panel-alt); color: var(--d-text); outline: none; margin-bottom: .7rem; }
         input.f:focus, textarea.f:focus { border-color: var(--d-accent); }
         textarea.f { resize: vertical; min-height: 260px; line-height: 1.6; }
-        .toolbar { display: flex; gap: .3rem; flex-wrap: wrap; margin-bottom: .35rem; }
+        /* Поле статьи — редактор с оформлением (contenteditable). Выглядит как textarea.f. */
+        .ce { min-height: 260px; line-height: 1.6; overflow-y: auto; cursor: text; }
+        .ce:empty:before { content: attr(data-placeholder); color: var(--d-text-muted); }
+        .ce:focus { border-color: var(--d-accent); }
+        .ce h2 { font-size: 1.2rem; margin: .8rem 0 .4rem; }
+        .ce h3 { font-size: 1.05rem; margin: .7rem 0 .35rem; }
+        .ce blockquote { margin: .5rem 0; padding: .2rem 0 .2rem .8rem; border-left: 3px solid var(--d-accent); color: var(--d-text-muted); }
+        .ce ul, .ce ol { margin: .4rem 0; padding-left: 1.4rem; }
+        .ce a { color: var(--d-accent); }
+        .toolbar { display: flex; gap: .3rem; flex-wrap: wrap; margin-bottom: .35rem; align-items: center; }
         .tb { min-width: 2.1rem; height: 2.1rem; padding: 0 .5rem; border: 1.5px solid var(--d-border-accent); border-radius: .45rem; background: var(--d-panel-alt); color: var(--d-text); cursor: pointer; font-family: inherit; font-size: .85rem; }
         .tb:hover { background: var(--d-accent-bg); border-color: var(--d-accent); }
+        .tb-ai { height: 2.1rem; font-size: .82rem; font-weight: 600; color: #047857; border-color: #A7E3C6; background: #EAF7F0; white-space: nowrap; }
+        .tb-ai:hover { background: #DCF1E6; border-color: #059669; }
+        body.dark .tb-ai { color: #4ADE80; background: #12291D; border-color: #1E4A33; }
+        body.dark .tb-ai:hover { background: #16341F; }
         .btn { padding: .65rem 1.3rem; border: none; border-radius: .65rem; background: linear-gradient(135deg,#047857,#059669); color: #fff; font-weight: 700; cursor: pointer; font-family: inherit; }
         .btn.sec { background: var(--d-panel-alt); color: var(--d-text); border: 1.5px solid var(--d-border-accent); }
         .btn.red { background: #DC2626; }
@@ -121,9 +134,9 @@
             <div class="panel">
                 <div class="panel-title" id="editorTitle">Новая статья</div>
                 <div class="hint">
-                    Форматирование: <b>**жирный**</b>, <i>_курсив_</i>, <code>## Подзаголовок</code>, <code>### Заголовок 3</code>,
-                    <code>&gt; цитата</code>, <code>- пункт списка</code>, <code>1. нумерованный</code>, <code>[текст](ссылка)</code>.
-                    Кнопки ниже вставляют разметку за вас.
+                    Выделите текст и нажмите кнопку — оформление применяется сразу, без символов
+                    разметки. Или попросите ИИ: «✨ Сгенерировать» напишет черновик, «🔄 Переписать»
+                    улучшит ваш текст, «🖼️ Обложка ИИ» нарисует картинку.
                 </div>
                 <label class="fl">Заголовок *</label>
                 <input class="f" id="aTitle" placeholder="Например: Как справиться с тревогой перед сном" maxlength="300" oninput="updatePreview()">
@@ -147,16 +160,23 @@
 
                 <label class="fl">Текст статьи *</label>
                 <div class="toolbar">
-                    <button type="button" class="tb" title="Жирный" onclick="tb('**')"><b>Ж</b></button>
-                    <button type="button" class="tb" title="Курсив" onclick="tb('_')"><i>К</i></button>
-                    <button type="button" class="tb" title="Подзаголовок" onclick="tbLine('## ')">H2</button>
-                    <button type="button" class="tb" title="Заголовок 3-го уровня" onclick="tbLine('### ')">H3</button>
-                    <button type="button" class="tb" title="Цитата" onclick="tbLine('&gt; ')">❝</button>
-                    <button type="button" class="tb" title="Список" onclick="tbLine('- ')">☰</button>
-                    <button type="button" class="tb" title="Нумерованный список" onclick="tbLine('1. ')">1.</button>
-                    <button type="button" class="tb" title="Ссылка" onclick="insertLink()">🔗</button>
+                    <button type="button" class="tb" title="Жирный" onmousedown="event.preventDefault()" onclick="fmt('bold')"><b>Ж</b></button>
+                    <button type="button" class="tb" title="Курсив" onmousedown="event.preventDefault()" onclick="fmt('italic')"><i>К</i></button>
+                    <button type="button" class="tb" title="Подчёркнутый" onmousedown="event.preventDefault()" onclick="fmt('underline')"><u>Ч</u></button>
+                    <button type="button" class="tb" title="Зачёркнутый" onmousedown="event.preventDefault()" onclick="fmt('strikeThrough')"><s>З</s></button>
+                    <button type="button" class="tb" title="Подзаголовок" onmousedown="event.preventDefault()" onclick="fmtBlock('H2')">H2</button>
+                    <button type="button" class="tb" title="Заголовок 3-го уровня" onmousedown="event.preventDefault()" onclick="fmtBlock('H3')">H3</button>
+                    <button type="button" class="tb" title="Цитата" onmousedown="event.preventDefault()" onclick="fmtBlock('BLOCKQUOTE')">❝</button>
+                    <button type="button" class="tb" title="Список" onmousedown="event.preventDefault()" onclick="fmt('insertUnorderedList')">☰</button>
+                    <button type="button" class="tb" title="Нумерованный список" onmousedown="event.preventDefault()" onclick="fmt('insertOrderedList')">1.</button>
+                    <button type="button" class="tb" title="Ссылка" onmousedown="event.preventDefault()" onclick="fmtLink()">🔗</button>
+                    <span style="flex:1"></span>
+                    <button type="button" class="tb tb-ai" title="Сгенерировать текст ИИ" onclick="blogAiText('generate')">✨ Сгенерировать</button>
+                    <button type="button" class="tb tb-ai" title="Переписать текст ИИ" onclick="blogAiText('rewrite')">🔄 Переписать</button>
+                    <button type="button" class="tb tb-ai" title="Сгенерировать обложку ИИ" onclick="blogAiImage()">🖼️ Обложка ИИ</button>
                 </div>
-                <textarea class="f" id="aBody" placeholder="Текст статьи..." oninput="updatePreview()"></textarea>
+                <div class="f ce" id="aBody" contenteditable="true" role="textbox" aria-multiline="true"
+                     data-placeholder="Текст статьи… Выделите фрагмент и нажмите кнопку сверху, или попросите ИИ «✨ Сгенерировать»." oninput="updatePreview()"></div>
 
                 <div class="panel-title" style="margin-top:.4rem;">Предпросмотр</div>
                 <div class="preview" id="aPreview"><span style="color:var(--d-text-muted);">Начните писать — здесь появится статья в том виде, в котором её увидят читатели.</span></div>
@@ -183,25 +203,66 @@
 
         function esc(s){ const d=document.createElement('div'); d.textContent=(s==null?'':String(s)); return d.innerHTML; }
         function ta(){ return document.getElementById('aBody'); }
-        function tb(mark){ wrapPostSelection(ta(), mark); updatePreview(); }
-        function tbLine(prefix){ prefixPostLine(ta(), prefix.replace('&gt;','>')); updatePreview(); }
-        function insertLink(){
-            const url = prompt('Адрес ссылки (https://... или /страница сайта):', 'https://');
-            if (!url) return;
-            const el = ta();
-            const sel = el.value.slice(el.selectionStart, el.selectionEnd) || 'текст ссылки';
-            const start = el.selectionStart;
-            el.value = el.value.slice(0, start) + '[' + sel + '](' + url + ')' + el.value.slice(el.selectionEnd);
-            el.focus();
-            updatePreview();
-        }
+        // Текст статьи как markdown-lite (поле — contenteditable, оформление уже применено)
+        function bodyMd(){ return window.psyEditor ? psyEditor.getMarkdown(ta()) : (ta().innerText || ''); }
+        function setBody(md){ if (window.psyEditor) psyEditor.setMarkdown(ta(), md); else ta().textContent = md || ''; }
+        // Кнопки оформления — тот же механизм, что в композере канала
+        function fmt(cmd){ if (window.psyEditor) psyEditor.cmd(ta(), cmd); updatePreview(); }
+        function fmtBlock(tag){ if (window.psyEditor) psyEditor.block(ta(), tag); updatePreview(); }
+        function fmtLink(){ if (window.psyEditor) psyEditor.link(ta()); updatePreview(); }
         function updatePreview(){
-            const body = ta().value;
+            const body = bodyMd();
             const title = document.getElementById('aTitle').value.trim();
             const box = document.getElementById('aPreview');
             if (!body.trim() && !title) { box.innerHTML = '<span style="color:var(--d-text-muted);">Начните писать — здесь появится статья в том виде, в котором её увидят читатели.</span>'; return; }
             box.innerHTML = (title ? '<h2 style="margin-top:0;">' + esc(title) + '</h2>' : '') + formatPostText(body);
         }
+
+        // ── Помощник-ИИ (как в канале): текст и обложка через /api/ai_post.php ──
+        async function blogAiText(mode){
+            const el = ta(); const msg = document.getElementById('aMsg');
+            const current = bodyMd();
+            let prompt = '';
+            if (mode === 'generate') {
+                const hintTitle = document.getElementById('aTitle').value.trim();
+                prompt = (window.prompt('О чём написать статью?', hintTitle || 'например: как справиться с тревогой перед сном') || '').trim();
+                if (!prompt) return;
+            } else if (!current.trim()) { msg.textContent = 'Сначала напишите или сгенерируйте текст.'; msg.style.color = '#DC2626'; return; }
+            msg.textContent = mode === 'rewrite' ? 'ИИ переписывает…' : 'ИИ пишет статью…'; msg.style.color = 'var(--d-text-muted)';
+            el.setAttribute('contenteditable', 'false');
+            try {
+                const r = await fetch('/api/ai_post.php?action=text', {
+                    method:'POST', headers:{'Content-Type':'application/json'}, credentials:'include',
+                    body: JSON.stringify({ mode, prompt, current })
+                });
+                const d = await r.json().catch(() => ({}));
+                if (!r.ok || !d.ok) throw new Error(d.error || ('HTTP ' + r.status));
+                setBody(d.text);
+                updatePreview();
+                msg.textContent = 'Готово — проверьте и опубликуйте.'; msg.style.color = '#16A34A';
+            } catch(e){ msg.textContent = 'ИИ: ' + (e.message || 'ошибка'); msg.style.color = '#DC2626'; }
+            finally { el.setAttribute('contenteditable', 'true'); }
+        }
+        async function blogAiImage(){
+            const msg = document.getElementById('aMsg');
+            const base = (document.getElementById('aTitle').value.trim() || bodyMd().slice(0, 200));
+            const prompt = (window.prompt('Что нарисовать на обложке?', base) || '').trim();
+            if (!prompt) return;
+            msg.textContent = 'ИИ рисует обложку (это до минуты)…'; msg.style.color = 'var(--d-text-muted)';
+            try {
+                const r = await fetch('/api/ai_post.php?action=image', {
+                    method:'POST', headers:{'Content-Type':'application/json'}, credentials:'include',
+                    body: JSON.stringify({ prompt })
+                });
+                const d = await r.json().catch(() => ({}));
+                if (!r.ok || !d.ok) throw new Error(d.error || ('HTTP ' + r.status));
+                coverUrl = d.url;
+                document.getElementById('aCoverName').textContent = 'обложка ИИ ✓';
+                msg.textContent = 'Обложка готова.'; msg.style.color = '#16A34A';
+            } catch(e){ msg.textContent = 'Обложка: ' + (e.message || 'ошибка'); msg.style.color = '#DC2626'; }
+        }
+        window.fmt = fmt; window.fmtBlock = fmtBlock; window.fmtLink = fmtLink;
+        window.blogAiText = blogAiText; window.blogAiImage = blogAiImage;
 
         async function uploadCover(ev){
             const file = ev.target.files[0];
@@ -217,7 +278,8 @@
 
         function resetEditor(){
             editingId = 0; coverUrl = '';
-            ['aTitle','aTag','aExcerpt','aBody'].forEach(id => document.getElementById(id).value = '');
+            ['aTitle','aTag','aExcerpt'].forEach(id => document.getElementById(id).value = '');
+            setBody('');
             document.getElementById('aCoverName').textContent = 'не выбрана';
             document.getElementById('editorTitle').textContent = 'Новая статья';
             document.getElementById('cancelEditBtn').style.display = 'none';
@@ -297,7 +359,7 @@
                 document.getElementById('aTitle').value = a.title || '';
                 document.getElementById('aTag').value = a.tag || '';
                 document.getElementById('aExcerpt').value = a.excerpt || '';
-                ta().value = a.body || '';
+                setBody(a.body || '');
                 document.getElementById('aCoverName').textContent = coverUrl ? 'загружена ✓' : 'не выбрана';
                 document.getElementById('editorTitle').textContent = 'Правка статьи: ' + (a.title || '');
                 document.getElementById('cancelEditBtn').style.display = '';
@@ -332,6 +394,7 @@
             // Боковое меню — по РОЛИ пользователя: клиенту незачем показывать разделы
             // кабинета психолога, из них он всё равно ничего не откроет.
             mountDashSidebar(currentUser.role || 'client', ((currentUser.first_name||'') + ' ' + (currentUser.last_name||'')).trim() || currentUser.email || '');
+            if (window.psyEditor) psyEditor.bindPaste(ta());   // вставка — простым текстом
             await loadMine();
         })();
     </script>
