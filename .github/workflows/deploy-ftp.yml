@@ -65,6 +65,7 @@ jobs:
             put consultation.html;
             put consent.html;
             put consent-health.html;
+            put maintenance.html;
             put offer.html;
             put agent-offer.html;
             put privacy.html;
