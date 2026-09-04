@@ -752,6 +752,9 @@
       });
       try { await rec('general'); } catch (e) {}
       if (role !== 'psychologist') { try { await rec('health_special'); } catch (e) {} }
+      // Психолог принимает агентский договор-оферту — фиксируем отдельным следом
+      // (кто/когда/версия/IP), это и есть наш «договор» с исполнителем.
+      if (role === 'psychologist') { try { await rec('agent_offer'); } catch (e) {} }
     }
 
     // Доля/комиссия — из единого источника (настройки платформы), не хардкодим в тексте

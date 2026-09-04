@@ -109,7 +109,9 @@ function audit(PDO $pdo, $userId, string $action, $meta = null): void {
     } catch (Exception $e) {}
 }
 
-$ALLOWED_TYPES = ['general', 'health_special', 'cookie'];
+// agent_offer — принятие агентского договора-оферты специалистом (психологом).
+// Храним отдельно, чтобы у нас был след: кто, когда и какую версию договора принял.
+$ALLOWED_TYPES = ['general', 'health_special', 'cookie', 'agent_offer'];
 $action = $_GET['action'] ?? '';
 $body = ($_SERVER['REQUEST_METHOD'] === 'POST') ? (json_decode(file_get_contents('php://input'), true) ?: []) : [];
 

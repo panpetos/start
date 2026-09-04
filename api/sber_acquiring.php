@@ -275,10 +275,14 @@ $body = json_decode(file_get_contents('php://input'), true) ?: [];
  * включена» — его полезно показать человеку перед оплатой.
  */
 if ($action === 'provider') {
-    // Эквайринг на платформе один — Сбербанк. Робокассы и ЮKassa больше нет, поэтому
-    // выбора здесь нет: настройка payment_provider не может увести оплату в сторону.
+    // Какой платёжный сервис принимает оплату, решает настройка payment_provider
+    // (её сохраняет админка). Допустимы 'sber' и 'robokassa'; по умолчанию — 'sber',
+    // чтобы приём оплат не сломался, пока Робокассу не настроили. Секретов не отдаём:
+    // только имя провайдера и признак «включена тестовая сумма».
+    $prov = strtolower(trim((string)psySetting($pdo, 'payment_provider', 'sber')));
+    if ($prov !== 'robokassa') $prov = 'sber';
     $testRub = (float)psySetting($pdo, 'sber_test_amount', '0');
-    echo json_encode(['ok' => true, 'provider' => 'sber',
+    echo json_encode(['ok' => true, 'provider' => $prov,
                       'test_amount' => $testRub > 0 ? $testRub : 0], JSON_UNESCAPED_UNICODE);
     exit;
 }

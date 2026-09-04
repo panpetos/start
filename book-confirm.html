@@ -221,6 +221,10 @@
             format: 'video'
         };
         let mockMode = false;
+        // Какой платёжный сервис принимает оплату: 'sber' (по умолчанию) или 'robokassa'.
+        // Значение берём из настроек платформы (payment_provider) — админ переключает,
+        // когда подключит и настроит нужного провайдера. До переключения ничего не ломается.
+        let payProvider = 'sber';
         let packageId = null; // если запись по абонементу — id пакета
         let introEligible = false; // положена ли клиенту бесплатная вводная у этого психолога
         let sessionType = 'full'; // 'full' | 'intro' — выбор клиента, когда вводная доступна
@@ -262,6 +266,14 @@
             try {
                 const s = await fetch('/api/settings.php?action=public').then(r => r.json());
                 if (String(s.mock_payment_enabled) === '1') mockMode = true;
+            } catch (_) {}
+            // Какой платёжный сервис активен — знает только сервер (ключ payment_provider
+            // не входит в публичный settings). Спрашиваем отдельным действием: оно же
+            // сообщает про тестовую сумму. Ошибка сети → остаёмся на 'sber'.
+            try {
+                const p = await fetch('/api/sber_acquiring.php?action=provider').then(r => r.json());
+                if (p && p.provider === 'robokassa') payProvider = 'robokassa';
+                if (p && p.test_amount > 0) _payTestAmount = p.test_amount;
             } catch (_) {}
 
             try {
@@ -392,7 +404,11 @@
                     ? `<div class="secure-badge"><i data-lucide="gift" style="width: 18px; height: 18px;"></i> Вводная сессия положена один раз у каждого психолога — платить не нужно</div>`
                     : promoOk
                     ? `<div class="secure-badge"><i data-lucide="check" style="width: 18px; height: 18px;"></i> Запись по промокоду — платить не нужно</div>`
-                    : `<div class="secure-badge"><i data-lucide="shield-check" style="width: 18px; height: 18px;"></i> Безопасная оплата картой через Сбербанк</div>`);
+                    : (payProvider === 'robokassa'
+                        ? `<div class="secure-badge"><i data-lucide="shield-check" style="width: 18px; height: 18px;"></i> Безопасная оплата картой или СБП через Robokassa</div>
+                           <div class="pay-note" style="margin-top:0.5rem;font-size:0.8rem;line-height:1.5;color:#6B7280;text-align:center;">Оплата проходит на защищённой странице Robokassa. Кассовый чек придёт вам на почту после оплаты. Данные карты платформе не передаются.</div>`
+                        : `<div class="secure-badge"><i data-lucide="shield-check" style="width: 18px; height: 18px;"></i> Безопасная оплата картой на защищённой странице банка</div>
+                           <div class="pay-note" style="margin-top:0.5rem;font-size:0.8rem;line-height:1.5;color:#6B7280;text-align:center;">Данные карты платформе не передаются — их обрабатывает банк-эквайер. Кассовый чек придёт вам на почту после оплаты.</div>`));
 
             document.getElementById('bookingCard').innerHTML = `
                 <div class="booking-heading">
@@ -658,8 +674,10 @@
                 const r = await fetch('/api/sber_acquiring.php?action=provider');
                 const d = await r.json();
                 if (d && d.test_amount > 0) _payTestAmount = d.test_amount;
+                if (d && d.provider === 'robokassa') payProvider = 'robokassa';
+                else if (d && d.provider === 'sber') payProvider = 'sber';
             } catch (e) {}
-            return 'sber';
+            return payProvider;
         }
 
         async function proceedToPayment() {
@@ -668,10 +686,13 @@
             btn.innerHTML = '<i data-lucide="loader" style="width: 20px; height: 20px;"></i> Создание платежа...';
 
             try {
-                // Оплату принимает Сбербанк. Ответ банка приходит в поле formUrl —
-                // ниже приводим его к общему paymentUrl, на который уходит страница.
+                // Провайдера подтверждаем перед оплатой (вдруг админ переключил).
+                // Sber возвращает formUrl, Robokassa — paymentUrl; ниже приводим к одному.
                 await paymentProvider();
-                const response = await fetch('/api/sber_acquiring.php?action=init', {
+                const initUrl = (payProvider === 'robokassa')
+                    ? '/api/robokassa.php?action=init'
+                    : '/api/sber_acquiring.php?action=init';
+                const response = await fetch(initUrl, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     credentials: 'include',

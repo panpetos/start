@@ -1787,8 +1787,12 @@
                 <div class="panel-head"><h2>Эквайринг</h2></div>
                 <div style="padding:1.1rem 1.25rem;">
                   <div style="display:flex;gap:0.9rem;flex-wrap:wrap;align-items:flex-end;">
-                    <div style="font-size:0.82rem;color:var(--a-text-sec);font-weight:600;">Чем принимаем оплату<br>
-                      <div style="margin-top:0.3rem;padding:0.55rem 0.7rem;border:1.5px solid var(--a-input-border);border-radius:0.6rem;font-size:0.95rem;font-weight:700;color:var(--a-text);">🏦 Сбербанк</div></div>
+                    <label style="font-size:0.82rem;color:var(--a-text-sec);font-weight:600;">Чем принимаем оплату<br>
+                      <select id="payment_provider"
+                              style="width:210px;margin-top:0.3rem;padding:0.55rem 0.7rem;border:1.5px solid var(--a-input-border);border-radius:0.6rem;font-family:inherit;font-size:0.95rem;font-weight:700;background:var(--a-input-bg);color:var(--a-text);">
+                        <option value="sber" ${(sGet('payment_provider','sber') !== 'robokassa') ? 'selected' : ''}>🏦 Сбербанк (эквайринг)</option>
+                        <option value="robokassa" ${(sGet('payment_provider','sber') === 'robokassa') ? 'selected' : ''}>💳 Robokassa (агентская схема)</option>
+                      </select></label>
                     <label style="font-size:0.82rem;color:var(--a-text-sec);font-weight:600;">Тестовая сумма, ₽<br>
                       <input id="sber_test_amount" type="number" min="0" step="1"
                              value="${esc(sGet('sber_test_amount','0'))}"
@@ -1803,8 +1807,11 @@
                     занизить цену нельзя. В выписке такой платёж подписан «Проверка оплаты».
                   </div>
                   <div class="note" style="margin-top:0.6rem;">
-                    Логин и пароль от банка в админку <b>не вводятся</b> — они лежат в файле
-                    <code>api/sber_acquiring_config.php</code> прямо на сервере (в git он не попадает).
+                    <b>Чем принимаем оплату</b> переключает провайдера для страницы оплаты. Переключайте на
+                    <b>Robokassa</b> только после того, как касса подключена и пароли вписаны на сервере, иначе
+                    клиент увидит «приём платежей ещё не настроен». Пароли в админку <b>не вводятся</b> — они лежат
+                    в файлах на сервере (в git не попадают): Сбербанк — <code>api/sber_acquiring_config.php</code>,
+                    Robokassa — <code>api/robokassa_config.php</code>.
                   </div>
                 </div>
               </div>
@@ -1823,13 +1830,13 @@
                     <label class="pay-model-row">
                       <input type="radio" name="payModel" value="agent" ${payModel !== 'split' ? 'checked' : ''} onchange="recalcIncome()">
                       <span><b>Агентская: эквайринг + выплаты отдельно</b><br>
-                        <span class="muted" style="font-size:0.78rem;">Деньги клиента приходят на счёт платформы (эквайринг Сбербанка),
+                        <span class="muted" style="font-size:0.78rem;">Деньги клиента приходят на счёт платформы (эквайринг Robokassa),
                         психологу платформа переводит сама — вручную или реестром через сервис выплат.
                         Дешевле по проценту, но выплаты и чеки самозанятых — отдельная задача.</span>
                       </span>
                     </label>
                     <div id="agentFields" style="padding-left:1.6rem;">
-                      ${fld('fee_acquiring','Эквайринг (Сбербанк)', acquiring, '%')}
+                      ${fld('fee_acquiring','Эквайринг (Robokassa)', acquiring, '%')}
                     </div>
 
                     <label class="pay-model-row">
@@ -2028,8 +2035,9 @@
             if (fpf) payload.free_promo_fail_limit = String(parseInt(fpf.value, 10) || 0);
             const fpe = document.getElementById('free_promo_expires');
             if (fpe) payload.free_promo_expires = fpe.value.trim().replace('T', ' ');
-            // Провайдер один — Сбербанк, выбирать нечего: настройку payment_provider
-            // больше не пишем, оплата в любом случае идёт через sber_acquiring.php.
+            // Провайдер выбирается в «Эквайринг → Чем принимаем оплату»: 'sber' | 'robokassa'.
+            const pp = document.getElementById('payment_provider');
+            if (pp) payload.payment_provider = (pp.value === 'robokassa') ? 'robokassa' : 'sber';
             const sta = document.getElementById('sber_test_amount');
             if (sta) payload.sber_test_amount = String(parseInt(sta.value, 10) || 0);
             const msg = document.getElementById('saveMsg');
