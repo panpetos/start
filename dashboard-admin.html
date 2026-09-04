@@ -1790,7 +1790,7 @@
                     <label style="font-size:0.82rem;color:var(--a-text-sec);font-weight:600;">Чем принимаем оплату<br>
                       <select id="payment_provider"
                               style="width:210px;margin-top:0.3rem;padding:0.55rem 0.7rem;border:1.5px solid var(--a-input-border);border-radius:0.6rem;font-family:inherit;font-size:0.95rem;font-weight:700;background:var(--a-input-bg);color:var(--a-text);">
-                        <option value="sber" ${(sGet('payment_provider','sber') !== 'robokassa') ? 'selected' : ''}>🏦 Сбербанк (эквайринг)</option>
+                        <option value="sber" style="color:#9CA3AF;" ${(sGet('payment_provider','sber') !== 'robokassa') ? 'selected' : ''}>🏦 Сбербанк — пока не используем</option>
                         <option value="robokassa" ${(sGet('payment_provider','sber') === 'robokassa') ? 'selected' : ''}>💳 Robokassa (агентская схема)</option>
                       </select></label>
                     <label style="font-size:0.82rem;color:var(--a-text-sec);font-weight:600;">Тестовая сумма, ₽<br>
