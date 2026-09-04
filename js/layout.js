@@ -459,6 +459,21 @@ window.psyGuardPoll = window.psyGuardPoll || function (fn) { return fn; };
   sbCss.textContent =
     '@media (max-width: 768px){' +
     '.dash-sidebar-toggle{top:calc(var(--psy-nav-h,74px) + 10px)!important;left:auto!important;right:0.75rem!important}' +
+    '}' +
+    // Единая стилизация полос прокрутки на всех страницах — чтобы не было стандартных
+    // «квадратных белых». Тонкие, полупрозрачные, в фирменном фиолетовом; свои,
+    // более специфичные правила (например зелёные в чате) остаются в силе.
+    'html{scrollbar-width:thin;scrollbar-color:rgba(124,58,237,.40) transparent;}' +
+    '::-webkit-scrollbar{width:10px;height:10px;}' +
+    '::-webkit-scrollbar-track{background:transparent;}' +
+    '::-webkit-scrollbar-thumb{background:rgba(124,58,237,.34);border-radius:8px;border:2px solid transparent;background-clip:content-box;}' +
+    '::-webkit-scrollbar-thumb:hover{background:rgba(124,58,237,.55);background-clip:content-box;}' +
+    '::-webkit-scrollbar-corner{background:transparent;}' +
+    'body.dark{scrollbar-color:rgba(167,139,250,.45) transparent;}' +
+    'body.dark ::-webkit-scrollbar-thumb{background:rgba(167,139,250,.34);background-clip:content-box;}' +
+    'body.dark ::-webkit-scrollbar-thumb:hover{background:rgba(167,139,250,.6);background-clip:content-box;}' +
+    '@media (prefers-color-scheme:dark){' +
+    'html:not(.light) body:not(.light-theme){scrollbar-color:rgba(167,139,250,.45) transparent;}' +
     '}';
   document.head.appendChild(sbCss);
   window.psySyncHeaderOffset = psySyncHeaderOffset;

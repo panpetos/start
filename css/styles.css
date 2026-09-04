@@ -2473,3 +2473,16 @@ body.dark section[style*="background: #ECFDF5"],
 body.dark section[style*="background:#ECFDF5"] {
   background: #191919 !important;
 }
+
+/* ── Единые полосы прокрутки на всех страницах (не «квадратные белые») ──
+   Тонкие, полупрозрачные, фирменный фиолетовый. Дублируется в js/layout.js,
+   здесь — чтобы применялось сразу, без мигания стандартным скроллом. */
+html { scrollbar-width: thin; scrollbar-color: rgba(124,58,237,.40) transparent; }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(124,58,237,.34); border-radius: 8px; border: 2px solid transparent; background-clip: content-box; }
+::-webkit-scrollbar-thumb:hover { background: rgba(124,58,237,.55); background-clip: content-box; }
+::-webkit-scrollbar-corner { background: transparent; }
+body.dark { scrollbar-color: rgba(167,139,250,.45) transparent; }
+body.dark ::-webkit-scrollbar-thumb { background: rgba(167,139,250,.34); background-clip: content-box; }
+body.dark ::-webkit-scrollbar-thumb:hover { background: rgba(167,139,250,.6); background-clip: content-box; }
