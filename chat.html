@@ -1607,10 +1607,13 @@
 
         .message {
             max-width: 70%;
+            min-width: 0;
             padding: 0.75rem 1rem;
             border-radius: 16px;
             word-wrap: break-word;
+            overflow-wrap: anywhere;   /* длинная ссылка без пробелов не уводит пузырь за экран */
         }
+        .message a { overflow-wrap: anywhere; word-break: break-word; }
 
         .message.mine {
             background: linear-gradient(135deg, #047857 0%, #065F46 100%);
@@ -2171,8 +2174,11 @@
         body.dark .cm-row { border-bottom-color: #333; }
         .cm-ico { font-size: 1.15rem; flex-shrink: 0; width: 1.7rem; text-align: center; }
         .cm-meta { min-width: 0; flex: 1; }
-        .cm-title { font-size: 0.86rem; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .cm-sub { font-size: 0.74rem; color: #9CA3AF; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        /* display:block обязателен: на inline-span многоточие (ellipsis) не срабатывает,
+           и длинная ссылка уезжала за край окна в разделах «Ссылки»/«Файлы». */
+        .cm-title { display: block; min-width: 0; font-size: 0.86rem; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .cm-sub { display: block; min-width: 0; font-size: 0.74rem; color: #9CA3AF; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .cm-meta { display: flex; flex-direction: column; }
         .cm-more {
             display: block; width: 100%; margin-top: 0.6rem; border: 1px solid #D1FAE5; background: transparent;
             color: #047857; border-radius: 0.5rem; padding: 0.45rem; font-family: inherit;
@@ -2191,7 +2197,11 @@
 
         /* Пока копия едет — мягкое мерцание на её месте: без него в пузыре
            зияла пустота, а когда картинка приезжала, вёрстка прыгала. */
-        .img-wrap { display: inline-block; position: relative; border-radius: 8px; line-height: 0; }
+        /* Единое скругление у всех фото в переписке: скругляем и обёртку, и само фото
+           (раньше обёртка была скруглена, а картинка — нет, и углы фото торчали
+           квадратными «в разнобой»). */
+        .img-wrap { display: inline-block; position: relative; border-radius: 12px; line-height: 0; overflow: hidden; }
+        .img-wrap img { border-radius: 12px; display: block; }
         .img-wrap.loading { min-width: 180px; min-height: 130px; background: rgba(128,128,128,0.14); }
         .img-wrap.loading::after {
             content: ''; position: absolute; inset: 0; border-radius: 8px;
@@ -8444,6 +8454,10 @@
             { url: '/uploads/messages/0c3ea41b55ee0f30e168dcd4a8903844.jpeg', label: 'Звёздная ночь' },
         ];
         const WALL_DIM_DEFAULT = 45;          // проценты затемнения поверх фото
+        // По умолчанию у всех — узор (как в Telegram), а «Без обоев» остаётся выбором.
+        // Применяем только когда пользователь ничего не выбирал; его явный выбор (в т.ч.
+        // 'none') всегда уважаем.
+        const WALL_DEFAULT = 'doodle';
         const OWN_COLOR_DEFAULT = '#047857';  // фирменные цвета своих пузырей
         const OWN_COLOR2_DEFAULT = '#065F46';
 
@@ -8562,7 +8576,7 @@
         /** Мгновенно применяем кэш, затем уточняем с сервера. */
         function applyCachedChatPrefs() {
             try {
-                applyWallpaper(localStorage.getItem('psy-chat-wall') || 'none',
+                applyWallpaper(localStorage.getItem('psy-chat-wall') || WALL_DEFAULT,
                                localStorage.getItem('psy-chat-wall-url') || '');
                 applyWallDim(localStorage.getItem('psy-chat-wall-dim') || WALL_DIM_DEFAULT);
                 applyChatColors(localStorage.getItem('psy-chat-own') || '',
@@ -8584,6 +8598,10 @@
                         localStorage.setItem('psy-chat-wall', p.wallpaper);
                         localStorage.setItem('psy-chat-wall-url', p.wall_url || '');
                     } catch (e) {}
+                } else {
+                    // Пользователь ещё не выбирал обои — ставим узор по умолчанию (не
+                    // сохраняем как выбор, чтобы «Без обоев» оставалось доступным).
+                    applyWallpaper(WALL_DEFAULT);
                 }
                 if (p.wall_dim != null) { applyWallDim(p.wall_dim); try { localStorage.setItem('psy-chat-wall-dim', String(p.wall_dim)); } catch (e) {} }
                 applyDoodleColor(p.doodle_color || '');
@@ -11798,7 +11816,7 @@
             if (!m.attachment_url) return '';
             const isImg = (m.attachment_type || '').indexOf('image') === 0;
             const isAudio = (m.attachment_type || '').indexOf('audio') === 0;
-            if (isImg) return `<div style="margin-top:0.3rem;"><img src="${escapeHtml(m.attachment_url)}" style="max-width:220px;max-height:180px;border-radius:0.6rem;cursor:pointer;" data-zoom></div>`;
+            if (isImg) return `<div style="margin-top:0.3rem;"><img src="${escapeHtml(m.attachment_url)}" style="max-width:220px;max-height:180px;border-radius:12px;cursor:pointer;display:block;" data-zoom></div>`;
             if (isAudio) return `<div style="margin-top:0.3rem;"><audio controls src="${escapeHtml(m.attachment_url)}" style="max-width:240px;height:34px;"></audio></div>`;
             return `<div style="margin-top:0.3rem;"><a href="${escapeHtml(m.attachment_url)}" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline;font-size:0.8rem;">📎 ${escapeHtml(m.attachment_name || 'файл')}</a></div>`;
         }
