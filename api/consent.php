@@ -193,6 +193,24 @@ if ($action === 'audit-list') {
     exit;
 }
 
+// Диагностика журнала входов — чтобы видеть, пишутся ли IP/устройства вообще
+// (админ-инструмент; помогает понять, почему в журнале прочерки).
+if ($action === 'audit-stats') {
+    $isAdmin = false;
+    try { $st = $pdo->prepare("SELECT role FROM users WHERE id=? LIMIT 1"); $st->execute([$userId]); $isAdmin = ((string)$st->fetchColumn() === 'admin'); } catch (Exception $e) {}
+    if (!$isAdmin) { http_response_code(403); echo json_encode(['error' => 'Только для администратора']); exit; }
+    $out = ['ok' => true, 'total' => 0, 'sessions' => 0, 'with_ip' => 0, 'last_session' => null, 'my_ip_now' => clientIp()];
+    try { $out['total'] = (int)$pdo->query("SELECT COUNT(*) FROM audit_log")->fetchColumn(); } catch (Exception $e) {}
+    try { $out['sessions'] = (int)$pdo->query("SELECT COUNT(*) FROM audit_log WHERE action='session'")->fetchColumn(); } catch (Exception $e) {}
+    try { $out['with_ip'] = (int)$pdo->query("SELECT COUNT(*) FROM audit_log WHERE ip IS NOT NULL AND ip<>''")->fetchColumn(); } catch (Exception $e) {}
+    try {
+        $r = $pdo->query("SELECT created_at, ip, user_agent FROM audit_log WHERE action='session' ORDER BY id DESC LIMIT 1")->fetch(PDO::FETCH_ASSOC);
+        if ($r) $out['last_session'] = $r;
+    } catch (Exception $e) {}
+    echo json_encode($out, JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
 if ($action === 'mine') {
     try {
         $st = $pdo->prepare("SELECT id, consent_type, doc_version, status, ip, created_at, revoked_at FROM consents WHERE user_id=? ORDER BY id DESC");

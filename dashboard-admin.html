@@ -754,19 +754,53 @@
             catch(e){ return; }
             if (!d || !d.ok) return;
             const disk = d.disk;
-            const diskPct = disk ? disk.used_percent : null;
-            const diskColor = diskPct == null ? 'var(--a-text-sec)' : diskPct > 90 ? '#DC2626' : diskPct > 75 ? '#D97706' : '#16A34A';
-            const load = d.load_avg ? d.load_avg.map(v => v.toFixed(2)).join(' / ') : '—';
-            el.innerHTML = `<div class="panel"><div class="panel-head"><h2>🖥️ Диагностика сервера</h2><button class="btn-sm btn-outline" onclick="renderServerStats()">↻ Обновить</button></div>
+            const diskPct = disk ? Number(disk.used_percent) : null;
+            const freeBytes = disk ? (Number(disk.total_bytes) - Number(disk.used_bytes)) : null;
+            const diskColor = diskPct == null ? 'var(--a-text-sec)' : diskPct > 90 ? '#DC2626' : diskPct > 80 ? '#D97706' : '#16A34A';
+
+            // Нагрузка сервера простыми словами. load average — это очередь задач на
+            // ВЕСЬ сервер reg.ru (нас и соседей). Точное число ядер из PHP на шаред-
+            // хостинге не узнать, поэтому оцениваем по 1-минутному значению с запасом.
+            const l1 = (d.load_avg && d.load_avg.length) ? Number(d.load_avg[0]) : null;
+            let stress; // {emoji,text,color,note}
+            if (l1 == null) stress = { emoji:'⚪', text:'нет данных', color:'var(--a-text-sec)', note:'Хостинг не отдаёт загрузку сервера.' };
+            else if (l1 < 4)  stress = { emoji:'🟢', text:'Спокойно', color:'#16A34A', note:'Сервер не перегружен, всё быстро.' };
+            else if (l1 < 8)  stress = { emoji:'🟡', text:'Повышенная нагрузка', color:'#D97706', note:'Возможны редкие подтормаживания. Обычно это соседи по серверу reg.ru, не наш сайт.' };
+            else if (l1 < 14) stress = { emoji:'🟠', text:'Высокая нагрузка', color:'#EA580C', note:'Сайт может подтормаживать и иногда отдавать ошибку. Пора писать в reg.ru про перегрузку узла или думать о VPS.' };
+            else              stress = { emoji:'🔴', text:'Сервер перегружен', color:'#DC2626', note:'Частые торможения и ошибки 502/504. Нужен перенос на менее загруженный узел или VPS.' };
+
+            const bar = (pct, color) => `<div style="height:10px;border-radius:6px;background:var(--a-input-bg);overflow:hidden;margin-top:0.35rem;">
+                <div style="height:100%;width:${Math.min(100, Math.max(0, pct||0))}%;background:${color};border-radius:6px;"></div></div>`;
+
+            el.innerHTML = `<div class="panel"><div class="panel-head"><h2>🖥️ Здоровье сервера</h2><button class="btn-sm btn-outline" onclick="renderServerStats()">↻ Обновить</button></div>
                 <div style="padding:1.1rem;">
-                    <div class="stats-grid">
-                        <div class="stat"><div class="v" style="color:${diskColor};">${disk ? disk.used_percent + '%' : '—'}</div><div class="l">Диск занят${disk ? ' (' + fmtBytes(disk.used_bytes) + ' из ' + fmtBytes(disk.total_bytes) + ')' : ' — недоступно на этом хостинге'}</div></div>
-                        <div class="stat"><div class="v">${fmtBytes((d.uploads||{}).size_bytes)}</div><div class="l">Папка /uploads (${(d.uploads||{}).files||0} файлов)</div></div>
-                        <div class="stat"><div class="v">${fmtBytes((d.database||{}).size_bytes)}</div><div class="l">Размер БД (${(d.database||{}).tables||0} таблиц)</div></div>
-                        <div class="stat"><div class="v" style="font-size:1rem;">${load}</div><div class="l">Load average (1/5/15 мин)${d.load_avg ? '' : ' — недоступно'}</div></div>
-                        <div class="stat"><div class="v" style="font-size:1rem;">${esc((d.php||{}).memory_limit||'—')}</div><div class="l">Лимит памяти PHP (текущий процесс: ${fmtBytes((d.php||{}).memory_usage_bytes)})</div></div>
+                    <div style="display:flex;align-items:center;gap:0.7rem;padding:0.7rem 0.9rem;border:1.5px solid ${stress.color}33;background:${stress.color}12;border-radius:0.7rem;margin-bottom:0.9rem;">
+                        <div style="font-size:1.6rem;line-height:1;">${stress.emoji}</div>
+                        <div style="min-width:0;">
+                            <div style="font-weight:700;color:${stress.color};">Нагрузка сейчас: ${stress.text}</div>
+                            <div class="muted" style="font-size:0.8rem;">${stress.note}</div>
+                        </div>
                     </div>
-                    <div class="muted" style="font-size:0.78rem;margin-top:0.6rem;">На шаред-хостинге системная память процессора недоступна из PHP напрямую — показатели диска, БД и load average дают достаточный сигнал, когда пора расширять тариф на reg.ru.</div>
+
+                    <div style="margin-bottom:0.9rem;">
+                        <div style="display:flex;justify-content:space-between;font-size:0.85rem;">
+                            <span style="font-weight:600;">💾 Место на диске</span>
+                            <span style="color:${diskColor};font-weight:700;">${disk ? 'занято ' + diskPct.toFixed(1) + '%' : 'нет данных'}</span>
+                        </div>
+                        ${disk ? bar(diskPct, diskColor) : ''}
+                        <div class="muted" style="font-size:0.78rem;margin-top:0.3rem;">
+                            ${disk ? ('Свободно ещё <b>' + fmtBytes(freeBytes) + '</b> из ' + fmtBytes(disk.total_bytes) + '. ' +
+                                (diskPct > 90 ? 'Почти заполнен — пора чистить или расширять.' : diskPct > 80 ? 'Заполняется — присматривайте.' : 'Запаса много.')) : 'Хостинг не отдаёт данные о диске.'}
+                        </div>
+                    </div>
+
+                    <div class="stats-grid">
+                        <div class="stat"><div class="v" style="font-size:1.1rem;color:${stress.color};">${l1 != null ? l1.toFixed(1) : '—'}</div><div class="l">Загруженность сервера сейчас${d.load_avg ? ' (за 15 мин: ' + Number(d.load_avg[2]).toFixed(1) + ')' : ''}</div></div>
+                        <div class="stat"><div class="v">${fmtBytes((d.uploads||{}).size_bytes)}</div><div class="l">Файлы пользователей (${(d.uploads||{}).files||0} шт.)</div></div>
+                        <div class="stat"><div class="v">${fmtBytes((d.database||{}).size_bytes)}</div><div class="l">База данных (${(d.database||{}).tables||0} таблиц)</div></div>
+                        <div class="stat"><div class="v" style="font-size:1rem;">${fmtBytes((d.php||{}).memory_usage_bytes)}</div><div class="l">Память нашего скрипта (лимит ${esc((d.php||{}).memory_limit||'—')})</div></div>
+                    </div>
+                    <div class="muted" style="font-size:0.78rem;margin-top:0.7rem;">«Загруженность сервера» — это общий показатель машины reg.ru, где мы живём вместе с другими сайтами. Наш сайт занимает малую часть (см. «память нашего скрипта» и «база данных» — они крошечные). Если тут долго держится 🟠/🔴 — дело в перегрузке общего сервера, и помогает переход на VPS.</div>
                 </div></div>`;
         }
 
@@ -1572,6 +1606,7 @@
                             <button class="btn-sm btn-outline" onclick="loadAuditLog()">🔍 Показать</button>
                             <button class="btn-sm btn-outline" onclick="exportAuditLogCsv()">⬇ Экспорт CSV</button>
                         </div>
+                        <div id="auditStatBox" style="font-size:0.8rem;color:var(--a-text-sec);margin-bottom:0.6rem;"></div>
                         <div id="auditLogBox"><div class="loading">Загрузка...</div></div>
                     </div>
                 </div>
@@ -1608,10 +1643,21 @@
             const to = document.getElementById('auditTo').value;
             const qs = new URLSearchParams(); if (from) qs.set('from', from); if (to) qs.set('to', to);
 
-            const [actRes, auditRes] = await Promise.all([
+            const [actRes, auditRes, statRes] = await Promise.all([
                 apiGet('activity').catch(() => ({ok:false})),
-                fetch('/api/consent.php?action=audit-list&' + qs.toString(), { credentials:'include' }).then(r => r.json()).catch(() => ({ok:false}))
+                fetch('/api/consent.php?action=audit-list&' + qs.toString(), { credentials:'include' }).then(r => r.json()).catch(() => ({ok:false})),
+                fetch('/api/consent.php?action=audit-stats', { credentials:'include' }).then(r => r.json()).catch(() => ({ok:false}))
             ]);
+            // Диагностика: пишутся ли IP входов вообще. Помогает понять прочерки.
+            const sb = document.getElementById('auditStatBox');
+            if (sb) {
+                if (statRes && statRes.ok) {
+                    const okColor = statRes.sessions > 0 ? '#16A34A' : '#D97706';
+                    sb.innerHTML = `<span style="color:${okColor};font-weight:600;">Записей входов с IP: ${statRes.sessions}</span>` +
+                        ` · ваш IP сейчас: <code>${esc(statRes.my_ip_now || '—')}</code>` +
+                        (statRes.sessions === 0 ? ' — входы ещё не накопились: IP появляется, когда пользователь заходит на сайт (не чаще раза в 30 мин на человека). У старых записей IP нет.' : '');
+                } else { sb.innerHTML = ''; }
+            }
 
             const events = (actRes && actRes.ok ? actRes.data : []) || [];
             const audits = (auditRes && auditRes.ok ? auditRes.data : []) || [];
