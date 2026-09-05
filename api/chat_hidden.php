@@ -70,6 +70,20 @@ function chatKeyFrom($v) {
     return $v;
 }
 
+/** Запись в общий журнал аудита (для админки: кто что скрыл/вернул). Побочная
+ *  работа — своя обёртка, молчит при любой ошибке и не задерживает ответ. */
+function chAudit(PDO $pdo, $userId, string $action, array $meta): void {
+    try {
+        $ip = '';
+        foreach (['HTTP_X_FORWARDED_FOR', 'HTTP_X_REAL_IP', 'REMOTE_ADDR'] as $k) {
+            if (!empty($_SERVER[$k])) { $c = trim(explode(',', $_SERVER[$k])[0]); if (filter_var($c, FILTER_VALIDATE_IP)) { $ip = $c; break; } }
+        }
+        $ua = substr($_SERVER['HTTP_USER_AGENT'] ?? '', 0, 500);
+        $pdo->prepare("INSERT INTO audit_log (user_id, action, meta, ip, user_agent) VALUES (?,?,?,?,?)")
+            ->execute([$userId, $action, json_encode($meta, JSON_UNESCAPED_UNICODE), $ip, $ua]);
+    } catch (Exception $e) {}
+}
+
 try {
     if ($action === 'list') {
         // Скрытие — удобство: если таблицы нет, список чатов должен работать как раньше.
@@ -97,6 +111,7 @@ try {
         }
         $now = $pdo->prepare("SELECT hidden_at FROM chat_hidden WHERE user_id = ? AND chat_key = ?");
         $now->execute([$userId, $chatKey]);
+        chAudit($pdo, $userId, $kind === 'archived' ? 'chat_archived' : 'chat_hidden', ['chat_key' => $chatKey]);
         out(['ok' => true, 'chat_key' => $chatKey, 'hidden_at' => $now->fetchColumn()]);
     }
 
@@ -105,6 +120,7 @@ try {
         $chatKey = chatKeyFrom($body['chat_key'] ?? '');
         if ($chatKey === '') out(['ok' => false, 'error' => 'Некорректный чат'], 400);
         $pdo->prepare("DELETE FROM chat_hidden WHERE user_id = ? AND chat_key = ?")->execute([$userId, $chatKey]);
+        chAudit($pdo, $userId, 'chat_unhidden', ['chat_key' => $chatKey]);
         out(['ok' => true, 'chat_key' => $chatKey]);
     }
 
