@@ -412,6 +412,9 @@
                     <button class="sidebar-item" data-tab="adminperms" onclick="switchTab('adminperms')">
                         <span class="sidebar-item-icon">🔐</span> Права админов
                     </button>
+                    <button class="sidebar-item" data-tab="ipblock" onclick="switchTab('ipblock')">
+                        <span class="sidebar-item-icon">🚫</span> Доступ по IP
+                    </button>
                     <a class="sidebar-item" href="/notify-settings.html" style="text-decoration:none;">
                         <span class="sidebar-item-icon">🔔</span> Куда мне присылать
                     </a>
@@ -580,7 +583,7 @@
             document.getElementById('sidebar').classList.remove('open');
             document.getElementById('sidebarOverlay').classList.remove('open');
             wrapTablesSoon();
-            ({ overview:renderOverview, support:renderSupport, users:renderUsers, psychologists:renderPsych, tariffs:renderTariffs, robokassa:renderRobokassa, yookassa:renderYookassa, devtasks:renderDevTasks, appointments:renderAppointments, replacements:renderReplacements, supervision:renderSupervision, calls:renderCalls, payments:renderPayments, payouts:renderPayouts, subscribers:renderSubscribers, referrals:renderReferrals, activity:renderActivity, notes:renderNotes, notifications:renderNotifications, adminperms:renderAdminPerms, metrics:renderMetrics, sitemap:renderSitemap, content:renderContentMod, complaints:renderComplaints, bots:renderBots }[tab])();
+            ({ overview:renderOverview, support:renderSupport, users:renderUsers, psychologists:renderPsych, tariffs:renderTariffs, robokassa:renderRobokassa, yookassa:renderYookassa, devtasks:renderDevTasks, appointments:renderAppointments, replacements:renderReplacements, supervision:renderSupervision, calls:renderCalls, payments:renderPayments, payouts:renderPayouts, subscribers:renderSubscribers, referrals:renderReferrals, activity:renderActivity, notes:renderNotes, notifications:renderNotifications, adminperms:renderAdminPerms, metrics:renderMetrics, sitemap:renderSitemap, content:renderContentMod, complaints:renderComplaints, bots:renderBots, ipblock:renderIpBlock }[tab])();
         }
 
         /**
@@ -1713,7 +1716,7 @@
                 merged.map(r => {
                     const snippetHtml = r.snippet ? `<div class="muted" style="font-size:0.76rem;margin-top:0.15rem;max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">«${esc(r.snippet)}»</div>` : '';
                     const ipCell = r.ip
-                        ? `<code>${esc(r.ip)}</code>${r.ipGuess ? '<span class="muted" title="IP последнего входа этого пользователя — точного IP у бизнес-события нет" style="font-size:0.7rem;"> ≈</span>' : ''}`
+                        ? `<code>${esc(r.ip)}</code>${r.ipGuess ? '<span class="muted" title="IP последнего входа этого пользователя — точного IP у бизнес-события нет" style="font-size:0.7rem;"> ≈</span>' : ''} <button title="Заблокировать этот IP" onclick="ipQuickBlock('${esc(r.ip)}')" style="border:none;background:none;cursor:pointer;font-size:0.85rem;opacity:0.6;">🚫</button>`
                         : '<span class="muted">—</span>';
                     return `<tr style="${r.risk ? 'background:#FFF1F2;' : ''}"><td class="muted">${fmtDateTime(r.ts)}</td><td>${esc(r.typeLabel)}${snippetHtml}</td><td>${esc(r.who)}</td><td>${esc(r.role||'—')}</td><td>${ipCell}</td><td class="muted" style="font-size:0.78rem;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(r.ua||'—')}</td></tr>`;
                 }).join('') + '</tbody></table>';
@@ -3929,8 +3932,71 @@
             tariffs:'💰 Тарифы', robokassa:'🏦 Робокасса', yookassa:'🏦 ЮKassa', subscribers:'📧 Подписчики',
             referrals:'🔗 Источники', activity:'📜 Журнал', support:'💬 Поддержка', devtasks:'🤖 Задачи Клоду',
             notifications:'🔔 Уведомления', notes:'📝 Записки', adminperms:'🔐 Права админов', metrics:'📊 Метрики',
-            sitemap:'🗺️ Карта сайта', content:'🛡 Контент', bots:'🤖 Боты'
+            sitemap:'🗺️ Карта сайта', content:'🛡 Контент', bots:'🤖 Боты', ipblock:'🚫 Доступ по IP'
         };
+        // ── Доступ по IP (чёрный список) ─────────────────────────────────────
+        async function ipBlockApi(action, payload){
+            const url = '/api/ip_block.php?action=' + action;
+            const opt = payload ? { method:'POST', headers:{'Content-Type':'application/json'}, credentials:'include', body: JSON.stringify(payload) } : { credentials:'include' };
+            return (await (await fetch(url, opt)).json());
+        }
+        async function renderIpBlock(){
+            document.getElementById('content').innerHTML =
+                `<div class="note">🚫 Заблокированные IP не смогут пользоваться сайтом (чат, каналы, заявки ботов и т.д.) — при попытке они получают «Доступ ограничен». Свой текущий IP заблокировать нельзя. Блокировать можно и прямо из «Журнала» кнопкой у IP. Полная блокировка входа (login) включается одной строкой в серверном auth.php — подскажу, если нужно.</div>
+                <div class="panel"><div class="panel-head"><h2>Заблокировать IP</h2></div>
+                    <div style="padding:1rem 1.1rem;display:flex;gap:0.5rem;flex-wrap:wrap;align-items:end;">
+                        <label style="font-size:0.82rem;color:var(--a-text-sec);font-weight:600;">IP-адрес<br>
+                            <input id="ipbIp" placeholder="напр. 203.0.113.5" style="width:200px;margin-top:0.3rem;padding:0.55rem 0.7rem;border:1.5px solid var(--a-input-border);border-radius:0.6rem;font-family:monospace;font-size:0.95rem;background:var(--a-input-bg);color:var(--a-text);"></label>
+                        <label style="font-size:0.82rem;color:var(--a-text-sec);font-weight:600;flex:1;min-width:180px;">Причина (необязательно)<br>
+                            <input id="ipbReason" placeholder="спам, злоупотребление…" style="width:100%;margin-top:0.3rem;padding:0.55rem 0.7rem;border:1.5px solid var(--a-input-border);border-radius:0.6rem;font-family:inherit;font-size:0.95rem;background:var(--a-input-bg);color:var(--a-text);"></label>
+                        <button class="btn-sm btn-brand" style="padding:0.6rem 1.3rem;" onclick="ipbAdd(this)">🚫 Заблокировать</button>
+                        <span id="ipbMsg" style="font-size:0.85rem;"></span>
+                    </div>
+                </div>
+                <div class="panel"><div class="panel-head"><h2>Заблокированные</h2><button class="btn-sm btn-outline" onclick="renderIpBlock()">↻ Обновить</button></div>
+                    <div id="ipbList" style="padding:0.6rem 1.1rem 1rem;"><div class="loading">Загрузка…</div></div>
+                </div>`;
+            loadIpBlockList();
+        }
+        async function loadIpBlockList(){
+            const box = document.getElementById('ipbList'); if (!box) return;
+            let d; try { d = await ipBlockApi('list'); } catch(e){ box.innerHTML = '<div class="empty">Не удалось загрузить</div>'; return; }
+            const rows = (d && d.ok) ? (d.data||[]) : [];
+            if (!rows.length){ box.innerHTML = '<div class="empty">Список пуст — заблокированных IP нет.</div>'; return; }
+            box.innerHTML = `<table><thead><tr><th>IP</th><th>Причина</th><th>Когда</th><th></th></tr></thead><tbody>` +
+                rows.map(r => `<tr><td><code>${esc(r.ip)}</code></td><td>${esc(r.reason||'—')}</td><td class="muted">${fmtDateTime(r.created_at)}</td>
+                    <td><button class="btn-sm btn-outline" onclick="ipbRemove('${esc(r.ip)}')">Разблокировать</button></td></tr>`).join('') + '</tbody></table>';
+        }
+        async function ipbAdd(btn){
+            const ip = document.getElementById('ipbIp').value.trim();
+            const reason = document.getElementById('ipbReason').value.trim();
+            const msg = document.getElementById('ipbMsg');
+            if (!ip){ msg.textContent = 'Введите IP'; msg.style.color = '#DC2626'; return; }
+            btn.disabled = true; msg.textContent = 'блокирую…'; msg.style.color = 'var(--a-text-muted)';
+            try {
+                const d = await ipBlockApi('add', { ip, reason });
+                if (!d.ok){ msg.textContent = '⚠️ ' + (d.error||'ошибка'); msg.style.color = '#DC2626'; btn.disabled=false; return; }
+                msg.textContent = '✅ заблокирован'; msg.style.color = '#16A34A';
+                document.getElementById('ipbIp').value = ''; document.getElementById('ipbReason').value = '';
+                await loadIpBlockList();
+            } catch(e){ msg.textContent = '⚠️ ошибка сети'; msg.style.color = '#DC2626'; }
+            btn.disabled = false;
+        }
+        async function ipbRemove(ip){
+            if (!confirm('Разблокировать ' + ip + '?')) return;
+            const d = await ipBlockApi('remove', { ip });
+            if (d && d.ok) loadIpBlockList(); else alert((d&&d.error)||'Не удалось');
+        }
+        // Быстрая блокировка прямо из Журнала
+        async function ipQuickBlock(ip){
+            if (!ip) return;
+            if (!confirm('Заблокировать доступ с IP ' + ip + '?')) return;
+            const d = await ipBlockApi('add', { ip, reason: 'из журнала' });
+            if (d && d.ok) alert('IP ' + ip + ' заблокирован. Управление — в разделе «Доступ по IP».');
+            else alert((d&&d.error)||'Не удалось');
+        }
+        window.renderIpBlock = renderIpBlock; window.ipbAdd = ipbAdd; window.ipbRemove = ipbRemove; window.ipQuickBlock = ipQuickBlock;
+
         // ── Боты (платформа, база) ───────────────────────────────────────────
         const BOT_SCOPES = [
             { id:'lead',    label:'Заявки', hint:'принимать заявки с внешнего сайта' },

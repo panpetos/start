@@ -32,6 +32,7 @@ $pdo = function_exists('getDB') ? getDB()
      : (function_exists('getDbConnection') ? getDbConnection()
      : (function_exists('getPDO') ? getPDO() : null));
 if (!$pdo) { http_response_code(500); echo json_encode(['error' => 'Нет подключения к БД']); exit; }
+require_once __DIR__ . '/ip_guard.php'; if (function_exists('psyIpGuard')) psyIpGuard($pdo);
 
 if (session_status() === PHP_SESSION_NONE) session_start();
 $userId = $_SESSION['user_id'] ?? null;

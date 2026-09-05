@@ -37,6 +37,7 @@ $pdo = function_exists('getDB') ? getDB()
      : (function_exists('getDbConnection') ? getDbConnection()
      : (function_exists('getPDO') ? getPDO() : null));
 if (!$pdo) { http_response_code(500); echo json_encode(['error' => 'Нет подключения к БД']); exit; }
+require_once __DIR__ . '/ip_guard.php'; if (function_exists('psyIpGuard')) psyIpGuard($pdo);
 
 function bout($d, $code = 200) { http_response_code($code); echo json_encode($d, JSON_UNESCAPED_UNICODE); exit; }
 function bclientIp(): string {
