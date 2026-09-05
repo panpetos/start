@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
+    <title>Статья — psytalk.pro</title>
+    <link rel="stylesheet" href="/css/styles.css?v=20260823d">
+    <script src="/js/netguard.js?v=20260821c"></script>
+    <script src="/js/layout.js?v=20260823d"></script>
+    <script src="/js/lightbox.js?v=7"></script>
+    <script src="/js/post-format.js?v=20260905"></script>
+    <script src="/js/articles.js?v=20260821"></script>
+    <link rel="preconnect" href="https://unpkg.com">
+    <script defer src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', -apple-system, sans-serif; background: #FAFAFA; min-height: 100vh; display: flex; flex-direction: column; color: #1A1A1A; }
+        main { flex: 1; }
+        .art-hero { padding: 5rem 1rem 3rem; text-align: center; color: #fff; }
+        .art-hero .emoji { font-size: 3rem; margin-bottom: 1rem; }
+        .art-hero .tag { display: inline-block; background: rgba(255,255,255,0.25); border-radius: 2rem; padding: 0.2rem 0.85rem; font-size: 0.8rem; font-weight: 600; margin-bottom: 1rem; }
+        .art-hero h1 { font-size: clamp(1.6rem, 4vw, 2.4rem); font-weight: 800; max-width: 760px; margin: 0 auto 0.75rem; line-height: 1.2; letter-spacing: -0.02em; }
+        .art-hero .meta { opacity: 0.9; font-size: 0.9rem; }
+        .art-body { max-width: 720px; margin: -1.5rem auto 0; background: #fff; border-radius: 1.25rem; padding: 2.5rem; box-shadow: 0 4px 24px rgba(0,0,0,0.07); border: 1px solid #EFF7F3; position: relative; }
+        .art-body p { color: #374151; line-height: 1.8; margin-bottom: 1.1rem; font-size: 1.0625rem; }
+        .art-body h2 { font-size: 1.25rem; font-weight: 700; margin: 1.75rem 0 0.6rem; color: #1A1A1A; }
+        .art-body h3 { font-size: 1.1rem; font-weight: 700; margin: 1.35rem 0 0.5rem; color: #1A1A1A; }
+        .art-body a { color: #047857; }
+        /* теги, которые отдаёт formatPostText для статей психологов */
+        .art-body ul, .art-body ol { margin: 0.6rem 0 1.1rem 1.5rem; color: #374151; line-height: 1.8; font-size: 1.0625rem; }
+        .art-body li { margin-bottom: 0.35rem; }
+        .art-body blockquote { color: #4B5563; font-style: italic; }
+        .art-body b { color: #1A1A1A; }
+        .art-body img { max-width: 100%; border-radius: 0.75rem; margin: 0.75rem 0; }
+        .art-cta { max-width: 720px; margin: 1.5rem auto 4rem; background: linear-gradient(135deg,#D1FAE5,#D1FAE5); border-radius: 1.25rem; padding: 2rem; text-align: center; }
+        .art-cta h3 { font-size: 1.2rem; font-weight: 700; margin-bottom: 0.5rem; }
+        .art-cta p { color: #6B7280; margin-bottom: 1.25rem; }
+        .btn-primary { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.85rem 2rem; background: linear-gradient(135deg,#047857,#059669); color: #fff; text-decoration: none; border-radius: 0.875rem; font-weight: 700; box-shadow: 0 4px 14px rgba(4,120,87,0.35); }
+        .back { display: inline-flex; align-items: center; gap: 0.4rem; color: #047857; text-decoration: none; font-weight: 600; font-size: 0.9rem; margin: 1.5rem auto 0; max-width: 720px; padding: 0 0.5rem; }
+
+        body.dark { background: #191919 !important; color: #E6E6E6 !important; }
+        .art-share { max-width: 720px; margin: 1rem auto 0; display: flex; gap: 0.6rem; flex-wrap: wrap; justify-content: center; }
+        .art-share button { padding: 0.55rem 1rem; border: 1.5px solid #D1FAE5; background: #fff; color: #065F46; border-radius: 0.7rem; font-family: inherit; font-size: 0.87rem; font-weight: 600; cursor: pointer; }
+        .art-share button:hover { border-color: #047857; background: #ECFDF5; }
+        body.dark .art-share button { background: #252525; border-color: #444; color: #6EE7B7; }
+        body.dark .art-share button:hover { border-color: #047857; background: #2D2D2D; }
+        body.dark .art-body { background: #252525; border-color: #333; box-shadow: 0 4px 24px rgba(0,0,0,0.2); }
+        body.dark .art-body p { color: #CCCCCC; }
+        body.dark .art-body h2, body.dark .art-body h3, body.dark .art-body b { color: #E6E6E6; }
+        body.dark .art-body ul, body.dark .art-body ol { color: #CCCCCC; }
+        body.dark .art-body blockquote { color: #A0A0A0; }
+        body.dark .art-cta { background: linear-gradient(135deg, #0B3B2E, #10402F); }
+        body.dark .art-cta h3 { color: #E6E6E6; }
+        body.dark .art-cta p { color: #999; }
+    </style>
+</head>
+<body>
+    <script>psyWriteHeader();</script>
+    <main>
+        <div id="art"></div>
+        <a href="/blog.html" class="back" style="display:flex;">← Все статьи</a>
+    </main>
+    <script>psyWriteFooter();</script>
+    <script>
+        function esc(s){ const d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
+        const params = new URLSearchParams(location.search);
+        const id = params.get('id');
+        const slug = params.get('slug');
+        const el = document.getElementById('art');
+
+        const CTA = `<div class="art-cta">
+                    <h3>Нужна поддержка?</h3>
+                    <p>Подберите психолога, который понимает именно ваш запрос.</p>
+                    <a href="/search.html" class="btn-primary">Найти психолога</a>
+                </div>`;
+        const NOT_FOUND = '<div style="text-align:center;padding:5rem 1rem;"><h1 style="margin-bottom:1rem;">Статья не найдена</h1><a href="/blog.html" class="btn-primary">← В блог</a></div>';
+
+
+        /** Поделиться статьёй: системное меню телефона, буфер или отправка своим контактам. */
+        function articleShareBar(title) {
+            return `<div class="art-share">
+                        <button onclick="artShare()">↗ Поделиться</button>
+                        <button onclick="artShareToChat()">💬 В сообщения</button>
+                    </div>`;
+        }
+        function artShare() {
+            const url = location.href;
+            if (navigator.share) { navigator.share({ title: document.title, url }).catch(()=>{}); }
+            else if (navigator.clipboard) { navigator.clipboard.writeText(url).then(()=>alert('Ссылка скопирована: ' + url)).catch(()=>prompt('Скопируйте ссылку:', url)); }
+            else prompt('Скопируйте ссылку:', url);
+        }
+        function artShareToChat() {
+            const t = (document.title || '').replace(/ — psytalk\.pro$/, '');
+            window.location.href = '/chat.html?share=link:' + encodeURIComponent(encodeURIComponent(t)) +
+                                   ':' + encodeURIComponent(encodeURIComponent(location.href));
+        }
+        window.artShare = artShare; window.artShareToChat = artShareToChat;
+
+        /** Статья психолога из БД: текст — markdown-лайт, рендерим через общий formatPostText (без сырого HTML). */
+        function renderApiArticle(a){
+            document.title = a.title + ' — psytalk.pro';
+            const author = `${a.first_name || ''} ${a.last_name || ''}`.trim();
+            const when = String(a.published_at || a.created_at || '').slice(0, 10).split('-').reverse().join('.');
+            const hero = a.cover_url
+                ? `<div class="art-hero" style="padding:0;overflow:hidden;background:#111;">
+                       <img src="${esc(a.cover_url)}" alt="" style="width:100%;max-height:340px;object-fit:cover;display:block;opacity:0.92;">
+                   </div>
+                   <div style="padding:1.25rem 0 0;">
+                       <div class="tag" style="display:inline-block;">${esc(a.tag || 'Статья')}</div>
+                       <h1 style="margin:0.5rem 0;">${esc(a.title)}</h1>
+                       <div class="meta" style="opacity:0.75;">${author ? esc(author) : 'Психолог psytalk.pro'}${when ? ' · ' + when : ''} · ${esc(a.read_time || '')} чтения</div>
+                   </div>`
+                : `<div class="art-hero" style="background:linear-gradient(135deg,#047857 0%,#059669 60%,#6EE7B7 100%);">
+                       <div class="emoji">📝</div>
+                       <div class="tag">${esc(a.tag || 'Статья')}</div>
+                       <h1>${esc(a.title)}</h1>
+                       <div class="meta">${author ? esc(author) : 'Психолог psytalk.pro'}${when ? ' · ' + when : ''} · ${esc(a.read_time || '')} чтения</div>
+                   </div>`;
+            const draftBadge = a.status !== 'published'
+                ? `<div style="background:#FEF3C7;color:#B45309;border-radius:0.6rem;padding:0.6rem 0.9rem;margin:1rem 0;font-size:0.88rem;">
+                       Это ${a.status === 'draft' ? 'черновик' : 'снятая с публикации статья'} — её видите только вы (и администратор).
+                   </div>`
+                : '';
+            el.innerHTML = hero + draftBadge + `<article class="art-body">${formatPostText(a.body)}</article>` + articleShareBar() + CTA;
+        }
+
+        function renderStaticArticle(a){
+            document.title = a.title + ' — psytalk.pro';
+            el.innerHTML =
+                `<div class="art-hero" style="background:linear-gradient(135deg,#047857 0%,#059669 60%,#6EE7B7 100%);">
+                    <div class="emoji">${a.emoji}</div>
+                    <div class="tag">${esc(a.tag)}</div>
+                    <h1>${esc(a.title)}</h1>
+                    <div class="meta">${esc(a.read)} чтения</div>
+                </div>
+                <article class="art-body">${a.body.map(p => p.startsWith('<h2') ? p : '<p>'+p+'</p>').join('')}</article>` + articleShareBar() + CTA;
+        }
+
+        (async function load(){
+            // ?slug= — статья психолога из БД; ?id= — сначала редакционная статья, затем БД по id
+            const staticList = window.PSY_ARTICLES || [];
+            if (!slug && id) {
+                const found = staticList.find(x => x.id === id);
+                if (found) { renderStaticArticle(found); return; }
+            }
+            if (slug || id) {
+                try {
+                    const q = slug ? 'slug=' + encodeURIComponent(slug) : 'id=' + encodeURIComponent(id);
+                    const r = await (await fetch('/api/blog.php?action=get&' + q, { credentials: 'include' })).json();
+                    if (r && r.ok && r.data) { renderApiArticle(r.data); return; }
+                } catch(e) {}
+            }
+            el.innerHTML = NOT_FOUND;
+        })();
+        try { if (window.lucide) lucide.createIcons(); } catch(e){}
+    </script>
+</body>
+</html>

@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
+  <title>Запись на сессию — psytalk.pro</title>
+  <meta name="description" content="Выберите удобное время для сессии с психологом.">
+  <link rel="stylesheet" href="/css/styles.css?v=20260823d">
+  <script src="/js/netguard.js?v=20260821c"></script>
+  <script src="/js/layout.js?v=20260823d"></script>
+  <link rel="preconnect" href="https://unpkg.com">
+    <script defer src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    :root { --bk-bg:#FAFAFA; --bk-text:#1A1A1A; --bk-text-sec:#6B7280; --bk-card:#fff; --bk-border:#F0F0F0; --bk-input-border:#E5E7EB; --bk-slot-bg:#fff; --bk-slot-hover:#ECFDF5; --bk-disabled-text:#D1D5DB; }
+    body.dark { --bk-bg:#191919; --bk-text:#E6E6E6; --bk-text-sec:#A0A0A0; --bk-card:#252525; --bk-border:#333; --bk-input-border:#444; --bk-slot-bg:#2A2A2A; --bk-slot-hover:#0B3B2E; --bk-disabled-text:#555; }
+    body { background: var(--bk-bg); display: flex; flex-direction: column; min-height: 100vh; transition: background 0.2s, color 0.2s; color: var(--bk-text); }
+    main { flex: 1; padding: 2.5rem 1rem 4rem; }
+    .page-wrap { max-width: 840px; margin: 0 auto; }
+    .back-link { display: inline-flex; align-items: center; gap: 0.5rem; color: #047857; text-decoration: none; font-weight: 500; font-size: 0.9375rem; margin-bottom: 1.75rem; }
+    .back-link:hover { text-decoration: underline; }
+    .section-title { font-size: 1.625rem; font-weight: 800; color: var(--bk-text); letter-spacing: -0.03em; margin-bottom: 0.375rem; }
+    .section-sub  { color: var(--bk-text-sec); font-size: 0.9375rem; margin-bottom: 2rem; }
+
+    /* Psychologist card */
+    .psych-card { background: var(--bk-card); border-radius: 1.25rem; padding: 1.5rem; border: 1px solid var(--bk-border); box-shadow: 0 2px 8px rgba(0,0,0,0.04); display: flex; gap: 1.25rem; align-items: center; margin-bottom: 2.25rem; }
+    .psych-avatar { width: 72px; height: 72px; min-width: 72px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 1.625rem; font-weight: 700; overflow: hidden; flex-shrink: 0; }
+    .psych-info-name { font-size: 1.25rem; font-weight: 700; color: var(--bk-text); margin-bottom: 0.25rem; }
+    .psych-info-spec { font-size: 0.875rem; color: #047857; font-weight: 500; margin-bottom: 0.5rem; }
+    .psych-info-meta { display: flex; gap: 1rem; flex-wrap: wrap; font-size: 0.8125rem; color: var(--bk-text-sec); }
+    .psych-price { margin-left: auto; text-align: right; flex-shrink: 0; }
+    .psych-price-val { font-size: 1.5rem; font-weight: 800; color: var(--bk-text); letter-spacing: -0.03em; }
+    .psych-price-label { font-size: 0.75rem; color: var(--bk-text-sec); }
+
+    /* Calendar */
+    .calendar-wrap { background: var(--bk-card); border-radius: 1.25rem; max-width: 100%; border: 1px solid var(--bk-border); box-shadow: 0 2px 8px rgba(0,0,0,0.04); overflow: hidden; margin-bottom: 2rem; }
+    .calendar-header { display: flex; align-items: center; justify-content: space-between; padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--bk-border); }
+    .calendar-month { font-weight: 700; color: var(--bk-text); font-size: 1.0625rem; }
+    .cal-nav-btn { width: 2rem; height: 2rem; border: 1px solid var(--bk-input-border); border-radius: 0.5rem; background: var(--bk-card); cursor: pointer; display: flex; align-items: center; justify-content: center; color: var(--bk-text-sec); transition: background 0.15s, border-color 0.15s; }
+    .cal-nav-btn:hover { background: #D1FAE5; border-color: #6EE7B7; color: #047857; }
+    .cal-days-header { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 0; padding: 0.75rem 1rem 0; }
+    .cal-day-name { text-align: center; min-width: 0; font-size: 0.75rem; color: #9CA3AF; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; padding-bottom: 0.5rem; }
+    .cal-days { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 0; padding: 0 1rem 1rem; }
+    .cal-day { text-align: center; padding: 0.375rem 0; min-width: 0; }
+    .cal-day-btn { width: 2.25rem; max-width: 100%; height: 2.25rem; border-radius: 50%; border: none; background: none; cursor: pointer; font-size: 0.9375rem; color: var(--bk-text); margin: 0 auto; display: flex; align-items: center; justify-content: center; transition: background 0.15s; }
+    .cal-day-btn:hover:not(:disabled) { background: #D1FAE5; color: #047857; }
+    .cal-day-btn.selected { background: #047857; color: white; font-weight: 700; }
+    .cal-day-btn.today { border: 2px solid #047857; color: #047857; font-weight: 600; }
+    .cal-day-btn.today.selected { color: white; }
+    .cal-day-btn:disabled { color: var(--bk-disabled-text); cursor: default; pointer-events: none; }
+    .cal-day-btn.other-month { color: var(--bk-disabled-text); }
+    .cal-day-btn.has-slots::after { content: ''; display: block; width: 4px; height: 4px; background: #047857; border-radius: 50%; margin: 2px auto 0; }
+    .cal-day-btn.selected::after { background: white; }
+
+    /* Time slots */
+    .slots-wrap { padding: 1.5rem; border-top: 1px solid var(--bk-border); }
+    .slots-title { font-size: 0.875rem; font-weight: 600; color: var(--bk-text-sec); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 1rem; }
+    .slots-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.625rem; }
+    .slot-btn { padding: 0.625rem 0.5rem; border: 1px solid var(--bk-input-border); border-radius: 0.625rem; background: var(--bk-slot-bg); cursor: pointer; font-size: 0.9375rem; font-weight: 500; color: var(--bk-text); text-align: center; transition: all 0.15s; }
+    .slot-btn:hover { border-color: #047857; color: #047857; background: var(--bk-slot-hover); }
+    .slot-btn.selected { background: #047857; color: white; border-color: #047857; font-weight: 700; }
+    .slot-btn.busy { background: #F9FAFB; color: #D1D5DB; cursor: default; border-color: #F3F4F6; pointer-events: none; }
+    .slots-empty { color: #9CA3AF; font-size: 0.9375rem; text-align: center; padding: 1.5rem 0; }
+
+    /* Confirm bar */
+    .confirm-bar { background: var(--bk-card); border-radius: 1.25rem; padding: 1.5rem; border: 1px solid var(--bk-border); box-shadow: 0 2px 8px rgba(0,0,0,0.04); display: flex; align-items: center; gap: 1.5rem; flex-wrap: wrap; }
+    .confirm-bar-info { flex: 1; min-width: 200px; }
+    .confirm-bar-label { font-size: 0.8125rem; color: var(--bk-text-sec); margin-bottom: 0.25rem; }
+    .confirm-bar-val { font-weight: 700; color: var(--bk-text); font-size: 1.0625rem; }
+    .confirm-bar-val span { color: #047857; }
+    #confirmBtn { padding: 0.875rem 2.5rem; background: linear-gradient(135deg, #047857 0%, #059669 100%); color: white; border: none; border-radius: 0.875rem; font-size: 1.0625rem; font-weight: 700; cursor: pointer; white-space: nowrap; transition: all 0.2s; box-shadow: 0 4px 14px rgba(4,120,87,0.35); }
+    #confirmBtn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(4,120,87,0.45); }
+    #confirmBtn:disabled { background: #E5E7EB; color: #9CA3AF; box-shadow: none; cursor: default; transform: none; }
+
+    @media (max-width: 600px) {
+      main { padding: 1.5rem 0.75rem 3rem; }
+      .section-title { font-size: 1.3125rem; }
+      .section-sub { font-size: 0.875rem; margin-bottom: 1.5rem; }
+      .back-link { margin-bottom: 1.25rem; }
+
+      .psych-card { flex-direction: row; align-items: center; gap: 0.875rem; padding: 1rem; margin-bottom: 1.5rem; }
+      .psych-avatar { width: 52px; height: 52px; min-width: 52px; font-size: 1.125rem; }
+      .psych-info { min-width: 0; }
+      .psych-info-name { font-size: 1rem; }
+      .psych-info-spec { font-size: 0.8125rem; margin-bottom: 0.25rem; }
+      .psych-info-meta { font-size: 0.75rem; gap: 0.625rem; }
+      .psych-price { margin-left: auto; text-align: right; }
+      .psych-price-val { font-size: 1.0625rem; white-space: nowrap; }
+      .psych-price-label { font-size: 0.6875rem; }
+
+      .calendar-header { padding: 0.875rem 1rem; }
+      .calendar-month { font-size: 0.9375rem; }
+      .cal-days-header { padding: 0.625rem 0.375rem 0; }
+      .cal-days { padding: 0 0.375rem 0.75rem; }
+      .cal-day { padding: 0.25rem 0; }
+      .cal-day-btn { width: 2.125rem; height: 2.125rem; font-size: 0.875rem; }
+      .cal-day-name { font-size: 0.6875rem; letter-spacing: 0; }
+
+      .slots-wrap { padding: 1rem; }
+      .slots-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.5rem; }
+      .slot-btn { padding: 0.625rem 0.25rem; font-size: 0.875rem; }
+      .confirm-bar { flex-direction: column; align-items: stretch; gap: 1rem; padding: 1.125rem; }
+      .confirm-bar-val { font-size: 0.9375rem; }
+      #confirmBtn { width: 100%; text-align: center; padding: 0.875rem 1rem; font-size: 1rem; }
+    }
+    @media (max-width: 400px) {
+      main { padding: 1.25rem 0.5rem 3rem; }
+      .slots-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .cal-day-btn { width: 2rem; height: 2rem; font-size: 0.8125rem; }
+      .cal-days-header, .cal-days { padding-left: 0.25rem; padding-right: 0.25rem; }
+    }
+  </style>
+</head>
+<body>
+  <script>(function(){var t=localStorage.getItem('psy-theme')||'light';if(t==='dark'||(t==='system'&&matchMedia('(prefers-color-scheme:dark)').matches))document.body.classList.add('dark');})()</script>
+  <script>psyWriteHeader();</script>
+
+  <main>
+    <div class="page-wrap">
+      <a href="/search.html" class="back-link">
+        <i data-lucide="arrow-left" style="width:1rem;height:1rem;"></i>
+        Назад к поиску
+      </a>
+
+      <div id="bookContent">
+        <div style="text-align:center;padding:4rem 0;color:#9CA3AF;">
+          <i data-lucide="loader" style="width:2rem;height:2rem;animation:spin 1s linear infinite;"></i>
+          <p style="margin-top:1rem;">Загрузка...</p>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <style>
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+
+  <script>psyWriteFooter();</script>
+
+  <script>
+  (function () {
+    var params = new URLSearchParams(location.search);
+    var id = params.get('id');
+    var pkg = params.get('pkg'); // id абонемента — запись без повторной оплаты
+
+    var AVATAR_COLORS = ['#047857','#2563EB','#059669','#D97706','#DB2777','#0891B2','#059669'];
+    function colorForId(x) {
+      var s = String(x), h = 0;
+      for (var i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+      return AVATAR_COLORS[h % AVATAR_COLORS.length];
+    }
+
+    /* Маппинг реального ответа API в формат страницы */
+    function normalizePsych(p) {
+      var name = ((p.first_name || '') + ' ' + (p.last_name || '')).trim() || p.email || 'Психолог';
+      var specStr = (p.specialization || '').trim();
+      var specialties = specStr ? specStr.split(/[,;]+/).map(function(s){return s.trim();}).filter(Boolean) : [];
+      return {
+        id: p.id, name: name, gender: p.gender || '',
+        specialties: specialties, description: p.description || '',
+        experience: parseInt(p.experience, 10) || 0,
+        rating: parseFloat(p.rating) || 0,
+        reviews: parseInt(p.total_reviews, 10) || 0,
+        price: parseFloat(p.price) || 0,
+        formats: (Array.isArray(p.formats) && p.formats.length) ? p.formats : ['video'],
+        avatar: p.avatar || null,
+        verified: String(p.is_approved) === '1',
+        color: colorForId(p.id)
+      };
+    }
+
+    /* psych заполняется после загрузки реальных данных */
+    var psych = null;
+    var psychSchedule = null; // недельное расписание психолога (или null, если не задано)
+
+    /* ---- State ---- */
+    var selectedDate = null;
+    var selectedTime = null;
+    var calYear, calMonth;
+
+    var now = new Date();
+    calYear  = now.getFullYear();
+    calMonth = now.getMonth();
+
+    var ALL_SLOTS = ['09:00','10:00','11:00','13:00','14:00','15:00','16:00','18:00','19:00','20:00'];
+    var WEEKDAY_KEYS = ['sun','mon','tue','wed','thu','fri','sat'];
+
+    function getSlots(dateStr) {
+      if (psychSchedule) {
+        var d = new Date(dateStr + 'T12:00:00');
+        var key = WEEKDAY_KEYS[d.getDay()];
+        var times = (psychSchedule[key] || []).slice().sort();
+        return times.map(function(t) { return { time: t, busy: false }; });
+      }
+      return [];
+    }
+
+    function toISO(dateStr, time) {
+      return dateStr + 'T' + time + ':00';
+    }
+
+    function padZ(n) { return n < 10 ? '0' + n : '' + n; }
+
+    function dateStr(y, m, d) {
+      return y + '-' + padZ(m + 1) + '-' + padZ(d);
+    }
+
+    function formatDate(dateStr) {
+      var d = new Date(dateStr + 'T12:00:00');
+      return d.toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' });
+    }
+
+    function initials(name) {
+      return name.split(' ').map(function(w) { return w[0]; }).join('').slice(0, 2).toUpperCase();
+    }
+
+    function renderStars(rating) {
+      var r = Math.round(rating * 2) / 2;
+      var out = '';
+      for (var i = 1; i <= 5; i++) {
+        out += '<span style="color:' + (i <= r ? '#F59E0B' : '#E5E7EB') + ';font-size:0.875rem;">★</span>';
+      }
+      return out;
+    }
+
+    /* ---- Build page ---- */
+    function buildPage() {
+      var p = psych;
+      var verifiedBadge = p.verified
+        ? '<span style="display:inline-flex;align-items:center;gap:0.25rem;background:#F0FDF4;color:#16A34A;border-radius:2rem;padding:0.175rem 0.625rem;font-size:0.75rem;font-weight:600;border:1px solid #BBF7D0;"><i data-lucide="badge-check" style="width:0.75rem;height:0.75rem;"></i>Верификация</span>'
+        : '';
+
+      var html =
+        '<h1 class="section-title">Запись на сессию</h1>' +
+        '<p class="section-sub">Выберите удобный день и время</p>' +
+        (pkg ? '<div style="background:#F0FDF4;border:1.5px solid #BBF7D0;border-radius:1rem;padding:0.9rem 1.25rem;margin-bottom:1.5rem;color:#16A34A;font-weight:600;font-size:0.9375rem;">🎟 Запись по абонементу — без повторной оплаты, спишется одна сессия.</div>' : '') +
+
+        (pkg ? '' : '<div style="background:#F0FDF4;border:1.5px solid #BBF7D0;border-radius:1rem;padding:0.75rem 1.125rem;margin-bottom:1rem;color:#16A34A;font-weight:600;font-size:0.875rem;display:flex;align-items:center;gap:0.5rem;">🎁 Вводная сессия 20 минут бесплатно — если ещё не записывались к этому специалисту</div>') +
+        '<div class="psych-card">' +
+          '<div class="psych-avatar" style="background:' + (p.color || '#047857') + ';">' + initials(p.name) + '</div>' +
+          '<div class="psych-info" style="flex:1;min-width:0;">' +
+            '<div class="psych-info-name">' + p.name + ' ' + verifiedBadge + '</div>' +
+            '<div class="psych-info-spec">' + (p.specialties || []).join(' · ') + '</div>' +
+            '<div class="psych-info-meta">' +
+              '<span>' + renderStars(p.rating) + ' ' + p.rating.toFixed(1) + '</span>' +
+              '<span>' + p.reviews + ' отзывов</span>' +
+              '<span>' + p.experience + ' лет опыта</span>' +
+            '</div>' +
+          '</div>' +
+          '<div class="psych-price">' +
+            ((p.price||0) > 0
+              ? '<div class="psych-price-val">' + p.price.toLocaleString('ru-RU') + ' ₽</div><div class="psych-price-label">за сессию (50 мин)</div>'
+              : '<div class="psych-price-val" style="font-size:1rem;color:#9CA3AF;">Цена уточняется</div>') +
+          '</div>' +
+        '</div>' +
+
+        '<div class="calendar-wrap">' +
+          '<div class="calendar-header">' +
+            '<button class="cal-nav-btn" id="calPrev" aria-label="Предыдущий месяц"><i data-lucide="chevron-left" style="width:1rem;height:1rem;"></i></button>' +
+            '<span class="calendar-month" id="calMonthLabel"></span>' +
+            '<button class="cal-nav-btn" id="calNext" aria-label="Следующий месяц"><i data-lucide="chevron-right" style="width:1rem;height:1rem;"></i></button>' +
+          '</div>' +
+          '<div class="cal-days-header">' +
+            ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'].map(function(d) {
+              return '<div class="cal-day-name">' + d + '</div>';
+            }).join('') +
+          '</div>' +
+          '<div class="cal-days" id="calDays"></div>' +
+          '<div class="slots-wrap" id="slotsWrap" style="display:none;">' +
+            '<div class="slots-title" id="slotsDateLabel"></div>' +
+            '<div class="slots-grid" id="slotsGrid"></div>' +
+          '</div>' +
+        '</div>' +
+
+        '<div class="confirm-bar" id="confirmBar">' +
+          '<div class="confirm-bar-info">' +
+            '<div class="confirm-bar-label">Выбрано:</div>' +
+            '<div class="confirm-bar-val" id="confirmSummary" style="color:#9CA3AF;">Выберите дату и время</div>' +
+          '</div>' +
+          '<button id="confirmBtn" disabled>Перейти к оплате →</button>' +
+        '</div>';
+
+      document.getElementById('bookContent').innerHTML = html;
+
+      try { if (window.lucide) lucide.createIcons(); } catch(e) {}
+
+      document.getElementById('calPrev').addEventListener('click', function() {
+        calMonth--;
+        if (calMonth < 0) { calMonth = 11; calYear--; }
+        renderCalendar();
+      });
+      document.getElementById('calNext').addEventListener('click', function() {
+        calMonth++;
+        if (calMonth > 11) { calMonth = 0; calYear++; }
+        renderCalendar();
+      });
+
+      document.getElementById('confirmBtn').addEventListener('click', function() {
+        if (!selectedDate || !selectedTime) return;
+        var iso = toISO(selectedDate, selectedTime);
+        var url = '/book-confirm.html?psychologist_id=' + encodeURIComponent(psych.id) + '&datetime=' + encodeURIComponent(iso);
+        if (pkg) url += '&pkg=' + encodeURIComponent(pkg);
+        location.href = url;
+      });
+
+      renderCalendar();
+    }
+
+    function renderCalendar() {
+      var monthNames = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
+      document.getElementById('calMonthLabel').textContent = monthNames[calMonth] + ' ' + calYear;
+
+      var todayD = new Date();
+      todayD.setHours(0,0,0,0);
+
+      var first = new Date(calYear, calMonth, 1);
+      var last  = new Date(calYear, calMonth + 1, 0);
+
+      /* Monday-based week offset */
+      var startDow = (first.getDay() + 6) % 7;
+      var html = '';
+
+      /* Leading blanks */
+      for (var b = 0; b < startDow; b++) {
+        html += '<div class="cal-day"></div>';
+      }
+
+      for (var d = 1; d <= last.getDate(); d++) {
+        var dd = new Date(calYear, calMonth, d);
+        dd.setHours(0,0,0,0);
+        var ds = dateStr(calYear, calMonth, d);
+        var isPast = dd < todayD;
+        var isToday = ds === dateStr(todayD.getFullYear(), todayD.getMonth(), todayD.getDate());
+        var isSelected = ds === selectedDate;
+        var isWeekend = dd.getDay() === 0 || dd.getDay() === 6;
+
+        var cls = 'cal-day-btn';
+        if (isSelected) cls += ' selected';
+        if (isToday)    cls += ' today';
+        if (isWeekend || isPast) cls += ' other-month';
+
+        var disabled = isPast ? 'disabled' : '';
+        html += '<div class="cal-day"><button class="' + cls + '" ' + disabled + ' data-date="' + ds + '">' + d + '</button></div>';
+      }
+
+      document.getElementById('calDays').innerHTML = html;
+
+      document.getElementById('calDays').querySelectorAll('.cal-day-btn:not(:disabled)').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          selectedDate = btn.getAttribute('data-date');
+          selectedTime = null;
+          renderCalendar();
+          renderSlots();
+        });
+      });
+
+      if (window.lucide) try { lucide.createIcons(); } catch(e) {}
+    }
+
+    function renderSlots() {
+      var wrap = document.getElementById('slotsWrap');
+      var grid = document.getElementById('slotsGrid');
+      var label = document.getElementById('slotsDateLabel');
+
+      if (!selectedDate) { wrap.style.display = 'none'; return; }
+
+      wrap.style.display = 'block';
+      label.textContent = formatDate(selectedDate);
+
+      var slots = getSlots(selectedDate);
+      if (!slots.length) {
+        grid.innerHTML = '<div style="color:#9CA3AF;padding:0.5rem 0;">В этот день у специалиста нет свободных окон. Выберите другой день.</div>';
+        updateConfirmBar();
+        return;
+      }
+      var html = slots.map(function(s) {
+        var cls = 'slot-btn' + (s.busy ? ' busy' : '') + (s.time === selectedTime ? ' selected' : '');
+        return '<button class="' + cls + '" data-time="' + s.time + '"' + (s.busy ? ' disabled' : '') + '>' + s.time + '</button>';
+      }).join('');
+
+      grid.innerHTML = html;
+
+      grid.querySelectorAll('.slot-btn:not(.busy)').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          selectedTime = btn.getAttribute('data-time');
+          renderSlots();
+          updateConfirmBar();
+        });
+      });
+
+      updateConfirmBar();
+    }
+
+    function updateConfirmBar() {
+      var summary = document.getElementById('confirmSummary');
+      var btn = document.getElementById('confirmBtn');
+      if (selectedDate && selectedTime) {
+        summary.innerHTML = '<span>' + formatDate(selectedDate) + ', ' + selectedTime + '</span>';
+        summary.style.color = '#1A1A1A';
+        btn.disabled = false;
+      } else {
+        summary.textContent = 'Выберите дату и время';
+        summary.style.color = '#9CA3AF';
+        btn.disabled = true;
+      }
+    }
+
+    /* ── Загрузка реального психолога, затем построение страницы ── */
+    function showLoadError() {
+      var html;
+      if (pkg) {
+        html =
+          '<div style="text-align:center;padding:3rem 1rem;">' +
+            '<div style="font-size:2.5rem;margin-bottom:0.75rem;">😕</div>' +
+            '<h2 style="font-size:1.25rem;color:var(--d-text,#1A1A1A);margin-bottom:0.5rem;">Специалист больше недоступен</h2>' +
+            '<p style="color:var(--d-muted,#6B7280);margin-bottom:1.5rem;">Ваш абонемент по-прежнему действует. Выберите другого психолога, чтобы продолжить использовать оставшиеся сессии.</p>' +
+            '<a href="/search.html?pkg=' + encodeURIComponent(pkg) + '" style="display:inline-block;padding:0.75rem 1.5rem;background:linear-gradient(135deg,#047857,#059669);color:white;text-decoration:none;border-radius:0.75rem;font-weight:600;">🔄 Выбрать другого психолога</a>' +
+          '</div>';
+      } else {
+        html =
+          '<div style="text-align:center;padding:3rem 1rem;">' +
+            '<div style="font-size:2.5rem;margin-bottom:0.75rem;">😕</div>' +
+            '<h2 style="font-size:1.25rem;color:var(--d-text,#1A1A1A);margin-bottom:0.5rem;">Специалист не найден</h2>' +
+            '<p style="color:var(--d-muted,#6B7280);margin-bottom:1.5rem;">Возможно, профиль был удалён или ссылка устарела.</p>' +
+            '<a href="/search.html" style="display:inline-block;padding:0.75rem 1.5rem;background:linear-gradient(135deg,#047857,#059669);color:white;text-decoration:none;border-radius:0.75rem;font-weight:600;">← Вернуться в каталог</a>' +
+          '</div>';
+      }
+      document.getElementById('bookContent').innerHTML = html;
+    }
+
+    (function loadAndBuild() {
+      if (!id) { showLoadError(); return; }
+      fetch('/api/psychologists.php?action=get&id=' + encodeURIComponent(id), { credentials: 'include' })
+        .then(function(r) { return r.ok ? r.json() : null; })
+        .then(function(data) {
+          if (!data || data.error || !data.id) { showLoadError(); return; }
+          psych = normalizePsych(data);
+          // Подгружаем расписание психолога (если задано) — затем строим страницу.
+          fetch('/api/schedule.php?action=get&psychologist_id=' + encodeURIComponent(psych.id), { credentials: 'include' })
+            .then(function(r) { return r.ok ? r.json() : null; })
+            .then(function(s) { if (s && s.ok && s.slots) psychSchedule = s.slots; })
+            .catch(function() {})
+            .finally(function() {
+              buildPage(); checkSelfBooking(); showNoScheduleNotice();
+              if (pkg) reassignPackageIfNeeded();
+            });
+        })
+        .catch(function() { showLoadError(); });
+    })();
+
+    function reassignPackageIfNeeded() {
+      if (!pkg || !psych) return;
+      fetch('/api/packages.php?action=reassign', {
+        method: 'POST', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ package_id: pkg, psychologist_id: psych.id })
+      }).catch(function() {});
+    }
+
+    /* ── Self-booking prevention ──
+       If the logged-in user IS this psychologist, disable booking and show a warning.
+       Psychologists can book any OTHER colleague as a client — just not themselves. */
+    function checkSelfBooking() {
+      if (!window.Auth || !window.Auth.getCurrentUser) return;
+      Promise.resolve(window.Auth.getCurrentUser()).then(function(user) {
+        if (!user) return;
+        var myPsychId = user.psychologist_id || user.psychologistId;
+        if (!myPsychId) return;
+        if (!psych || String(myPsychId) !== String(psych.id)) return;
+
+        /* Same person — block the flow */
+        var warn = document.createElement('div');
+        warn.style.cssText = 'background:#FFF8E7;border:1.5px solid #F59E0B;border-radius:1rem;padding:1rem 1.25rem;margin-bottom:1.5rem;display:flex;align-items:center;gap:0.75rem;color:#92400E;font-size:0.9375rem;font-weight:500;';
+        warn.innerHTML = '<span style="font-size:1.375rem;flex-shrink:0;">⚠️</span><span>Это ваш профиль. Чтобы записаться как клиент — выберите другого специалиста.</span>';
+
+        var calWrap = document.querySelector('.calendar-wrap');
+        if (calWrap) calWrap.parentNode.insertBefore(warn, calWrap);
+
+        var confirmBtn = document.getElementById('confirmBtn');
+        if (confirmBtn) {
+          confirmBtn.disabled = true;
+          confirmBtn.textContent = 'Нельзя записаться к себе';
+          confirmBtn.style.background = '#E5E7EB';
+          confirmBtn.style.color = '#9CA3AF';
+          confirmBtn.style.boxShadow = 'none';
+        }
+      }).catch(function() {});
+    }
+
+    function showNoScheduleNotice() {
+      if (psychSchedule) return;
+      var calWrap = document.querySelector('.calendar-wrap');
+      if (!calWrap) return;
+      var notice = document.createElement('div');
+      notice.style.cssText = 'background:#FEF3C7;border:1.5px solid #F59E0B;border-radius:1rem;padding:1rem 1.25rem;margin-bottom:1.5rem;display:flex;align-items:center;gap:0.75rem;color:#92400E;font-size:0.9375rem;font-weight:500;';
+      notice.innerHTML = '<span style="font-size:1.375rem;flex-shrink:0;">📅</span><span>Этот специалист ещё не настроил своё расписание. Запись временно недоступна.</span>';
+      calWrap.parentNode.insertBefore(notice, calWrap);
+      calWrap.style.display = 'none';
+      var confirmBtn = document.getElementById('confirmBtn');
+      if (confirmBtn) {
+        confirmBtn.disabled = true;
+        confirmBtn.textContent = 'Расписание не настроено';
+        confirmBtn.style.background = '#E5E7EB';
+        confirmBtn.style.color = '#9CA3AF';
+        confirmBtn.style.boxShadow = 'none';
+      }
+    }
+  })();
+  </script>
+</body>
+</html>

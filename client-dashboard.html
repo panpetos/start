@@ -1,0 +1,869 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
+    <title>Личный кабинет - psytalk.pro</title>
+    <link rel="stylesheet" href="/css/styles.css?v=20260823d">
+    <script src="/js/netguard.js?v=20260821c"></script>
+    <script src="/js/layout.js?v=20260823d"></script>
+    <!-- Одно меню в кабинете. Разделы сайта живут в боковом меню («Сайт»), поэтому
+         бургер шапки здесь лишний: на телефоне рядом оказывались два меню, и человек
+         не понимал, в какое жать. Правило дублирует логику layout.js намеренно —
+         HTML не кэшируется, а js мог остаться в кэше телефона прежней версии. -->
+    <style id="psyOneMenu">
+      #burgerMenu{display:none!important}
+      @media (max-width:768px){#navMenu.nav-menu:not(.nav-menu-slim){display:none!important}}
+    </style>
+    <script src="/js/lightbox.js?v=7"></script>
+    <link rel="preconnect" href="https://unpkg.com">
+    <script defer src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        :root {
+            --d-bg: #ECFDF5; --d-panel: #FFFFFF; --d-panel-alt: #FAFAFA;
+            --d-border: #EFF7F3; --d-border-light: #F0F0F0; --d-border-accent: #D1FAE5;
+            --d-text: #1A1A1A; --d-text-sec: #6B7280; --d-text-muted: #9CA3AF; --d-text-dark: #374151;
+            --d-accent: #047857; --d-accent-bg: #D1FAE5; --d-accent-hover: #ECFDF5;
+            --d-green-bg: #F0FDF4; --d-green: #16A34A; --d-red-bg: #FFF1F2; --d-red: #BE123C;
+            --d-shadow: rgba(4,120,87,0.1); --d-shadow-hover: rgba(4,120,87,0.12);
+        }
+        body.dark {
+            --d-bg: #191919; --d-panel: #252525; --d-panel-alt: #2A2A2A;
+            --d-border: #333; --d-border-light: #333; --d-border-accent: #10402F;
+            --d-text: #E6E6E6; --d-text-sec: #A0A0A0; --d-text-muted: #707070; --d-text-dark: #C0C0C0;
+            --d-accent: #6EE7B7; --d-accent-bg: #0B3B2E; --d-accent-hover: #10402F;
+            --d-green-bg: #1A2E1A; --d-green: #4ADE80; --d-red-bg: #2E1A1A; --d-red: #F87171;
+            --d-shadow: rgba(0,0,0,0.2); --d-shadow-hover: rgba(0,0,0,0.3);
+        }
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: var(--d-bg); color: var(--d-text);
+            min-height: 100vh; padding: 0; padding-top: 84px;
+            transition: background 0.2s, color 0.2s;
+        }
+        body.dark .nav { background: #1E1E1E !important; border-color: #333 !important; }
+        body.dark .nav-brand span:first-child { color: #E6E6E6 !important; }
+        body.dark .nav a.nav-link { color: #A0A0A0 !important; }
+        body.dark .nav a.nav-link:hover { color: #E6E6E6 !important; }
+
+        .container { max-width: 1200px; margin: 0 auto; padding: 2rem; flex: 1; min-width: 0; }
+
+        .header {
+            background: var(--d-panel); border-radius: 1.25rem; padding: 1.75rem 2rem;
+            margin-bottom: 1.75rem;
+            box-shadow: 0 4px 20px var(--d-shadow);
+            border: 1px solid var(--d-border-accent);
+            display: flex; justify-content: space-between; align-items: center;
+            transition: background 0.2s, border-color 0.2s;
+        }
+        .header-left h1 { color: var(--d-text); font-size: 1.75rem; margin-bottom: 0.25rem; letter-spacing: -0.02em; }
+        .header-left p { color: var(--d-text-sec); font-size: 0.9375rem; }
+
+        .user-info { display: flex; align-items: center; gap: 0.875rem; }
+        .user-avatar {
+            width: 48px; height: 48px; border-radius: 50%;
+            background: linear-gradient(135deg, #047857 0%, #059669 100%);
+            display: flex; align-items: center; justify-content: center;
+            color: white; font-weight: 700; font-size: 1.125rem; overflow: hidden;
+            box-shadow: 0 4px 12px rgba(4,120,87,0.3);
+        }
+        .user-avatar img { width: 100%; height: 100%; object-fit: cover; }
+
+        .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr)); gap: 1.5rem; }
+
+        .card {
+            background: var(--d-panel); border-radius: 1.25rem; padding: 1.75rem;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+            border: 1px solid var(--d-border);
+            transition: box-shadow 0.2s, transform 0.2s, background 0.2s, border-color 0.2s;
+        }
+        .card:hover { box-shadow: 0 8px 30px var(--d-shadow-hover); transform: translateY(-2px); }
+        .card h2 {
+            color: var(--d-accent); margin-bottom: 1rem; font-size: 1.125rem;
+            display: flex; align-items: center; gap: 0.5rem;
+        }
+        .card p { color: var(--d-text-sec); line-height: 1.6; }
+
+        .btn {
+            display: inline-flex; align-items: center; gap: 0.5rem;
+            padding: 0.625rem 1.375rem;
+            background: linear-gradient(135deg, #047857 0%, #059669 100%);
+            color: white; text-decoration: none; border-radius: 0.625rem;
+            font-weight: 600; font-size: 0.9375rem; transition: all 0.2s;
+            border: none; cursor: pointer; font-family: inherit;
+            box-shadow: 0 3px 10px rgba(4,120,87,0.3);
+        }
+        .btn:hover { transform: translateY(-1px); box-shadow: 0 5px 16px rgba(4,120,87,0.4); color: white; }
+
+        .appointments-list { margin-top: 1rem; }
+        .appointment-item {
+            background: var(--d-panel-alt); padding: 1rem; border-radius: 0.875rem;
+            margin-bottom: 0.625rem; display: flex; flex-wrap: wrap;
+            justify-content: space-between; align-items: center; gap: 0.75rem;
+            border: 1px solid var(--d-border-light); transition: border-color 0.2s, background 0.2s;
+        }
+        .appointment-item:hover { border-color: var(--d-border-accent); }
+        .appointment-info { flex: 1; min-width: 120px; word-break: break-word; }
+        .appointment-psychologist { font-weight: 600; color: var(--d-text); margin-bottom: 0.2rem; font-size: 0.9375rem; }
+        .appointment-datetime { font-size: 0.8125rem; color: var(--d-text-sec); display: flex; align-items: center; gap: 0.25rem; flex-wrap: wrap; }
+        .appointment-datetime svg { width: 14px; height: 14px; }
+        .appointment-status { padding: 0.2rem 0.75rem; border-radius: 2rem; font-size: 0.75rem; font-weight: 600; }
+        .status-scheduled { background: var(--d-accent-bg); color: var(--d-accent); }
+        .status-completed { background: var(--d-green-bg); color: var(--d-green); }
+        .status-cancelled { background: var(--d-red-bg); color: var(--d-red); }
+        /* Кнопки записи. Раньше у чата не было подписи — он выходил узким квадратиком
+           рядом с широкими соседями, отсюда «разного размера». Теперь у всех общая
+           высота и выравнивание, а чат — главное действие и всегда первый. */
+        .appointment-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: stretch; }
+        .appointment-actions .btn { min-height: 38px; justify-content: center; white-space: nowrap; }
+        .appt-chat { order: -1; }
+        /* Отмена — не кнопка-заливка, а красная надпись: действие редкое и
+           разрушающее, ему незачем спорить по заметности с «Начать диалог».
+           Гасим и наследуемый от .btn ховер с тенью и подскоком. */
+        .appointment-actions .btn.btn-danger {
+            background: none; border: none; box-shadow: none; color: #B91C1C;
+            padding-left: 0.35rem; padding-right: 0.35rem; min-height: 34px;
+        }
+        /* Оттенки красного разные по темам не для красоты. Обычный #EF4444 на тёмной
+           карточке даёт контраст 4.1 при норме WCAG AA 4.5 — и авто-контраст в
+           layout.js честно перекрашивал текст в серый, то есть «красная надпись»
+           переставала быть красной. Светлый #F87171 проходит с запасом (5.6), и
+           скрипту нечего исправлять; в светлой теме, наоборот, нужен тёмный. */
+        body.dark .appointment-actions .btn.btn-danger { color: #F87171; }
+        .appointment-actions .btn.btn-danger:hover {
+            background: none; box-shadow: none; transform: none;
+            text-decoration: underline;
+        }
+        .btn-small { padding: 0.4rem 0.875rem; font-size: 0.8125rem; }
+        .btn-danger { background: linear-gradient(135deg, #ef4444, #dc2626); box-shadow: none; }
+        .btn-outline {
+            background: var(--d-panel); border: 1.5px solid var(--d-border); color: var(--d-text-dark);
+            box-shadow: none;
+        }
+        .btn-outline:hover { border-color: var(--d-accent); color: var(--d-accent); background: var(--d-accent-hover); }
+        .empty-state { text-align: center; padding: 2rem; color: var(--d-text-muted); }
+
+        /* История записей: прошедшие сессии сложены и не занимают место */
+        .appt-history { margin-top: 0.75rem; }
+        .appt-history > summary {
+            cursor: pointer; list-style: none; user-select: none;
+            padding: 0.6rem 0.85rem; border-radius: 0.7rem;
+            background: var(--d-panel-alt); border: 1px solid var(--d-border-light);
+            color: var(--d-text-sec); font-size: 0.875rem; font-weight: 600;
+            display: flex; align-items: center; gap: 0.4rem;
+        }
+        .appt-history > summary::-webkit-details-marker { display: none; }
+        .appt-history > summary::before {
+            content: '▸'; transition: transform 0.15s; display: inline-block; opacity: 0.7;
+        }
+        .appt-history[open] > summary::before { transform: rotate(90deg); }
+        .appt-history > summary:hover { border-color: var(--d-border-accent); color: var(--d-text); }
+        .appt-history > div { margin-top: 0.6rem; }
+        /* Прошедшее — приглушённее живого, чтобы взгляд цеплялся за предстоящее */
+        .appt-history .appointment-item { opacity: 0.78; }
+
+        /* Просьба об отзыве — заметная, но не кричащая */
+        .appt-review-nudge {
+            display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;
+            margin-top: 0.75rem; padding: 0.85rem 1rem; border-radius: 0.875rem;
+            background: var(--d-accent-bg, #D1FAE5); border: 1.5px solid var(--d-border-accent, #6EE7B7);
+            color: var(--d-accent, #065F46);
+        }
+        .appt-review-nudge { position: relative; }
+        .appt-nudge-x {
+            background: none; border: none; cursor: pointer; font-size: 1.25rem; line-height: 1;
+            color: inherit; opacity: 0.55; padding: 0 0.25rem; font-family: inherit;
+        }
+        .appt-nudge-x:hover { opacity: 1; }
+        /* На телефоне текст, кнопка и крестик в один ряд не помещаются: колонка с
+           текстом сжималась до одного слова в строке. Раскладываем сверху вниз. */
+        @media (max-width: 600px) {
+            .appt-review-nudge { flex-direction: column; align-items: stretch; padding-right: 2.5rem; }
+            .appt-review-nudge .btn { width: 100%; justify-content: center; }
+            .appt-nudge-x { position: absolute; top: 0.5rem; right: 0.6rem; padding: 0; }
+        }
+        .loading { text-align: center; color: var(--d-text-muted); padding: 1rem; }
+        .theme-toggle { background: var(--d-panel); border: 1.5px solid var(--d-border); color: var(--d-text-sec); padding: 0.4rem 0.7rem; border-radius: 0.5rem; cursor: pointer; font-size: 0.85rem; font-family: inherit; transition: all 0.15s; }
+        .theme-toggle:hover { border-color: var(--d-accent); color: var(--d-accent); }
+        body.dark input, body.dark textarea, body.dark select { background: var(--d-panel-alt) !important; border-color: var(--d-border) !important; color: var(--d-text) !important; }
+        body.dark .card { background: var(--d-panel) !important; border-color: var(--d-border) !important; }
+        body.dark .header { background: var(--d-panel) !important; border-color: var(--d-border-accent) !important; }
+        body.dark #replaceModal > div > div { background: var(--d-panel) !important; color: var(--d-text) !important; }
+
+        /* ── Notion-style sidebar layout ─── */
+        /* Плашка-предупреждение. Раньше тут были var(--d-bg2,#FEF3C7) и var(--d-text,#92400E):
+           переменной --d-bg2 не существует, поэтому фон брался светлый, а --d-text в тёмной теме
+           даёт светло-серый текст — светлый текст на светлом фоне не читался вовсе.
+           Теперь цвета заданы явно и отдельно для каждой темы. */
+        .warn-box { background: #FEF3C7; border: 1px solid #F59E0B; color: #92400E; }
+        body.dark .warn-box { background: #3A2F14; border-color: #7A5C1A; color: #FCD34D; }
+
+        .dash-layout { display: flex; min-height: calc(100vh - 84px); }
+        .dash-sidebar { width: 240px; background: var(--d-panel); border-right: 1px solid var(--d-border); display: flex; flex-direction: column; position: sticky; top: 84px; height: calc(100vh - 84px); flex-shrink: 0; transition: background 0.2s, border-color 0.2s; z-index: 10; }
+        .dash-sidebar-header { padding: 1rem 1rem 0.75rem; border-bottom: 1px solid var(--d-border); }
+        .dash-sidebar-header h2 { font-size: 0.95rem; font-weight: 700; color: var(--d-text); margin-bottom: 0.15rem; }
+        .dash-sidebar-header p { font-size: 0.75rem; color: var(--d-text-muted); }
+        .dash-sidebar-nav { flex: 1; padding: 0.5rem 0; overflow-y: auto; }
+        .dash-sidebar-group { padding: 0.5rem 0 0.15rem; }
+        .dash-sidebar-group-label { padding: 0.25rem 1rem 0.35rem; font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--d-text-muted); user-select: none; }
+        .dash-sidebar-item { display: flex; align-items: center; gap: 0.55rem; padding: 0.45rem 0.75rem; margin: 0.06rem 0.5rem; border-radius: 0.45rem; font-size: 0.875rem; color: var(--d-text-sec); cursor: pointer; transition: background 0.12s, color 0.12s; font-weight: 500; text-decoration: none; border: none; background: none; width: calc(100% - 1rem); text-align: left; font-family: inherit; line-height: 1.4; }
+        .dash-sidebar-item:hover { background: var(--d-accent-hover); color: var(--d-text); }
+        .dash-sidebar-item.active { background: var(--d-accent-bg); color: var(--d-accent); font-weight: 600; }
+        .dash-sidebar-icon { font-size: 1rem; width: 1.35rem; text-align: center; flex-shrink: 0; }
+        .dash-sidebar-footer { padding: 0.6rem 0.5rem; border-top: 1px solid var(--d-border); display: flex; flex-direction: column; gap: 0.15rem; }
+        .dash-sidebar-footer .dash-sidebar-item { margin: 0.06rem 0; }
+        /* Кнопка меню кабинета стоит в самой шапке справа, а не отдельной плашкой под ней:
+           там на телефоне пусто (меню сайта и его бургер в кабинете скрыты), и рука сама
+           тянется в правый верхний угол. Прежнее место — top:92px слева — висело поверх
+           содержимого и закрывало первую строку страницы. */
+        .dash-sidebar-toggle { display: none; position: fixed; top: 13px; right: 0.9rem; left: auto; z-index: 1001; width: 38px; height: 38px; border-radius: 0.5rem; border: 1px solid var(--d-border); background: var(--d-panel); color: var(--d-text); font-size: 1.2rem; cursor: pointer; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+        .dash-sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.35); z-index: 999; }
+        .dash-sidebar-overlay.open { display: block; }
+        @media (max-width: 768px) {
+            /* Отступ под шапку не нужен — шторка её накрывает; 100dvh и прокрутка нужны,
+               чтобы нижние пункты меню («Выйти») не оказывались за пределами экрана. */
+            .dash-sidebar { position: fixed; top: 0; left: -260px; bottom: 0; z-index: 1000; width: 240px; transition: left 0.25s ease; padding-top: 0.5rem; height: 100vh; height: 100dvh; max-height: 100dvh; overflow-y: auto; overscroll-behavior: contain; }
+            .dash-sidebar.open { left: 0; }
+            .dash-sidebar-toggle { display: flex; }
+            .dash-layout { display: block; }
+            .container { padding: 1rem !important; }
+            .header { flex-direction: column; align-items: flex-start; gap: 0.75rem; padding: 1.25rem !important; }
+            .header-left h1 { font-size: 1.25rem !important; }
+            .cards { grid-template-columns: 1fr !important; }
+            .appointment-item { flex-direction: column; align-items: flex-start; gap: 0.5rem; }
+            /* На телефоне — в столбик. Две колонки давали 94–129px на кнопку, а
+               «Записаться ещё» требует ~127px вместе со значком: текст упирался
+               в края, а на узких экранах и вовсе вылезал за них. В столбик
+               ширины хватает всегда и отступы по краям остаются человеческими. */
+            .appointment-actions { width: 100%; flex-direction: column; align-items: stretch; }
+            .appointment-actions .btn { width: 100%; }
+            /* Кроме отмены: это надпись, а не кнопка — прижимаем влево по тексту. */
+            .appointment-actions .btn.btn-danger { width: auto; align-self: flex-start; }
+        }
+    </style>
+    <script>(function(){ if (localStorage.getItem('psy-theme') === 'dark' || (!localStorage.getItem('psy-theme') && window.matchMedia('(prefers-color-scheme:dark)').matches)) document.documentElement.style.colorScheme = 'dark'; })();</script>
+</head>
+
+<body>
+    <script>(function(){ var t = localStorage.getItem('psy-theme'); if (t === 'dark' || (!t && window.matchMedia('(prefers-color-scheme:dark)').matches)) document.body.classList.add('dark'); })();</script>
+    <script>psyWriteHeader();</script>
+    <button class="dash-sidebar-toggle" onclick="document.querySelector('.dash-sidebar').classList.toggle('open');document.querySelector('.dash-sidebar-overlay').classList.toggle('open')">☰</button>
+    <div class="dash-sidebar-overlay" onclick="document.querySelector('.dash-sidebar').classList.remove('open');this.classList.remove('open')"></div>
+    <div class="dash-layout">
+        <aside class="dash-sidebar">
+            <div class="dash-sidebar-header">
+                <h2>Личный кабинет</h2>
+                <p id="sidebarName">Загрузка...</p>
+            </div>
+            <nav class="dash-sidebar-nav">
+                <div class="dash-sidebar-group">
+                    <div class="dash-sidebar-group-label">Основное</div>
+                    <a class="dash-sidebar-item active" href="/client-dashboard.html">
+                        <span class="dash-sidebar-icon">🏠</span> Главная
+                    </a>
+                    <a class="dash-sidebar-item" href="/search.html">
+                        <span class="dash-sidebar-icon">🔍</span> Найти психолога
+                    </a>
+                    <a class="dash-sidebar-item" href="/chat.html">
+                        <span class="dash-sidebar-icon">💬</span> Чаты
+                    </a>
+                    <a class="dash-sidebar-item" href="/feed.html">
+                        <span class="dash-sidebar-icon">📰</span> Лента
+                    </a>
+                </div>
+                <div class="dash-sidebar-group">
+                    <div class="dash-sidebar-group-label">Профиль</div>
+                    <a class="dash-sidebar-item" href="/notify-settings.html">
+                        <span class="dash-sidebar-icon">🔔</span> Уведомления
+                    </a>
+                    <a class="dash-sidebar-item" href="/edit-profile.html">
+                        <span class="dash-sidebar-icon">⚙️</span> Настройки
+                    </a>
+                </div>
+                <div class="dash-sidebar-group">
+                    <div class="dash-sidebar-group-label">Сайт</div>
+                    <a class="dash-sidebar-item" href="/">
+                        <span class="dash-sidebar-icon">🏡</span> На сайт
+                    </a>
+                    <a class="dash-sidebar-item" href="/offers.html">
+                        <span class="dash-sidebar-icon">💳</span> Пакеты и цены
+                    </a>
+                    <a class="dash-sidebar-item" href="/blog.html">
+                        <span class="dash-sidebar-icon">📖</span> Блог
+                    </a>
+                    <a class="dash-sidebar-item" href="/install.html">
+                        <span class="dash-sidebar-icon">📲</span> Установить приложение
+                    </a>
+                </div>
+            </nav>
+            <div class="dash-sidebar-footer">
+                <button class="dash-sidebar-item" onclick="toggleDashTheme()" id="themeBtn" title="Сменить тему">
+                    <span class="dash-sidebar-icon">🌙</span> <span id="themeBtnLabel">Тёмная тема</span>
+                </button>
+                <button class="dash-sidebar-item" onclick="psyLogout()">
+                    <span class="dash-sidebar-icon">🚪</span> Выйти
+                </button>
+            </div>
+        </aside>
+        <div class="container">
+        <div class="header">
+            <div class="header-left">
+                <h1>Личный кабинет</h1>
+                <p>Управление записями и профилем</p>
+            </div>
+            <div class="user-info">
+                <span id="userName" style="font-weight: 600;">Загрузка...</span>
+                <div class="user-avatar" id="userAvatar">
+                    <img src="" alt="" style="display: none;">
+                    <span id="userInitial">?</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="cards">
+            <div class="card" id="packagesCard" style="grid-column: 1 / -1; display: none;">
+                <h2>
+                    <i data-lucide="ticket" style="width: 24px; height: 24px;"></i>
+                    Мои абонементы
+                </h2>
+                <div id="packagesList" class="appointments-list"></div>
+            </div>
+
+            <div class="card" style="grid-column: 1 / -1;">
+                <h2>
+                    <i data-lucide="calendar" style="width: 24px; height: 24px;"></i>
+                    Мои записи
+                </h2>
+                <div id="appointments" class="appointments-list">
+                    <div class="loading">Загрузка записей...</div>
+                </div>
+                <a href="/search.html" class="btn" style="margin-top: 1rem;">
+                    <i data-lucide="search" style="width: 18px; height: 18px;"></i>
+                    Найти психолога
+                </a>
+            </div>
+
+            <div class="card" id="channelsCard" style="grid-column: 1 / -1; display: none;">
+                <h2>
+                    <i data-lucide="megaphone" style="width: 24px; height: 24px;"></i>
+                    Мои каналы
+                </h2>
+                <div id="channelsList" class="appointments-list"></div>
+            </div>
+        </div>
+
+        <!-- Frozen account modal -->
+        <div id="frozenModal" style="display:none;position:fixed;inset:0;background:rgba(18,42,34,0.55);z-index:3000;align-items:center;justify-content:center;padding:1rem;">
+            <div style="background:var(--d-panel);border-radius:1.25rem;max-width:440px;width:100%;padding:2rem;box-shadow:0 20px 60px rgba(0,0,0,0.3);color:var(--d-text);text-align:center;">
+                <div style="width:60px;height:60px;border-radius:50%;background:linear-gradient(135deg,#ff6b6b,#ee5a24);display:flex;align-items:center;justify-content:center;margin:0 auto 1rem;font-size:1.8rem;">🔒</div>
+                <h3 style="font-size:1.2rem;margin-bottom:0.5rem;">Аккаунт заморожен</h3>
+                <p style="font-size:0.9rem;color:var(--d-text-sec);line-height:1.6;margin-bottom:1.25rem;">
+                    Функционал вашего аккаунта временно ограничен. Для разблокировки свяжитесь с нами любым удобным способом:
+                </p>
+                <div style="display:flex;flex-direction:column;gap:0.5rem;margin-bottom:1.25rem;text-align:left;">
+                    <a href="mailto:support@psytalk.pro" style="display:flex;align-items:center;gap:0.6rem;padding:0.7rem 1rem;background:var(--d-accent-bg);border-radius:0.6rem;text-decoration:none;color:var(--d-accent);font-weight:600;font-size:0.9rem;">
+                        ✉️ support@psytalk.pro
+                    </a>
+                    <a href="https://t.me/psytalk_support" target="_blank" style="display:flex;align-items:center;gap:0.6rem;padding:0.7rem 1rem;background:var(--d-accent-bg);border-radius:0.6rem;text-decoration:none;color:var(--d-accent);font-weight:600;font-size:0.9rem;">
+                        💬 Telegram: @psytalk_support
+                    </a>
+                    <div style="display:flex;align-items:center;gap:0.6rem;padding:0.7rem 1rem;background:var(--d-accent-bg);border-radius:0.6rem;color:var(--d-accent);font-weight:600;font-size:0.9rem;">
+                        💬 Чат поддержки на сайте (кнопка внизу справа)
+                    </div>
+                </div>
+                <button onclick="document.getElementById('frozenModal').style.display='none'" style="background:linear-gradient(135deg,#047857,#059669);color:#fff;border:none;padding:0.7rem 2rem;border-radius:0.6rem;font-weight:600;cursor:pointer;font-family:inherit;font-size:0.95rem;width:100%;">Понятно</button>
+            </div>
+        </div>
+
+        <!-- Replacement request modal -->
+        <div id="replaceModal" style="display:none;position:fixed;inset:0;background:rgba(18,42,34,0.55);z-index:2000;align-items:center;justify-content:center;padding:1rem;">
+            <div style="background:var(--d-panel);border-radius:1.25rem;max-width:440px;width:100%;padding:2rem;box-shadow:0 20px 60px rgba(0,0,0,0.3);color:var(--d-text);">
+                <div style="text-align:center;margin-bottom:1.1rem;">
+                    <div style="width:60px;height:60px;border-radius:50%;background:linear-gradient(135deg,#047857,#059669);display:flex;align-items:center;justify-content:center;margin:0 auto 0.7rem;font-size:1.8rem;">🔄</div>
+                    <h3 style="font-size:1.2rem;color:var(--d-text);margin-bottom:0.25rem;">Заменить психолога</h3>
+                    <p style="font-size:0.875rem;color:var(--d-text-sec);line-height:1.5;">Если специалист не подошёл — поможем подобрать другого бесплатно. Расскажите, что было не так (по желанию) — учтём при подборе.</p>
+                </div>
+                <div id="replacePsychName" style="background:var(--d-accent-bg);border:1px solid var(--d-border-accent);border-radius:0.6rem;padding:0.55rem 0.8rem;font-size:0.85rem;color:var(--d-accent);margin-bottom:0.7rem;"></div>
+                <label style="display:block;font-size:0.8125rem;font-weight:600;color:var(--d-text-dark);margin-bottom:0.3rem;">Что не подошло? (необязательно)</label>
+                <textarea id="replaceReason" placeholder="Напр.: не сошлись по подходу, неудобное время, хочу другого специалиста..." style="width:100%;height:80px;padding:0.7rem 0.9rem;border:2px solid var(--d-border);border-radius:0.7rem;font-size:0.9rem;outline:none;font-family:inherit;resize:vertical;margin-bottom:0.7rem;background:var(--d-panel-alt);color:var(--d-text);"></textarea>
+                <div id="replaceMsg" style="display:none;font-size:0.85rem;margin-bottom:0.6rem;"></div>
+                <button onclick="submitReplace()" id="replaceSubmit" style="width:100%;padding:0.85rem;background:linear-gradient(135deg,#047857,#059669);color:#fff;border:none;border-radius:0.75rem;font-weight:700;font-size:0.9375rem;cursor:pointer;font-family:inherit;margin-bottom:0.5rem;">Отправить заявку и подобрать</button>
+                <button onclick="closeReplace()" style="width:100%;padding:0.6rem;background:var(--d-panel-alt);border:1px solid var(--d-border);border-radius:0.75rem;color:var(--d-text-dark);font-weight:600;font-size:0.875rem;cursor:pointer;font-family:inherit;">Отмена</button>
+            </div>
+        </div>
+
+        <script src="/js/api.js?v=20260821"></script>
+        <script src="/js/auth.js?v=20260821"></script>
+        <script src="/js/header.js?v=20260821"></script>
+        <script>
+            // Значки кнопок рисуем сами, а не эмодзи: у эмодзи на каждой платформе свой
+            // рисунок и свой размер — 📅 на Android показывался как календарь с «17 июля»,
+            // что к записи отношения не имеет. SVG одинаков везде и красится в цвет кнопки.
+            const ICO = (() => {
+                const w = p => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"
+                    style="width:15px;height:15px;flex-shrink:0;">${p}</svg>`;
+                return {
+                    chat:     w('<path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 8.5 8.5 0 0 1-3.8-.9L3 21l1.9-5.1A8.4 8.4 0 0 1 12 3a8.4 8.4 0 0 1 9 8.5z"/>'),
+                    calendar: w('<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18M12 14v4M10 16h4"/>'),
+                    swap:     w('<path d="M17 2l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/>'),
+                    star:     w('<path d="M12 2l3.1 6.3 6.9 1-5 4.9 1.2 6.8L12 17.8 5.8 21l1.2-6.8-5-4.9 6.9-1z"/>'),
+                    cancel:   w('<path d="M18 6L6 18M6 6l12 12"/>'),
+                    video:    w('<rect x="2" y="6" width="13" height="12" rx="2"/><path d="M15 11l6-3v8l-6-3z"/>'),
+                    phone:    w('<path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .3 1.9.6 2.8a2 2 0 0 1-.4 2.1L8 9.9a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.5 2.8.6a2 2 0 0 1 1.8 2z"/>'),
+                };
+            })();
+
+            // ?as=client — единственный способ для психолога открыть КЛИЕНТСКИЙ кабинет.
+            // Без него его отсюда сразу уводит в собственный (см. ниже).
+            const CLIENT_VIEW_FORCED = new URLSearchParams(location.search).get('as') === 'client';
+
+            // Update User Info in Dashboard Header (Legacy/Custom support)
+            window.addEventListener('load', async () => {
+                if (window.Auth) {
+                    const user = await window.Auth.getCurrentUser();
+                    if (user) {
+                        document.getElementById('userName').textContent = `${user.first_name} ${user.last_name}`.trim();
+                        const initial = (user.first_name || 'U').charAt(0).toUpperCase();
+
+                        const avatarImg = document.querySelector('#userAvatar img');
+                        const avatarSpan = document.getElementById('userInitial');
+
+                        if (user.avatar) {
+                            avatarImg.src = user.avatar;
+                            avatarImg.style.display = 'block';
+                            avatarSpan.style.display = 'none';
+                        } else {
+                            avatarImg.style.display = 'none';
+                            avatarSpan.style.display = 'block';
+                            avatarSpan.textContent = initial;
+                        }
+                    }
+                }
+            });
+
+            const MONTHS = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня',
+                'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
+
+            async function psyLogout() {
+                try { sessionStorage.removeItem('psy_user'); } catch(e) {}
+                try {
+                    if (window.Auth && window.Auth.logout) { await window.Auth.logout(); return; }
+                    await fetch('/api/auth.php?action=logout', { method: 'POST', credentials: 'include' });
+                } catch (e) {}
+                window.location.href = '/';
+            }
+            window.psyLogout = psyLogout;
+
+            async function init() {
+                try {
+                    if (!window.Auth || !window.Auth.getCurrentUser) {
+                        window.location.href = '/login.html';
+                        return;
+                    }
+
+                    const user = await window.Auth.getCurrentUser();
+                    if (!user) {
+                        window.location.href = '/login.html?redirect=' + encodeURIComponent('/client-dashboard.html');
+                        return;
+                    }
+
+                    // Психолог попадает сразу в СВОЙ кабинет. Раньше он сначала видел
+                    // клиентский, а поверх — плашку «перейти в кабинет психолога»:
+                    // лишний шаг на каждом входе и ощущение, что вошёл не туда.
+                    // Клиентские записи специалиста никуда не делись — они по
+                    // явной ссылке ?as=client (её даёт кабинет психолога).
+                    if (user.role === 'psychologist' && !CLIENT_VIEW_FORCED) {
+                        window.location.replace('/psychologist-dashboard.html');
+                        return;
+                    }
+                    // Пришёл сюда осознанно (?as=client) — говорим, чей это экран,
+                    // и как вернуться к себе.
+                    if (user.role === 'psychologist') {
+                        const switchBanner = document.createElement('div');
+                        switchBanner.style.cssText = 'background:var(--d-accent-bg,#D1FAE5);border:1.5px solid var(--d-border-accent,#6EE7B7);border-radius:1rem;padding:0.875rem 1.25rem;margin-bottom:1.25rem;display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;';
+                        switchBanner.innerHTML = `
+                            <span style="display:flex;align-items:center;gap:0.5rem;color:var(--d-accent,#065F46);font-weight:600;font-size:0.9375rem;">
+                                👤 Ваши записи как клиента
+                            </span>
+                            <a href="/psychologist-dashboard.html" style="display:inline-flex;align-items:center;gap:0.375rem;padding:0.5rem 1rem;background:linear-gradient(135deg,#047857,#059669);color:white;text-decoration:none;border-radius:0.625rem;font-size:0.875rem;font-weight:600;">
+                                ← В кабинет психолога
+                            </a>`;
+                        document.querySelector('.cards').parentNode.insertBefore(switchBanner, document.querySelector('.cards'));
+                    }
+
+                    var fullName = `${user.first_name || ''} ${user.last_name || ''}`.trim() || 'Профиль';
+                    document.getElementById('userName').textContent = fullName;
+                    document.getElementById('userInitial').textContent =
+                        (user.first_name || 'U').charAt(0).toUpperCase();
+                    var sn = document.getElementById('sidebarName');
+                    if (sn) sn.textContent = fullName;
+
+                    // Проверка на заморозку аккаунта
+                    if (user.is_frozen) {
+                        window._accountFrozen = true;
+                        const frozenBanner = document.createElement('div');
+                        frozenBanner.innerHTML = `
+                        <div style="background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%); color: white; padding: 1.5rem; border-radius: 12px; margin-bottom: 1.5rem; text-align: center;">
+                            <h3 style="margin-bottom: 0.5rem;">⚠️ Ваш аккаунт заморожен</h3>
+                            <p style="opacity: 0.9;">Функционал ограничен. Для разблокировки свяжитесь с нами через чат на сайте, мессенджеры или по почте support@psytalk.pro</p>
+                        </div>
+                    `;
+                        document.querySelector('.container').insertBefore(frozenBanner, document.querySelector('.cards'));
+                        document.querySelector('.container').addEventListener('click', function(e) {
+                            const target = e.target.closest('a.btn, button.btn, button.btn-danger, [onclick*="cancel"], [onclick*="Replace"], [onclick*="Review"]');
+                            if (!target) return;
+                            if (target.closest('#frozenModal') || target.id === 'themeBtn' || target.textContent.includes('Выйти') || target.textContent.includes('Профиль')) return;
+                            e.preventDefault();
+                            e.stopPropagation();
+                            document.getElementById('frozenModal').style.display = 'flex';
+                        }, true);
+                    }
+
+                    await loadPackages();
+                    await loadAppointments();
+                    await loadMyChannels();
+
+                    if (typeof lucide !== 'undefined') { try { lucide.createIcons(); } catch(e) {} }
+                } catch (error) {
+                    console.error('Init error:', error);
+                    window.location.href = '/login.html';
+                }
+            }
+
+            async function loadMyChannels() {
+                const card = document.getElementById('channelsCard');
+                const list = document.getElementById('channelsList');
+                if (!card || !list) return;
+                try {
+                    const r = await fetch('/api/channels.php?action=my-subscriptions', { credentials: 'include' });
+                    const d = await r.json();
+                    const rows = (d && d.data) || [];
+                    if (!rows.length) { card.style.display = 'none'; return; }
+                    card.style.display = 'block';
+                    list.innerHTML = rows.map(c => {
+                        const name = `${c.first_name || ''} ${c.last_name || ''}`.trim() || 'Психолог';
+                        const preview = c.last_post_text ? c.last_post_text.slice(0, 80) : 'Постов пока нет';
+                        return `
+                        <div class="appointment-item">
+                            <div class="appointment-info">
+                                <div style="font-weight:600;">📢 ${name}</div>
+                                <div style="color:var(--d-text-sec,#6B7280);font-size:0.85rem;">${preview}</div>
+                            </div>
+                            <a href="/chat.html?open=channel:${encodeURIComponent(c.psychologist_id)}" class="btn btn-small">Открыть канал</a>
+                        </div>`;
+                    }).join('');
+                } catch (e) { card.style.display = 'none'; }
+            }
+
+            async function loadPackages() {
+                const card = document.getElementById('packagesCard');
+                const list = document.getElementById('packagesList');
+                try {
+                    const r = await fetch('/api/packages.php?action=list', { credentials: 'include' });
+                    const d = await r.json();
+                    const rows = (d && d.data) || [];
+                    if (!rows.length) { card.style.display = 'none'; return; }
+                    card.style.display = 'block';
+                    list.innerHTML = rows.map(p => {
+                        const remaining = p.remaining != null ? p.remaining : Math.max(0, p.total_sessions - p.used_sessions);
+                        const total = p.total_sessions;
+                        const isActive = p.state === 'active' && remaining > 0;
+                        const stLabel = p.state === 'used' ? '<span class="appointment-status status-completed">Использован</span>'
+                            : p.state === 'expired' ? '<span class="appointment-status status-cancelled">Истёк</span>'
+                            : '<span class="appointment-status status-scheduled">Активен</span>';
+                        const expires = p.expires_at ? ('до ' + new Date(String(p.expires_at).replace(' ','T')).toLocaleDateString('ru-RU')) : '';
+                        const unavailable = isActive && p.psychologist_unavailable;
+                        let actionHtml = '';
+                        if (isActive && !unavailable) {
+                            actionHtml = `<a href="/book.html?id=${p.psychologist_id}&pkg=${p.id}" class="btn btn-small" title="Записаться по абонементу">📅 Записаться по абонементу</a>`;
+                        } else if (unavailable) {
+                            actionHtml = `<div style="margin-top:6px;">
+                                <div class="warn-box" style="border-radius:8px;padding:10px 14px;margin-bottom:8px;font-size:.9rem;">
+                                    ⚠️ Ваш специалист больше недоступен. Вы можете выбрать другого психолога для использования абонемента.
+                                </div>
+                                <a href="/search.html?pkg=${p.id}" class="btn btn-small" style="background:#047857;">🔄 Выбрать другого психолога</a>
+                            </div>`;
+                        }
+                        return `
+                        <div class="appointment-item">
+                            <div class="appointment-info">
+                                <div class="appointment-psychologist">🎟 Абонемент · ${psychEsc(p.psychologist_name || 'Психолог')}${unavailable ? ' <span style="color:#EF4444;font-size:.85em;">(недоступен)</span>' : ''}</div>
+                                <div class="appointment-datetime">Осталось <b style="color:#047857;">${remaining}</b> из ${total} сессий ${expires ? '· ' + expires : ''}</div>
+                            </div>
+                            ${stLabel}
+                            <div class="appointment-actions">
+                                ${actionHtml}
+                            </div>
+                        </div>`;
+                    }).join('');
+                } catch (e) { card.style.display = 'none'; }
+            }
+            /** Больше не просить отзыв по этой записи. Сервер не сообщает, оставлен
+             *  ли отзыв, поэтому помним решение у себя в браузере. */
+            function dismissReviewNudge(id){
+                try {
+                    const m = JSON.parse(localStorage.getItem('psy-review-asked') || '{}') || {};
+                    m[id] = 1;
+                    localStorage.setItem('psy-review-asked', JSON.stringify(m));
+                } catch (e) {}
+                const el = document.getElementById('apptReviewNudge');
+                if (el) el.remove();
+            }
+            window.dismissReviewNudge = dismissReviewNudge;
+
+            function psychEsc(s){ const d=document.createElement('div'); d.textContent=(s==null?'':String(s)); return d.innerHTML; }
+
+            async function loadAppointments() {
+                const container = document.getElementById('appointments');
+
+                try {
+                    const response = await fetch('/api/appointments.php?action=my', {
+                        credentials: 'include'
+                    });
+                    const appointments = await response.json();
+
+                    if (appointments && appointments.error) {
+                        container.innerHTML = `<div class="empty-state">${appointments.error}</div>`;
+                        return;
+                    }
+
+                    const list = Array.isArray(appointments) ? appointments : [];
+
+                    if (list.length === 0) {
+                        container.innerHTML = `
+                        <div class="empty-state">
+                            <p>У вас пока нет записей</p>
+                            <p style="font-size: 0.9rem; margin-top: 0.5rem;">Найдите психолога и запишитесь на консультацию</p>
+                        </div>
+                    `;
+                        return;
+                    }
+
+                    // Формат — теми же рисованными значками, что и кнопки: эмодзи рядом
+                    // с ними выглядели чужеродно и на каждой платформе по-своему.
+                    const fmtLabels = {
+                        video: ICO.video + ' Видео', chat: ICO.chat + ' Чат',
+                        phone: ICO.phone + ' Звонок', audio: ICO.phone + ' Аудио'
+                    };
+
+                    // ── Прошедшие записи не должны висеть среди предстоящих ──────────
+                    //  Сессия закончилась вчера, а карточка по-прежнему занимала место
+                    //  и предлагала «Отменить». Прошедшие уводим в свёрнутую историю.
+                    //  Час после начала — запас: сессия к этому моменту точно кончилась,
+                    //  а идущую прямо сейчас мы в архив не спрячем.
+                    const NOW = Date.now();
+                    const apptIsPast = (a) => {
+                        const st = String(a.status || '').toLowerCase();
+                        if (st === 'completed' || st === 'cancelled' || st === 'no_show') return true;
+                        const t = new Date(a.date_time).getTime();
+                        return !!t && (t + 3600000) < NOW;
+                    };
+                    const renderAppt = (a) => {
+                        const date = new Date(a.date_time);
+                        const dateStr = `${date.getDate()} ${MONTHS[date.getMonth()]}, ${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
+                        const psychName = `${a.psychologist_first_name || ''} ${a.psychologist_last_name || ''}`.trim() || 'Психолог';
+                        const fmt = a.format ? (fmtLabels[a.format] || a.format) : '';
+
+                        // Пустой статус считаем «запланировано»: в базе такие записи есть
+                        // (часть создана до того, как статус стали проставлять), и раньше
+                        // выходило противоречие — плашка показывала «Запланировано», а
+                        // отменить запись было нельзя, потому что проверка требовала
+                        // строгого равенства 'scheduled'.
+                        const st = a.status || 'scheduled';
+
+                        let statusClass = 'status-scheduled';
+                        let statusText = 'Запланировано';
+                        if (st === 'completed') {
+                            statusClass = 'status-completed';
+                            statusText = 'Завершено';
+                        } else if (st === 'cancelled') {
+                            statusClass = 'status-cancelled';
+                            statusText = 'Отменено';
+                        } else if (st === 'pending_payment' || st === 'pending') {
+                            statusClass = 'status-scheduled';
+                            statusText = 'Ждёт оплаты';
+                        }
+
+                        const past = apptIsPast(a);
+                        // Время прошло, а в базе всё ещё «запланировано» — статус там
+                        // никто не переставляет. Не выдаём это за предстоящую сессию.
+                        if (past && (st === 'scheduled' || st === 'pending_payment' || st === 'pending')) {
+                            statusClass = 'status-completed';
+                            statusText = 'Прошла';
+                        }
+                        const canCancel = !past && (st === 'scheduled' || st === 'pending_payment' || st === 'pending')
+                            && new Date(a.date_time) > new Date();
+                        const hoursUntil = (new Date(a.date_time) - new Date()) / 36e5;
+                        const lateCancel = hoursUntil < 24;
+                        const canReview = past && st !== 'cancelled';
+                        const canChat   = st !== 'cancelled';
+
+                        return `
+                        <div class="appointment-item">
+                            <div class="appointment-info">
+                                <div class="appointment-psychologist">${psychName}</div>
+                                <div class="appointment-datetime">${dateStr}${fmt ? ' · ' + fmt : ''}</div>
+                            </div>
+                            <span class="appointment-status ${statusClass}">${statusText}</span>
+                            <div class="appointment-actions">
+                                ${canChat ? `<a href="/chat.html?user=${a.psychologist_user_id || a.psychologist_id}${a.psychologist_id ? '&pid=' + a.psychologist_id : ''}" class="btn btn-small appt-chat" title="Написать психологу">${ICO.chat} Начать диалог</a>` : ''}
+                                ${a.psychologist_id ? `<a href="/book.html?id=${a.psychologist_id}" class="btn btn-small btn-outline" title="Записаться к этому психологу ещё раз">${ICO.calendar} Записаться ещё</a>` : ''}
+                                ${canChat ? `<button class="btn btn-small btn-outline" onclick="openReplace('${a.psychologist_id}', '${psychName.replace(/'/g, "\\'")}')" title="Не подошёл — подберём другого бесплатно">${ICO.swap} Заменить</button>` : ''}
+                                ${canReview ? `<button class="btn btn-small btn-outline" onclick="openReview('${a.psychologist_id}')">${ICO.star} Отзыв</button>` : ''}
+                                ${canCancel ? `<button class="btn btn-small btn-danger" onclick="cancelAppointment('${a.id}', ${lateCancel ? 'true' : 'false'}, ${Math.round(parseFloat(a.price)||0)})" title="${lateCancel ? 'Менее 24 часов — удерживается 50%' : 'Бесплатная отмена'}">${ICO.cancel} Отменить${lateCancel ? ' (−50%)' : ''}</button>` : ''}
+                            </div>
+                        </div>
+                    `;
+                    };
+
+                    const upcoming = list.filter(a => !apptIsPast(a));
+                    const past = list.filter(apptIsPast)
+                        .sort((a, b) => new Date(b.date_time) - new Date(a.date_time));
+
+                    // Отзыв просим по самой свежей состоявшейся сессии. Отменённая —
+                    // не повод для отзыва. Убранное однажды не показываем снова:
+                    // сервер не сообщает, оставлен ли отзыв, поэтому помним у себя.
+                    let dismissed = {};
+                    try { dismissed = JSON.parse(localStorage.getItem('psy-review-asked') || '{}') || {}; } catch (e) {}
+                    const needReview = past.find(a =>
+                        String(a.status || '').toLowerCase() !== 'cancelled' && !dismissed[a.id]);
+
+                    const nameOf = a => `${a.psychologist_first_name || ''} ${a.psychologist_last_name || ''}`.trim() || 'психологом';
+
+                    const nudgeHtml = needReview ? `
+                        <div class="appt-review-nudge" id="apptReviewNudge">
+                            <div style="flex:1 1 190px;min-width:170px;">
+                                <div style="font-weight:600;margin-bottom:0.15rem;">Как прошла сессия?</div>
+                                <div style="font-size:0.8125rem;opacity:0.85;">${psychEsc(nameOf(needReview))} · ${(() => {
+                                    const d = new Date(needReview.date_time);
+                                    return isNaN(d) ? '' : d.getDate() + ' ' + MONTHS[d.getMonth()];
+                                })()} — ваш отзыв помогает другим выбрать специалиста.</div>
+                            </div>
+                            <button class="btn btn-small" onclick="openReview('${needReview.psychologist_id}');dismissReviewNudge('${needReview.id}')">Оставить отзыв</button>
+                            <button class="appt-nudge-x" title="Не сейчас" onclick="dismissReviewNudge('${needReview.id}')">&times;</button>
+                        </div>` : '';
+
+                    const historyHtml = past.length ? `
+                        <details class="appt-history">
+                            <summary>История записей (${past.length})</summary>
+                            <div>${past.map(renderAppt).join('')}</div>
+                        </details>` : '';
+
+                    container.innerHTML =
+                        (upcoming.length
+                            ? upcoming.map(renderAppt).join('')
+                            : `<div class="empty-state" style="padding:1.25rem 0;">Предстоящих записей нет</div>`)
+                        + nudgeHtml + historyHtml;
+
+                } catch (error) {
+                    console.error('Load appointments error:', error);
+                    container.innerHTML = '<div class="empty-state">Ошибка загрузки записей</div>';
+                }
+            }
+
+            async function cancelAppointment(appointmentId, lateCancel, price) {
+                let msg = 'Вы уверены, что хотите отменить запись?';
+                if (lateCancel) {
+                    const fee = Math.round((price || 0) * 0.5);
+                    msg = '⚠️ До сессии меньше 24 часов.\n\nПри отмене удерживается 50%'
+                        + (price ? ' (' + fee.toLocaleString('ru-RU') + ' ₽), возврат — ' + (price - fee).toLocaleString('ru-RU') + ' ₽' : '')
+                        + '.\nЕсли запись по абонементу — сессия сгорает.\n\nВсё равно отменить?';
+                }
+                if (!confirm(msg)) return;
+
+                try {
+                    const response = await fetch('/api/appointments.php?action=update', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        credentials: 'include',
+                        body: JSON.stringify({
+                            id: appointmentId,
+                            status: 'cancelled',
+                            late_cancel: !!lateCancel,
+                            penalty_pct: lateCancel ? 50 : 0
+                        })
+                    });
+
+                    const data = await response.json();
+                    if (data.error) {
+                        alert(data.error);
+                    } else {
+                        await loadAppointments();
+                    }
+                } catch (error) {
+                    console.error('Cancel error:', error);
+                    alert('Ошибка отмены записи');
+                }
+            }
+
+            function openReview(psychologistId) {
+                // Отзыв оставляется на странице психолога
+                window.location.href = `/psychologist-profile.html?id=${psychologistId}`;
+            }
+
+            // ── Замена психолога ──────────────────────────────────────────────
+            let replaceForPsychId = null;
+            function openReplace(psychId, psychName) {
+                replaceForPsychId = psychId || null;
+                document.getElementById('replacePsychName').textContent = 'Текущий психолог: ' + (psychName || '—');
+                document.getElementById('replaceReason').value = '';
+                const msg = document.getElementById('replaceMsg'); msg.style.display = 'none';
+                const btn = document.getElementById('replaceSubmit'); btn.disabled = false; btn.textContent = 'Отправить заявку и подобрать';
+                document.getElementById('replaceModal').style.display = 'flex';
+            }
+            function closeReplace() { document.getElementById('replaceModal').style.display = 'none'; }
+            window.openReplace = openReplace; window.closeReplace = closeReplace;
+
+            async function submitReplace() {
+                const reason = document.getElementById('replaceReason').value.trim();
+                const msg = document.getElementById('replaceMsg');
+                const btn = document.getElementById('replaceSubmit');
+                btn.disabled = true; btn.textContent = 'Отправляем...';
+                try {
+                    const r = await fetch('/api/replace.php?action=create', {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+                        body: JSON.stringify({ current_psychologist_id: replaceForPsychId, reason })
+                    });
+                    const d = await r.json();
+                    if (!d.ok) throw new Error(d.error || 'Ошибка');
+                    msg.style.display = 'block'; msg.style.color = '#16A34A';
+                    msg.innerHTML = '✅ Заявка принята! Подберите нового психолога сейчас или подождите — мы поможем.';
+                    btn.textContent = 'Перейти к подбору →';
+                    btn.disabled = false;
+                    btn.onclick = function () { window.location.href = '/search.html'; };
+                } catch (e) {
+                    msg.style.display = 'block'; msg.style.color = '#DC2626';
+                    msg.textContent = '⚠️ ' + (e.message || 'Не удалось отправить заявку');
+                    btn.disabled = false; btn.textContent = 'Попробовать ещё раз';
+                }
+            }
+            window.submitReplace = submitReplace;
+
+            function toggleDashTheme(){
+                document.body.classList.toggle('dark');
+                const isDark = document.body.classList.contains('dark');
+                localStorage.setItem('psy-theme', isDark ? 'dark' : 'light');
+                updateThemeBtn();
+            }
+            function updateThemeBtn(){
+                const isDark = document.body.classList.contains('dark');
+                const icon = document.querySelector('#themeBtn .dash-sidebar-icon');
+                const label = document.getElementById('themeBtnLabel');
+                if (icon) icon.textContent = isDark ? '☀️' : '🌙';
+                if (label) label.textContent = isDark ? 'Светлая тема' : 'Тёмная тема';
+            }
+            updateThemeBtn();
+
+            init();
+        </script>
+    </div><!-- /dash-layout -->
+</body>
+
+</html>

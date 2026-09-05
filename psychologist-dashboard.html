@@ -1,0 +1,809 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
+    <title>Кабинет психолога - psytalk.pro</title>
+    <link rel="stylesheet" href="/css/styles.css?v=20260823d">
+    <script src="/js/netguard.js?v=20260821c"></script>
+    <script src="/js/layout.js?v=20260823d"></script>
+    <!-- Одно меню в кабинете. Разделы сайта живут в боковом меню («Сайт»), поэтому
+         бургер шапки здесь лишний: на телефоне рядом оказывались два меню, и человек
+         не понимал, в какое жать. Правило дублирует логику layout.js намеренно —
+         HTML не кэшируется, а js мог остаться в кэше телефона прежней версии. -->
+    <style id="psyOneMenu">
+      #burgerMenu{display:none!important}
+      @media (max-width:768px){#navMenu.nav-menu:not(.nav-menu-slim){display:none!important}}
+    </style>
+    <script src="/js/lightbox.js?v=7"></script>
+    <link rel="preconnect" href="https://unpkg.com">
+    <script defer src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        :root {
+            --d-bg: #ECFDF5; --d-panel: #FFFFFF; --d-panel-alt: #FAFAFA;
+            --d-border: #EFF7F3; --d-border-light: #F0F0F0; --d-border-accent: #D1FAE5;
+            --d-text: #1A1A1A; --d-text-sec: #6B7280; --d-text-muted: #9CA3AF; --d-text-dark: #374151;
+            --d-accent: #047857; --d-accent-bg: #D1FAE5; --d-accent-hover: #ECFDF5;
+            --d-green-bg: #F0FDF4; --d-green: #16A34A; --d-red-bg: #FFF1F2; --d-red: #BE123C;
+            --d-shadow: rgba(4,120,87,0.1); --d-shadow-hover: rgba(4,120,87,0.12);
+        }
+        body.dark {
+            --d-bg: #191919; --d-panel: #252525; --d-panel-alt: #2A2A2A;
+            --d-border: #333; --d-border-light: #333; --d-border-accent: #10402F;
+            --d-text: #E6E6E6; --d-text-sec: #A0A0A0; --d-text-muted: #707070; --d-text-dark: #C0C0C0;
+            --d-accent: #6EE7B7; --d-accent-bg: #0B3B2E; --d-accent-hover: #10402F;
+            --d-green-bg: #1A2E1A; --d-green: #4ADE80; --d-red-bg: #2E1A1A; --d-red: #F87171;
+            --d-shadow: rgba(0,0,0,0.2); --d-shadow-hover: rgba(0,0,0,0.3);
+        }
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: var(--d-bg); color: var(--d-text);
+            min-height: 100vh; padding-top: 84px;
+            transition: background 0.2s, color 0.2s;
+        }
+        body.dark input, body.dark textarea, body.dark select { background: var(--d-panel-alt) !important; border-color: var(--d-border) !important; color: var(--d-text) !important; }
+        body.dark input::placeholder, body.dark textarea::placeholder { color: var(--d-text-muted) !important; }
+        body.dark .card { background: var(--d-panel) !important; border-color: var(--d-border) !important; }
+        body.dark .stat-card { background: var(--d-panel) !important; border-color: var(--d-border) !important; }
+        body.dark .header { background: var(--d-panel) !important; border-color: var(--d-border-accent) !important; }
+        body.dark .nav { background: #1E1E1E !important; border-color: #333 !important; }
+        body.dark .nav-brand span:first-child { color: #E6E6E6 !important; }
+        body.dark .nav a.nav-link { color: #A0A0A0 !important; }
+        body.dark .nav a.nav-link:hover { color: #E6E6E6 !important; }
+
+        /* ── Notion-style sidebar layout ─── */
+        .dash-layout { display: flex; min-height: calc(100vh - 84px); }
+        .dash-sidebar { width: 240px; background: var(--d-panel); border-right: 1px solid var(--d-border); display: flex; flex-direction: column; position: sticky; top: 84px; height: calc(100vh - 84px); flex-shrink: 0; transition: background 0.2s, border-color 0.2s; z-index: 10; }
+        .dash-sidebar-header { padding: 1rem 1rem 0.75rem; border-bottom: 1px solid var(--d-border); }
+        .dash-sidebar-header h2 { font-size: 0.95rem; font-weight: 700; color: var(--d-text); margin-bottom: 0.15rem; }
+        .dash-sidebar-header p { font-size: 0.75rem; color: var(--d-text-muted); }
+        .dash-sidebar-nav { flex: 1; padding: 0.5rem 0; overflow-y: auto; }
+        .dash-sidebar-group { padding: 0.5rem 0 0.15rem; }
+        .dash-sidebar-group-label { padding: 0.25rem 1rem 0.35rem; font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--d-text-muted); user-select: none; }
+        .dash-sidebar-item { display: flex; align-items: center; gap: 0.55rem; padding: 0.45rem 0.75rem; margin: 0.06rem 0.5rem; border-radius: 0.45rem; font-size: 0.875rem; color: var(--d-text-sec); cursor: pointer; transition: background 0.12s, color 0.12s; font-weight: 500; text-decoration: none; border: none; background: none; width: calc(100% - 1rem); text-align: left; font-family: inherit; line-height: 1.4; }
+        .dash-sidebar-item:hover { background: var(--d-accent-hover); color: var(--d-text); }
+        .dash-sidebar-item.active { background: var(--d-accent-bg); color: var(--d-accent); font-weight: 600; }
+        .dash-sidebar-icon { font-size: 1rem; width: 1.35rem; text-align: center; flex-shrink: 0; }
+        .dash-sidebar-footer { padding: 0.6rem 0.5rem; border-top: 1px solid var(--d-border); display: flex; flex-direction: column; gap: 0.15rem; }
+        .dash-sidebar-footer .dash-sidebar-item { margin: 0.06rem 0; }
+        /* Кнопка меню кабинета — в самой шапке справа, а не отдельной плашкой под ней:
+           на телефоне там пусто (меню сайта и его бургер в кабинете скрыты), и рука
+           тянется в правый верхний угол. Прежнее место — слева под шапкой — висело
+           поверх содержимого и закрывало первую строку страницы. */
+        .dash-sidebar-toggle { display: none; position: fixed; top: 13px; right: 0.9rem; left: auto; z-index: 1001; width: 38px; height: 38px; border-radius: 0.5rem; border: 1px solid var(--d-border); background: var(--d-panel); color: var(--d-text); font-size: 1.2rem; cursor: pointer; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+        .dash-sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.35); z-index: 999; }
+        .dash-sidebar-overlay.open { display: block; }
+        @media (max-width: 768px) {
+            /* Отступ под шапку не нужен — шторка её накрывает; 100dvh и прокрутка нужны,
+               чтобы нижние пункты меню («Выйти») не оказывались за пределами экрана. */
+            .dash-sidebar { position: fixed; top: 0; left: -260px; bottom: 0; z-index: 1000; width: 240px; transition: left 0.25s ease; padding-top: 0.5rem; height: 100vh; height: 100dvh; max-height: 100dvh; overflow-y: auto; overscroll-behavior: contain; }
+            .dash-sidebar.open { left: 0; }
+            .dash-sidebar-toggle { display: flex; }
+            .dash-layout { display: block; }
+            .container { padding: 1rem !important; }
+            .header { flex-direction: column; align-items: flex-start; gap: 0.75rem; padding: 1.25rem !important; }
+            .header-left h1 { font-size: 1.25rem !important; }
+            .cards { grid-template-columns: 1fr !important; }
+            .stats-grid { grid-template-columns: repeat(2, 1fr) !important; }
+            .appointment-item { flex-direction: column; align-items: flex-start; gap: 0.5rem; }
+        }
+
+        .container { max-width: 1200px; margin: 0 auto; padding: 2rem; flex: 1; min-width: 0; }
+
+        .header {
+            background: var(--d-panel); border-radius: 1.25rem; padding: 1.75rem 2rem;
+            margin-bottom: 1.75rem;
+            box-shadow: 0 4px 20px var(--d-shadow);
+            border: 1px solid var(--d-border-accent);
+            display: flex; justify-content: space-between; align-items: center; gap: 1rem;
+            transition: background 0.2s, border-color 0.2s;
+        }
+        .header-left h1 { color: var(--d-text); font-size: 1.75rem; margin-bottom: 0.25rem; letter-spacing: -0.02em; }
+        .header-left p { color: var(--d-text-sec); font-size: 0.9375rem; }
+        .header-actions { display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center; }
+
+        .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(180px, 100%), 1fr)); gap: 1rem; margin-bottom: 1.75rem; }
+        .stat-card {
+            background: var(--d-panel); border-radius: 1rem; padding: 1.5rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.06); text-align: center;
+            border: 1px solid var(--d-border); transition: box-shadow 0.2s, background 0.2s, border-color 0.2s;
+        }
+        .stat-card:hover { box-shadow: 0 6px 20px var(--d-shadow); }
+        .stat-value { font-size: 2rem; font-weight: 800; color: var(--d-accent); letter-spacing: -0.03em; }
+        .stat-label { color: var(--d-text-muted); font-size: 0.875rem; margin-top: 0.375rem; }
+
+        .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(350px, 100%), 1fr)); gap: 1.5rem; }
+        .card {
+            background: var(--d-panel); border-radius: 1.25rem; padding: 1.75rem;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.06); border: 1px solid var(--d-border);
+            transition: box-shadow 0.2s, transform 0.2s, background 0.2s, border-color 0.2s;
+        }
+        .card:hover { box-shadow: 0 8px 30px var(--d-shadow-hover); }
+        .card h2 { color: var(--d-accent); margin-bottom: 1rem; font-size: 1.125rem; display: flex; align-items: center; gap: 0.5rem; }
+        .card p { color: var(--d-text-sec); line-height: 1.6; }
+
+        .btn {
+            display: inline-flex; align-items: center; gap: 0.5rem;
+            padding: 0.625rem 1.375rem;
+            background: linear-gradient(135deg, #047857 0%, #059669 100%);
+            color: white; text-decoration: none; border-radius: 0.625rem;
+            font-weight: 600; font-size: 0.9375rem; transition: all 0.2s;
+            border: none; cursor: pointer; font-family: inherit;
+            box-shadow: 0 3px 10px rgba(4,120,87,0.3);
+        }
+        .btn:hover { transform: translateY(-1px); box-shadow: 0 5px 16px rgba(4,120,87,0.4); color: white; }
+
+        .appointments-list { margin-top: 1rem; }
+        /* Строка записи. flex-wrap и min-width:0 обязательны: в карточке «Ближайшие
+           записи» места немного, а внутри имя + статус + две кнопки. Без переноса они
+           выдавливались за край карточки — «Завершить» и статус висели поверх соседней
+           колонки (то самое «едет вёрстка»). Теперь при нехватке места статус и кнопки
+           переносятся под имя, а имя может сжиматься. */
+        .appointment-item {
+            background: var(--d-panel-alt); padding: 1rem; border-radius: 0.875rem;
+            margin-bottom: 0.625rem; display: flex; justify-content: space-between;
+            align-items: center; gap: 0.6rem 0.75rem; flex-wrap: wrap;
+            border: 1px solid var(--d-border-light);
+            transition: border-color 0.2s, background 0.2s;
+        }
+        .appointment-item:hover { border-color: var(--d-border-accent); }
+        .appointment-info { flex: 1 1 60%; min-width: 0; }
+        .appointment-client { overflow: hidden; text-overflow: ellipsis; }
+        .appointment-actions { margin-left: auto; }
+        .appointment-client { font-weight: 600; color: var(--d-text); margin-bottom: 0.2rem; }
+        .appointment-datetime { font-size: 0.875rem; color: var(--d-text-sec); }
+        .appointment-status { padding: 0.2rem 0.75rem; border-radius: 2rem; font-size: 0.75rem; font-weight: 600; }
+        .status-scheduled { background: var(--d-accent-bg); color: var(--d-accent); }
+        .status-completed { background: var(--d-green-bg); color: var(--d-green); }
+        .status-cancelled { background: var(--d-red-bg); color: var(--d-red); }
+        .appointment-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+        .btn-small { padding: 0.4rem 0.875rem; font-size: 0.8125rem; }
+        .btn-success { background: linear-gradient(135deg, #34C759, #28A745); box-shadow: none; }
+        .btn-danger { background: linear-gradient(135deg, #ef4444, #dc2626); box-shadow: none; }
+        .btn-outline {
+            background: var(--d-panel); border: 1.5px solid var(--d-border); color: var(--d-text-dark); box-shadow: none;
+        }
+        .btn-outline:hover { border-color: var(--d-accent); color: var(--d-accent); background: var(--d-accent-hover); }
+        .empty-state { text-align: center; padding: 2rem; color: var(--d-text-muted); }
+        .loading { text-align: center; color: var(--d-text-muted); padding: 1rem; }
+        .theme-toggle { background: var(--d-panel); border: 1.5px solid var(--d-border); color: var(--d-text-sec); padding: 0.4rem 0.7rem; border-radius: 0.5rem; cursor: pointer; font-size: 0.85rem; font-family: inherit; transition: all 0.15s; }
+        .theme-toggle:hover { border-color: var(--d-accent); color: var(--d-accent); }
+    </style>
+    <script>(function(){ if (localStorage.getItem('psy-theme') === 'dark' || (!localStorage.getItem('psy-theme') && window.matchMedia('(prefers-color-scheme:dark)').matches)) document.documentElement.style.colorScheme = 'dark'; })();</script>
+</head>
+
+<body>
+    <script>(function(){ var t = localStorage.getItem('psy-theme'); if (t === 'dark' || (!t && window.matchMedia('(prefers-color-scheme:dark)').matches)) document.body.classList.add('dark'); })();</script>
+    <script>psyWriteHeader();</script>
+    <button class="dash-sidebar-toggle" onclick="document.querySelector('.dash-sidebar').classList.toggle('open');document.querySelector('.dash-sidebar-overlay').classList.toggle('open')">☰</button>
+    <div class="dash-sidebar-overlay" onclick="document.querySelector('.dash-sidebar').classList.remove('open');this.classList.remove('open')"></div>
+    <div class="dash-layout">
+        <aside class="dash-sidebar">
+            <div class="dash-sidebar-header">
+                <h2>Кабинет психолога</h2>
+                <p id="sidebarName">Загрузка...</p>
+            </div>
+            <nav class="dash-sidebar-nav">
+                <div class="dash-sidebar-group">
+                    <div class="dash-sidebar-group-label">Основное</div>
+                    <a class="dash-sidebar-item active" href="/psychologist-dashboard.html">
+                        <span class="dash-sidebar-icon">🏠</span> Главная
+                    </a>
+                    <a class="dash-sidebar-item" href="/schedule.html">
+                        <span class="dash-sidebar-icon">📅</span> Расписание
+                    </a>
+                    <a class="dash-sidebar-item" href="/supervision.html">
+                        <span class="dash-sidebar-icon">🎓</span> Супервизия
+                    </a>
+                    <a class="dash-sidebar-item" href="/chat.html">
+                        <span class="dash-sidebar-icon">💬</span> Чаты
+                    </a>
+                    <a class="dash-sidebar-item" href="/feed.html">
+                        <span class="dash-sidebar-icon">📰</span> Лента
+                    </a>
+                </div>
+                <div class="dash-sidebar-group">
+                    <div class="dash-sidebar-group-label">Инструменты</div>
+                    <a class="dash-sidebar-item" href="/psychologist-notes.html">
+                        <span class="dash-sidebar-icon">📝</span> Записки
+                    </a>
+                    <a class="dash-sidebar-item" href="/psychologist-blog.html">
+                        <span class="dash-sidebar-icon">✍️</span> Мой блог
+                    </a>
+                </div>
+                <div class="dash-sidebar-group">
+                    <div class="dash-sidebar-group-label">Профиль</div>
+                    <!-- Психолог и сам может записаться к коллеге. Клиентский кабинет
+                         теперь открывается только по этой явной ссылке: по умолчанию
+                         специалиста сразу уводит в его собственный. -->
+                    <a class="dash-sidebar-item" href="/client-dashboard.html?as=client">
+                        <span class="dash-sidebar-icon">👤</span> Я как клиент
+                    </a>
+                    <a class="dash-sidebar-item" href="/notify-settings.html">
+                        <span class="dash-sidebar-icon">🔔</span> Уведомления
+                    </a>
+                    <a class="dash-sidebar-item" href="/edit-profile.html">
+                        <span class="dash-sidebar-icon">⚙️</span> Настройки
+                    </a>
+                </div>
+                <div class="dash-sidebar-group">
+                    <div class="dash-sidebar-group-label">Сайт</div>
+                    <a class="dash-sidebar-item" href="/">
+                        <span class="dash-sidebar-icon">🏡</span> На сайт
+                    </a>
+                    <a class="dash-sidebar-item" href="/search.html">
+                        <span class="dash-sidebar-icon">🔍</span> Найти психолога
+                    </a>
+                    <a class="dash-sidebar-item" href="/offers.html">
+                        <span class="dash-sidebar-icon">💳</span> Пакеты и цены
+                    </a>
+                    <a class="dash-sidebar-item" href="/blog.html">
+                        <span class="dash-sidebar-icon">📖</span> Блог
+                    </a>
+                    <a class="dash-sidebar-item" href="/install.html">
+                        <span class="dash-sidebar-icon">📲</span> Установить приложение
+                    </a>
+                </div>
+            </nav>
+            <div class="dash-sidebar-footer">
+                <button class="dash-sidebar-item" onclick="toggleDashTheme()" id="themeBtn" title="Сменить тему">
+                    <span class="dash-sidebar-icon">🌙</span> <span id="themeBtnLabel">Тёмная тема</span>
+                </button>
+                <button class="dash-sidebar-item" onclick="psyLogout()">
+                    <span class="dash-sidebar-icon">🚪</span> Выйти
+                </button>
+            </div>
+        </aside>
+        <div class="container">
+        <div class="header">
+            <div class="header-left">
+                <h1>Кабинет психолога</h1>
+                <p>Управление практикой и клиентами</p>
+            </div>
+        </div>
+
+        <div class="stats">
+            <div class="stat-card">
+                <div class="stat-value" id="upcomingCount">0</div>
+                <div class="stat-label">Предстоящие</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="completedCount">0</div>
+                <div class="stat-label">Проведено (мес)</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="earningsMonth">0 ₽</div>
+                <div class="stat-label" id="earningsLabel">Ваш доход (мес)</div>
+            </div>
+        </div>
+
+        <div id="agencyNote" style="background:var(--d-green-bg); border:1px solid var(--d-border-accent); border-radius:12px; padding:14px 18px; margin-bottom:1.5rem; color:var(--d-text); font-size:0.9rem; line-height:1.5;">
+            <b>Как считается доход.</b> Вы работаете по агентскому договору: платформа удерживает комиссию
+            <b id="noteCommission">40%</b>, остальное — ваш доход. Налоги со своего дохода вы платите самостоятельно
+            (самозанятость / ИП). Суммы в кабинете показаны <b>после</b> вычета комиссии.
+        </div>
+
+        <div class="cards">
+            <div class="card">
+                <h2>
+                    <i data-lucide="calendar-days" style="width: 24px; height: 24px;"></i>
+                    Мое расписание
+                </h2>
+                <p style="margin-bottom: 1.5rem;">Настройте дни и часы, когда вы доступны для онлайн-консультаций. Это
+                    необходимо, чтобы клиенты могли записаться к Вам.</p>
+                <a href="/schedule.html" class="btn">
+                    <i data-lucide="settings-2" style="width: 18px; height: 18px;"></i>
+                    Настроить расписание
+                </a>
+            </div>
+
+            <div class="card">
+                <h2>
+                    <i data-lucide="clock" style="width: 24px; height: 24px;"></i>
+                    Ближайшие записи
+                </h2>
+                <div id="appointments" class="appointments-list">
+                    <div class="loading">Загрузка...</div>
+                </div>
+            </div>
+
+            <!-- Начисления. Раньше психолог видел только «доход за месяц» и должен был
+                 верить на слово; здесь он видит те же строки, что и админ в разделе
+                 выплат: с какой оплаченной сессии сколько начислено и что уже выплачено. -->
+            <div class="card">
+                <h2>
+                    <i data-lucide="wallet" style="width: 24px; height: 24px;"></i>
+                    Мои начисления
+                </h2>
+                <div id="payoutsBox">
+                    <div class="loading">Загрузка...</div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>
+                    <i data-lucide="graduation-cap" style="width: 24px; height: 24px;"></i>
+                    Супервизия
+                </h2>
+                <p style="margin-bottom: 1.5rem;">Растите с поддержкой коллег: записывайтесь на групповую супервизию (90–120 мин, до 1500 ₽) или запросите индивидуальную по запросу. Опытные психологи могут вести группы и зарабатывать.</p>
+                <a href="/supervision.html" class="btn">
+                    <i data-lucide="users" style="width: 18px; height: 18px;"></i>
+                    Перейти к супервизии
+                </a>
+            </div>
+
+            <!-- Плашка канала убрана: посты пишутся только из чата, там канал устроен как
+                 в Telegram — обычная переписка с редактором и вложениями, а каждый пост
+                 дополнительно попадает в общую Ленту. Здесь оставлена только ссылка. -->
+            <div class="card">
+                <h2>
+                    <i data-lucide="megaphone" style="width: 24px; height: 24px;"></i>
+                    Мой канал <span id="channelSubsCount" style="font-size:0.8rem;font-weight:500;color:var(--d-text-sec);"></span>
+                </h2>
+                <p style="margin-bottom: 1rem;">Посты пишутся в чате — там же, где переписка. Каждый пост
+                    появляется у подписчиков, на вашей странице в каталоге и в общей
+                    <a href="/feed.html" style="color:#047857;font-weight:600;">Ленте</a> сайта.</p>
+                <!-- max-width и перенос обязательны: inline-flex с длинной надписью задавал
+                     колонке минимальную ширину, и на узком экране карточки уезжали за край -->
+                <a class="btn" id="channelChatLink" href="/chat.html"
+                   style="text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:0.4rem;flex-wrap:wrap;max-width:100%;text-align:center;white-space:normal;">
+                    ✍️ Мой канал в чате
+                </a>
+            </div>
+        </div>
+
+        <script src="/js/api.js?v=20260821"></script>
+        <script src="/js/auth.js?v=20260821"></script>
+        <script src="/js/header.js?v=20260821"></script>
+        <script src="/js/post-format.js?v=20260905"></script>
+        <script>
+            const MONTHS = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня',
+                'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
+
+            // Комиссия платформы (агентская модель). Подгружается из настроек.
+            let PLATFORM_COMMISSION = 40;
+
+            async function loadCommission() {
+                try {
+                    const res = await fetch('/api/settings.php?action=public');
+                    const s = await res.json();
+                    const c = parseFloat(s.platform_commission);
+                    if (!isNaN(c) && c >= 0 && c < 100) PLATFORM_COMMISSION = c;
+                } catch (e) { /* по умолчанию 40% */ }
+                const lbl = document.getElementById('earningsLabel');
+                if (lbl) lbl.textContent = `Ваш доход (мес) · ваша доля ${100 - PLATFORM_COMMISSION}%`;
+                const note = document.getElementById('noteCommission');
+                if (note) note.textContent = PLATFORM_COMMISSION + '%';
+            }
+
+            async function psyLogout() {
+                try { sessionStorage.removeItem('psy_user'); } catch(e) {}
+                try {
+                    if (window.Auth && window.Auth.logout) { await window.Auth.logout(); return; }
+                    await fetch('/api/auth.php?action=logout', { method: 'POST', credentials: 'include' });
+                } catch (e) {}
+                window.location.href = '/';
+            }
+            window.psyLogout = psyLogout;
+
+            async function init() {
+                try {
+                    if (!window.Auth || !window.Auth.getCurrentUser) {
+                        window.location.href = '/login.html';
+                        return;
+                    }
+
+                    const user = await window.Auth.getCurrentUser();
+                    if (!user) {
+                        window.location.href = '/login.html';
+                        return;
+                    }
+
+                    var sn = document.getElementById('sidebarName');
+                    if (sn) sn.textContent = ((user.first_name||'') + ' ' + (user.last_name||'')).trim() || user.email || '';
+
+                    // Redirect clients to their dashboard
+                    if (user.role !== 'psychologist') {
+                        window.location.href = '/client-dashboard.html';
+                        return;
+                    }
+
+                    // Проверка на заморозку аккаунта
+                    if (user.is_frozen) {
+                        const frozenBanner = document.createElement('div');
+                        frozenBanner.innerHTML = `
+                        <div style="background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%); color: white; padding: 1.5rem; border-radius: 12px; margin-bottom: 1.5rem; text-align: center; box-shadow: 0 4px 15px rgba(238, 90, 36, 0.3);">
+                            <h3 style="margin-bottom: 0.5rem;">⚠️ Ваш аккаунт заморожен</h3>
+                            <p style="opacity: 0.9; margin-bottom: 0.5rem;">Ваш профиль временно скрыт из поиска. Новые клиенты не могут вас найти.</p>
+                            <p style="opacity: 0.8; font-size: 0.9rem;">Для разблокировки свяжитесь с поддержкой: support@psytalk.pro</p>
+                        </div>
+                    `;
+                        document.querySelector('.container').insertBefore(frozenBanner, document.querySelector('.stats'));
+                    }
+
+                    // Load commission, then appointments and stats
+                    await loadCommission();
+                    await loadAppointments();
+                    await initChannel();
+                    loadMyPayouts();   // не await: начисления не должны задерживать кабинет
+
+                    if (typeof lucide !== 'undefined') {
+                        lucide.createIcons();
+                    }
+                } catch (error) {
+                    console.error('Init error:', error);
+                    window.location.href = '/login.html';
+                }
+            }
+
+            // ── Мои начисления ──────────────────────────────────────────────
+            // Данные те же, что видит администратор: начисление создаётся по факту
+            // успешной оплаты, комиссия фиксируется в момент начисления.
+            function payMoney(n) {
+                return (Math.round((Number(n) || 0) * 100) / 100)
+                    .toLocaleString('ru-RU', { minimumFractionDigits: 0, maximumFractionDigits: 2 }) + ' ₽';
+            }
+
+            async function loadMyPayouts() {
+                const box = document.getElementById('payoutsBox');
+                if (!box) return;
+                let d = null;
+                try {
+                    d = await (await fetch('/api/payouts.php?action=mine', { credentials: 'include' })).json();
+                } catch (e) {}
+                if (!d || !d.ok) { box.innerHTML = '<p style="color:var(--d-text-sec);font-size:0.88rem;">Не удалось загрузить начисления.</p>'; return; }
+
+                const t = d['итого'] || {};
+                const rows = (d.data || []).slice(0, 8);
+                const npd = d['налоговый_статус'] || {};
+                const npdColor = { yes: '#047857', no: '#b91c1c', none: '#b45309' }[npd['код']] || 'var(--d-text-sec)';
+                // Статус НПД показываем только когда он о чём-то говорит: «не проверен»
+                // — это про нашу проверку, а не про человека, и пугать им незачем.
+                const npdLine = (npd['код'] && npd['код'] !== 'unknown')
+                    ? `<div style="font-size:0.8rem;color:${npdColor};margin-bottom:0.6rem;">Налоговый статус: ${escapeChannelHtml(npd['текст'] || '')}${
+                        npd['код'] === 'none' ? ' — <a href="/edit-profile.html" style="color:#047857;font-weight:600;">укажите ИНН</a>, без него выплату отправить нельзя' : ''}</div>`
+                    : '';
+
+                const list = rows.length ? rows.map(r => {
+                    const dt = r.date_time ? new Date(r.date_time.replace(' ', 'T')) : null;
+                    const when = dt && !isNaN(dt) ? dt.toLocaleDateString('ru', { day: 'numeric', month: 'short' }) : '—';
+                    const paid = r.status === 'paid';
+                    return `<div style="display:flex;justify-content:space-between;gap:0.5rem;padding:0.35rem 0;border-bottom:1px solid var(--d-border);font-size:0.85rem;">
+                        <span style="color:var(--d-text-sec);">${when} · сессия ${payMoney(r.amount_total)}</span>
+                        <span><b>${payMoney(r.amount_to_psy)}</b>
+                            <span style="color:${paid ? '#047857' : 'var(--d-text-sec)'};font-size:0.78rem;">${paid ? '✓ выплачено' : 'ждёт выплаты'}</span></span>
+                    </div>`;
+                }).join('') : '<p style="color:var(--d-text-sec);font-size:0.86rem;">Пока нет оплаченных сессий.</p>';
+
+                box.innerHTML =
+                    `<div style="display:flex;gap:0.6rem;flex-wrap:wrap;margin-bottom:0.7rem;">
+                        <div style="flex:1;min-width:110px;background:var(--d-panel-alt);border-radius:0.6rem;padding:0.5rem 0.7rem;">
+                            <div style="font-weight:700;color:#047857;">${payMoney(t['к_выплате'])}</div>
+                            <div style="font-size:0.75rem;color:var(--d-text-sec);">К выплате</div>
+                        </div>
+                        <div style="flex:1;min-width:110px;background:var(--d-panel-alt);border-radius:0.6rem;padding:0.5rem 0.7rem;">
+                            <div style="font-weight:700;">${payMoney(t['выплачено'])}</div>
+                            <div style="font-size:0.75rem;color:var(--d-text-sec);">Уже выплачено</div>
+                        </div>
+                        <div style="flex:1;min-width:110px;background:var(--d-panel-alt);border-radius:0.6rem;padding:0.5rem 0.7rem;">
+                            <div style="font-weight:700;">${payMoney(t['начислено'])}</div>
+                            <div style="font-size:0.75rem;color:var(--d-text-sec);">Всего начислено</div>
+                        </div>
+                     </div>` + npdLine + list +
+                    `<p style="font-size:0.75rem;color:var(--d-text-sec);margin-top:0.6rem;">Суммы указаны после вычета комиссии платформы. Налог со своего дохода вы платите сами через «Мой налог».</p>` +
+                    `<details style="margin-top:0.7rem;border:1px solid var(--d-border,#e5e7eb);border-radius:0.6rem;padding:0.55rem 0.75rem;background:var(--d-panel-alt);">
+                        <summary style="cursor:pointer;font-weight:600;font-size:0.85rem;color:var(--d-text);list-style:none;">🧾 Как пробить чек в «Мой налог» после выплаты</summary>
+                        <div style="font-size:0.8rem;line-height:1.55;color:var(--d-text-sec);margin-top:0.55rem;">
+                            Вы работаете как самозанятый (НПД). После того как платформа перечислит вам выплату, чек за услугу оформляете вы сами — это занимает минуту:
+                            <ol style="margin:0.5rem 0 0.4rem;padding-left:1.15rem;">
+                                <li>Откройте приложение <b>«Мой налог»</b> (или lknpd.nalog.ru) → <b>«Новая продажа»</b>.</li>
+                                <li>Наименование: <b>«Психологическая консультация»</b>, сумма — <b>сумма выплаты</b>, которую вы получили.</li>
+                                <li>Плательщик: <b>Физическое лицо</b> (клиент платит через платформу — отдельные данные клиента вводить не нужно).</li>
+                                <li>Нажмите <b>«Выдать чек»</b> — налог начислится автоматически, платить его нужно раз в месяц до 28 числа.</li>
+                            </ol>
+                            Чек клиенту передавать не нужно — он остаётся у вас как подтверждение дохода. Главное: чтобы мы могли отправлять выплаты, в профиле должен быть указан <b>ИНН</b> и статус самозанятого — <b>активен</b>.
+                        </div>
+                     </details>`;
+            }
+
+            // ── Мой канал (задача #29, MVP) ──
+            let myPsychId = null;
+
+            async function initChannel() {
+                try {
+                    const r = await fetch('/api/my_profile.php?action=get', { credentials: 'include' });
+                    const d = await r.json();
+                    if (d && d.ok && d.profile) myPsychId = d.profile.id;
+                } catch (e) {}
+                if (myPsychId) {
+                    const link = document.getElementById('channelChatLink');
+                    if (link) link.href = '/chat.html?open=channel:' + encodeURIComponent(myPsychId);
+                    await loadChannelPosts();
+                    try {
+                        const r2 = await fetch('/api/channels.php?action=info&psychologist_id=' + encodeURIComponent(myPsychId), { credentials: 'include' });
+                        const d2 = await r2.json();
+                        const el = document.getElementById('channelSubsCount');
+                        if (el && d2 && d2.ok) el.textContent = '· ' + (d2.subscribers_count || 0) + ' подписчиков';
+                    } catch (e) {}
+                }
+            }
+
+            // Публикация постов переехала в чаты (канал открывается кнопкой выше).
+
+            function escapeChannelHtml(s) { const d = document.createElement('div'); d.textContent = s == null ? '' : String(s); return d.innerHTML; }
+            let channelPostsCache = {};
+
+            function channelPostHtml(p) {
+                channelPostsCache[p.id] = p;
+                const img = p.image_url ? `<img src="${p.image_url}" style="max-width:100%;border-radius:0.5rem;margin-top:0.4rem;">` : '';
+                const text = p.text ? `<div style="line-height:1.5;">${formatPostText(p.text)}</div>` : '';
+                const date = new Date(p.created_at).toLocaleString('ru', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+                return `<div style="border:1px solid var(--d-border);border-radius:0.625rem;padding:0.7rem 0.85rem;" id="cpost-${p.id}">
+                    <div id="cpost-view-${p.id}">
+                        ${text}${img}
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:0.4rem;gap:0.5rem;flex-wrap:wrap;">
+                            <span style="font-size:0.75rem;color:var(--d-text-sec);">${date} · ❤️ ${p.likes_count||0} · 👁 ${p.views_count||0}</span>
+                            <span>
+                                <button type="button" onclick="startEditChannelPost(${p.id})" style="background:none;border:none;color:var(--d-text-sec);cursor:pointer;font-size:0.78rem;font-family:inherit;">Изменить</button>
+                                <button type="button" onclick="deleteChannelPost(${p.id})" style="background:none;border:none;color:#EF4444;cursor:pointer;font-size:0.78rem;font-family:inherit;">Удалить</button>
+                            </span>
+                        </div>
+                    </div>
+                    <div id="cpost-edit-${p.id}" style="display:none;">
+                        <div style="display:flex;gap:0.3rem;margin-bottom:0.3rem;">
+                            <button type="button" onclick="wrapPostSelection(document.getElementById('cpostEditText-${p.id}'),'**')" style="width:1.8rem;height:1.8rem;border:1.5px solid var(--d-border);border-radius:0.35rem;background:var(--d-panel);color:var(--d-text);cursor:pointer;font-weight:700;font-size:0.8rem;">Ж</button>
+                            <button type="button" onclick="wrapPostSelection(document.getElementById('cpostEditText-${p.id}'),'_')" style="width:1.8rem;height:1.8rem;border:1.5px solid var(--d-border);border-radius:0.35rem;background:var(--d-panel);color:var(--d-text);cursor:pointer;font-style:italic;font-size:0.8rem;">К</button>
+                            <button type="button" onclick="prefixPostLine(document.getElementById('cpostEditText-${p.id}'),'- ')" style="width:1.8rem;height:1.8rem;border:1.5px solid var(--d-border);border-radius:0.35rem;background:var(--d-panel);color:var(--d-text);cursor:pointer;font-size:0.8rem;">☰</button>
+                        </div>
+                        <textarea id="cpostEditText-${p.id}" style="width:100%;min-height:60px;border:1.5px solid #047857;border-radius:0.5rem;padding:0.5rem;font-family:inherit;font-size:0.88rem;resize:vertical;background:var(--d-panel);color:var(--d-text);"></textarea>
+                        <div style="display:flex;gap:0.4rem;margin-top:0.3rem;">
+                            <button type="button" class="btn" style="padding:0.35rem 0.8rem;font-size:0.8rem;" onclick="saveChannelPostEdit(${p.id})">Сохранить</button>
+                            <button type="button" class="btn" style="padding:0.35rem 0.8rem;font-size:0.8rem;background:var(--d-panel-alt);color:var(--d-text);border:1.5px solid var(--d-border);" onclick="cancelEditChannelPost(${p.id})">Отмена</button>
+                        </div>
+                    </div>
+                </div>`;
+            }
+
+            function startEditChannelPost(id) {
+                const p = channelPostsCache[id];
+                const view = document.getElementById('cpost-view-' + id);
+                const edit = document.getElementById('cpost-edit-' + id);
+                if (!p || !view || !edit) return;
+                view.style.display = 'none';
+                edit.style.display = 'block';
+                const ta = document.getElementById('cpostEditText-' + id);
+                if (ta) { ta.value = p.text || ''; ta.focus(); }
+            }
+            function cancelEditChannelPost(id) {
+                const view = document.getElementById('cpost-view-' + id);
+                const edit = document.getElementById('cpost-edit-' + id);
+                if (view) view.style.display = 'block';
+                if (edit) edit.style.display = 'none';
+            }
+            async function saveChannelPostEdit(id) {
+                const ta = document.getElementById('cpostEditText-' + id);
+                const text = ta ? ta.value.trim() : '';
+                if (!text) { alert('Текст не может быть пустым'); return; }
+                try {
+                    const r = await (await fetch('/api/channels.php?action=edit-post', {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+                        body: JSON.stringify({ id, text })
+                    })).json();
+                    if (!r.ok) { alert(r.error || 'Не удалось сохранить'); return; }
+                    await loadChannelPosts();
+                } catch (e) { alert('Ошибка сети'); }
+            }
+            window.startEditChannelPost = startEditChannelPost;
+            window.cancelEditChannelPost = cancelEditChannelPost;
+            window.saveChannelPostEdit = saveChannelPostEdit;
+
+            async function loadChannelPosts() {
+                const list = document.getElementById('channelPostsList');
+                if (!list || !myPsychId) return;
+                try {
+                    const r = await fetch('/api/channels.php?action=posts&psychologist_id=' + encodeURIComponent(myPsychId));
+                    const d = await r.json();
+                    const rows = (d && d.data) || [];
+                    list.innerHTML = rows.length ? rows.map(channelPostHtml).join('') : '<div style="color:var(--d-text-sec);font-size:0.85rem;">Постов пока нет — напишите первый, клиенты увидят его на вашей странице в каталоге.</div>';
+                } catch (e) {}
+            }
+
+            async function deleteChannelPost(id) {
+                if (!confirm('Удалить пост?')) return;
+                try {
+                    await fetch('/api/channels.php?action=delete-post', {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+                        body: JSON.stringify({ id })
+                    });
+                    await loadChannelPosts();
+                } catch (e) {}
+            }
+            window.deleteChannelPost = deleteChannelPost;
+
+            async function loadAppointments() {
+                const container = document.getElementById('appointments');
+
+                try {
+                    const response = await fetch('/api/appointments.php?action=my', {
+                        credentials: 'include'
+                    });
+                    const appointments = await response.json();
+
+                    if (appointments.error) {
+                        container.innerHTML = `<div class="empty-state">${appointments.error}</div>`;
+                        return;
+                    }
+
+                    // Calculate stats
+                    const now = new Date();
+                    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+
+                    let upcoming = 0;
+                    let completedThisMonth = 0;
+                    let earningsThisMonth = 0;
+
+                    if (Array.isArray(appointments)) {
+                        appointments.forEach(a => {
+                            const date = new Date(a.date_time);
+                            // Пустой статус считаем «запланировано» — см. пояснение ниже.
+                            const st = a.status || 'scheduled';
+                            if ((st === 'scheduled' || st === 'pending_payment' || st === 'pending') && date > now) {
+                                upcoming++;
+                            }
+                            if (st === 'completed' && date >= monthStart) {
+                                completedThisMonth++;
+                                // Доход психолога = цена клиента минус комиссия платформы
+                                const gross = parseFloat(a.price) || 0;
+                                earningsThisMonth += gross * (100 - PLATFORM_COMMISSION) / 100;
+                            }
+                        });
+                    }
+
+                    document.getElementById('upcomingCount').textContent = upcoming;
+                    document.getElementById('completedCount').textContent = completedThisMonth;
+                    document.getElementById('earningsMonth').textContent =
+                        new Intl.NumberFormat('ru-RU').format(earningsThisMonth) + ' ₽';
+
+                    // Filter upcoming appointments
+                    const upcomingAppointments = (appointments || [])
+                        .filter(a => a.status !== 'cancelled')
+                        .sort((a, b) => new Date(a.date_time) - new Date(b.date_time))
+                        .slice(0, 5);
+
+                    if (upcomingAppointments.length === 0) {
+                        container.innerHTML = `
+                        <div class="empty-state">
+                            <p>У вас пока нет записей</p>
+                            <p style="font-size: 0.9rem; margin-top: 0.5rem;">Настройте расписание, чтобы клиенты могли записаться</p>
+                        </div>
+                    `;
+                        return;
+                    }
+
+                    container.innerHTML = upcomingAppointments.map(a => {
+                        const date = new Date(a.date_time);
+                        const dateStr = `${date.getDate()} ${MONTHS[date.getMonth()]}, ${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
+                        const clientName = `${a.client_first_name || ''} ${a.client_last_name || ''}`.trim() || a.client_email || 'Клиент';
+
+                        // Пустой статус считаем «запланировано»: такие записи в базе есть,
+                        // и раньше получалось противоречие — плашка показывала
+                        // «Запланировано», а ни отменить, ни отметить проведённой было
+                        // нельзя, потому что проверки требовали строгого 'scheduled'.
+                        const st = a.status || 'scheduled';
+                        const active = (st === 'scheduled' || st === 'pending_payment' || st === 'pending');
+
+                        let statusClass = 'status-scheduled';
+                        let statusText = 'Запланировано';
+                        if (st === 'completed') {
+                            statusClass = 'status-completed';
+                            statusText = 'Завершено';
+                        } else if (st === 'cancelled') {
+                            statusClass = 'status-cancelled';
+                            statusText = 'Отменено';
+                        } else if (st === 'pending_payment' || st === 'pending') {
+                            statusText = 'Ждёт оплаты';
+                        }
+
+                        const isPast = date < now;
+                        const canComplete = active && isPast;
+                        const canCancel = active && !isPast;
+
+                        return `
+                        <div class="appointment-item">
+                            <div class="appointment-info">
+                                <div class="appointment-client">${clientName}</div>
+                                <div class="appointment-datetime">${dateStr} • ${a.format === 'video' ? '📹 Видео' : a.format === 'audio' ? '📞 Аудио' : '💬 Чат'}</div>
+                            </div>
+                            <span class="appointment-status ${statusClass}">${statusText}</span>
+                            <div class="appointment-actions">
+                                <a href="/chat.html?user=${a.client_id}" class="btn btn-small btn-outline" title="Написать клиенту">💬</a>
+                                ${canComplete ? `<button class="btn btn-small btn-success" onclick="completeSession('${a.id}')">Завершить</button>` : ''}
+                                ${canCancel ? `<button class="btn btn-small btn-danger" onclick="cancelSession('${a.id}')">Отменить</button>` : ''}
+                            </div>
+                        </div>
+                    `;
+                    }).join('');
+
+                } catch (error) {
+                    console.error('Load appointments error:', error);
+                    container.innerHTML = '<div class="empty-state">Ошибка загрузки записей</div>';
+                }
+            }
+
+            async function completeSession(appointmentId) {
+                try {
+                    const response = await fetch('/api/appointments.php?action=update', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        credentials: 'include',
+                        body: JSON.stringify({
+                            id: appointmentId,
+                            status: 'completed'
+                        })
+                    });
+
+                    const data = await response.json();
+                    if (data.error) {
+                        alert(data.error);
+                    } else {
+                        await loadAppointments();
+                    }
+                } catch (error) {
+                    console.error('Complete error:', error);
+                    alert('Ошибка обновления статуса');
+                }
+            }
+
+            async function cancelSession(appointmentId) {
+                if (!confirm('Вы уверены, что хотите отменить сессию?')) return;
+
+                try {
+                    const response = await fetch('/api/appointments.php?action=update', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        credentials: 'include',
+                        body: JSON.stringify({
+                            id: appointmentId,
+                            status: 'cancelled'
+                        })
+                    });
+
+                    const data = await response.json();
+                    if (data.error) {
+                        alert(data.error);
+                    } else {
+                        await loadAppointments();
+                    }
+                } catch (error) {
+                    console.error('Cancel error:', error);
+                    alert('Ошибка отмены сессии');
+                }
+            }
+
+            function toggleDashTheme(){
+                document.body.classList.toggle('dark');
+                const isDark = document.body.classList.contains('dark');
+                localStorage.setItem('psy-theme', isDark ? 'dark' : 'light');
+                updateThemeBtn();
+            }
+            function updateThemeBtn(){
+                const isDark = document.body.classList.contains('dark');
+                const icon = document.querySelector('#themeBtn .dash-sidebar-icon');
+                const label = document.getElementById('themeBtnLabel');
+                if (icon) icon.textContent = isDark ? '☀️' : '🌙';
+                if (label) label.textContent = isDark ? 'Светлая тема' : 'Тёмная тема';
+            }
+            updateThemeBtn();
+
+            init();
+        </script>
+    </div><!-- /dash-layout -->
+</body>
+
+</html>

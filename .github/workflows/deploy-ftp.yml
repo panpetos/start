@@ -1,0 +1,180 @@
+name: Deploy to psytalk.pro via FTP
+
+on:
+  push:
+    branches:
+      - claude/psytalk-pro-dev-onsqnt
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Deploy changed files via SFTP
+        run: |
+          sudo apt-get install -y lftp
+          lftp -c "
+            set sftp:auto-confirm yes;
+            set cmd:fail-exit no;
+            set net:max-retries 3;
+            set net:reconnect-interval-base 5;
+            open sftp://u3105470:a9Y3yfN5Im4It0bF@31.31.197.13;
+            cd /var/www/u3105470/data/www/psytalk.pro;
+            mkdir -f assets;
+            put assets/favicon.svg -o assets/favicon.svg;
+            put assets/icon-192.png -o assets/icon-192.png;
+            put assets/icon-512.png -o assets/icon-512.png;
+            put assets/icon-maskable-512.png -o assets/icon-maskable-512.png;
+            put assets/quiz-hero.jpg -o assets/quiz-hero.jpg;
+            put assets/session.mp4 -o assets/session.mp4;
+            put assets/session-poster.jpg -o assets/session-poster.jpg;
+            put assets/chat-pattern.svg -o assets/chat-pattern.svg;
+            put .user.ini -o .user.ini;
+            put index.html;
+            put invite.html;
+            put calendar.html;
+            put search.html;
+            put book.html;
+            put book-confirm.html;
+            put payment-success.html;
+            put client-dashboard.html;
+            put psychologist-dashboard.html;
+            put psychologist-notes.html;
+            put psychologist-blog.html;
+            put chat.html;
+            put login.html;
+            put register.html;
+            put edit-profile.html;
+            put offers.html;
+            put blog.html;
+            put article.html;
+            put payment-info.html;
+            put quiz.html;
+            put schedule.html;
+            put supervision.html;
+            put notify-settings.html;
+            put ai-chat.html;
+            put psychologist-profile.html;
+            put feed.html;
+            put post.php;
+            put dashboard-admin.html;
+            put admin.html;
+            put consultation.html;
+            put consent.html;
+            put consent-health.html;
+            put maintenance.html;
+            put offer.html;
+            put agent-offer.html;
+            put privacy.html;
+            put refund.html;
+            put qr.html;
+            put install.html;
+            put sw.js;
+            mkdir -f css;
+            put css/styles.css -o css/styles.css;
+            put js/netguard.js -o js/netguard.js;
+            put js/layout.js -o js/layout.js;
+            put js/referral.js -o js/referral.js;
+            put js/auth.js -o js/auth.js;
+            put js/articles.js -o js/articles.js;
+            put js/header-init.js -o js/header-init.js;
+            put js/post-format.js -o js/post-format.js;
+            put js/dash-sidebar.js -o js/dash-sidebar.js;
+            put js/lightbox.js -o js/lightbox.js;
+            put js/qr.js -o js/qr.js;
+            put js/app.js -o js/app.js;
+            put api/admin_ext.php -o api/admin_ext.php;
+            put api/subscribe.php -o api/subscribe.php;
+            put api/my_profile.php -o api/my_profile.php;
+            put api/notes.php -o api/notes.php;
+            put api/schedule.php -o api/schedule.php;
+            put api/reviews.php -o api/reviews.php;
+            put api/payment_mock.php -o api/payment_mock.php;
+            put api/robokassa.php -o api/robokassa.php;
+            put api/robokassa-success.php -o api/robokassa-success.php;
+            put api/robokassa-fail.php -o api/robokassa-fail.php;
+            put api/robokassa_config.sample.php -o api/robokassa_config.sample.php;
+            put api/sber_acquiring.php -o api/sber_acquiring.php;
+            put api/sber_return.php -o api/sber_return.php;
+            put api/sber_fail.php -o api/sber_fail.php;
+            put api/sber_acquiring_config.sample.php -o api/sber_acquiring_config.sample.php;
+            put api/yookassa.php -o api/yookassa.php;
+            put api/yookassa_config.sample.php -o api/yookassa_config.sample.php;
+            put api/dev_tasks.php -o api/dev_tasks.php;
+            put api/notifications.php -o api/notifications.php;
+            put api/notify_lib.php -o api/notify_lib.php;
+            put api/notifications_config.sample.php -o api/notifications_config.sample.php;
+            put api/orders.php -o api/orders.php;
+            put api/payouts.php -o api/payouts.php;
+            put api/npd_lib.php -o api/npd_lib.php;
+            put api/replace.php -o api/replace.php;
+            put api/packages.php -o api/packages.php;
+            put api/support.php -o api/support.php;
+            put api/supervision.php -o api/supervision.php;
+            put api/ai_chat.php -o api/ai_chat.php;
+            put api/ai_threads.php -o api/ai_threads.php;
+            put api/ai_kb.php -o api/ai_kb.php;
+            put api/ai_text.php -o api/ai_text.php;
+            put api/ai_post.php -o api/ai_post.php;
+            put api/bots.php -o api/bots.php;
+            put api/ip_guard.php -o api/ip_guard.php;
+            put api/ip_block.php -o api/ip_block.php;
+            put api/msg_search.php -o api/msg_search.php;
+            put api/messages_page.php -o api/messages_page.php;
+            put api/link_preview.php -o api/link_preview.php;
+            put api/ai_file.php -o api/ai_file.php;
+            put api/thumb.php -o api/thumb.php;
+            put api/referrals.php -o api/referrals.php;
+            put api/calendar.php -o api/calendar.php;
+            put api/settings_lib.php -o api/settings_lib.php;
+            put api/welcome.php -o api/welcome.php;
+            put api/promo_booking.php -o api/promo_booking.php;
+            put api/free_intro.php -o api/free_intro.php;
+            put api/unread.php -o api/unread.php;
+            put api/ai_chat_config.sample.php -o api/ai_chat_config.sample.php;
+            put api/credentials.php -o api/credentials.php;
+            put api/inn_check.php -o api/inn_check.php;
+            put api/consent.php -o api/consent.php;
+            put api/admin_notes.php -o api/admin_notes.php;
+            put api/user_search.php -o api/user_search.php;
+            put api/server_stats.php -o api/server_stats.php;
+            put api/admin_permissions.php -o api/admin_permissions.php;
+            put api/favorites.php -o api/favorites.php;
+            put api/channels.php -o api/channels.php;
+            put api/analytics.php -o api/analytics.php;
+            put api/user_card.php -o api/user_card.php;
+            put api/site_structure.php -o api/site_structure.php;
+            put api/message_edit.php -o api/message_edit.php;
+            put api/group_chat.php -o api/group_chat.php;
+            put api/chat_folders.php -o api/chat_folders.php;
+            put api/chat_media.php -o api/chat_media.php;
+            put api/chat_pins.php -o api/chat_pins.php;
+            put api/scheduled.php -o api/scheduled.php;
+            put api/calls.php -o api/calls.php;
+            put api/rtc_calls.php -o api/rtc_calls.php;
+            put api/rtc_room.php -o api/rtc_room.php;
+            put api/rtc_lib.php -o api/rtc_lib.php;
+            put api/sync.php -o api/sync.php;
+            put api/rtc_calls_config.sample.php -o api/rtc_calls_config.sample.php;
+            put api/stories.php -o api/stories.php;
+            put api/chat_prefs.php -o api/chat_prefs.php;
+            put api/chat_hidden.php -o api/chat_hidden.php;
+            put api/complaints.php -o api/complaints.php;
+            put api/notify_prefs.php -o api/notify_prefs.php;
+            put api/presence.php -o api/presence.php;
+            put api/transcribe.php -o api/transcribe.php;
+            put api/reactions.php -o api/reactions.php;
+            put api/qr_login.php -o api/qr_login.php;
+            put api/notify_dispatch.php -o api/notify_dispatch.php;
+            put api/blog.php -o api/blog.php;
+            put api/schema_util.php -o api/schema_util.php;
+            put api/manifest.php -o api/manifest.php;
+            put api/health.php -o api/health.php;
+            put api/upload_chunk.php -o api/upload_chunk.php;
+            put api/push.php -o api/push.php;
+            bye;
+          "
+          echo "Deployment complete"

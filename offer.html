@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Публичная оферта платформы-агрегатора psytalk.pro">
+  <title>Публичная оферта — psytalk.pro</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 16px; line-height: 1.7; color: #1a1a1a; background: #fff; }
+    a { color: #4A90D9; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    .site-header { padding: 18px 24px; border-bottom: 1px solid #e8e8e8; display: flex; align-items: center; gap: 24px; }
+    .site-header .logo { font-weight: 700; font-size: 18px; color: #1a1a1a; }
+    .site-header .back { font-size: 14px; color: #666; }
+
+    .container { max-width: 820px; margin: 0 auto; padding: 48px 24px 80px; }
+
+    .doc-badge { display: inline-block; font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: #666; border: 1px solid #ddd; border-radius: 4px; padding: 4px 10px; margin-bottom: 20px; }
+
+    h1 { font-size: 32px; font-weight: 800; line-height: 1.2; margin-bottom: 8px; }
+    .subtitle { font-size: 16px; color: #555; margin-bottom: 40px; }
+
+    .toc { background: #f7f8fa; border-radius: 10px; padding: 24px 28px; margin-bottom: 48px; }
+    .toc h2 { font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: #888; margin-bottom: 12px; }
+    .toc ol { padding-left: 20px; }
+    .toc li { margin-bottom: 6px; font-size: 15px; }
+
+    .section { margin-bottom: 48px; }
+    .section-num { display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; background: #1a1a1a; color: #fff; border-radius: 50%; font-size: 15px; font-weight: 700; margin-bottom: 16px; }
+    h2 { font-size: 22px; font-weight: 700; margin-bottom: 20px; }
+    h3 { font-size: 17px; font-weight: 600; margin: 24px 0 12px; }
+
+    p { margin-bottom: 14px; }
+    ul, ol { padding-left: 24px; margin-bottom: 14px; }
+    li { margin-bottom: 6px; }
+
+    .clause { margin-bottom: 16px; }
+    .clause-num { font-weight: 600; }
+
+    .highlight-box { background: #fff8e1; border-left: 4px solid #ffc107; border-radius: 0 8px 8px 0; padding: 16px 20px; margin: 20px 0; }
+    .highlight-box.info { background: #e8f4fd; border-left-color: #4A90D9; }
+    .highlight-box.warn { background: #fff3f3; border-left-color: #e53935; }
+
+    .terms-grid { display: grid; gap: 12px; margin: 16px 0; }
+    .term-item { background: #f7f8fa; border-radius: 8px; padding: 14px 18px; }
+    .term-item strong { display: block; margin-bottom: 4px; }
+
+    table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 15px; }
+    th { background: #f7f8fa; font-weight: 600; padding: 10px 14px; text-align: left; border-bottom: 2px solid #e8e8e8; }
+    td { padding: 10px 14px; border-bottom: 1px solid #f0f0f0; vertical-align: top; }
+    tr:last-child td { border-bottom: none; }
+
+    .requisites { background: #f7f8fa; border-radius: 10px; padding: 24px 28px; }
+    .requisites table { margin: 0; }
+    .requisites td:first-child { color: #666; width: 200px; }
+
+    .site-footer { border-top: 1px solid #e8e8e8; padding: 24px; text-align: center; font-size: 13px; color: #888; }
+    .site-footer a { color: #888; margin: 0 8px; }
+
+    body.dark { background: #191919 !important; color: #E6E6E6 !important; }
+    body.dark .site-header { background: #252525; border-bottom-color: #333; }
+    body.dark .site-header .logo { color: #E6E6E6; }
+    body.dark .site-header .back { color: #999; }
+    body.dark .doc-badge { color: #999; border-color: #555; }
+    body.dark h1, body.dark h2, body.dark h3 { color: #E6E6E6; }
+    body.dark .subtitle { color: #999; }
+    body.dark p, body.dark li { color: #CCCCCC; }
+    body.dark .toc { background: #252525; }
+    body.dark .toc h2 { color: #999; }
+    body.dark .section-num { background: #E6E6E6; color: #191919; }
+    body.dark .clause-num { color: #E6E6E6; }
+    body.dark .highlight-box { background: #3D3520; border-left-color: #D4A844; color: #E6E6E6; }
+    body.dark .highlight-box.info { background: #1A2A3D; border-left-color: #7AAFDD; }
+    body.dark .highlight-box.warn { background: #3D1F1F; border-left-color: #E53935; }
+    body.dark .term-item { background: #252525; }
+    body.dark .term-item strong { color: #E6E6E6; }
+    body.dark th { background: #252525; border-bottom-color: #444; color: #E6E6E6; }
+    body.dark td { border-bottom-color: #333; color: #CCCCCC; }
+    body.dark .requisites { background: #252525; }
+    body.dark .requisites td:first-child { color: #999; }
+    body.dark .site-footer { border-top-color: #333; color: #777; }
+    body.dark .site-footer a { color: #777; }
+    body.dark a { color: #6EE7B7; }
+    /* ── Мобильные экраны: таблицы с длинными значениями (реквизиты, сроки возврата)
+       не влезали в 320px и обрезались по краю. Уменьшаем отступы и разрешаем перенос. ── */
+    @media (max-width: 560px) {
+      body { padding-left: 0; padding-right: 0; }
+      table { font-size: 13.5px; }
+      th, td { padding: 7px 8px; overflow-wrap: anywhere; }
+      .requisites td:first-child { white-space: normal; }
+      h1 { font-size: 1.45rem; }
+      h2 { font-size: 1.15rem; }
+    }
+  </style>
+  <script src="/js/netguard.js?v=20260821c"></script>
+  <script src="/js/layout.js?v=20260823d"></script>
+</head>
+<body>
+
+<header class="site-header">
+  <a class="logo" href="https://psytalk.pro/">psytalk.pro</a>
+  <a class="back" href="https://psytalk.pro/">← На главную</a>
+</header>
+
+<div class="container">
+
+  <div class="doc-badge">Юридический документ</div>
+  <h1>Публичная оферта</h1>
+  <p class="subtitle">Условия использования платформы-агрегатора psytalk.pro<br><span style="font-size:14px;color:#888;">Дата публикации настоящей редакции: 27 августа 2026 г.</span></p>
+
+  <div class="toc">
+    <h2>Содержание</h2>
+    <ol>
+      <li><a href="#s1">Общие положения и термины</a></li>
+      <li><a href="#s2">Статус платформы</a></li>
+      <li><a href="#s3">Предмет договора</a></li>
+      <li><a href="#s4">Права и обязанности сторон</a></li>
+      <li><a href="#s5">Цена и порядок расчётов</a></li>
+      <li><a href="#s6">Ответственность сторон</a></li>
+      <li><a href="#s7">Конфиденциальность</a></li>
+      <li><a href="#s8">Форс-мажор</a></li>
+      <li><a href="#s9">Срок действия оферты</a></li>
+      <li><a href="#s10">Дополнительные условия</a></li>
+      <li><a href="#s11">Реквизиты Оператора</a></li>
+    </ol>
+  </div>
+
+  <!-- 1 -->
+  <div class="section" id="s1">
+    <div class="section-num">1</div>
+    <h2>Общие положения и термины</h2>
+
+    <p>Настоящая Публичная оферта (далее — «Оферта») является официальным предложением Оператора платформы psytalk.pro заключить договор на условиях, изложенных ниже, в соответствии с п. 2 ст. 437 Гражданского кодекса РФ.</p>
+
+    <p>Оплата услуг или регистрация на платформе означает полное и безоговорочное принятие (акцепт) условий настоящей Оферты.</p>
+
+    <h3>Термины и определения</h3>
+    <div class="terms-grid">
+      <div class="term-item">
+        <strong>Платформа</strong>
+        Информационный интернет-сервис psytalk.pro, предоставляющий техническую инфраструктуру для поиска, бронирования и проведения онлайн-консультаций.
+      </div>
+      <div class="term-item">
+        <strong>Оператор</strong>
+        Индивидуальный предприниматель Вакульский Петр Валерьевич (ИНН: 230107911410, ОГРНИП: 326470400081272), осуществляющий техническое управление Платформой psytalk.pro.
+      </div>
+      <div class="term-item">
+        <strong>Пользователь (Заказчик)</strong>
+        Физическое лицо, зарегистрировавшееся на Платформе с целью получения психологических консультаций.
+      </div>
+      <div class="term-item">
+        <strong>Специалист</strong>
+        Независимый психолог или психотерапевт, зарегистрированный на Платформе и самостоятельно оказывающий психологические услуги Пользователям.
+      </div>
+      <div class="term-item">
+        <strong>Консультация</strong>
+        Сеанс психологической помощи, проводимый Специалистом в пользу Пользователя в формате видеозвонка, аудиозвонка или текстового чата.
+      </div>
+      <div class="term-item">
+        <strong>Сервисный сбор</strong>
+        Вознаграждение Оператора за предоставление технической инфраструктуры Платформы, включённое в стоимость Консультации.
+      </div>
+    </div>
+  </div>
+
+  <!-- 2 -->
+  <div class="section" id="s2">
+    <div class="section-num">2</div>
+    <h2>Статус платформы</h2>
+
+    <div class="highlight-box info">
+      <strong>Платформа psytalk.pro является информационным посредником (агрегатором).</strong><br>
+      Оператор не оказывает психологические, медицинские или иные услуги психологической помощи и не является работодателем Специалистов. В отношениях со Специалистами — в части приёма оплаты от Пользователей и её распределения — Оператор действует как агент на основании отдельного <a href="/agent-offer.html">Агентского договора</a>, не являясь при этом исполнителем психологических услуг.
+    </div>
+
+    <p class="clause"><span class="clause-num">2.1.</span> Платформа предоставляет исключительно технический сервис: возможность для Пользователей найти Специалиста, забронировать и оплатить консультацию, а также провести её в режиме онлайн.</p>
+
+    <p class="clause"><span class="clause-num">2.2.</span> Психологические услуги оказываются Специалистами самостоятельно, на основании договора, заключаемого непосредственно между Пользователем и Специалистом в момент бронирования.</p>
+
+    <p class="clause"><span class="clause-num">2.3.</span> Специалисты осуществляют деятельность независимо и несут личную ответственность за качество, содержание и результаты оказываемых ими консультаций.</p>
+
+    <p class="clause"><span class="clause-num">2.4.</span> Оператор проводит первичную проверку документов Специалистов при регистрации (диплом, сертификаты), однако это не означает сертификацию, лицензирование или гарантии результата консультации со стороны Оператора.</p>
+  </div>
+
+  <!-- 3 -->
+  <div class="section" id="s3">
+    <div class="section-num">3</div>
+    <h2>Предмет договора</h2>
+
+    <p class="clause"><span class="clause-num">3.1.</span> Оператор предоставляет Пользователю доступ к функциям Платформы: поиску Специалистов, бронированию консультаций, проведению видео-, аудио- и текстовых сеансов, а также обработке платежей.</p>
+
+    <p class="clause"><span class="clause-num">3.2.</span> Оператор не является стороной договора об оказании психологических услуг между Пользователем и Специалистом.</p>
+
+    <p class="clause"><span class="clause-num">3.3.</span> Договор считается заключённым с момента акцепта настоящей Оферты путём совершения любого из следующих действий:
+    <ul>
+      <li>регистрация учётной записи на Платформе;</li>
+      <li>оформление бронирования консультации;</li>
+      <li>оплата услуг через Платформу.</li>
+    </ul>
+    </p>
+  </div>
+
+  <!-- 4 -->
+  <div class="section" id="s4">
+    <div class="section-num">4</div>
+    <h2>Права и обязанности сторон</h2>
+
+    <h3>4.1. Оператор обязуется:</h3>
+    <ul>
+      <li>обеспечивать техническую работоспособность Платформы;</li>
+      <li>организовывать обработку платежей Пользователей через платёжный сервис Robokassa (интернет-эквайринг);</li>
+      <li>предоставлять Пользователю доступ к профилям Специалистов и инструментам бронирования;</li>
+      <li>хранить и обрабатывать персональные данные Пользователя в соответствии с Политикой конфиденциальности и ФЗ № 152-ФЗ;</li>
+      <li>рассматривать обращения Пользователей по техническим вопросам и вопросам оплаты.</li>
+    </ul>
+
+    <h3>4.2. Оператор вправе:</h3>
+    <ul>
+      <li>изменять условия настоящей Оферты, публикуя актуальную редакцию на Платформе;</li>
+      <li>приостанавливать доступ к Платформе для проведения технических работ;</li>
+      <li>отстранять Специалистов от работы на Платформе при нарушении ими правил сервиса;</li>
+      <li>получать Сервисный сбор, выделяемый из суммы оплаты платёжным сервисом при её распределении (сплитовании).</li>
+    </ul>
+
+    <h3>4.3. Пользователь обязуется:</h3>
+    <ul>
+      <li>указывать достоверные данные при регистрации;</li>
+      <li>соблюдать правила проведения консультаций (своевременное подключение, корректное поведение);</li>
+      <li>не записывать консультации без письменного согласия Специалиста;</li>
+      <li>оплачивать консультации в порядке, установленном на Платформе.</li>
+    </ul>
+
+    <h3>4.4. Пользователь вправе:</h3>
+    <ul>
+      <li>выбирать любого доступного Специалиста на Платформе;</li>
+      <li>отменять запись в соответствии с Политикой возврата;</li>
+      <li>обращаться в поддержку Платформы по вопросам технических сбоев и оплаты;</li>
+      <li>обращаться непосредственно к Специалисту по вопросам качества консультации.</li>
+    </ul>
+  </div>
+
+  <!-- 5 -->
+  <div class="section" id="s5">
+    <div class="section-num">5</div>
+    <h2>Цена и порядок расчётов</h2>
+
+    <p class="clause"><span class="clause-num">5.1.</span> Стоимость каждой консультации устанавливается Специалистом и отображается в его профиле на Платформе.</p>
+
+    <p class="clause"><span class="clause-num">5.2.</span> В стоимость консультации включён Сервисный сбор Оператора за использование технической инфраструктуры Платформы. Размер сбора не раскрывается отдельно и входит в итоговую цену, видимую Пользователю.</p>
+
+    <p class="clause"><span class="clause-num">5.3.</span> Оплата производится в безналичной форме банковской картой через платёжный сервис Robokassa (интернет-эквайринг) до начала консультации.</p>
+
+    <p class="clause"><span class="clause-num">5.4.</span> Ориентировочная стоимость консультаций:
+    <table>
+      <tr><th>Тип</th><th>Стоимость</th></tr>
+      <tr><td>Первая (ознакомительная) консультация</td><td><span class="psy-first-price">1 500 ₽</span></td></tr>
+      <tr><td>Последующие консультации</td><td>от 1 000 до 5 000 ₽</td></tr>
+    </table>
+    Точная стоимость указана в профиле конкретного Специалиста.
+    </p>
+
+    <p class="clause"><span class="clause-num">5.5.</span> Оператор действует как агент Специалиста: принимает оплату Пользователя через платёжный сервис Robokassa, удерживает Сервисный сбор Оператора и перечисляет вознаграждение Специалисту. В кассовом чеке указывается признак агента и данные Специалиста как поставщика услуги. Специалист как плательщик налога на профессиональный доход (НПД) самостоятельно формирует чек в сервисе «Мой налог» и уплачивает налог со своего вознаграждения. Порядок и сроки расчётов определяются <a href="/agent-offer.html">Агентским договором</a>.</p>
+
+    <p class="clause"><span class="clause-num">5.6.</span> Возврат денежных средств осуществляется в соответствии с Политикой возврата: <a href="https://psytalk.pro/refund.html">psytalk.pro/refund.html</a></p>
+  </div>
+
+  <!-- 6 -->
+  <div class="section" id="s6">
+    <div class="section-num">6</div>
+    <h2>Ответственность сторон</h2>
+
+    <div class="highlight-box warn">
+      <strong>Важно:</strong> Оператор не несёт ответственности за содержание, качество и результаты психологических консультаций, оказываемых Специалистами.
+    </div>
+
+    <p class="clause"><span class="clause-num">6.1.</span> Оператор несёт ответственность исключительно за техническую работоспособность Платформы и корректную обработку платежей.</p>
+
+    <p class="clause"><span class="clause-num">6.2.</span> Оператор не несёт ответственности за:
+    <ul>
+      <li>качество, содержание и результат психологических консультаций;</li>
+      <li>действия или бездействие Специалистов;</li>
+      <li>соответствие Специалиста ожиданиям Пользователя;</li>
+      <li>технические проблемы на стороне Пользователя (интернет-соединение, оборудование);</li>
+      <li>последствия для здоровья, возникшие в связи с получением или неполучением консультации.</li>
+    </ul>
+    </p>
+
+    <p class="clause"><span class="clause-num">6.3.</span> Ответственность за качество и содержание консультации несёт исключительно Специалист, оказавший её.</p>
+
+    <p class="clause"><span class="clause-num">6.4.</span> Максимальная ответственность Оператора перед Пользователем по настоящему Договору ограничена суммой фактически уплаченного Сервисного сбора за конкретную консультацию.</p>
+
+    <p class="clause"><span class="clause-num">6.5.</span> Оператор не несёт ответственности за убытки, вызванные форс-мажорными обстоятельствами, действиями третьих лиц или нарушениями условий Оферты самим Пользователем.</p>
+  </div>
+
+  <!-- 7 -->
+  <div class="section" id="s7">
+    <div class="section-num">7</div>
+    <h2>Конфиденциальность</h2>
+
+    <p class="clause"><span class="clause-num">7.1.</span> Обработка персональных данных Пользователей осуществляется в соответствии с Политикой конфиденциальности (<a href="https://psytalk.pro/privacy.html">psytalk.pro/privacy.html</a>) и ФЗ от 27.07.2006 № 152-ФЗ «О персональных данных».</p>
+
+    <p class="clause"><span class="clause-num">7.2.</span> Содержание консультаций является конфиденциальным. Платформа не имеет доступа к записям сеансов и не передаёт их третьим лицам, за исключением случаев, предусмотренных законодательством РФ.</p>
+
+    <p class="clause"><span class="clause-num">7.3.</span> Пользователь не вправе записывать, копировать или распространять содержание консультаций без письменного согласия Специалиста.</p>
+  </div>
+
+  <!-- 8 -->
+  <div class="section" id="s8">
+    <div class="section-num">8</div>
+    <h2>Форс-мажор</h2>
+
+    <p class="clause"><span class="clause-num">8.1.</span> Стороны освобождаются от ответственности за неисполнение обязательств вследствие непреодолимой силы: запретные действия властей, эпидемии, стихийные бедствия, масштабные сбои интернет-инфраструктуры.</p>
+
+    <p class="clause"><span class="clause-num">8.2.</span> Сторона, столкнувшаяся с форс-мажором, обязана уведомить другую сторону в течение 5 рабочих дней.</p>
+
+    <p class="clause"><span class="clause-num">8.3.</span> Если форс-мажор длится более 30 дней, любая сторона вправе расторгнуть договор в одностороннем порядке.</p>
+  </div>
+
+  <!-- 9 -->
+  <div class="section" id="s9">
+    <div class="section-num">9</div>
+    <h2>Срок действия оферты</h2>
+
+    <p class="clause"><span class="clause-num">9.1.</span> Оферта вступает в силу с момента размещения на Сайте и действует до её отзыва Оператором.</p>
+
+    <p class="clause"><span class="clause-num">9.2.</span> Оператор вправе изменить условия Оферты в одностороннем порядке, опубликовав новую редакцию на Сайте. Изменения вступают в силу с момента публикации и применяются к вновь заключаемым договорам.</p>
+
+    <p class="clause"><span class="clause-num">9.3.</span> Договор действует с момента акцепта Оферты Пользователем и до полного исполнения сторонами своих обязательств.</p>
+  </div>
+
+  <!-- 10 -->
+  <div class="section" id="s10">
+    <div class="section-num">10</div>
+    <h2>Дополнительные условия</h2>
+
+    <p class="clause"><span class="clause-num">10.1.</span> Договор регулируется законодательством Российской Федерации.</p>
+
+    <p class="clause"><span class="clause-num">10.2.</span> Все споры рассматриваются в претензионном порядке. Срок ответа на претензию — 10 рабочих дней. При недостижении согласия — в суде по месту нахождения Оператора.</p>
+
+    <p class="clause"><span class="clause-num">10.3.</span> Языком договора является русский язык.</p>
+
+    <p class="clause"><span class="clause-num">10.4.</span> Ссылки на сторонние сайты размещены исключительно в информационных целях; Оператор не несёт ответственности за их содержание.</p>
+
+    <p class="clause"><span class="clause-num">10.5.</span> Признание какого-либо положения настоящей Оферты недействительным не влечёт недействительности остальных положений.</p>
+  </div>
+
+  <!-- 11 -->
+  <div class="section" id="s11">
+    <div class="section-num">11</div>
+    <h2>Реквизиты Оператора</h2>
+    <div class="requisites">
+      <table>
+        <tr><td>Наименование</td><td>Индивидуальный предприниматель Вакульский Петр Валерьевич</td></tr>
+        <tr><td>Адрес регистрации</td><td>Ленинградская область, Всеволожский район, д. Новосаратовка</td></tr>
+        <tr><td>ИНН</td><td>230107911410</td></tr>
+        <tr><td>ОГРНИП</td><td>326470400081272</td></tr>
+        <tr><td>Телефон</td><td><a href="tel:+79626815320">+7 (962) 681-53-20</a></td></tr>
+        <tr><td>Расчётный счёт</td><td>40802810320001031851</td></tr>
+        <tr><td>Банк</td><td>ООО «Банк Точка»</td></tr>
+        <tr><td>БИК</td><td>044525104</td></tr>
+        <tr><td>Корр. счёт</td><td>30101810745374525104</td></tr>
+        <tr><td>Контактный e-mail</td><td><a href="mailto:support@psytalk.pro">support@psytalk.pro</a></td></tr>
+        <tr><td>Сайт</td><td><a href="https://psytalk.pro/">psytalk.pro</a></td></tr>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<script>psyWriteFooter();</script>
+
+</body>
+</html>

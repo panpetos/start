@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+    <title>Войти — psytalk.pro</title>
+    <link rel="stylesheet" href="/css/styles.css?v=20260823d">
+    <script src="/js/netguard.js?v=20260821c"></script>
+    <script src="/js/layout.js?v=20260823d"></script>
+    <script src="/js/api.js?v=20260821"></script>
+    <script src="/js/auth.js?v=20260821"></script>
+    <link rel="preconnect" href="https://unpkg.com">
+    <script defer src="https://unpkg.com/lucide@latest"></script>
+    <script src="/js/qr.js?v=20260821"></script>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', -apple-system, sans-serif; background: #ECFDF5; min-height: 100vh; display: flex; flex-direction: column; }
+        .page-wrap { flex: 1; display: flex; align-items: center; justify-content: center; padding: 2rem 1rem; }
+        .auth-card {
+            background: white; border-radius: 1.5rem; padding: 2.5rem 2rem;
+            max-width: 440px; width: 100%;
+            box-shadow: 0 8px 40px rgba(4,120,87,0.12); border: 1px solid #D1FAE5;
+        }
+        .logo { text-align: center; margin-bottom: 1.75rem; }
+        .logo a { text-decoration: none; font-size: 1.5rem; font-weight: 700; }
+        .logo .psy { color: #1A1A1A; }
+        .logo .talk { color: #047857; font-style: italic; }
+        .tabs { display: flex; background: #ECFDF5; border-radius: 0.75rem; padding: 4px; margin-bottom: 1.75rem; }
+        .tab-btn {
+            flex: 1; padding: 0.625rem; border: none; background: transparent; border-radius: 0.625rem;
+            font-family: inherit; font-size: 0.9375rem; font-weight: 600; cursor: pointer; color: #6B7280; transition: all 0.2s;
+        }
+        .tab-btn.active { background: white; color: #047857; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+        .form-group { margin-bottom: 1rem; }
+        label { display: block; font-size: 0.875rem; font-weight: 600; color: #374151; margin-bottom: 0.375rem; }
+        input[type="email"], input[type="password"], input[type="text"] {
+            width: 100%; padding: 0.75rem 1rem; border: 2px solid #E5E7EB; border-radius: 0.75rem;
+            font-family: inherit; font-size: 0.9375rem; color: #1A1A1A; background: #fff;
+            outline: none; transition: border-color 0.2s;
+        }
+        input:focus { border-color: #047857; }
+        input.error { border-color: #EF4444; }
+        .inline-error {
+            display: none; background: #FEF2F2; border: 1px solid #FECACA; color: #DC2626;
+            border-radius: 0.625rem; padding: 0.625rem 0.875rem; font-size: 0.875rem;
+            margin-bottom: 0.875rem; line-height: 1.5;
+        }
+        .inline-error.visible { display: block; }
+        .btn-submit {
+            width: 100%; padding: 0.875rem; margin-top: 0.5rem;
+            background: linear-gradient(135deg, #047857, #059669);
+            color: white; border: none; border-radius: 0.75rem;
+            font-family: inherit; font-size: 1rem; font-weight: 700; cursor: pointer;
+            box-shadow: 0 4px 14px rgba(4,120,87,0.35); transition: all 0.2s;
+        }
+        .btn-submit:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(4,120,87,0.45); }
+        .btn-submit:disabled { opacity: 0.65; cursor: not-allowed; transform: none; }
+        .divider { text-align: center; color: #9CA3AF; font-size: 0.875rem; margin: 1.25rem 0; position: relative; }
+        .divider::before, .divider::after {
+            content: ''; position: absolute; top: 50%; width: 42%; height: 1px; background: #E5E7EB;
+        }
+        .divider::before { left: 0; }
+        .divider::after { right: 0; }
+        .btn-demo {
+            width: 100%; padding: 0.75rem; border: 2px solid #E5E7EB; border-radius: 0.75rem;
+            background: white; color: #374151; font-family: inherit; font-size: 0.9375rem;
+            font-weight: 600; cursor: pointer; transition: all 0.2s; text-align: center; text-decoration: none; display: block;
+        }
+        .btn-demo:hover { border-color: #047857; color: #047857; background: #ECFDF5; }
+        .tab-panel { display: none; }
+        .tab-panel.active { display: block; }
+        .forgot-link { display: block; text-align: right; font-size: 0.8125rem; color: #047857; margin-top: 0.25rem; text-decoration: none; }
+        .forgot-link:hover { text-decoration: underline; }
+        .psy-register-note { font-size: 0.8125rem; color: #6B7280; margin-top: 1rem; text-align: center; }
+        .psy-register-note a { color: #047857; font-weight: 600; }
+        .success-msg {
+            background: #F0FDF4; border: 1px solid #BBF7D0; color: #16A34A;
+            border-radius: 0.625rem; padding: 0.625rem 0.875rem; font-size: 0.875rem;
+            margin-bottom: 0.875rem; display: none;
+        }
+        .pw-wrap { position: relative; }
+        .pw-wrap input { padding-right: 2.75rem !important; }
+        .pw-eye {
+            position: absolute; top: 50%; right: 0.5rem; transform: translateY(-50%);
+            background: none; border: none; cursor: pointer; font-size: 1.15rem; line-height: 1;
+            padding: 0.25rem; color: #9CA3AF; opacity: 0.85;
+        }
+        .pw-eye:hover { opacity: 1; }
+        .consent { display: flex; gap: 10px; align-items: flex-start; padding: 11px 12px; margin-bottom: 9px; background: #ECFDF5; border: 1px solid #DCEBE4; border-radius: 10px; font-size: 0.82rem; color: #4B5563; cursor: pointer; line-height: 1.45; }
+        .consent.special { background: #FFF8EC; border-color: #F0D9A8; color: #8A6D1F; }
+        .consent input[type=checkbox] { flex: 0 0 auto; width: 18px; height: 18px; margin-top: 1px; accent-color: #047857; cursor: pointer; }
+        .consent.special input[type=checkbox] { accent-color: #8A6D1F; }
+        .consent a { color: #065F46; font-weight: 600; text-decoration: underline; }
+        .consent.special a { color: #8A6D1F; }
+        .consent .tag { display: inline-block; font-size: 0.62rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; background: #8A6D1F; color: #fff; padding: 1px 5px; border-radius: 4px; margin-right: 4px; }
+        .reg-note { font-size: 0.75rem; color: #9CA3AF; margin: 2px 2px 12px; }
+
+        /* ── вход по QR: код показывается на компьютере, подтверждается с телефона ── */
+        .qr-box { display: none; margin-top: 0.9rem; padding: 1rem; background: #FAF8FF;
+                  border: 1px solid #D1FAE5; border-radius: 0.9rem; text-align: center; }
+        .qr-box.open { display: block; }
+        .qr-img { display: flex; justify-content: center; min-height: 200px; align-items: center; }
+        .qr-img svg { width: 200px; height: 200px; border-radius: 0.5rem; }
+        .qr-steps { font-size: 0.8rem; color: #6B7280; line-height: 1.7; margin-top: 0.7rem; text-align: left;
+                    display: inline-block; }
+        .qr-status { font-size: 0.82rem; color: #047857; font-weight: 600; margin-top: 0.7rem; line-height: 1.5; }
+        .qr-status.err { color: #DC2626; }
+        .qr-status.ok { color: #16A34A; }
+        .qr-alt { font-size: 0.75rem; color: #9CA3AF; margin-top: 0.5rem; line-height: 1.5; }
+        .qr-alt a { color: #047857; font-weight: 600; }
+        .qr-hide { margin-top: 0.7rem; background: none; border: none; font-family: inherit;
+                   font-size: 0.8rem; color: #9CA3AF; cursor: pointer; text-decoration: underline; }
+        body.dark .qr-box { background: #2A2A2A; border-color: #444; }
+        body.dark .qr-steps { color: #A0A0A0; }
+        body.dark .qr-status { color: #6EE7B7; }
+        body.dark .qr-alt a { color: #6EE7B7; }
+
+        body.dark { background: #191919 !important; }
+        body.dark .auth-card { background: #252525; border-color: #10402F; box-shadow: 0 8px 40px rgba(0,0,0,0.3); }
+        body.dark .logo .psy { color: #E6E6E6 !important; }
+        body.dark .tabs { background: #2A2A2A; }
+        body.dark .tab-btn { color: #888; }
+        body.dark .tab-btn.active { background: #333; color: #6EE7B7; box-shadow: none; }
+        body.dark label { color: #C0C0C0; }
+        body.dark input[type="email"], body.dark input[type="password"], body.dark input[type="text"] { background: #2A2A2A; color: #E6E6E6; border-color: #444; }
+        body.dark input::placeholder { color: #888 !important; }
+        body.dark .inline-error { background: #2e1a1a; border-color: #dc262655; color: #f87171; }
+        body.dark .divider { color: #777; }
+        body.dark .divider::before, body.dark .divider::after { background: #444; }
+        body.dark .btn-demo { background: #2A2A2A; border-color: #444; color: #C0C0C0; }
+        body.dark .btn-demo:hover { border-color: #047857; color: #6EE7B7; background: #10402F; }
+        body.dark .forgot-link { color: #6EE7B7; }
+        body.dark .psy-register-note { color: #999; }
+        body.dark .psy-register-note a { color: #6EE7B7; }
+        body.dark .success-msg { background: #1a2e1a; border-color: #16a34a55; color: #86efac; }
+        body.dark .consent { background: #0B3B2E; border-color: #1F6B4F; color: #C0C0C0; }
+        body.dark .consent.special { background: #2D2A1E; border-color: #5C4B1A; color: #D4A944; }
+        body.dark .consent a { color: #6EE7B7; }
+        body.dark .consent.special a { color: #D4A944; }
+        body.dark .reg-note { color: #777; }
+        body.dark .pw-eye { color: #888; }
+    </style>
+</head>
+<body>
+    <script>psyWriteHeader();</script>
+    <div class="page-wrap">
+        <div class="auth-card">
+            <div class="logo">
+                <a href="/"><span class="psy">psy</span><span class="talk">talk.pro</span></a>
+            </div>
+
+            <div class="tabs">
+                <button class="tab-btn active" onclick="switchTab('login')">Войти</button>
+                <button class="tab-btn" onclick="switchTab('register')">Регистрация</button>
+            </div>
+
+            <!-- Login -->
+            <div class="tab-panel active" id="panel-login">
+                <div class="inline-error" id="loginError"></div>
+                <form id="loginForm" onsubmit="handleLogin(event)">
+                    <div class="form-group">
+                        <label for="loginEmail">Email</label>
+                        <input type="email" id="loginEmail" placeholder="your@email.com" required autocomplete="email">
+                    </div>
+                    <div class="form-group">
+                        <label for="loginPassword">Пароль</label>
+                        <div class="pw-wrap">
+                            <input type="password" id="loginPassword" placeholder="••••••••" required autocomplete="current-password">
+                            <button type="button" class="pw-eye" aria-label="Показать пароль" onclick="togglePw('loginPassword', this)">👁</button>
+                        </div>
+                        <a href="#" class="forgot-link">Забыли пароль?</a>
+                    </div>
+                    <button type="submit" class="btn-submit" id="loginBtn">Войти</button>
+                </form>
+
+                <div class="divider">или</div>
+                <button type="button" class="btn-demo" id="qrOpenBtn" onclick="qrLoginStart()">📱 Войти по QR-коду с телефона</button>
+
+                <div class="qr-box" id="qrBox">
+                    <div class="qr-img" id="qrImg"></div>
+                    <p class="qr-steps">
+                        1. Откройте камеру телефона, где вы уже вошли<br>
+                        2. Наведите её на код и откройте ссылку<br>
+                        3. Подтвердите вход — здесь откроется кабинет
+                    </p>
+                    <p class="qr-status" id="qrStatus">Ждём подтверждения с телефона…</p>
+                    <p class="qr-alt">Камера не читает код? Откройте на телефоне <a href="#" id="qrLink" target="_blank" rel="noopener">эту ссылку</a>.</p>
+                    <button type="button" class="qr-hide" onclick="qrLoginStop()">Скрыть код</button>
+                </div>
+            </div>
+
+            <!-- Register -->
+            <div class="tab-panel" id="panel-register">
+                <div class="inline-error" id="regError"></div>
+                <div class="success-msg" id="regSuccess">Регистрация прошла успешно! Перенаправляем...</div>
+                <form id="regForm" onsubmit="handleRegister(event)">
+                    <div class="form-group">
+                        <label for="regName">Имя и фамилия</label>
+                        <input type="text" id="regName" placeholder="Иван Иванов" required autocomplete="name">
+                    </div>
+                    <div class="form-group">
+                        <label for="regEmail">Email</label>
+                        <input type="email" id="regEmail" placeholder="your@email.com" required autocomplete="email">
+                    </div>
+                    <div class="form-group">
+                        <label for="regPassword">Пароль</label>
+                        <div class="pw-wrap">
+                            <input type="password" id="regPassword" placeholder="Минимум 8 символов" required autocomplete="new-password" minlength="8">
+                            <button type="button" class="pw-eye" aria-label="Показать пароль" onclick="togglePw('regPassword', this)">👁</button>
+                        </div>
+                    </div>
+
+                    <!-- Согласия клиента (обязательные) -->
+                    <label class="consent">
+                        <input type="checkbox" id="c_general" onchange="syncRegBtn()">
+                        <span>Я принимаю <a href="/offer.html" target="_blank" rel="noopener">Публичную оферту</a>, <a href="/privacy.html" target="_blank" rel="noopener">Политику конфиденциальности</a>, <a href="/refund.html" target="_blank" rel="noopener">Условия возврата</a> и даю <a href="/consent.html" target="_blank" rel="noopener">согласие на обработку персональных данных</a>.</span>
+                    </label>
+                    <label class="consent special">
+                        <input type="checkbox" id="c_health" onchange="syncRegBtn()">
+                        <span><b class="tag">Особые данные</b> Я понимаю, что в общении с психологом могу сообщать сведения о своём психологическом и эмоциональном состоянии (данные о здоровье), и даю отдельное согласие на их обработку по ст. 9 152-ФЗ — <a href="/consent-health.html" target="_blank" rel="noopener">подробнее</a>.</span>
+                    </label>
+                    <p class="reg-note">Отметки не проставлены заранее — согласие вы даёте самостоятельно.</p>
+
+                    <button type="submit" class="btn-submit" id="regBtn" disabled>Зарегистрироваться</button>
+                </form>
+                <p class="psy-register-note">
+                    Вы психолог? <a href="/register.html?type=psychologist">Регистрация как специалист →</a>
+                </p>
+            </div>
+        </div>
+    </div>
+    <script>psyWriteFooter();</script>
+    <script>
+        // Redirect if already logged in
+        (async function() {
+            if (window.Auth && window.Auth.getCurrentUser) {
+                try {
+                    const user = await window.Auth.getCurrentUser();
+                    if (user) redirectAfterLogin(user);
+                } catch(e) {}
+            }
+        })();
+
+        // Кнопка регистрации активна только когда отмечены оба обязательных согласия
+        function syncRegBtn() {
+            const g = document.getElementById('c_general');
+            const h = document.getElementById('c_health');
+            const b = document.getElementById('regBtn');
+            if (g && h && b) b.disabled = !(g.checked && h.checked);
+        }
+        window.syncRegBtn = syncRegBtn;
+
+        // Фиксация фактов согласий на сервере (IP берёт сервер)
+        async function recordClientConsents() {
+            const rec = (type) => fetch('/api/consent.php?action=record', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+                body: JSON.stringify({ type, version: '1.0' })
+            });
+            try { await rec('general'); } catch (e) {}
+            try { await rec('health_special'); } catch (e) {}
+        }
+
+        function togglePw(id, btn) {
+            const inp = document.getElementById(id);
+            if (!inp) return;
+            const show = inp.type === 'password';
+            inp.type = show ? 'text' : 'password';
+            btn.textContent = show ? '🙈' : '👁';
+            btn.setAttribute('aria-label', show ? 'Скрыть пароль' : 'Показать пароль');
+        }
+        window.togglePw = togglePw;
+
+        // Регистрация живёт здесь же, отдельной вкладкой. Ссылка вида
+        // /login.html?tab=register открывает её сразу — на неё ведут кнопки с сайта.
+        (function openTabFromUrl() {
+            try {
+                const t = new URLSearchParams(location.search).get('tab');
+                if (t === 'register') document.addEventListener('DOMContentLoaded', () => switchTab('register'));
+            } catch (e) {}
+        })();
+
+        function switchTab(tab) {
+            document.querySelectorAll('.tab-btn').forEach((b, i) => b.classList.toggle('active', (i === 0 && tab === 'login') || (i === 1 && tab === 'register')));
+            document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+            document.getElementById('panel-' + tab).classList.add('active');
+        }
+
+        function showError(id, msg) {
+            const el = document.getElementById(id);
+            el.textContent = msg;
+            el.classList.add('visible');
+        }
+
+        function hideError(id) {
+            const el = document.getElementById(id);
+            el.classList.remove('visible');
+        }
+
+        function redirectAfterLogin(user) {
+            const redirect = new URLSearchParams(window.location.search).get('redirect');
+            if (redirect) { window.location.href = redirect; return; }
+            const role = user.role || user.user_role || '';
+            if (role === 'admin') window.location.href = '/dashboard-admin.html';
+            else if (role === 'psychologist') window.location.href = '/psychologist-dashboard.html';
+            else window.location.href = '/client-dashboard.html';
+        }
+
+        // ── Вход по QR-коду ──
+        // Компьютер просит у сервера одноразовый код, рисует его QR-ом и ждёт. Телефон,
+        // где человек уже вошёл, открывает /qr.html?code=… и подтверждает — после этого
+        // очередной опрос poll выдаёт компьютеру сессию, и мы уходим в кабинет.
+        let qrTimer = null, qrDeadline = 0, qrBusy = false;
+
+        function qrSay(text, cls) {
+            const el = document.getElementById('qrStatus');
+            if (!el) return;
+            el.textContent = text;
+            el.className = 'qr-status' + (cls ? ' ' + cls : '');
+        }
+
+        async function qrLoginStart() {
+            if (qrBusy) return;
+            qrBusy = true;
+            const box = document.getElementById('qrBox');
+            const img = document.getElementById('qrImg');
+            box.classList.add('open');
+            img.innerHTML = '';
+            qrSay('Готовим код…');
+            let d = null;
+            try {
+                const r = await fetch('/api/qr_login.php?action=create&x=' + Date.now(), { credentials: 'include' });
+                d = await r.json();
+            } catch (e) {}
+            qrBusy = false;
+            if (!d || !d.ok || !d.url) {
+                qrSay((d && d.error) || 'Не удалось получить код. Войдите по паролю или попробуйте ещё раз.', 'err');
+                return;
+            }
+            const svg = typeof window.qrSvg === 'function' ? window.qrSvg(d.url, 200) : '';
+            img.innerHTML = svg;
+            const link = document.getElementById('qrLink');
+            if (link) { link.href = d.url; }
+            qrDeadline = Date.now() + (d.expires_in || 180) * 1000;
+            // Картинка могла не построиться (очень длинная ссылка) — тогда работает
+            // запасной путь по ссылке, и человеку об этом надо сказать, а не показывать пустоту.
+            qrSay(svg ? 'Ждём подтверждения с телефона…'
+                      : 'Код не нарисовался — откройте на телефоне ссылку ниже.');
+            if (qrTimer) clearInterval(qrTimer);
+            qrTimer = setInterval(() => qrPoll(d.code), 2000);
+        }
+
+        function qrLoginStop() {
+            if (qrTimer) { clearInterval(qrTimer); qrTimer = null; }
+            const box = document.getElementById('qrBox');
+            if (box) box.classList.remove('open');
+        }
+        window.qrLoginStart = qrLoginStart;
+        window.qrLoginStop = qrLoginStop;
+
+        async function qrPoll(code) {
+            if (Date.now() > qrDeadline) {
+                clearInterval(qrTimer); qrTimer = null;
+                qrSay('Код устарел. Нажмите «Войти по QR-коду» ещё раз.', 'err');
+                const img = document.getElementById('qrImg');
+                if (img) img.innerHTML = '';
+                return;
+            }
+            let d = null;
+            try {
+                const r = await fetch('/api/qr_login.php?action=poll&code=' + encodeURIComponent(code) + '&x=' + Date.now(),
+                                      { credentials: 'include' });
+                d = await r.json();
+            } catch (e) { return; }   // сеть моргнула — просто ждём следующего опроса
+            if (!d) return;
+            if (d.status === 'approved') {
+                clearInterval(qrTimer); qrTimer = null;
+                qrSay('Подтверждено! Открываем кабинет…', 'ok');
+                let user = null;
+                try { user = window.Auth && window.Auth.getCurrentUser ? await window.Auth.getCurrentUser() : null; } catch (e) {}
+                redirectAfterLogin(user || {});
+                return;
+            }
+            if (d.status === 'expired') {
+                clearInterval(qrTimer); qrTimer = null;
+                qrSay('Код устарел. Нажмите «Войти по QR-коду» ещё раз.', 'err');
+            }
+        }
+
+        async function handleLogin(e) {
+            e.preventDefault();
+            hideError('loginError');
+            const email = document.getElementById('loginEmail').value.trim();
+            const password = document.getElementById('loginPassword').value;
+            const btn = document.getElementById('loginBtn');
+            btn.textContent = 'Входим...';
+            btn.disabled = true;
+
+            try {
+                // window.Auth.login → POST /api/auth.php?action=login (реальный бэкенд)
+                const user = await window.Auth.login(email, password);
+                if (user) { redirectAfterLogin(user); return; }
+                showError('loginError', 'Неверный email или пароль');
+            } catch(err) {
+                const msg = (err && err.message) ? err.message : '';
+                // Бэкенд возвращает "Invalid credentials" при неверном пароле
+                if (/invalid|credential|неверн|password|парол/i.test(msg)) {
+                    showError('loginError', 'Неверный email или пароль');
+                } else if (msg) {
+                    showError('loginError', msg);
+                } else {
+                    showError('loginError', 'Не удалось войти. Проверьте подключение к интернету.');
+                }
+            } finally {
+                btn.textContent = 'Войти';
+                btn.disabled = false;
+            }
+        }
+
+        async function handleRegister(e) {
+            e.preventDefault();
+            hideError('regError');
+            const gOk = document.getElementById('c_general').checked;
+            const hOk = document.getElementById('c_health').checked;
+            if (!gOk || !hOk) {
+                showError('regError', 'Отметьте оба обязательных согласия (общее и о данных о здоровье), чтобы зарегистрироваться.');
+                return;
+            }
+            const name = document.getElementById('regName').value.trim();
+            const email = document.getElementById('regEmail').value.trim();
+            const password = document.getElementById('regPassword').value;
+            const btn = document.getElementById('regBtn');
+            btn.textContent = 'Регистрируем...';
+            btn.disabled = true;
+
+            // Сервер требует и имя, и фамилию непустыми («Field lastName is required»),
+            // а поле здесь одно — поэтому проверяем сами и говорим по-человечески.
+            const parts = name.split(/\s+/).filter(Boolean);
+            const firstName = parts[0] || '';
+            const lastName = parts.slice(1).join(' ');
+            if (!firstName || !lastName) {
+                showError('regError', 'Укажите имя и фамилию через пробел — например «Юлия Вакульская».');
+                btn.textContent = 'Зарегистрироваться';
+                btn.disabled = false;
+                return;
+            }
+            // Тот же список, что на register.html: регистрация только с российской почты.
+            // Сервер это тоже проверяет, но лучше сказать заранее, чем показать отказ после отправки.
+            const domain = (email.split('@')[1] || '').trim().toLowerCase();
+            const ruOk = ['yandex.com', 'ya.ru', 'vk.com', 'vk.ru'].includes(domain)
+                || ['.ru', '.su', '.рф', '.xn--p1ai'].some(t => domain.endsWith(t));
+            if (!ruOk) {
+                showError('regError', 'Регистрация доступна только с российской почты — например на yandex.ru или mail.ru.');
+                btn.textContent = 'Зарегистрироваться';
+                btn.disabled = false;
+                return;
+            }
+
+            try {
+                // window.Auth.register → POST /api/auth.php?action=register (реальный бэкенд).
+                // Имена полей — ровно как на register.html, которая работает: сервер ждёт
+                // camelCase (firstName/lastName) и обязательную role, иначе отвечает
+                // «Field firstName is required» / «Field role is required» и регистрация
+                // клиента с этой страницы не проходит вообще.
+                // Здесь всегда клиент — психологов отправляем на register.html?type=psychologist.
+                const user = await window.Auth.register({
+                    firstName, lastName, email, password, role: 'client',
+                    // здесь одна общая галочка покрывает и оферту, и согласие на обработку ПД
+                    acceptedTerms: gOk, acceptedConsent: gOk,
+                });
+                if (user) {
+                    await recordClientConsents();
+                    document.getElementById('regSuccess').style.display = 'block';
+                    setTimeout(() => redirectAfterLogin(user), 800);
+                    return;
+                }
+                showError('regError', 'Не удалось зарегистрироваться. Попробуйте позже.');
+            } catch(err) {
+                const msg = (err && err.message) ? err.message : '';
+                showError('regError', msg || 'Ошибка соединения с сервером.');
+            } finally {
+                btn.textContent = 'Зарегистрироваться';
+                btn.disabled = false;
+            }
+        }
+
+        try { if (window.lucide) lucide.createIcons(); } catch(e) {}
+    </script>
+</body>
+</html>

@@ -1,0 +1,1061 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
+  <title>Найти психолога — psytalk.pro</title>
+  <meta name="description" content="Найдите психолога для тех, кто работает удалённо. Фильтруйте по специализации, формату, цене и опыту. Все специалисты проверены и имеют профильное образование.">
+  <link rel="stylesheet" href="/css/styles.css?v=20260823d">
+  <script src="/js/netguard.js?v=20260821c"></script>
+  <script src="/js/layout.js?v=20260823d"></script>
+    <script src="/js/lightbox.js?v=7"></script>
+  <link rel="preconnect" href="https://unpkg.com">
+    <script defer src="https://unpkg.com/lucide@latest"></script>
+  <script src="/js/api.js?v=20260821"></script>
+  <script src="/js/auth.js?v=20260821"></script>
+  <style>
+    .search-hero {
+      background: linear-gradient(135deg, #065F46 0%, #047857 40%, #059669 100%);
+      padding: 2.5rem 0 3rem;
+      position: relative;
+      overflow: hidden;
+    }
+    .search-hero::before {
+      content: '';
+      position: absolute;
+      width: 400px; height: 400px;
+      background: rgba(255,255,255,0.05);
+      border-radius: 50%;
+      top: -100px; right: -80px;
+    }
+    .search-hero::after {
+      content: '';
+      position: absolute;
+      width: 280px; height: 280px;
+      background: rgba(255,255,255,0.05);
+      border-radius: 50%;
+      bottom: -80px; left: 10%;
+    }
+    .search-hero-inner { position: relative; z-index: 1; text-align: center; }
+    .search-hero h1 { color: white; font-size: 2.125rem; margin-bottom: 0.5rem; }
+    .search-hero p  { color: rgba(255,255,255,0.8); margin-bottom: 1.75rem; font-size: 1.0625rem; }
+
+    .search-bar-hero {
+      max-width: 680px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      background: white;
+      border-radius: 1rem;
+      padding: 0.5rem 0.5rem 0.5rem 1.375rem;
+      box-shadow: 0 16px 48px rgba(0,0,0,0.2);
+      gap: 0.75rem;
+    }
+    .search-bar-hero input {
+      flex: 1;
+      /* min-width:0 обязателен: у флекс-элемента min-width по умолчанию auto, поле
+         не сжимается ниже своей «естественной» ширины и выдавливает кнопку «Найти»
+         за скруглённый контейнер, где она и обрезается. */
+      min-width: 0;
+      border: none;
+      outline: none;
+      font-size: 1rem;
+      color: #1A1A1A;
+      background: transparent;
+      font-family: inherit;
+    }
+    .search-bar-hero input::placeholder { color: #9CA3AF; }
+    .search-bar-hero button {
+      background: linear-gradient(135deg, #047857 0%, #059669 100%);
+      color: white;
+      border: none;
+      border-radius: 0.75rem;
+      padding: 0.75rem 1.5rem;
+      font-size: 0.9375rem;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: inherit;
+      transition: all 0.2s;
+      white-space: nowrap;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .search-bar-hero button:hover {
+      box-shadow: 0 4px 16px rgba(4,120,87,0.5);
+      transform: translateY(-1px);
+    }
+
+    .search-stats-row {
+      display: flex;
+      gap: 2rem;
+      justify-content: center;
+      margin-top: 1.25rem;
+      flex-wrap: wrap;
+    }
+    .search-stat-item {
+      display: flex;
+      align-items: center;
+      gap: 0.375rem;
+      color: rgba(255,255,255,0.85);
+      font-size: 0.875rem;
+      font-weight: 500;
+    }
+
+    .search-layout {
+      display: grid;
+      grid-template-columns: 280px 1fr;
+      gap: 1.5rem;
+      align-items: start;
+    }
+
+    @media (max-width: 768px) {
+      /* minmax(0,1fr) вместо 1fr: обычный 1fr — это minmax(auto,1fr), и колонка
+         раздувается под min-content содержимого, вылезая за экран телефона. */
+      .search-layout { grid-template-columns: minmax(0, 1fr); }
+      .search-layout > * { min-width: 0; }
+      .filters-sidebar-modern { position: static; display: none; padding: 1.1rem; }
+      .filters-sidebar-modern.mobile-open { display: block; }
+      .search-hero h1 { font-size: 1.625rem; }
+      /* строка сортировки: на узком экране переносим, иначе select уезжает за край */
+      .sort-bar { flex-wrap: wrap; gap: 0.5rem 0.75rem; padding: 0.75rem 0.9rem; }
+      .sort-bar-count { font-size: 0.875rem; }
+      .sort-select { max-width: 100%; }
+      .empty-state { padding: 2.5rem 1rem; }
+      .empty-state h3, .empty-state p { max-width: 100%; word-wrap: break-word; }
+    }
+
+    /* ── Карточка психолога на телефоне ─────────────────────────────────────────
+       Карточка размечена инлайновым grid «auto 1fr auto» (аватар | инфо | цена+кнопка).
+       На узком экране аватар и правая колонка забирают всю ширину, средняя дорожка
+       сжимается буквально в 0px — текст выходит за свою дорожку и наползает на цену,
+       а кнопка вылезает за край карточки. Перестраиваем в две строки:
+       [аватар | инфо] и снизу на всю ширину [цена + кнопка].
+       !important обязателен: сетка задана инлайново, иначе правило не победит. ── */
+    @media (max-width: 640px) {
+      a[data-psych-id] {
+        grid-template-columns: 64px minmax(0, 1fr) !important;
+        gap: 0.85rem !important;
+        padding: 1.1rem !important;
+        border-radius: 1rem !important;
+      }
+      a[data-psych-id] > div:first-child {
+        width: 64px !important; height: 64px !important;
+        min-width: 64px !important; max-width: 64px !important;
+        font-size: 1.35rem !important; border-width: 2px !important;
+      }
+      a[data-psych-id] > div:nth-child(2) { grid-column: 2 !important; }
+      /* цена и кнопка — отдельной строкой во всю ширину карточки */
+      a[data-psych-id] > div:nth-child(3) {
+        grid-column: 1 / -1 !important;
+        min-width: 0 !important;
+        align-items: stretch !important;
+        gap: 0.6rem !important;
+        margin-top: 0.15rem !important;
+      }
+      a[data-psych-id] > div:nth-child(3) > div { text-align: left !important; }
+      a[data-psych-id] > div:nth-child(3) > span {
+        width: 100% !important;
+        white-space: normal !important;
+        padding: 0.7rem 0.9rem !important;
+      }
+      /* имя переносится, а не распирает дорожку */
+      a[data-psych-id] > div:nth-child(2) > div:first-child > span { overflow-wrap: anywhere; }
+    }
+
+    @media (max-width: 430px) {
+      /* На узких экранах колонка под аватаром простаивает, а текст жмётся в ~150px.
+         Разворачиваем карточку в одну колонку — тексту достаётся вся ширина. */
+      a[data-psych-id] { grid-template-columns: minmax(0, 1fr) !important; gap: 0.7rem !important; }
+      a[data-psych-id] > div:first-child { width: 56px !important; height: 56px !important; min-width: 56px !important; max-width: 56px !important; font-size: 1.2rem !important; }
+      a[data-psych-id] > div:nth-child(2) { grid-column: 1 !important; }
+    }
+
+    @media (max-width: 560px) {
+      /* Поисковая строка на телефоне: меньше отступов и компактная кнопка,
+         чтобы «Найти» целиком оставалась в пределах экрана. */
+      .search-bar-hero { padding: 0.4rem 0.4rem 0.4rem 0.85rem; gap: 0.5rem; border-radius: 0.85rem; }
+      .search-bar-hero button { padding: 0.7rem 0.9rem; font-size: 0.875rem; }
+      .search-bar-hero button i { display: none; }
+      .search-bar-hero > i:first-child { display: none; }
+      /* После приведения полей к 16px (борьба с зумом iOS) селект стал шире —
+         отдаём ему отдельную строку целиком, чтобы он гарантированно влезал. */
+      .sort-bar { flex-direction: column; align-items: stretch; }
+      /* Подпись «Сортировать:» и селект в одну строку не оставляли селекту места —
+         текст внутри него обрезался. Ставим подпись над селектом. */
+      .sort-bar > div:last-child { width: 100%; flex-direction: column; align-items: stretch; gap: 0.3rem !important; }
+      .sort-select { width: 100%; flex: 1; padding-right: 2rem; }
+    }
+
+    .mobile-filter-btn {
+      display: none;
+      align-items: center;
+      gap: 0.5rem;
+      background: white;
+      border: 1.5px solid #E2E8F0;
+      border-radius: 0.75rem;
+      padding: 0.625rem 1.25rem;
+      font-size: 0.9375rem;
+      font-weight: 600;
+      color: #374151;
+      cursor: pointer;
+      font-family: inherit;
+      transition: all 0.2s;
+    }
+    .mobile-filter-btn:hover { border-color: #047857; color: #047857; }
+
+    @media (max-width: 768px) {
+      .mobile-filter-btn { display: flex; }
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 4rem 2rem;
+      color: #6B7280;
+    }
+    .empty-state-icon {
+      width: 72px; height: 72px;
+      background: #D1FAE5;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 1.25rem;
+      color: #047857;
+    }
+    .empty-state h3 { color: #1A1A1A; margin-bottom: 0.5rem; }
+
+    .cards-list { display: flex; flex-direction: column; gap: 1rem; }
+
+    .psych-desc-text {
+      color: #6B7280;
+      font-size: 0.875rem;
+      line-height: 1.6;
+      margin-top: 0.625rem;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    .filter-chips-wrap {
+      background: white;
+      border-radius: 1rem;
+      padding: 1rem 1.25rem;
+      border: 1px solid #F0F0F0;
+      margin-bottom: 1.25rem;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+    }
+    .filter-chips-label {
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: #9CA3AF;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      margin-bottom: 0.625rem;
+    }
+
+    .loading-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+    .skeleton-card {
+      background: white;
+      border-radius: 1.25rem;
+      padding: 1.75rem;
+      border: 1px solid #F0F0F0;
+      display: grid;
+      grid-template-columns: 96px 1fr auto;
+      gap: 1.5rem;
+      animation: shimmer 1.5s ease-in-out infinite;
+      background: linear-gradient(90deg, #F8F8F8 25%, #EFEFEF 50%, #F8F8F8 75%);
+      background-size: 200% 100%;
+    }
+
+    /* ── Filter chips row ── */
+    .filter-chips-row { display:flex; gap:0.5rem; flex-wrap:wrap; padding:0.25rem 0; }
+    .filter-chip-item { display:inline-flex; align-items:center; gap:0.375rem; padding:0.4375rem 1rem; border-radius:2rem; border:1.5px solid #E2E8F0; background:white; font-size:0.875rem; cursor:pointer; transition:all 0.2s; color:#374151; font-weight:500; font-family:inherit; white-space:nowrap; box-shadow:0 1px 3px rgba(0,0,0,0.04); }
+    .filter-chip-item:hover { border-color:#047857; color:#047857; background:#ECFDF5; }
+    .filter-chip-item.active { background:#047857; border-color:#047857; color:white; box-shadow:0 2px 8px rgba(4,120,87,0.3); }
+
+    /* ── Sort bar ── */
+    .sort-bar { display:flex; align-items:center; justify-content:space-between; padding:0.875rem 1.25rem; background:white; border-radius:0.875rem; border:1px solid #F0F0F0; margin-bottom:1rem; box-shadow:0 1px 4px rgba(0,0,0,0.04); }
+    .sort-bar-count { font-size:0.9375rem; color:#374151; font-weight:500; }
+    .sort-bar-count span { font-weight:700; color:#047857; }
+    .sort-select { font-size:0.875rem; border:1.5px solid #E2E8F0; border-radius:0.625rem; padding:0.375rem 2.25rem 0.375rem 0.875rem; color:#374151; font-family:inherit; font-weight:500; cursor:pointer; background-color:white; appearance:none; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%237C3AED' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 0.625rem center; outline:none; transition:border-color 0.2s; }
+    .sort-select:focus { border-color:#047857; }
+
+    /* ── Filter sidebar ── */
+    .filters-sidebar-modern { background:white; border-radius:1.25rem; border:1px solid #F0F0F0; padding:1.5rem; position:sticky; top:5.5rem; box-shadow:0 4px 20px rgba(0,0,0,0.06); }
+    .filters-sidebar-title { font-size:1.125rem; font-weight:700; color:#1A1A1A; margin-bottom:1.5rem; display:flex; align-items:center; gap:0.625rem; }
+    .filter-group-modern { margin-bottom:1.5rem; padding-bottom:1.5rem; border-bottom:1px solid #F5F5F5; }
+    .filter-group-modern:last-of-type { border-bottom:none; margin-bottom:0; padding-bottom:0; }
+    .filter-group-label { font-size:0.8125rem; font-weight:700; color:#374151; margin-bottom:0.875rem; display:flex; align-items:center; gap:0.375rem; text-transform:uppercase; letter-spacing:0.05em; }
+    .filter-select-modern { width:100%; padding:0.625rem 2.25rem 0.625rem 0.875rem; border:1.5px solid #E2E8F0; border-radius:0.625rem; font-size:0.9375rem; color:#1A1A1A; background:white; cursor:pointer; font-family:inherit; appearance:none; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%237C3AED' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 0.75rem center; outline:none; transition:border-color 0.2s,box-shadow 0.2s; }
+    .filter-select-modern:focus { border-color:#047857; box-shadow:0 0 0 3px rgba(4,120,87,0.1); }
+    .filter-checkbox-modern { display:flex; align-items:center; gap:0.625rem; cursor:pointer; padding:0.375rem 0; font-size:0.9375rem; color:#374151; transition:color 0.15s; }
+    .filter-checkbox-modern:hover { color:#047857; }
+    .filter-checkbox-modern input[type="checkbox"] { width:1.125rem; height:1.125rem; border:1.5px solid #D1D5DB; border-radius:0.3rem; appearance:none; cursor:pointer; position:relative; flex-shrink:0; transition:all 0.15s; accent-color:#047857; background:white; }
+    .filter-checkbox-modern input[type="checkbox"]:checked { background-color:#047857; border-color:#047857; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='20 6 9 17 4 12'%3E%3C/polyline%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:center; }
+    .filter-price-row-modern { display:flex; gap:0.5rem; align-items:center; }
+    .filter-price-modern { flex:1; padding:0.625rem 0.75rem; border:1.5px solid #E2E8F0; border-radius:0.625rem; font-size:0.9375rem; color:#1A1A1A; font-family:inherit; outline:none; transition:border-color 0.2s; min-width:0; }
+    .filter-price-modern:focus { border-color:#047857; }
+    .filter-price-modern::placeholder { color:#9CA3AF; }
+    .filter-price-sep { color:#9CA3AF; font-size:0.875rem; flex-shrink:0; }
+    .btn-apply-modern { width:100%; padding:0.75rem; background:linear-gradient(135deg,#047857 0%,#059669 100%); color:white; border:none; border-radius:0.75rem; font-weight:700; font-size:0.9375rem; cursor:pointer; font-family:inherit; transition:all 0.2s; box-shadow:0 4px 12px rgba(4,120,87,0.3); margin-top:1.25rem; }
+    .btn-apply-modern:hover { background:linear-gradient(135deg,#065F46 0%,#059669 100%); box-shadow:0 6px 18px rgba(4,120,87,0.4); transform:translateY(-1px); }
+    .btn-reset-modern { width:100%; padding:0.625rem; background:transparent; color:#047857; border:1.5px solid #E2E8F0; border-radius:0.75rem; font-weight:600; font-size:0.875rem; cursor:pointer; font-family:inherit; transition:all 0.2s; margin-top:0.625rem; text-align:center; }
+    .btn-reset-modern:hover { border-color:#047857; background:#ECFDF5; }
+
+    /* ── Dark theme ── */
+    body.dark .filter-chips-wrap { background: #252525; border-color: #333; }
+    body.dark .filter-chip-item { background: #252525; border-color: #444; color: #CCC; }
+    body.dark .filter-chip-item:hover { border-color: #047857; color: #6EE7B7; background: #0B3B2E; }
+    body.dark .filter-chip-item.active { background: #047857; border-color: #047857; color: white; }
+    body.dark .sort-bar { background: #252525; border-color: #333; }
+    body.dark .sort-bar-count { color: #CCC; }
+    body.dark .sort-select { background-color: #1E1E1E; border-color: #444; color: #CCC; }
+    body.dark .filters-sidebar-modern { background: #252525; border-color: #333; box-shadow: 0 4px 20px rgba(0,0,0,0.2); }
+    body.dark .filters-sidebar-title { color: #E6E6E6; }
+    body.dark .filter-group-modern { border-bottom-color: #333; }
+    body.dark .filter-group-label { color: #CCC; }
+    body.dark .filter-select-modern { background: #1E1E1E; border-color: #444; color: #E6E6E6; }
+    body.dark .filter-checkbox-modern { color: #CCC; }
+    body.dark .filter-checkbox-modern input[type="checkbox"] { background: #1E1E1E; border-color: #555; }
+    body.dark .filter-price-modern { background: #1E1E1E; border-color: #444; color: #E6E6E6; }
+    body.dark .filter-price-modern::placeholder { color: #777; }
+    body.dark .btn-reset-modern { border-color: #444; color: #6EE7B7; }
+    body.dark .btn-reset-modern:hover { border-color: #047857; background: #0B3B2E; }
+    body.dark .empty-state { color: #999; }
+    body.dark .empty-state-icon { background: #0B3B2E; }
+    body.dark .empty-state h3 { color: #E6E6E6; }
+    body.dark .skeleton-card { background: linear-gradient(90deg, #252525 25%, #2D2D2D 50%, #252525 75%); border-color: #333; }
+    body.dark .search-bar-hero { background: #252525; box-shadow: 0 16px 48px rgba(0,0,0,0.4); }
+    body.dark .search-bar-hero input { color: #E6E6E6; }
+    body.dark .search-bar-hero input::placeholder { color: #777; }
+    body.dark .mobile-filter-btn { background: #252525; border-color: #444; color: #CCC; }
+    body.dark .mobile-filter-btn:hover { border-color: #047857; color: #6EE7B7; }
+    body.dark .psych-desc-text { color: #999; }
+    /* JS-generated card overrides (inline styles) */
+    body.dark [style*="background:white"],
+    body.dark [style*="background: white"] { background: #252525 !important; }
+    body.dark [style*="border:1px solid #F0F0F0"],
+    body.dark [style*="border: 1px solid #F0F0F0"] { border-color: #333 !important; }
+    body.dark [style*="color:#1A1A1A"],
+    body.dark [style*="color: #1A1A1A"] { color: #E6E6E6 !important; }
+    body.dark [style*="color:#6B7280"],
+    body.dark [style*="color: #6B7280"] { color: #999 !important; }
+    body.dark [style*="color:#374151"],
+    body.dark [style*="color: #374151"] { color: #CCC !important; }
+    body.dark [style*="background:#ECFDF5"],
+    body.dark [style*="background: #ECFDF5"] { background: #0B3B2E !important; }
+  </style>
+</head>
+<body>
+  <script>psyWriteHeader();</script>
+
+  <!-- ═══════════════ HERO SEARCH ═══════════════ -->
+  <section class="search-hero">
+    <div class="container">
+      <div class="search-hero-inner">
+        <h1>Найдите своего психолога</h1>
+        <p>Специалисты, которые понимают удалёнку — выгорание, дедлайны, работу из дома</p>
+
+        <div class="search-bar-hero">
+          <i data-lucide="search" style="width:1.125rem;height:1.125rem;color:#9CA3AF;flex-shrink:0;"></i>
+          <input
+            type="text"
+            id="searchInput"
+            placeholder="Имя, специализация или запрос…"
+            autocomplete="off"
+          >
+          <button onclick="applyFilters()">
+            <i data-lucide="search" style="width:1rem;height:1rem;"></i>
+            Найти
+          </button>
+        </div>
+
+        <div class="search-stats-row">
+          <span class="search-stat-item">
+            <i data-lucide="shield-check" style="width:1rem;height:1rem;"></i>
+            Все специалисты проверены
+          </span>
+          <span class="search-stat-item">
+            <i data-lucide="calendar" style="width:1rem;height:1rem;"></i>
+            Запись онлайн 24/7
+          </span>
+          <span class="search-stat-item">
+            <i data-lucide="lock" style="width:1rem;height:1rem;"></i>
+            Полная конфиденциальность
+          </span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════ MAIN CONTENT ═══════════════ -->
+  <section style="padding: 2rem 0 4rem; background: #FAFAFA;">
+    <div class="container">
+
+      <!-- Quick Filter Chips -->
+      <div class="filter-chips-wrap anim-fade-up">
+        <div class="filter-chips-label">Быстрый фильтр по теме</div>
+        <div class="filter-chips-row" id="quickChips">
+          <button class="filter-chip-item active" data-specialty="" onclick="selectChip(this, '')">
+            Все специалисты
+          </button>
+          <button class="filter-chip-item" data-specialty="выгорание" onclick="selectChip(this, 'выгорание')">
+            <i data-lucide="flame" style="width:0.875rem;height:0.875rem;"></i>
+            Выгорание
+          </button>
+          <button class="filter-chip-item" data-specialty="тревога" onclick="selectChip(this, 'тревога')">
+            <i data-lucide="activity" style="width:0.875rem;height:0.875rem;"></i>
+            Тревога и стресс
+          </button>
+          <button class="filter-chip-item" data-specialty="семья" onclick="selectChip(this, 'семья')">
+            <i data-lucide="heart" style="width:0.875rem;height:0.875rem;"></i>
+            Семья и отношения
+          </button>
+          <button class="filter-chip-item" data-specialty="депрессия" onclick="selectChip(this, 'депрессия')">
+            <i data-lucide="cloud-rain" style="width:0.875rem;height:0.875rem;"></i>
+            Депрессия
+          </button>
+          <button class="filter-chip-item" data-specialty="самооценка" onclick="selectChip(this, 'самооценка')">
+            <i data-lucide="star" style="width:0.875rem;height:0.875rem;"></i>
+            Самооценка
+          </button>
+          <button class="filter-chip-item" data-specialty="карьера" onclick="selectChip(this, 'карьера')">
+            <i data-lucide="briefcase" style="width:0.875rem;height:0.875rem;"></i>
+            Карьера и цели
+          </button>
+          <button class="filter-chip-item" data-specialty="CBT" onclick="selectChip(this, 'CBT')">
+            <i data-lucide="brain" style="width:0.875rem;height:0.875rem;"></i>
+            КПТ
+          </button>
+        </div>
+      </div>
+
+      <!-- Mobile: Filter toggle -->
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;" class="anim-fade-up anim-delay-1">
+        <div style="font-size:0.9375rem;color:#6B7280;">
+          Найдено <strong id="countDisplay" style="color:#1A1A1A;">…</strong> специалистов
+        </div>
+        <button class="mobile-filter-btn" onclick="toggleMobileFilters()">
+          <i data-lucide="sliders-horizontal" style="width:1rem;height:1rem;"></i>
+          Фильтры
+        </button>
+      </div>
+
+      <!-- Layout: sidebar + results -->
+      <div class="search-layout">
+
+        <!-- ── Sidebar ── -->
+        <aside class="filters-sidebar-modern anim-fade-up anim-delay-1" id="filterSidebar">
+          <div class="filters-sidebar-title">
+            <i data-lucide="sliders-horizontal" style="width:1.125rem;height:1.125rem;color:#047857;"></i>
+            Фильтры
+          </div>
+
+          <!-- Specialization -->
+          <div class="filter-group-modern">
+            <div class="filter-group-label">
+              <i data-lucide="target" style="width:0.75rem;height:0.75rem;"></i>
+              Специализация
+            </div>
+            <select class="filter-select-modern" id="filterSpecialty">
+              <option value="">Все специализации</option>
+              <option value="выгорание">Профессиональное выгорание</option>
+              <option value="тревога">Тревога и стресс</option>
+              <option value="депрессия">Депрессия</option>
+              <option value="семья">Семья и отношения</option>
+              <option value="самооценка">Самооценка и уверенность</option>
+              <option value="карьера">Карьера и цели</option>
+              <option value="CBT">КПТ (когнитивно-поведенческая)</option>
+              <option value="EMDR">EMDR терапия</option>
+              <option value="гештальт">Гештальт-терапия</option>
+            </select>
+          </div>
+
+          <!-- Session format -->
+          <div class="filter-group-modern">
+            <div class="filter-group-label">
+              <i data-lucide="video" style="width:0.75rem;height:0.75rem;"></i>
+              Формат сессии
+            </div>
+            <div id="formatFilters"></div>
+          </div>
+
+          <!-- Experience -->
+          <div class="filter-group-modern">
+            <div class="filter-group-label">
+              <i data-lucide="award" style="width:0.75rem;height:0.75rem;"></i>
+              Опыт работы
+            </div>
+            <select class="filter-select-modern" id="filterExperience">
+              <option value="">Любой опыт</option>
+              <option value="1">От 1 года</option>
+              <option value="3">От 3 лет</option>
+              <option value="5">От 5 лет</option>
+              <option value="10">От 10 лет</option>
+            </select>
+          </div>
+
+          <!-- Rating -->
+          <div class="filter-group-modern" id="ratingFilterGroup">
+            <div class="filter-group-label">
+              <i data-lucide="star" style="width:0.75rem;height:0.75rem;"></i>
+              Минимальный рейтинг
+            </div>
+            <select class="filter-select-modern" id="filterRating">
+              <option value="">Любой рейтинг</option>
+              <option value="4">От 4.0 ★</option>
+              <option value="4.5">От 4.5 ★</option>
+              <option value="4.8">От 4.8 ★</option>
+            </select>
+          </div>
+
+          <!-- Gender -->
+          <div class="filter-group-modern" id="genderFilterGroup">
+            <div class="filter-group-label">
+              <i data-lucide="users" style="width:0.75rem;height:0.75rem;"></i>
+              Пол специалиста
+            </div>
+            <select class="filter-select-modern" id="filterGender">
+              <option value="">Не важно</option>
+              <option value="female">Женщина</option>
+              <option value="male">Мужчина</option>
+            </select>
+          </div>
+
+          <!-- Price range -->
+          <div class="filter-group-modern">
+            <div class="filter-group-label">
+              <i data-lucide="banknote" style="width:0.75rem;height:0.75rem;"></i>
+              Цена за сессию, ₽
+            </div>
+            <div class="filter-price-row-modern">
+              <input class="filter-price-modern" type="number" id="priceMin" placeholder="от" min="0">
+              <span class="filter-price-sep">—</span>
+              <input class="filter-price-modern" type="number" id="priceMax" placeholder="до" min="0">
+            </div>
+          </div>
+
+          <!-- Buttons -->
+          <button class="btn-apply-modern" onclick="applyFilters()">
+            Применить фильтры
+          </button>
+          <button class="btn-reset-modern" onclick="resetFilters()">
+            Сбросить всё
+          </button>
+        </aside>
+
+        <!-- ── Results ── -->
+        <div>
+          <!-- Sort bar -->
+          <div class="sort-bar anim-fade-up anim-delay-2">
+            <div class="sort-bar-count">
+              Найдено <span id="sortBarCount">…</span> специалистов
+            </div>
+            <div style="display:flex;align-items:center;gap:0.75rem;">
+              <span style="font-size:0.875rem;color:#6B7280;white-space:nowrap;">Сортировать:</span>
+              <select class="sort-select" id="sortSelect" onchange="applyFilters()">
+                <option value="rating">По рейтингу</option>
+                <option value="price_asc">Цена: от низкой</option>
+                <option value="price_desc">Цена: от высокой</option>
+                <option value="experience">По опыту</option>
+                <option value="reviews">По отзывам</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Cards list -->
+          <div id="cardsContainer" class="cards-list">
+            <!-- Loading skeletons -->
+            <div class="skeleton-card anim-fade-up anim-delay-2"></div>
+            <div class="skeleton-card anim-fade-up anim-delay-3"></div>
+            <div class="skeleton-card anim-fade-up anim-delay-4"></div>
+          </div>
+        </div>
+
+      </div><!-- /search-layout -->
+    </div>
+  </section>
+
+  <script>psyWriteFooter();</script>
+
+  <script>
+    /* ─── Data ─── */
+    let allPsychologists = [];
+    let activeChipSpecialty = '';
+
+    /* ─── Палитра для аватаров (реальный API не отдаёт цвет) ─── */
+    const AVATAR_COLORS = ['#047857','#2563EB','#059669','#D97706','#DB2777','#0891B2','#059669','#047857'];
+    function colorForId(id) {
+      const s = String(id);
+      let h = 0;
+      for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+      return AVATAR_COLORS[h % AVATAR_COLORS.length];
+    }
+
+    /* Русские склонения для счётчиков в карточке: «1 отзыв», «2 отзыва», «5 отзывов». */
+    function plural(n, one, few, many) {
+      n = Math.abs(parseInt(n, 10) || 0);
+      const d100 = n % 100, d10 = n % 10;
+      const word = (d100 > 10 && d100 < 20) ? many : (d10 === 1 ? one : (d10 >= 2 && d10 <= 4 ? few : many));
+      return n + ' ' + word;
+    }
+
+    /* ─── Маппинг реального ответа /api/psychologists.php?action=search в формат карточки ─── */
+    function normalizePsych(p) {
+      const name = ((p.first_name || '') + ' ' + (p.last_name || '')).trim() || p.email || 'Психолог';
+      const specStr = (p.specialization || '').trim();
+      const specialties = specStr ? specStr.split(/[,;]+/).map(s => s.trim()).filter(Boolean) : [];
+      return {
+        id: p.id,
+        name,
+        gender: p.gender || '',
+        specialties,
+        description: p.description || '',
+        experience: parseInt(p.experience, 10) || 0,
+        rating: parseFloat(p.rating) || 0,
+        reviews: parseInt(p.total_reviews, 10) || 0,
+        price: parseFloat(p.price) || 0,
+        formats: Array.isArray(p.formats) && p.formats.length ? p.formats : ['video'],
+        avatar: p.avatar || null,
+        verified: String(p.is_approved) === '1',
+        color: colorForId(p.id)
+      };
+    }
+
+    let pendingFormat = '';
+
+    /** Отметить формат, пришедший из квиза, — уже после того, как список форматов построен. */
+    function applyPendingFormat() {
+      if (!pendingFormat) return;
+      const box = document.querySelector(`#formatFilters .fmt-box[value="${pendingFormat}"]`);
+      if (box) box.checked = true;   // формата нет ни у кого — молча пропускаем, чтобы не показать пустоту
+      pendingFormat = '';
+    }
+
+    /* ─── Load psychologists (реальный бэкенд) ─── */
+    async function loadPsychologists() {
+      try {
+        const resp = await fetch('/api/psychologists.php?action=search', {
+          credentials: 'include',
+          signal: AbortSignal.timeout(8000)
+        });
+        if (resp.ok) {
+          const data = await resp.json();
+          if (Array.isArray(data)) {
+            allPsychologists = data.map(normalizePsych);
+            rebuildFilters();
+            applyPendingFormat();
+            applyFilters();
+            enrichReviewCounts();
+            return;
+          }
+        }
+        throw new Error('bad response');
+      } catch (_) {
+        // Бэкенд недоступен — честное сообщение об ошибке, без фейковых данных
+        const container = document.getElementById('cardsContainer');
+        if (container) {
+          container.innerHTML =
+            '<div class="empty-state">' +
+              '<div class="empty-state-icon"><i data-lucide="wifi-off" style="width:2rem;height:2rem;"></i></div>' +
+              '<h3>Не удалось загрузить каталог</h3>' +
+              '<p>Проверьте подключение к интернету и <button onclick="loadPsychologists()" style="background:none;border:none;color:#047857;font-weight:600;cursor:pointer;font-size:inherit;padding:0;">попробуйте снова</button></p>' +
+            '</div>';
+          if (window.lucide) { try { lucide.createIcons(); } catch(e) {} }
+        }
+      }
+    }
+
+    async function enrichReviewCounts() {
+      try {
+        const resp = await fetch('/api/reviews.php?action=counts', { credentials: 'include' });
+        if (!resp.ok) return;
+        const json = await resp.json();
+        if (!json.ok || !json.data) return;
+        let changed = false;
+        allPsychologists.forEach(p => {
+          const rc = json.data[p.id];
+          if (rc) {
+            p.reviews = rc.count;
+            if (rc.avg > 0) p.rating = rc.avg;
+            changed = true;
+          }
+        });
+        if (changed) { rebuildFilters(); applyFilters(); }   // появились оценки — вернём фильтр по рейтингу
+      } catch (_) {}
+    }
+
+    // ── Фильтры строим по тому, что психологи правда написали о себе ──
+    // Раньше и выпадающий список, и «быстрые фильтры» были прописаны руками:
+    // «тревога», «EMDR», «гештальт», формат «Звонок». В базе же значится
+    // «тревожность», а формата phone нет вовсе — такие пункты всегда давали
+    // пустой список. Теперь варианты берём из каталога, а сравниваем по основам
+    // слов, чтобы «тревога» находила «тревожность».
+
+    /** Основа слова: режем русские окончания, чтобы разные формы совпадали. */
+    function stem(w) {
+      w = String(w || '').toLowerCase().replace(/ё/g, 'е').trim();
+      if (w.length <= 4) return w;
+      return w.replace(/(ость|ями|иями|ами|ями|ого|ему|ыми|ими|ей|ой|ая|ое|ые|ий|ый|ин|ов|а|я|ы|и|у|ю|е|ь)$/,'');
+    }
+    /** Слова строки в виде основ — по ним и ищем. */
+    function stems(text) {
+      return String(text || '').toLowerCase().split(/[^a-zа-яё0-9]+/i).filter(w => w.length > 2).map(stem);
+    }
+    /** Похожи ли две основы. Отрезать окончания мало: в «тревога» и «тревожность»
+     *  расходится ещё и согласная (г/ж), и одним стеммером их не свести. Поэтому
+     *  считаем совпадением общее начало — но требуем и длину (5 букв), и долю
+     *  (70% короткой основы), иначе «самооценка» породнилась бы с «самообманом». */
+    function alike(a, b) {
+      if (!a || !b) return false;
+      if (a === b || a.startsWith(b) || b.startsWith(a)) return true;
+      let i = 0;
+      while (i < a.length && i < b.length && a[i] === b[i]) i++;
+      return i >= 5 && i >= 0.7 * Math.min(a.length, b.length);
+    }
+
+    // Пары, которые по буквам не сводятся (семья/семейная, депрессия/подавленность).
+    // Список короткий и намеренно: это темы, которые сайт сам предлагает человеку,
+    // и обидно, когда по ним ничего не находится.
+    const SYNONYMS = {
+      'семь': ['семейн', 'отношени', 'пар', 'развод'],
+      'депресс': ['подавленн', 'апати', 'уныни'],
+      'трево': ['паническ', 'страх', 'стресс'],
+      'выгоран': ['усталост', 'истощени'],
+      'самооценк': ['уверенност', 'принят'],
+      'карьер': ['работ', 'професси', 'рост']
+    };
+    /** Основа и всё, чем её можно заменить. */
+    function withSynonyms(w) {
+      const out = [w];
+      Object.keys(SYNONYMS).forEach(k => { if (alike(w, k)) out.push(...SYNONYMS[k]); });
+      return out;
+    }
+
+    /** Тема встречается у специалиста? Сравниваем по основам, а не по подстроке. */
+    function matchesTopic(p, topic) {
+      if (!topic) return true;
+      const want = stems(topic);
+      if (!want.length) return false;
+      const have = stems(p.specialties.join(' ') + ' ' + p.description);
+      return want.every(w => withSynonyms(w).some(v => have.some(h => alike(h, v))));
+    }
+
+    const FORMAT_LABEL = { video: 'Видеосессия', chat: 'Текстовый чат', audio: 'Аудиозвонок', phone: 'Звонок' };
+
+    /** Темы каталога с числом специалистов — по ним строим список и «быстрый фильтр». */
+    function catalogTopics() {
+      const map = new Map();
+      allPsychologists.forEach(p => p.specialties.forEach(sp => {
+        const key = sp.trim().toLowerCase();
+        if (key.length < 3) return;
+        const cur = map.get(key) || { label: sp.trim(), count: 0 };
+        cur.count++;
+        map.set(key, cur);
+      }));
+      return [...map.values()].sort((a, b) => b.count - a.count || a.label.localeCompare(b.label, 'ru'));
+    }
+
+    /** Перестроить фильтры под реальные данные: темы, форматы, рейтинг. */
+    function rebuildFilters() {
+      const topics = catalogTopics();
+
+      const sel = document.getElementById('filterSpecialty');
+      if (sel && topics.length) {
+        const keep = sel.value;
+        sel.innerHTML = '<option value="">Все специализации</option>' +
+          topics.map(t => `<option value="${t.label.replace(/"/g, '&quot;')}">${t.label.charAt(0).toUpperCase() + t.label.slice(1)} (${t.count})</option>`).join('');
+        if (keep && [...sel.options].some(o => o.value === keep)) sel.value = keep;
+      }
+
+      const chips = document.getElementById('quickChips');
+      if (chips && topics.length) {
+        const top = topics.slice(0, 7);
+        chips.innerHTML = `<button class="filter-chip-item${activeChipSpecialty ? '' : ' active'}" data-specialty="" onclick="selectChip(this, '')">Все специалисты</button>` +
+          top.map(t => {
+            const v = t.label.replace(/"/g, '&quot;');
+            const on = activeChipSpecialty && activeChipSpecialty.toLowerCase() === t.label.toLowerCase();
+            return `<button class="filter-chip-item${on ? ' active' : ''}" data-specialty="${v}" onclick="selectChip(this, '${v.replace(/'/g, "\\'")}')">${t.label.charAt(0).toUpperCase() + t.label.slice(1)}</button>`;
+          }).join('');
+      }
+
+      // Форматы: показываем только те, которые кто-то правда проводит.
+      const box = document.getElementById('formatFilters');
+      if (box) {
+        const have = new Set();
+        allPsychologists.forEach(p => (p.formats || []).forEach(f => have.add(f)));
+        const list = ['video', 'audio', 'chat', 'phone'].filter(f => have.has(f));
+        box.innerHTML = list.length
+          ? list.map(f => `<label class="filter-checkbox-modern">
+                 <input type="checkbox" class="fmt-box" value="${f}" onchange="applyFilters()"> ${FORMAT_LABEL[f] || f}
+               </label>`).join('')
+          : '<div style="font-size:0.82rem;color:#9CA3AF;">Специалисты пока не указали форматы.</div>';
+      }
+
+      // Рейтинг: пока никого не оценили, фильтр по звёздам обнулял выдачу — прячем его.
+      const rateWrap = document.getElementById('ratingFilterGroup');
+      const rated = allPsychologists.some(p => (p.rating || 0) > 0);
+      if (rateWrap) rateWrap.style.display = rated ? '' : 'none';
+      if (!rated) { const r = document.getElementById('filterRating'); if (r) r.value = ''; }
+
+      // Пол: в каталоге такого поля нет — не показываем фильтр, который ничего не делает.
+      const genderWrap = document.getElementById('genderFilterGroup');
+      const hasGender = allPsychologists.some(p => p.gender);
+      if (genderWrap) genderWrap.style.display = hasGender ? '' : 'none';
+      if (!hasGender) { const g = document.getElementById('filterGender'); if (g) g.value = ''; }
+    }
+
+    /* ─── Filter chip toggle ─── */
+    function selectChip(el, specialty) {
+      document.querySelectorAll('#quickChips .filter-chip-item').forEach(c => c.classList.remove('active'));
+      el.classList.add('active');
+      activeChipSpecialty = specialty;
+      const sel = document.getElementById('filterSpecialty');
+      if (sel) sel.value = specialty;
+      applyFilters();
+    }
+
+    /* ─── Mobile filters toggle ─── */
+    function toggleMobileFilters() {
+      const sidebar = document.getElementById('filterSidebar');
+      sidebar.classList.toggle('mobile-open');
+    }
+
+    /* ─── Apply filters + sort ─── */
+    function applyFilters() {
+      const search  = (document.getElementById('searchInput')?.value || '').toLowerCase().trim();
+      const spec    = document.getElementById('filterSpecialty')?.value || '';
+      const expMin  = parseInt(document.getElementById('filterExperience')?.value || '0') || 0;
+      const ratingMin = parseFloat(document.getElementById('filterRating')?.value || '0') || 0;
+      const gender  = document.getElementById('filterGender')?.value || '';
+      const priceMin = parseInt(document.getElementById('priceMin')?.value || '0') || 0;
+      const priceMax = parseInt(document.getElementById('priceMax')?.value || '0') || 0;
+      const wantFmts = [...document.querySelectorAll('#formatFilters .fmt-box:checked')].map(b => b.value);
+      const sortBy   = document.getElementById('sortSelect')?.value || 'rating';
+
+      let result = allPsychologists.filter(p => {
+        // Поиск словами: «тревога» должна находить «тревожность», иначе человек
+        // печатает понятное слово и получает пустой список.
+        if (search && !p.name.toLowerCase().includes(search) && !matchesTopic(p, search)) return false;
+        if (spec && !matchesTopic(p, spec)) return false;
+        if (expMin && (p.experience || 0) < expMin) return false;
+        if (ratingMin && (p.rating || 0) < ratingMin) return false;
+        if (gender && p.gender && p.gender !== gender) return false;
+        if (priceMin && (p.price || 0) < priceMin) return false;
+        if (priceMax && (p.price || 0) > priceMax) return false;
+        // Отмечено несколько форматов — подходит тот, кто проводит любой из них.
+        if (wantFmts.length && !wantFmts.some(f => (p.formats || []).includes(f))) return false;
+        return true;
+      });
+
+      result.sort((a, b) => {
+        if (sortBy === 'price_asc')  return (a.price||0) - (b.price||0);
+        if (sortBy === 'price_desc') return (b.price||0) - (a.price||0);
+        if (sortBy === 'experience') return (b.experience||0) - (a.experience||0);
+        if (sortBy === 'reviews')    return (b.reviews||0) - (a.reviews||0);
+        return (b.rating||0) - (a.rating||0);
+      });
+
+      renderCards(result);
+    }
+
+    /* ─── Reset filters ─── */
+    function resetFilters() {
+      document.getElementById('searchInput').value = '';
+      document.getElementById('filterSpecialty').value = '';
+      document.getElementById('filterExperience').value = '';
+      document.getElementById('filterRating').value = '';
+      document.getElementById('filterGender').value = '';
+      document.getElementById('priceMin').value = '';
+      document.getElementById('priceMax').value = '';
+      document.querySelectorAll('#formatFilters .fmt-box').forEach(b => { b.checked = false; });
+      document.getElementById('sortSelect').value = 'rating';
+      activeChipSpecialty = '';
+      document.querySelectorAll('#quickChips .filter-chip-item').forEach((c, i) => {
+        c.classList.toggle('active', i === 0);
+      });
+      applyFilters();
+    }
+
+    /* ─── Render cards ─── */
+    function renderCards(list) {
+      const container = document.getElementById('cardsContainer');
+      const countEl   = document.getElementById('countDisplay');
+      const sortCount = document.getElementById('sortBarCount');
+      if (countEl) countEl.textContent = list.length;
+      if (sortCount) sortCount.innerHTML = '<span style="font-weight:700;color:#047857;">' + list.length + '</span>';
+
+      if (list.length === 0) {
+        container.innerHTML =
+          '<div class="empty-state">' +
+            '<div class="empty-state-icon"><i data-lucide="search-x" style="width:2rem;height:2rem;"></i></div>' +
+            '<h3>Специалисты не найдены</h3>' +
+            '<p>Попробуйте изменить параметры поиска или <button onclick="resetFilters()" style="background:none;border:none;color:#047857;font-weight:600;cursor:pointer;font-size:inherit;padding:0;">сбросить фильтры</button></p>' +
+          '</div>';
+        if (window.lucide) lucide.createIcons();
+        return;
+      }
+
+      container.innerHTML = list.map((p, idx) => {
+        const initials = (p.name || '?').split(' ').map(w => w[0]).join('').slice(0,2).toUpperCase();
+        const avatarHtml = p.avatar
+          ? '<img src="' + p.avatar + '" alt="' + p.name + '" style="width:100%;height:100%;object-fit:cover;">'
+          : '<span>' + initials + '</span>';
+        const stars = renderStars(p.rating || 0);
+        // audio раньше не был подписан — в карточке так и висело английское «audio».
+        const fmtIcons = {video: 'video', chat: 'message-square', audio: 'phone', phone: 'phone'};
+        const fmtLabels = {video: 'Видео', chat: 'Чат', audio: 'Аудио', phone: 'Звонок'};
+        const formats = (p.formats || ['video']).map(f =>
+          '<span style="display:inline-flex;align-items:center;gap:0.25rem;background:#D1FAE5;color:#047857;border-radius:2rem;padding:0.2rem 0.75rem;font-size:0.8125rem;font-weight:500;"><i data-lucide="' + (fmtIcons[f]||'video') + '" style="width:0.75rem;height:0.75rem;"></i>' + (fmtLabels[f]||f) + '</span>'
+        ).join('');
+        const specs = (p.specialties || []).slice(0,2).map(s =>
+          '<span style="display:inline-block;background:#D1FAE5;color:#047857;border-radius:2rem;padding:0.175rem 0.625rem;font-size:0.75rem;font-weight:500;margin-right:0.375rem;">' + s + '</span>'
+        ).join('');
+        const verified = p.verified
+          ? '<span style="display:inline-flex;align-items:center;gap:0.25rem;background:#F0FDF4;color:#16A34A;border-radius:2rem;padding:0.2rem 0.625rem;font-size:0.75rem;font-weight:600;border:1px solid #BBF7D0;"><i data-lucide="badge-check" style="width:0.75rem;height:0.75rem;"></i> Верификация</span>'
+          : '';
+        const delay = idx < 4 ? ' anim-delay-' + (idx+1) : '';
+
+        const pkgParam = new URLSearchParams(location.search).get('pkg');
+        const cardHref = pkgParam
+          ? '/book.html?id=' + p.id + '&pkg=' + pkgParam
+          : '/psychologist-profile.html?id=' + p.id;
+        return (
+          '<a href="' + cardHref + '" data-psych-id="' + p.id + '" style="display:grid;grid-template-columns:auto 1fr auto;gap:1.5rem;align-items:start;background:white;border-radius:1.25rem;padding:1.75rem;border:1px solid #F0F0F0;box-shadow:0 2px 8px rgba(0,0,0,0.04);text-decoration:none;color:inherit;transition:box-shadow 0.2s,transform 0.2s;cursor:pointer;" class="anim-fade-up' + delay + '" onmouseover="this.style.boxShadow=\'0 8px 32px rgba(4,120,87,0.12)\';this.style.transform=\'translateY(-2px)\'" onmouseout="this.style.boxShadow=\'0 2px 8px rgba(0,0,0,0.04)\';this.style.transform=\'\'">' +
+            '<div style="width:88px;height:88px;min-width:88px;max-width:88px;border-radius:50%;background:' + (p.color||'#047857') + ';display:flex;align-items:center;justify-content:center;color:white;font-size:1.75rem;font-weight:700;border:3px solid #D1FAE5;overflow:hidden;flex-shrink:0;">' + avatarHtml + '</div>' +
+            '<div style="min-width:0;">' +
+              '<div style="display:flex;align-items:center;gap:0.625rem;flex-wrap:wrap;margin-bottom:0.25rem;">' +
+                '<span style="font-size:1.25rem;font-weight:700;color:#1A1A1A;letter-spacing:-0.02em;">' + p.name + '</span>' +
+                verified +
+              '</div>' +
+              '<div style="font-size:0.875rem;color:#047857;font-weight:500;margin-bottom:0.5rem;">' + (p.specialties||[]).slice(0,1).join(', ') + '</div>' +
+              '<div style="display:flex;flex-wrap:wrap;gap:1rem;font-size:0.8125rem;color:#6B7280;margin-bottom:0.625rem;align-items:center;">' +
+                '<span>' + stars + '<span style="font-weight:600;color:#1A1A1A;margin-left:0.25rem;">' + (p.rating||0).toFixed(1) + '</span></span>' +
+                '<span>' + plural(p.reviews||0, 'отзыв', 'отзыва', 'отзывов') + '</span>' +
+                '<span>' + plural(p.experience||0, 'год', 'года', 'лет') + ' опыта</span>' +
+              '</div>' +
+              '<div style="margin-bottom:0.5rem;">' + specs + '</div>' +
+              '<div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:0.5rem;">' + formats + '</div>' +
+              '<div style="color:#6B7280;font-size:0.875rem;line-height:1.6;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">' + (p.description||'') + '</div>' +
+            '</div>' +
+            '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:0.875rem;min-width:120px;">' +
+              '<div style="text-align:right;">' +
+                ((p.price||0) > 0
+                  ? '<div style="font-size:1.375rem;font-weight:800;color:#1A1A1A;letter-spacing:-0.02em;">' + p.price.toLocaleString('ru-RU') + ' ₽</div><div style="font-size:0.8125rem;color:#6B7280;">за сессию</div>'
+                  : '<div style="font-size:1rem;font-weight:700;color:#9CA3AF;">Цена уточняется</div>') +
+              '</div>' +
+              '<span style="display:inline-flex;align-items:center;justify-content:center;padding:0.625rem 1.25rem;background:linear-gradient(135deg,#047857,#059669);color:white;border-radius:0.75rem;font-size:0.9375rem;font-weight:600;text-decoration:none;white-space:nowrap;box-shadow:0 3px 10px rgba(4,120,87,0.3);">' + (pkgParam ? '🔄 Записаться по абонементу' : 'Профиль и запись →') + '</span>' +
+            '</div>' +
+          '</a>'
+        );
+      }).join('');
+
+      if (window.lucide) lucide.createIcons();
+
+      /* Animate new cards */
+      requestAnimationFrame(() => {
+        container.querySelectorAll('.anim-fade-up').forEach(el => {
+          observer.observe(el);
+        });
+      });
+    }
+
+    /* ─── Stars helper ─── */
+    function renderStars(rating) {
+      const full  = Math.floor(rating);
+      const half  = rating - full >= 0.5;
+      const empty = 5 - full - (half ? 1 : 0);
+      return '<span class="stars">' +
+        '★'.repeat(full) +
+        (half ? '½' : '') +
+        '<span style="color:#D1D5DB;">' + '★'.repeat(empty) + '</span>' +
+        '</span>';
+    }
+
+    /* ─── Intersection Observer for entrance animations ─── */
+    const observer = new IntersectionObserver(entries => {
+      entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('in-view'); observer.unobserve(e.target); } });
+    }, { threshold: 0.08 });
+
+    document.querySelectorAll('.anim-fade-up').forEach(el => observer.observe(el));
+
+    /* ─── Search on Enter ─── */
+    document.addEventListener('DOMContentLoaded', () => {
+      const input = document.getElementById('searchInput');
+      if (input) input.addEventListener('keydown', e => { if (e.key === 'Enter') applyFilters(); });
+      if (window.lucide) lucide.createIcons();
+
+      /* ── Применяем параметры из квиза подбора (/quiz.html) ── */
+      const up = new URLSearchParams(location.search);
+      const q = up.get('q'), fmt = up.get('fmt'), gender = up.get('gender');
+      if (q && input) input.value = q;
+      if (gender) { const g = document.getElementById('filterGender'); if (g) g.value = gender; }
+      // Галочку формата ставим не здесь: список форматов собирается из каталога,
+      // а он ещё не загружен. Запоминаем и отмечаем после загрузки.
+      // 'phone' — из старых ссылок квиза, в каталоге этот формат называется 'audio'.
+      pendingFormat = fmt === 'phone' ? 'audio' : (fmt || '');
+
+      /* ── Package reassign mode ── */
+      const pkgReassign = up.get('pkg');
+      if (pkgReassign) {
+        const banner = document.createElement('div');
+        banner.style.cssText = 'background:linear-gradient(135deg,#047857 0%,#059669 100%);color:white;padding:1rem 1.5rem;border-radius:1rem;margin:0 auto 1.5rem;max-width:900px;font-size:.95rem;display:flex;align-items:center;gap:.75rem;';
+        banner.innerHTML = '<span style="font-size:1.5rem;">🔄</span><span>Выберите нового психолога для вашего абонемента. Нажмите на карточку специалиста, чтобы перейти к записи.</span>';
+        const heroSection = document.querySelector('.search-hero');
+        if (heroSection) heroSection.parentNode.insertBefore(banner, heroSection.nextSibling);
+      }
+
+      loadPsychologists();
+
+      /* ── Own-card detection for psychologists ──
+         If the logged-in user is a psychologist, mark their own card and disable booking.
+         Other colleagues' cards stay fully bookable — психолог может записаться к коллеге. */
+      if (window.Auth && window.Auth.getCurrentUser) {
+        Promise.resolve(window.Auth.getCurrentUser()).then(user => {
+          if (!user) return;
+          const myPsychId = user.psychologist_id || user.psychologistId;
+          if (!myPsychId) return;
+
+          const ownCard = document.querySelector('[data-psych-id="' + myPsychId + '"]');
+          if (!ownCard) return;
+
+          /* Turn the anchor into a non-clickable div */
+          ownCard.removeAttribute('href');
+          ownCard.style.cursor = 'default';
+          ownCard.onmouseover = null;
+          ownCard.onmouseout = null;
+          ownCard.style.opacity = '0.75';
+
+          /* Replace "Записаться" button with "Это вы" badge */
+          const bookBtn = ownCard.querySelector('span[style*="Записаться"]') ||
+                          Array.from(ownCard.querySelectorAll('span')).find(s => s.textContent.trim() === 'Записаться');
+          if (bookBtn) {
+            bookBtn.style.background = '#F3F4F6';
+            bookBtn.style.color = '#6B7280';
+            bookBtn.style.boxShadow = 'none';
+            bookBtn.textContent = 'Это ваш профиль';
+          }
+
+          /* Add "Мой профиль" badge next to name */
+          const nameSpan = ownCard.querySelector('span[style*="font-size:1.25rem"]');
+          if (nameSpan) {
+            const badge = document.createElement('span');
+            badge.style.cssText = 'display:inline-flex;align-items:center;gap:0.2rem;background:#F0FDF4;color:#16A34A;border:1px solid #BBF7D0;border-radius:2rem;padding:0.15rem 0.6rem;font-size:0.75rem;font-weight:600;vertical-align:middle;';
+            badge.textContent = '👤 Мой профиль';
+            nameSpan.parentNode.insertBefore(badge, nameSpan.nextSibling);
+          }
+        }).catch(() => {});
+      }
+    });
+  </script>
+</body>
+</html>

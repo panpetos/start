@@ -1,0 +1,570 @@
+<?php
+/**
+ * sber_acquiring.php — приём оплат через интернет-эквайринг Сбербанка (задача №72).
+ *
+ * ЗАЧЕМ ЭТО НУЖНО. Психологи работают как самозанятые: деньги за консультацию —
+ * их, платформа берёт комиссию. Банк называет такую схему «агентской»: в каждом
+ * заказе указывается, что платформа выступает агентом (agentInfo.type = another), а
+ * исполнитель услуги — конкретный самозанятый (supplierInfo). Из этих данных банк
+ * формирует чек на нужное лицо, и платформе не приходится проводить чужую выручку
+ * через себя.
+ *
+ * ЧТО ЗДЕСЬ ЕСТЬ УЖЕ СЕЙЧАС. Всё, кроме логина и пароля от банка: создание заказа,
+ * возврат человека после оплаты, проверка состояния, отметка оплаты в наших
+ * таблицах, журнал обращений. Как только банк пришлёт userName и password, их
+ * достаточно вписать в api/sber_acquiring_config.php — код менять не придётся.
+ *
+ * ЧЕГО ЗДЕСЬ НЕТ И БЕЗ ЧЕГО НЕ ЗАПУСТИТЬСЯ:
+ *   • userName и password от банка (обещаны, ещё не пришли);
+ *   • зарегистрированная онлайн-касса — без неё банк откажет в формировании чека;
+ *   • ИНН самозанятого у каждого психолога (для supplierInfo). В профиле поле ИНН
+ *     уже есть, проверка через api/inn_check.php тоже — здесь оно просто читается.
+ *
+ * ДЕЙСТВИЯ:
+ *   POST ?action=init   {appointment_id|amount, psychologist_id} — создать заказ,
+ *                        вернуть {formUrl} — адрес платёжной страницы банка
+ *   GET  ?action=status &order_id=...  — спросить банк о состоянии заказа
+ *   GET  ?action=return &orderId=...   — сюда банк возвращает человека после оплаты
+ *   GET  ?action=fail                  — сюда при отказе
+ *   GET  ?action=selftest              — что настроено, а чего не хватает (без секретов)
+ *
+ * Документация банка: https://ecomtest.sberbank.ru/doc
+ */
+
+header('Content-Type: application/json; charset=utf-8');
+header('Cache-Control: no-store');
+
+require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/settings_lib.php';
+if (!function_exists('getDB') && !function_exists('getDbConnection') && !function_exists('getPDO')) {
+    require_once __DIR__ . '/db.php';
+}
+$pdo = function_exists('getDB') ? getDB()
+     : (function_exists('getDbConnection') ? getDbConnection()
+     : (function_exists('getPDO') ? getPDO() : null));
+
+function sberOut($d, $code = 200) { http_response_code($code); echo json_encode($d, JSON_UNESCAPED_UNICODE); exit; }
+
+// ── Настройки (вне git) ────────────────────────────────────────────────────────
+$cfgFile = __DIR__ . '/sber_acquiring_config.php';
+$cfg = file_exists($cfgFile) ? (include $cfgFile) : (include __DIR__ . '/sber_acquiring_config.sample.php');
+$isTest = (int)($cfg['is_test'] ?? 1);
+$creds  = $isTest ? ($cfg['test'] ?? []) : ($cfg['prod'] ?? []);
+// Логин и пароль почти всегда попадают в конфиг копированием, а вместе с ними —
+// пробел или перенос строки по краям. Банк на такое отвечает «Access denied», и
+// понять причину по его ответу невозможно. Срезаем края сразу.
+if (isset($creds['userName'])) $creds['userName'] = trim((string)$creds['userName']);
+if (isset($creds['password'])) $creds['password'] = trim((string)$creds['password']);
+$userName = (string)($creds['userName'] ?? '');
+$password = (string)($creds['password'] ?? '');
+$base     = rtrim((string)($creds['base'] ?? ''), '/');
+
+/** Настроен ли эквайринг по-настоящему (а не образцом с заглушками). */
+function sberReady($userName, $password) {
+    return $userName !== '' && $password !== ''
+        && strpos($userName, 'ВПИШИТЕ') === false && strpos($password, 'ВПИШИТЕ') === false;
+}
+
+/** Свои таблицы: заказы и журнал обращений к банку. */
+function sberSchema(PDO $pdo) {
+    try {
+        $pdo->exec("CREATE TABLE IF NOT EXISTS sber_orders (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            order_number VARCHAR(64) NOT NULL,
+            bank_order_id VARCHAR(64) NULL,
+            client_id VARCHAR(64) NOT NULL,
+            psychologist_id VARCHAR(64) NULL,
+            appointment_id VARCHAR(64) NULL,
+            amount_kop INT NOT NULL,
+            commission_kop INT NOT NULL DEFAULT 0,
+            status VARCHAR(20) NOT NULL DEFAULT 'created',
+            form_url VARCHAR(500) NULL,
+            created_at DATETIME NOT NULL,
+            paid_at DATETIME NULL,
+            UNIQUE KEY uniq_order (order_number),
+            INDEX idx_client (client_id, status),
+            INDEX idx_bank (bank_order_id)
+        ) DEFAULT CHARSET=utf8mb4");
+        $pdo->exec("CREATE TABLE IF NOT EXISTS sber_log (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            order_number VARCHAR(64) NULL,
+            method VARCHAR(40) NOT NULL,
+            request MEDIUMTEXT NULL,
+            response MEDIUMTEXT NULL,
+            created_at DATETIME NOT NULL,
+            INDEX idx_order (order_number)
+        ) DEFAULT CHARSET=utf8mb4");
+    } catch (Exception $e) {}
+}
+
+/**
+ * Обращение к банку. Логин и пароль уходят в каждом запросе — так требует банк.
+ * Пишем в журнал и запрос, и ответ, но БЕЗ пароля: разбирать спорные платежи
+ * потом придётся, а хранить пароль в базе незачем.
+ */
+function sberCall(PDO $pdo, $base, $userName, $password, $method, array $params, $orderNumber = null) {
+    $params['userName'] = $userName;
+    $params['password'] = $password;
+    $url = $base . '/' . $method . '.do';
+    $ch = curl_init($url);
+    curl_setopt_array($ch, [
+        CURLOPT_POST => true,
+        CURLOPT_POSTFIELDS => http_build_query($params),
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_TIMEOUT => 25,
+        CURLOPT_HTTPHEADER => ['Content-Type: application/x-www-form-urlencoded'],
+    ]);
+    $raw = curl_exec($ch);
+    $err = curl_error($ch);
+    curl_close($ch);
+    $safe = $params; unset($safe['password']);
+    try {
+        $pdo->prepare("INSERT INTO sber_log (order_number, method, request, response, created_at)
+                       VALUES (?, ?, ?, ?, NOW())")
+            ->execute([$orderNumber, $method, json_encode($safe, JSON_UNESCAPED_UNICODE),
+                       $err ? ('ошибка связи: ' . $err) : substr((string)$raw, 0, 60000)]);
+    } catch (Exception $e) {}
+    if ($err) return ['errorCode' => 'net', 'errorMessage' => 'Банк недоступен: ' . $err];
+    $d = json_decode((string)$raw, true);
+    return is_array($d) ? $d : ['errorCode' => 'parse', 'errorMessage' => 'Непонятный ответ банка'];
+}
+
+/**
+ * ИНН исполнителя. Хранится в psychologist_credentials (type='inn', ИНН в поле name) —
+ * туда его кладёт форма регистрации и редактирование профиля, оттуда его показывает
+ * админка. Колонки psychologists.inn на проде нет: запрос к ней падал, catch молчал, и
+ * ИНН всегда приезжал пустым — заказ в банк создать было нельзя. Поэтому читаем из
+ * credentials, а колонку берём лишь как запасной вариант и только если она есть
+ * (SHOW COLUMNS без prepare — на проде emulate_prepares=false).
+ */
+/**
+ * Снять брони, за которые так и не заплатили. Запись создаётся до перехода в банк и
+ * держит слот; если человек закрыл вкладку, слот остался бы занят навсегда. Через
+ * полчаса такая бронь отменяется. Побочная работа: молчит при любой ошибке.
+ */
+function sberDropStaleHolds(PDO $pdo, $psychId) {
+    try {
+        $pdo->prepare("UPDATE appointments SET status = 'cancelled'
+                        WHERE psychologist_id = ? AND status = 'pending_payment'
+                          AND created_at < DATE_SUB(NOW(), INTERVAL 30 MINUTE)")
+            ->execute([$psychId]);
+    } catch (Exception $e) {
+        // В таблице может не быть created_at — тогда просто не чистим.
+    }
+}
+
+/**
+ * Адрес, куда банк вернёт человека. Банк дописывает к нему свои параметры (orderId,
+ * lang). Если в адресе уже есть «?», склейка ломается и orderId до нас не доходит — а
+ * без orderId оплату не с чем сопоставить, и запись так и останется неподтверждённой.
+ * Поэтому адрес с вопросительным знаком (а такой лежит в конфигах по старому образцу)
+ * молча заменяем на путь без него.
+ */
+function sberBackUrl($fromCfg, string $fallbackFile): string {
+    $u = trim((string)$fromCfg);
+    if ($u !== '' && strpos($u, '?') === false) return $u;
+    $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+    $host = (string)($_SERVER['HTTP_HOST'] ?? 'psytalk.pro');
+    return $scheme . '://' . $host . '/api/' . $fallbackFile;
+}
+
+function sberUuid(): string {
+    return sprintf('%04x%04x-%04x-%04x-%04x-%04x%04x%04x',
+        mt_rand(0, 0xffff), mt_rand(0, 0xffff), mt_rand(0, 0xffff),
+        mt_rand(0, 0x0fff) | 0x4000, mt_rand(0, 0x3fff) | 0x8000,
+        mt_rand(0, 0xffff), mt_rand(0, 0xffff), mt_rand(0, 0xffff));
+}
+
+/**
+ * Довести оплаченный заказ до записи в календаре.
+ *
+ * Сбер не обещает серверный колбэк — обратные вызовы включает банк отдельно. Поэтому
+ * не ждём его, а сами спрашиваем у банка статус: при возврате человека из банка и при
+ * любой проверке заказа. Иначе деньги списаны, а записи нет — как и было до этого.
+ *
+ * Возвращает id записи, если оплата подтверждена, иначе ''. Все побочные записи —
+ * в своих try/catch: если запнётся начисление или журнал, запись всё равно должна
+ * стать подтверждённой.
+ */
+function sberFinalize(PDO $pdo, array $order, $base, $userName, $password) {
+    $orderNumber = (string)$order['order_number'];
+    $apptId = (string)($order['appointment_id'] ?? '');
+    if (($order['status'] ?? '') === 'paid') return $apptId;
+
+    $res = sberCall($pdo, $base, $userName, $password, 'getOrderStatusExtended',
+                    ['orderId' => (string)$order['bank_order_id']], $orderNumber);
+    // 2 — «полная авторизация суммы заказа»: деньги списаны
+    if (((int)($res['orderStatus'] ?? -1)) !== 2) return '';
+
+    try {
+        $pdo->prepare("UPDATE sber_orders SET status = 'paid', paid_at = NOW() WHERE id = ?")
+            ->execute([$order['id']]);
+    } catch (Exception $e) {}
+    if ($apptId === '') return '';
+    try {
+        $pdo->prepare("UPDATE appointments SET status = 'scheduled' WHERE id = ?")->execute([$apptId]);
+    } catch (Exception $e) {}
+    try {
+        $st = $pdo->prepare("SELECT COUNT(*) FROM payments WHERE appointment_id = ? AND status = 'success'");
+        $st->execute([$apptId]);
+        if ((int)$st->fetchColumn() === 0) {
+            $pdo->prepare("INSERT INTO payments (id, appointment_id, amount, status, paid_at) VALUES (?, ?, ?, 'success', NOW())")
+                ->execute([sberUuid(), $apptId, round(((int)$order['amount_kop']) / 100, 2)]);
+        }
+    } catch (Exception $e) {}
+    return $apptId;
+}
+
+function sberSupplierInn(PDO $pdo, $psychologistId, $userId) {
+    try {
+        $st = $pdo->prepare("SELECT name FROM psychologist_credentials
+                              WHERE type = 'inn' AND (psychologist_id = ? OR user_id = ?)
+                              ORDER BY id DESC LIMIT 1");
+        $st->execute([$psychologistId, $userId ?: 0]);
+        $inn = preg_replace('/\D+/', '', (string)$st->fetchColumn());
+        if ($inn !== '') return $inn;
+    } catch (Exception $e) {}
+    try {
+        $has = false;
+        foreach ($pdo->query("SHOW COLUMNS FROM psychologists") as $c) {
+            if (($c['Field'] ?? '') === 'inn') { $has = true; break; }
+        }
+        if ($has) {
+            $st = $pdo->prepare("SELECT inn FROM psychologists WHERE id = ? LIMIT 1");
+            $st->execute([$psychologistId]);
+            return preg_replace('/\D+/', '', (string)$st->fetchColumn());
+        }
+    } catch (Exception $e) {}
+    return '';
+}
+
+function sberSupplier(PDO $pdo, $psychologistId) {
+    $out = ['name' => '', 'inn' => '', 'phones' => []];
+    if (!$psychologistId) return $out;
+    $userId = null;
+    try {
+        $st = $pdo->prepare("SELECT u.id AS uid, u.first_name, u.last_name, u.phone
+                               FROM psychologists p JOIN users u ON u.id = p.user_id
+                              WHERE p.id = ? LIMIT 1");
+        $st->execute([$psychologistId]);
+        $r = $st->fetch(PDO::FETCH_ASSOC);
+        if ($r) {
+            $userId = $r['uid'] ?? null;
+            $out['name'] = trim(($r['first_name'] ?? '') . ' ' . ($r['last_name'] ?? ''));
+            $ph = preg_replace('/\D+/', '', (string)($r['phone'] ?? ''));
+            if ($ph !== '') $out['phones'] = [$ph];
+        }
+    } catch (Exception $e) {}
+    $out['inn'] = sberSupplierInn($pdo, $psychologistId, $userId);
+    return $out;
+}
+
+if (session_status() === PHP_SESSION_NONE) session_start();
+$userId = $_SESSION['user_id'] ?? null;
+$action = $_GET['action'] ?? '';
+$body = json_decode(file_get_contents('php://input'), true) ?: [];
+
+// ── Что настроено, а чего не хватает. Секретов не показывает. ─────────────────
+/**
+ * Какой эквайринг включён. Отдельное действие, потому что settings.php?action=public
+ * отдаёт лишь свой белый список ключей, а payment_provider в него не входит — файл
+ * серверный, править его нельзя. Без этого страница оплаты всегда уходила бы в
+ * Робокассу, сколько бы админ ни выбирал Сбер.
+ *
+ * Секретов не отдаём: только название провайдера и признак «тестовая сумма
+ * включена» — его полезно показать человеку перед оплатой.
+ */
+if ($action === 'provider') {
+    // Какой платёжный сервис принимает оплату, решает настройка payment_provider
+    // (её сохраняет админка). Допустимы 'sber' и 'robokassa'; по умолчанию — 'sber',
+    // чтобы приём оплат не сломался, пока Робокассу не настроили. Секретов не отдаём:
+    // только имя провайдера и признак «включена тестовая сумма».
+    $prov = strtolower(trim((string)psySetting($pdo, 'payment_provider', 'sber')));
+    if ($prov !== 'robokassa') $prov = 'sber';
+    $testRub = (float)psySetting($pdo, 'sber_test_amount', '0');
+    echo json_encode(['ok' => true, 'provider' => $prov,
+                      'test_amount' => $testRub > 0 ? $testRub : 0], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
+if ($action === 'selftest') {
+    $sup = sberSupplier($pdo, (string)($_GET['psychologist_id'] ?? ''));
+    sberOut([
+        'ok' => true,
+        'режим' => $isTest ? 'тестовый контур банка' : 'боевой контур банка',
+        'адрес_банка' => $base,
+        'логин_и_пароль_вписаны' => sberReady($userName, $password),
+        'агент_настроен' => !empty($cfg['agent']['inn']) && strpos((string)$cfg['agent']['inn'], 'ВПИШИТЕ') === false,
+        'исполнитель_из_профиля' => ['имя' => $sup['name'], 'инн_заполнен' => $sup['inn'] !== ''],
+        // Видно, что на сервере лежит версия, которая доводит оплату до записи в
+        // календаре, а не просто отправляет человека в банк.
+        'после_оплаты' => 'запись создаётся и подтверждается при возврате из банка',
+        'адрес_возврата' => sberBackUrl($cfg['return_url'] ?? '', 'sber_return.php'),
+        'чего_не_хватает' => array_values(array_filter([
+            sberReady($userName, $password) ? null : 'логин и пароль от банка',
+            (!empty($cfg['agent']['inn']) && strpos((string)$cfg['agent']['inn'], 'ВПИШИТЕ') === false) ? null : 'ИНН платформы как агента',
+            'подтверждение, что онлайн-касса зарегистрирована',
+        ])),
+    ]);
+}
+
+/**
+ * Проверка связи с банком без единого рубля. Спрашиваем у банка статус заведомо
+ * несуществующего заказа: если логин с паролем верны, банк отвечает «заказ не найден»
+ * (код 6), если неверны — «доступ запрещён» (коды 5/7). Ни заказа, ни списания при
+ * этом не создаётся. Только администратору: ответ говорит, рабочие ли ключи.
+ */
+/**
+ * Проверка ключей без единого рубля — и сразу по обоим контурам банка.
+ *
+ * «Код 5: Access denied» ничего не говорит о том, что именно не так: логин, пароль или
+ * контур. Ключи от тестового контура на боевом адресе дают ровно этот же ответ. Поэтому
+ * пробуем каждую пару логин/пароль на её адресе и показываем, где банк нас узнал.
+ * Спрашиваем статус заведомо несуществующего заказа: заказа и списания не возникает.
+ */
+if ($action === 'bankcheck') {
+    if (!$pdo) sberOut(['ok' => false, 'error' => 'Нет подключения к БД'], 500);
+    if (!$userId) sberOut(['ok' => false, 'error' => 'Требуется авторизация'], 401);
+    $role = '';
+    try {
+        $st = $pdo->prepare("SELECT role FROM users WHERE id = ? LIMIT 1");
+        $st->execute([$userId]);
+        $role = (string)$st->fetchColumn();
+    } catch (Exception $e) {}
+    if ($role !== 'admin') sberOut(['ok' => false, 'error' => 'Только для администратора'], 403);
+
+    $probe = 'psytalk-probe-' . substr(md5((string)$userId), 0, 16);
+    $tryOne = function (array $creds, string $fallbackBase) use ($pdo, $probe) {
+        $u = trim((string)($creds['userName'] ?? ''));
+        $pw = trim((string)($creds['password'] ?? ''));
+        $b = (string)($creds['base'] ?? '') ?: $fallbackBase;
+        if (!sberReady($u, $pw)) return ['принят' => null, 'ответ' => 'логин и пароль не вписаны', 'адрес' => $b, 'логин' => ''];
+        $res = sberCall($pdo, $b, $u, $pw, 'getOrderStatusExtended', ['orderNumber' => $probe]);
+        $code = isset($res['errorCode']) ? (string)$res['errorCode'] : '';
+        $msg  = (string)($res['errorMessage'] ?? '');
+        if ($code === 'net' || $code === 'parse') {
+            return ['принят' => null, 'ответ' => 'банк не ответил: ' . $msg, 'адрес' => $b, 'логин' => $u];
+        }
+        // 6 — «Незарегистрированный OrderId»: банк нас узнал, значит ключи рабочие.
+        return [
+            'принят' => in_array($code, ['6', '0'], true),
+            'ответ' => ($code !== '' ? ('код ' . $code . ': ') : '') . ($msg ?: '—'),
+            'адрес' => $b,
+            'логин' => $u,
+        ];
+    };
+
+    $checks = [
+        'боевой'    => $tryOne((array)($cfg['prod'] ?? []), 'https://securepayments.sberbank.ru/payment/rest'),
+        'тестовый'  => $tryOne((array)($cfg['test'] ?? []), 'https://ecomtest.sberbank.ru/ecomm/gate/rest'),
+    ];
+    $okContour = '';
+    foreach ($checks as $name => $r) { if ($r['принят'] === true) { $okContour = $name; break; } }
+
+    $now = $isTest ? 'тестовый' : 'боевой';
+    if ($okContour === '') {
+        // Банк выдаёт РАЗНЫЕ логины: «…-api» для запросов и «…-operator» для кабинета.
+        // Логин без «-api» — самая частая причина отказа, поэтому проверяем прямо здесь.
+        $loginy = array_values(array_filter([
+            (string)(($cfg['prod'] ?? [])['userName'] ?? ''),
+            (string)(($cfg['test'] ?? [])['userName'] ?? ''),
+        ], fn($l) => $l !== '' && strpos($l, 'ВПИШИТЕ') === false));
+        $estApi = (bool)array_filter($loginy, fn($l) => substr($l, -4) === '-api');
+
+        $vyvod = 'Ни один контур не принял ключи. Причины по частоте:'
+            . ' 1) Для запросов нужен ОТДЕЛЬНЫЙ логин с окончанием «-api» (например «psytalk-api»).'
+            . ' Логин без него — это вход в кабинет, API такой не пускает.'
+            . (!$estApi && $loginy ? ' ← Похоже, это ваш случай: вписан логин «' . $loginy[0] . '», без «-api».' : '')
+            . ' 2) Временный пароль ещё не сменён: банк требует один раз войти в кабинет оператора'
+            . ' (логин с окончанием «-operator»), задать свой пароль — он же станет паролем к API.'
+            . ' 3) Лишний пробел при копировании. 4) Банк ещё не активировал доступ.'
+            . ' Логин от интернет-банка СберБизнес здесь не подойдёт — это другая система.';
+    } elseif ($okContour === $now) {
+        $vyvod = 'Ключи приняты, контур выбран верно — оплату можно принимать.';
+    } else {
+        $vyvod = 'Ключи рабочие, но не от того контура: банк узнал их на «' . $okContour
+               . '», а в конфиге стоит «' . $now . '». Поменяйте is_test в api/sber_acquiring_config.php ('
+               . ($okContour === 'боевой' ? '0' : '1') . ') — и всё заработает.';
+    }
+
+    sberOut([
+        'ok' => true,
+        'связь' => $okContour !== '' ? 'есть' : 'нет',
+        'сейчас_выбран' => $now,
+        'ключи_приняты_на' => $okContour ?: '—',
+        'проверено' => $checks,
+        'вывод' => $vyvod,
+    ]);
+}
+
+if (!$pdo) sberOut(['ok' => false, 'error' => 'Нет подключения к БД'], 500);
+sberSchema($pdo);
+
+if (!sberReady($userName, $password)) {
+    sberOut(['ok' => false, 'error' => 'Эквайринг ещё не настроен: банк не прислал логин и пароль'], 503);
+}
+
+if ($action === 'init' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (!$userId) sberOut(['ok' => false, 'error' => 'Требуется авторизация'], 401);
+
+    $psychId = (string)($body['psychologist_id'] ?? ($body['psychologistId'] ?? ''));
+    $dateTime = (string)($body['dateTime'] ?? ($body['date_time'] ?? ''));
+    $format = in_array(($body['format'] ?? 'video'), ['video', 'audio', 'chat'], true) ? (string)$body['format'] : 'video';
+    if ($psychId === '' || $dateTime === '') sberOut(['ok' => false, 'error' => 'Не указан психолог или время'], 400);
+
+    // Цену берём из базы, а не из браузера: присланную сумму можно подменить в консоли
+    // и оплатить консультацию за рубль.
+    try {
+        $st = $pdo->prepare("SELECT id, price FROM psychologists WHERE id = ? AND is_approved = 1 LIMIT 1");
+        $st->execute([$psychId]);
+        $psy = $st->fetch(PDO::FETCH_ASSOC);
+    } catch (Exception $e) { $psy = null; }
+    if (!$psy) sberOut(['ok' => false, 'error' => 'Психолог не найден'], 404);
+    $price = (float)$psy['price'];
+    if ($price <= 0) sberOut(['ok' => false, 'error' => 'У психолога не назначена цена'], 400);
+
+    sberDropStaleHolds($pdo, $psychId);
+    try {
+        $st = $pdo->prepare("SELECT id FROM appointments WHERE psychologist_id = ? AND date_time = ? AND status != 'cancelled' LIMIT 1");
+        $st->execute([$psychId, $dateTime]);
+        if ($st->fetch()) sberOut(['ok' => false, 'error' => 'Это время уже занято'], 409);
+    } catch (Exception $e) {}
+
+    $amount = (int)round($price * 100);                                   // банк считает в копейках
+    if ($amount < 100) sberOut(['ok' => false, 'error' => 'Некорректная сумма'], 400);
+
+    // ── ТЕСТОВАЯ СУММА ────────────────────────────────────────────────────────
+    // Банк выдаёт боевые ключи сразу, то есть первые же проверки пойдут реальными
+    // деньгами. Настройка sber_test_amount (в рублях) подменяет сумму заказа на
+    // маленькую — проверить весь путь можно за десять рублей, а не за три тысячи.
+    //
+    // Подмена ЗДЕСЬ, на сервере, а не в браузере: иначе сумму можно было бы
+    // занизить из консоли и оплатить настоящую консультацию за копейки.
+    $testRub = (float)psySetting($pdo, 'sber_test_amount', '0');
+    $isTestAmount = false;
+    if ($testRub > 0) {
+        $amount = max(100, (int)round($testRub * 100));
+        $isTestAmount = true;
+    }
+    $orderNumber = 'psy-' . date('Ymd') . '-' . bin2hex(random_bytes(5));
+
+    // Комиссия платформы: остальное принадлежит исполнителю
+    // Колонки таблицы настроек ищет settings_lib.php: жёсткий запрос по
+    // key_name/value на этом хостинге падал, и комиссия всегда считалась нулевой.
+    $commissionPct = (float)psySetting($pdo, 'platform_commission', '0');
+    $commission = (int)round($amount * $commissionPct / 100);
+
+    $sup = sberSupplier($pdo, $psychId);
+    if ($sup['inn'] === '') sberOut(['ok' => false, 'error' => 'У специалиста не заполнен ИНН — чек выписать не на кого'], 400);
+    // Телефон исполнителя банк требует в чеке. Если психолог его не указал, подставляем
+    // телефон платформы из конфига: без телефона банк отказывает в заказе целиком, а
+    // человек в этот момент уже нажал «Оплатить» и видел бы непонятную ошибку.
+    if (!$sup['phones']) {
+        $agentPhone = preg_replace('/\D+/', '', (string)($cfg['agent']['phone'] ?? ''));
+        if ($agentPhone !== '') $sup['phones'] = [$agentPhone];
+    }
+
+    $params = [
+        'orderNumber' => $orderNumber,
+        'amount' => $amount,
+        'returnUrl' => sberBackUrl($cfg['return_url'] ?? '', 'sber_return.php'),
+        'failUrl' => sberBackUrl($cfg['fail_url'] ?? '', 'sber_fail.php'),
+        'description' => $isTestAmount ? 'Проверка оплаты (psytalk.pro)' : 'Консультация психолога',
+        // Чек: платформа — агент, услугу оказывает самозанятый
+        'orderBundle' => json_encode([
+            'cartItems' => ['items' => [[
+                'positionId' => 1,
+                'name' => 'Консультация психолога',
+                'quantity' => ['value' => 1, 'measure' => 'шт'],
+                'itemAmount' => $amount,
+                'itemCode' => 'consultation',
+                'tax' => ['taxType' => (int)($cfg['vat'] ?? 0)],
+                'agentInterface' => ['agentInfo' => ['type' => (string)($cfg['agent']['type'] ?? 'another')]],
+                'supplierInfo' => [
+                    'name' => $sup['name'],
+                    'inn' => $sup['inn'],
+                    'phones' => $sup['phones'],
+                ],
+            ]]],
+        ], JSON_UNESCAPED_UNICODE),
+    ];
+
+    // Запись создаём ДО обращения в банк и держим в 'pending_payment': иначе слот
+    // остаётся свободным, пока человек платит, и его может занять кто-то другой.
+    $appointment = sberUuid();
+    try {
+        $pdo->prepare("INSERT INTO appointments (id, client_id, psychologist_id, date_time, duration, format, status, price)
+                       VALUES (?, ?, ?, ?, 50, ?, 'pending_payment', ?)")
+            ->execute([$appointment, $userId, $psychId, $dateTime, $format, $price]);
+    } catch (Exception $e) {
+        sberOut(['ok' => false, 'error' => 'Не удалось создать запись'], 500);
+    }
+
+    $res = sberCall($pdo, $base, $userName, $password, 'register', $params, $orderNumber);
+    if (!empty($res['errorCode']) && (string)$res['errorCode'] !== '0') {
+        // Банк отказал — снимаем бронь, иначе время осталось бы занятым навсегда.
+        try { $pdo->prepare("UPDATE appointments SET status = 'cancelled' WHERE id = ?")->execute([$appointment]); }
+        catch (Exception $e) {}
+        sberOut(['ok' => false, 'error' => (string)($res['errorMessage'] ?? 'Банк отказал в создании заказа')], 502);
+    }
+    try {
+        $pdo->prepare("INSERT INTO sber_orders (order_number, bank_order_id, client_id, psychologist_id,
+                                                appointment_id, amount_kop, commission_kop, status, form_url, created_at)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, 'created', ?, NOW())")
+            ->execute([$orderNumber, (string)($res['orderId'] ?? ''), $userId, $psychId ?: null,
+                       $appointment, $amount, $commission, (string)($res['formUrl'] ?? '')]);
+    } catch (Exception $e) {}
+    sberOut(['ok' => true, 'order_number' => $orderNumber, 'formUrl' => (string)($res['formUrl'] ?? ''),
+             'appointment_id' => $appointment,
+             'test_amount' => $isTestAmount, 'amount_rub' => round($amount / 100, 2)]);
+}
+
+if ($action === 'status') {
+    if (!$userId) sberOut(['ok' => false, 'error' => 'Требуется авторизация'], 401);
+    $orderNumber = (string)($_GET['order_number'] ?? '');
+    if ($orderNumber === '') sberOut(['ok' => false, 'error' => 'Не указан заказ'], 400);
+    $st = $pdo->prepare("SELECT * FROM sber_orders WHERE order_number = ? AND client_id = ? LIMIT 1");
+    $st->execute([$orderNumber, $userId]);
+    $order = $st->fetch(PDO::FETCH_ASSOC);
+    if (!$order) sberOut(['ok' => false, 'error' => 'Заказ не найден'], 404);
+
+    $apptId = sberFinalize($pdo, $order, $base, $userName, $password);
+    $paid = ($apptId !== '') || ($order['status'] === 'paid');
+    sberOut(['ok' => true, 'paid' => $paid, 'appointment_id' => $apptId ?: (string)($order['appointment_id'] ?? '')]);
+}
+
+if ($action === 'return' || $action === 'fail') {
+    // Человека возвращаем на понятную страницу, а не в JSON.
+    //
+    // Возврат из банка — единственный надёжный момент, когда можно подтвердить оплату:
+    // серверные колбэки банк включает отдельно, и полагаться на них нельзя. Спрашиваем
+    // статус сами и только потом отправляем человека на страницу успеха.
+    $apptId = '';
+    if ($action === 'return') {
+        $bankOrderId = (string)($_GET['orderId'] ?? '');
+        $order = null;
+        try {
+            if ($bankOrderId !== '') {
+                $st = $pdo->prepare("SELECT * FROM sber_orders WHERE bank_order_id = ? LIMIT 1");
+                $st->execute([$bankOrderId]);
+                $order = $st->fetch(PDO::FETCH_ASSOC) ?: null;
+            }
+            // Банк мог не передать orderId. Сессия при возврате обычно жива, поэтому
+            // берём последний неоплаченный заказ этого человека — лучше, чем бросить
+            // оплаченную консультацию без записи.
+            if (!$order && $userId) {
+                $st = $pdo->prepare("SELECT * FROM sber_orders WHERE client_id = ? AND status <> 'paid'
+                                     ORDER BY id DESC LIMIT 1");
+                $st->execute([$userId]);
+                $order = $st->fetch(PDO::FETCH_ASSOC) ?: null;
+            }
+            if ($order) $apptId = sberFinalize($pdo, $order, $base, $userName, $password);
+        } catch (Exception $e) {}
+    }
+    $to = $action === 'return' ? '/payment-success.html' : '/payment-info.html';
+    if ($apptId !== '') $to .= '?appointment_id=' . urlencode($apptId);
+    header('Location: ' . $to);
+    exit;
+}
+
+sberOut(['ok' => false, 'error' => 'Неизвестное действие'], 400);

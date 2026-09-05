@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
+    <title>Мой блог — psytalk.pro</title>
+    <link rel="stylesheet" href="/css/styles.css?v=20260823d">
+    <script src="/js/netguard.js?v=20260821c"></script>
+    <script src="/js/layout.js?v=20260823d"></script>
+    <!-- Одно меню в кабинете. Разделы сайта живут в боковом меню («Сайт»), поэтому
+         бургер шапки здесь лишний: на телефоне рядом оказывались два меню, и человек
+         не понимал, в какое жать. Правило дублирует логику layout.js намеренно —
+         HTML не кэшируется, а js мог остаться в кэше телефона прежней версии. -->
+    <style id="psyOneMenu">
+      #burgerMenu{display:none!important}
+      @media (max-width:768px){#navMenu.nav-menu:not(.nav-menu-slim){display:none!important}}
+    </style>
+    <script src="/js/lightbox.js?v=7"></script>
+    <script src="/js/api.js?v=20260821"></script>
+    <script src="/js/auth.js?v=20260821"></script>
+    <script src="/js/post-format.js?v=20260905"></script>
+    <script src="/js/dash-sidebar.js?v=20260824a"></script>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --d-bg: #ECFDF5; --d-panel: #FFFFFF; --d-panel-alt: #FAFAFA;
+            --d-border: #EFF7F3; --d-border-accent: #D1FAE5;
+            --d-text: #1A1A1A; --d-text-sec: #6B7280; --d-text-muted: #9CA3AF;
+            --d-accent: #047857; --d-accent-bg: #D1FAE5; --d-accent-hover: #ECFDF5;
+        }
+        body.dark {
+            --d-bg: #191919; --d-panel: #252525; --d-panel-alt: #2A2A2A;
+            --d-border: #333; --d-border-accent: #10402F;
+            --d-text: #E6E6E6; --d-text-sec: #A0A0A0; --d-text-muted: #707070;
+            --d-accent: #6EE7B7; --d-accent-bg: #0B3B2E; --d-accent-hover: #10402F;
+        }
+        body { font-family: 'Inter', -apple-system, sans-serif; background: var(--d-bg); color: var(--d-text); min-height: 100vh; padding-top: 84px; transition: background .2s, color .2s; }
+        body.dark .nav { background: #1E1E1E !important; border-color: #333 !important; }
+        body.dark .nav-brand span:first-child { color: #E6E6E6 !important; }
+        body.dark .nav a.nav-link { color: #A0A0A0 !important; }
+
+        /* сайдбар кабинета (единый стиль, генерируется js/dash-sidebar.js) */
+        .dash-layout { display: flex; min-height: calc(100vh - 84px); }
+        .dash-sidebar { width: 240px; background: var(--d-panel); border-right: 1px solid var(--d-border); display: flex; flex-direction: column; position: sticky; top: 84px; height: calc(100vh - 84px); flex-shrink: 0; z-index: 10; }
+        .dash-sidebar-header { padding: 1rem 1rem .75rem; border-bottom: 1px solid var(--d-border); }
+        .dash-sidebar-header h2 { font-size: .95rem; font-weight: 700; margin-bottom: .15rem; }
+        .dash-sidebar-header p { font-size: .75rem; color: var(--d-text-muted); }
+        .dash-sidebar-nav { flex: 1; padding: .5rem 0; overflow-y: auto; }
+        .dash-sidebar-group { padding: .5rem 0 .15rem; }
+        .dash-sidebar-group-label { padding: .25rem 1rem .35rem; font-size: .68rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--d-text-muted); }
+        .dash-sidebar-item { display: flex; align-items: center; gap: .55rem; padding: .45rem .75rem; margin: .06rem .5rem; border-radius: .45rem; font-size: .875rem; color: var(--d-text-sec); cursor: pointer; font-weight: 500; text-decoration: none; border: none; background: none; width: calc(100% - 1rem); text-align: left; font-family: inherit; }
+        .dash-sidebar-item:hover { background: var(--d-accent-hover); color: var(--d-text); }
+        .dash-sidebar-item.active { background: var(--d-accent-bg); color: var(--d-accent); font-weight: 600; }
+        .dash-sidebar-icon { font-size: 1rem; width: 1.35rem; text-align: center; flex-shrink: 0; }
+        .dash-sidebar-footer { padding: .6rem .5rem; border-top: 1px solid var(--d-border); display: flex; flex-direction: column; gap: .15rem; }
+        .dash-sidebar-footer .dash-sidebar-item { margin: .06rem 0; }
+        /* Кнопка меню кабинета — в самой шапке справа, а не отдельной плашкой под ней:
+           на телефоне там пусто (меню сайта и его бургер в кабинете скрыты), и рука
+           тянется в правый верхний угол. Прежнее место — слева под шапкой — висело
+           поверх содержимого и закрывало первую строку страницы. */
+        .dash-sidebar-toggle { display: none; position: fixed; top: 13px; right: 0.9rem; left: auto; z-index: 1001; width: 38px; height: 38px; border-radius: .5rem; border: 1px solid var(--d-border); background: var(--d-panel); color: var(--d-text); font-size: 1.2rem; cursor: pointer; align-items: center; justify-content: center; }
+        .dash-sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.35); z-index: 999; }
+        .dash-sidebar-overlay.open { display: block; }
+
+        .wrap { flex: 1; min-width: 0; max-width: 900px; margin: 0 auto; padding: 1.5rem; }
+        h1 { font-size: 1.5rem; font-weight: 800; margin-bottom: .25rem; }
+        .sub { color: var(--d-text-sec); font-size: .9rem; margin-bottom: 1.25rem; }
+        .panel { background: var(--d-panel); border: 1px solid var(--d-border); border-radius: 1rem; padding: 1.1rem 1.25rem; margin-bottom: 1.1rem; }
+        .panel-title { font-weight: 700; margin-bottom: .8rem; }
+        label.fl { display: block; font-size: .8rem; color: var(--d-text-sec); margin-bottom: .25rem; }
+        input.f, textarea.f, select.f { width: 100%; padding: .6rem .8rem; border: 1.5px solid var(--d-border-accent); border-radius: .6rem; font-family: inherit; font-size: .92rem; background: var(--d-panel-alt); color: var(--d-text); outline: none; margin-bottom: .7rem; }
+        input.f:focus, textarea.f:focus { border-color: var(--d-accent); }
+        textarea.f { resize: vertical; min-height: 260px; line-height: 1.6; }
+        /* Поле статьи — редактор с оформлением (contenteditable). Выглядит как textarea.f. */
+        .ce { min-height: 260px; line-height: 1.6; overflow-y: auto; cursor: text; }
+        .ce:empty:before { content: attr(data-placeholder); color: var(--d-text-muted); }
+        .ce:focus { border-color: var(--d-accent); }
+        .ce h2 { font-size: 1.2rem; margin: .8rem 0 .4rem; }
+        .ce h3 { font-size: 1.05rem; margin: .7rem 0 .35rem; }
+        .ce blockquote { margin: .5rem 0; padding: .2rem 0 .2rem .8rem; border-left: 3px solid var(--d-accent); color: var(--d-text-muted); }
+        .ce ul, .ce ol { margin: .4rem 0; padding-left: 1.4rem; }
+        .ce a { color: var(--d-accent); }
+        .toolbar { display: flex; gap: .3rem; flex-wrap: wrap; margin-bottom: .35rem; align-items: center; }
+        .tb { min-width: 2.1rem; height: 2.1rem; padding: 0 .5rem; border: 1.5px solid var(--d-border-accent); border-radius: .45rem; background: var(--d-panel-alt); color: var(--d-text); cursor: pointer; font-family: inherit; font-size: .85rem; }
+        .tb:hover { background: var(--d-accent-bg); border-color: var(--d-accent); }
+        .tb-ai { height: 2.1rem; font-size: .82rem; font-weight: 600; color: #047857; border-color: #A7E3C6; background: #EAF7F0; white-space: nowrap; }
+        .tb-ai:hover { background: #DCF1E6; border-color: #059669; }
+        body.dark .tb-ai { color: #4ADE80; background: #12291D; border-color: #1E4A33; }
+        body.dark .tb-ai:hover { background: #16341F; }
+        .btn { padding: .65rem 1.3rem; border: none; border-radius: .65rem; background: linear-gradient(135deg,#047857,#059669); color: #fff; font-weight: 700; cursor: pointer; font-family: inherit; }
+        .btn.sec { background: var(--d-panel-alt); color: var(--d-text); border: 1.5px solid var(--d-border-accent); }
+        .btn.red { background: #DC2626; }
+        .btn-row { display: flex; gap: .6rem; flex-wrap: wrap; align-items: center; }
+        .preview { border: 1px dashed var(--d-border-accent); border-radius: .7rem; padding: 1rem; background: var(--d-panel-alt); line-height: 1.7; }
+        .preview h2 { font-size: 1.2rem; margin: .8rem 0 .4rem; }
+        .preview h3 { font-size: 1.05rem; margin: .7rem 0 .35rem; }
+        .preview a { color: var(--d-accent); }
+        .preview ul, .preview ol { margin-left: 1.2rem; }
+        .art { border: 1px solid var(--d-border); border-radius: .7rem; padding: .8rem .9rem; margin-bottom: .6rem; }
+        .art-head { display: flex; justify-content: space-between; gap: .6rem; align-items: center; flex-wrap: wrap; }
+        .art-title { font-weight: 700; }
+        .art-meta { font-size: .78rem; color: var(--d-text-muted); margin-top: .2rem; }
+        .badge { display: inline-block; padding: .12rem .5rem; border-radius: 1rem; font-size: .72rem; font-weight: 700; }
+        .b-green { background: #DCFCE7; color: #15803D; } .b-amber { background: #FEF3C7; color: #B45309; }
+        .b-red { background: #FEE2E2; color: #B91C1C; } .b-gray { background: #F3F4F6; color: #6B7280; }
+        body.dark .b-green { background:#14321F; color:#4ADE80; } body.dark .b-amber { background:#332711; color:#FBBF24; }
+        body.dark .b-red { background:#331B1B; color:#F87171; } body.dark .b-gray { background:#2C2C2C; color:#A0A0A0; }
+        .mod-note { background: #FFF1F2; border: 1px solid #FECDD3; color: #9F1239; border-radius: .5rem; padding: .45rem .7rem; font-size: .82rem; margin-top: .4rem; }
+        body.dark .mod-note { background:#2E1A1A; border-color:#5B2525; color:#F87171; }
+        .empty { color: var(--d-text-muted); font-size: .88rem; padding: .8rem 0; }
+        .hint { background: var(--d-accent-bg); border-radius: .6rem; padding: .6rem .8rem; font-size: .8rem; color: var(--d-text-sec); margin-bottom: .7rem; line-height: 1.5; }
+        @media (max-width: 768px) {
+            .dash-sidebar { position: fixed; top: 0; left: -260px; bottom: 0; z-index: 1000; width: 240px; transition: left .25s ease; padding-top: 0.5rem; height: 100vh; height: 100dvh; max-height: 100dvh; overflow-y: auto; overscroll-behavior: contain; }
+            .dash-sidebar.open { left: 0; }
+            .dash-sidebar-toggle { display: flex; }
+            .dash-layout { display: block; }
+            .wrap { padding: 1rem; }
+            input.f, textarea.f, select.f { font-size: 16px; }
+        }
+    </style>
+</head>
+<body>
+    <script>(function(){var t=localStorage.getItem('psy-theme');if(t==='dark'||(!t&&window.matchMedia('(prefers-color-scheme:dark)').matches))document.body.classList.add('dark');})();</script>
+    <script>psyWriteHeader();</script>
+    <div class="dash-layout">
+        <div id="dashSidebarMount"></div>
+        <div class="wrap">
+            <h1>✍️ Мой блог</h1>
+            <div class="sub">Статьи публикуются сразу в общий <a href="/blog.html" style="color:#047857;font-weight:600;">блог сайта</a> под вашим именем. Администратор может снять статью с публикации — тогда вы увидите причину и сможете доработать.</div>
+
+            <div class="panel">
+                <div class="panel-title" id="editorTitle">Новая статья</div>
+                <div class="hint">
+                    Выделите текст и нажмите кнопку — оформление применяется сразу, без символов
+                    разметки. Или попросите ИИ: «✨ Сгенерировать» напишет черновик, «🔄 Переписать»
+                    улучшит ваш текст, «🖼️ Обложка ИИ» нарисует картинку.
+                </div>
+                <label class="fl">Заголовок *</label>
+                <input class="f" id="aTitle" placeholder="Например: Как справиться с тревогой перед сном" maxlength="300" oninput="updatePreview()">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:.7rem;">
+                    <div>
+                        <label class="fl">Тема (тег)</label>
+                        <input class="f" id="aTag" placeholder="Тревога / Отношения / Выгорание" maxlength="60">
+                    </div>
+                    <div>
+                        <label class="fl">Обложка (необязательно)</label>
+                        <div style="display:flex;gap:.4rem;align-items:center;">
+                            <label class="btn sec" style="padding:.5rem .8rem;font-size:.85rem;cursor:pointer;white-space:nowrap;">📎 Фото
+                                <input type="file" id="aCoverFile" accept="image/*" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0;padding:0;margin:-1px;" onchange="uploadCover(event)">
+                            </label>
+                            <span id="aCoverName" style="font-size:.78rem;color:var(--d-text-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">не выбрана</span>
+                        </div>
+                    </div>
+                </div>
+                <label class="fl">Краткое описание для карточки (если пусто — соберём из текста)</label>
+                <input class="f" id="aExcerpt" placeholder="Одно-два предложения, которые видно в списке статей" maxlength="600">
+
+                <label class="fl">Текст статьи *</label>
+                <div class="toolbar">
+                    <button type="button" class="tb" title="Жирный" onmousedown="event.preventDefault()" onclick="fmt('bold')"><b>Ж</b></button>
+                    <button type="button" class="tb" title="Курсив" onmousedown="event.preventDefault()" onclick="fmt('italic')"><i>К</i></button>
+                    <button type="button" class="tb" title="Подчёркнутый" onmousedown="event.preventDefault()" onclick="fmt('underline')"><u>Ч</u></button>
+                    <button type="button" class="tb" title="Зачёркнутый" onmousedown="event.preventDefault()" onclick="fmt('strikeThrough')"><s>З</s></button>
+                    <button type="button" class="tb" title="Подзаголовок" onmousedown="event.preventDefault()" onclick="fmtBlock('H2')">H2</button>
+                    <button type="button" class="tb" title="Заголовок 3-го уровня" onmousedown="event.preventDefault()" onclick="fmtBlock('H3')">H3</button>
+                    <button type="button" class="tb" title="Цитата" onmousedown="event.preventDefault()" onclick="fmtBlock('BLOCKQUOTE')">❝</button>
+                    <button type="button" class="tb" title="Список" onmousedown="event.preventDefault()" onclick="fmt('insertUnorderedList')">☰</button>
+                    <button type="button" class="tb" title="Нумерованный список" onmousedown="event.preventDefault()" onclick="fmt('insertOrderedList')">1.</button>
+                    <button type="button" class="tb" title="Ссылка" onmousedown="event.preventDefault()" onclick="fmtLink()">🔗</button>
+                    <span style="flex:1"></span>
+                    <button type="button" class="tb tb-ai" title="Сгенерировать текст ИИ" onclick="blogAiText('generate')">✨ Сгенерировать</button>
+                    <button type="button" class="tb tb-ai" title="Переписать текст ИИ" onclick="blogAiText('rewrite')">🔄 Переписать</button>
+                    <button type="button" class="tb tb-ai" title="Сгенерировать обложку ИИ" onclick="blogAiImage()">🖼️ Обложка ИИ</button>
+                </div>
+                <div class="f ce" id="aBody" contenteditable="true" role="textbox" aria-multiline="true"
+                     data-placeholder="Текст статьи… Выделите фрагмент и нажмите кнопку сверху, или попросите ИИ «✨ Сгенерировать»." oninput="updatePreview()"></div>
+
+                <div class="panel-title" style="margin-top:.4rem;">Предпросмотр</div>
+                <div class="preview" id="aPreview"><span style="color:var(--d-text-muted);">Начните писать — здесь появится статья в том виде, в котором её увидят читатели.</span></div>
+
+                <div class="btn-row" style="margin-top:1rem;">
+                    <button class="btn" onclick="saveArticle('published')">Опубликовать в блог</button>
+                    <button class="btn sec" onclick="saveArticle('draft')">Сохранить черновик</button>
+                    <button class="btn sec" id="cancelEditBtn" style="display:none;" onclick="resetEditor()">Отменить правку</button>
+                    <span id="aMsg" style="font-size:.85rem;"></span>
+                </div>
+            </div>
+
+            <div class="panel">
+                <div class="panel-title">Мои статьи</div>
+                <div id="myArticles"><div class="empty">Загрузка…</div></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let editingId = 0;
+        let coverUrl = '';
+        let currentUser = null;
+
+        function esc(s){ const d=document.createElement('div'); d.textContent=(s==null?'':String(s)); return d.innerHTML; }
+        function ta(){ return document.getElementById('aBody'); }
+        // Текст статьи как markdown-lite (поле — contenteditable, оформление уже применено)
+        function bodyMd(){ return window.psyEditor ? psyEditor.getMarkdown(ta()) : (ta().innerText || ''); }
+        function setBody(md){ if (window.psyEditor) psyEditor.setMarkdown(ta(), md); else ta().textContent = md || ''; }
+        // Кнопки оформления — тот же механизм, что в композере канала
+        function fmt(cmd){ if (window.psyEditor) psyEditor.cmd(ta(), cmd); updatePreview(); }
+        function fmtBlock(tag){ if (window.psyEditor) psyEditor.block(ta(), tag); updatePreview(); }
+        function fmtLink(){ if (window.psyEditor) psyEditor.link(ta()); updatePreview(); }
+        function updatePreview(){
+            const body = bodyMd();
+            const title = document.getElementById('aTitle').value.trim();
+            const box = document.getElementById('aPreview');
+            if (!body.trim() && !title) { box.innerHTML = '<span style="color:var(--d-text-muted);">Начните писать — здесь появится статья в том виде, в котором её увидят читатели.</span>'; return; }
+            box.innerHTML = (title ? '<h2 style="margin-top:0;">' + esc(title) + '</h2>' : '') + formatPostText(body);
+        }
+
+        // ── Помощник-ИИ (как в канале): текст и обложка через /api/ai_post.php ──
+        async function blogAiText(mode){
+            const el = ta(); const msg = document.getElementById('aMsg');
+            const current = bodyMd();
+            let prompt = '';
+            if (mode === 'generate') {
+                const hintTitle = document.getElementById('aTitle').value.trim();
+                prompt = (window.prompt('О чём написать статью?', hintTitle || 'например: как справиться с тревогой перед сном') || '').trim();
+                if (!prompt) return;
+            } else if (!current.trim()) { msg.textContent = 'Сначала напишите или сгенерируйте текст.'; msg.style.color = '#DC2626'; return; }
+            msg.textContent = mode === 'rewrite' ? 'ИИ переписывает…' : 'ИИ пишет статью…'; msg.style.color = 'var(--d-text-muted)';
+            el.setAttribute('contenteditable', 'false');
+            try {
+                const r = await fetch('/api/ai_post.php?action=text', {
+                    method:'POST', headers:{'Content-Type':'application/json'}, credentials:'include',
+                    body: JSON.stringify({ mode, prompt, current })
+                });
+                const d = await r.json().catch(() => ({}));
+                if (!r.ok || !d.ok) throw new Error(d.error || ('HTTP ' + r.status));
+                setBody(d.text);
+                updatePreview();
+                msg.textContent = 'Готово — проверьте и опубликуйте.'; msg.style.color = '#16A34A';
+            } catch(e){ msg.textContent = 'ИИ: ' + (e.message || 'ошибка'); msg.style.color = '#DC2626'; }
+            finally { el.setAttribute('contenteditable', 'true'); }
+        }
+        async function blogAiImage(){
+            const msg = document.getElementById('aMsg');
+            const base = (document.getElementById('aTitle').value.trim() || bodyMd().slice(0, 200));
+            const prompt = (window.prompt('Что нарисовать на обложке?', base) || '').trim();
+            if (!prompt) return;
+            msg.textContent = 'ИИ рисует обложку (это до минуты)…'; msg.style.color = 'var(--d-text-muted)';
+            try {
+                const r = await fetch('/api/ai_post.php?action=image', {
+                    method:'POST', headers:{'Content-Type':'application/json'}, credentials:'include',
+                    body: JSON.stringify({ prompt })
+                });
+                const d = await r.json().catch(() => ({}));
+                if (!r.ok || !d.ok) throw new Error(d.error || ('HTTP ' + r.status));
+                coverUrl = d.url;
+                document.getElementById('aCoverName').textContent = 'обложка ИИ ✓';
+                msg.textContent = 'Обложка готова.'; msg.style.color = '#16A34A';
+            } catch(e){ msg.textContent = 'Обложка: ' + (e.message || 'ошибка'); msg.style.color = '#DC2626'; }
+        }
+        window.fmt = fmt; window.fmtBlock = fmtBlock; window.fmtLink = fmtLink;
+        window.blogAiText = blogAiText; window.blogAiImage = blogAiImage;
+
+        async function uploadCover(ev){
+            const file = ev.target.files[0];
+            if (!file) return;
+            const fd = new FormData(); fd.append('file', file);
+            try {
+                const r = await (await fetch('/api/upload.php', { method:'POST', credentials:'include', body: fd })).json();
+                if (r.error) { alert(r.error); return; }
+                coverUrl = r.url;
+                document.getElementById('aCoverName').textContent = 'загружена ✓';
+            } catch(e){ alert('Не удалось загрузить фото'); }
+        }
+
+        function resetEditor(){
+            editingId = 0; coverUrl = '';
+            ['aTitle','aTag','aExcerpt'].forEach(id => document.getElementById(id).value = '');
+            setBody('');
+            document.getElementById('aCoverName').textContent = 'не выбрана';
+            document.getElementById('editorTitle').textContent = 'Новая статья';
+            document.getElementById('cancelEditBtn').style.display = 'none';
+            document.getElementById('aMsg').textContent = '';
+            updatePreview();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        async function saveArticle(status){
+            const msg = document.getElementById('aMsg');
+            const payload = {
+                id: editingId || undefined,
+                title: document.getElementById('aTitle').value.trim(),
+                tag: document.getElementById('aTag').value.trim(),
+                excerpt: document.getElementById('aExcerpt').value.trim(),
+                body: ta().value,
+                cover_url: coverUrl,
+                status
+            };
+            if (!payload.title) { msg.textContent = 'Введите заголовок'; msg.style.color = '#DC2626'; return; }
+            if (!payload.body.trim()) { msg.textContent = 'Текст статьи не может быть пустым'; msg.style.color = '#DC2626'; return; }
+            msg.textContent = 'сохраняю…'; msg.style.color = 'var(--d-text-muted)';
+            try {
+                const r = await (await fetch('/api/blog.php?action=save', {
+                    method:'POST', headers:{'Content-Type':'application/json'}, credentials:'include',
+                    body: JSON.stringify(payload)
+                })).json();
+                if (!r.ok) { msg.textContent = '⚠️ ' + (r.error || 'не удалось сохранить'); msg.style.color = '#DC2626'; return; }
+                msg.textContent = status === 'published' ? '✅ опубликовано' : '✅ черновик сохранён';
+                msg.style.color = '#16A34A';
+                resetEditor();
+                await loadMine();
+            } catch(e){ msg.textContent = '⚠️ ошибка сети'; msg.style.color = '#DC2626'; }
+        }
+
+        const STATUS = {
+            published: ['b-green', 'опубликована'],
+            draft:     ['b-amber', 'черновик'],
+            hidden:    ['b-red',   'снята админом']
+        };
+
+        async function loadMine(){
+            const box = document.getElementById('myArticles');
+            try {
+                const r = await (await fetch('/api/blog.php?action=mine', { credentials:'include' })).json();
+                if (!r.ok) { box.innerHTML = '<div class="empty">⚠️ ' + esc(r.error || 'не удалось загрузить') + '</div>'; return; }
+                const rows = r.data || [];
+                if (!rows.length) { box.innerHTML = '<div class="empty">Статей пока нет — напишите первую выше.</div>'; return; }
+                box.innerHTML = rows.map(a => {
+                    const st = STATUS[a.status] || ['b-gray', a.status];
+                    const when = a.published_at || a.updated_at || a.created_at;
+                    return `<div class="art">
+                        <div class="art-head">
+                            <div style="min-width:0;">
+                                <div class="art-title">${esc(a.title)} <span class="badge ${st[0]}">${st[1]}</span></div>
+                                <div class="art-meta">${esc(String(when || '').slice(0,16))}${a.tag ? ' · ' + esc(a.tag) : ''} · 👁 ${a.views_count || 0}</div>
+                            </div>
+                            <div style="display:flex;gap:.4rem;flex-wrap:wrap;">
+                                ${a.status === 'published' ? `<a class="btn sec" style="padding:.4rem .7rem;font-size:.8rem;text-decoration:none;" href="/article.html?slug=${encodeURIComponent(a.slug)}" target="_blank">Открыть</a>` : ''}
+                                <button class="btn sec" style="padding:.4rem .7rem;font-size:.8rem;" onclick="editArticle(${a.id})">Редактировать</button>
+                                <button class="btn red" style="padding:.4rem .7rem;font-size:.8rem;" onclick="deleteArticle(${a.id})">Удалить</button>
+                            </div>
+                        </div>
+                        ${a.moderation_note ? `<div class="mod-note">🛡 Комментарий администратора: ${esc(a.moderation_note)}</div>` : ''}
+                    </div>`;
+                }).join('');
+            } catch(e){ box.innerHTML = '<div class="empty">⚠️ ошибка сети</div>'; }
+        }
+
+        async function editArticle(id){
+            try {
+                const r = await (await fetch('/api/blog.php?action=get&id=' + id, { credentials:'include' })).json();
+                if (!r.ok) { alert(r.error || 'Не удалось открыть статью'); return; }
+                const a = r.data;
+                editingId = a.id;
+                coverUrl = a.cover_url || '';
+                document.getElementById('aTitle').value = a.title || '';
+                document.getElementById('aTag').value = a.tag || '';
+                document.getElementById('aExcerpt').value = a.excerpt || '';
+                setBody(a.body || '');
+                document.getElementById('aCoverName').textContent = coverUrl ? 'загружена ✓' : 'не выбрана';
+                document.getElementById('editorTitle').textContent = 'Правка статьи: ' + (a.title || '');
+                document.getElementById('cancelEditBtn').style.display = '';
+                updatePreview();
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            } catch(e){ alert('Ошибка сети'); }
+        }
+
+        async function deleteArticle(id){
+            if (!confirm('Удалить статью? Действие необратимо.')) return;
+            try {
+                const r = await (await fetch('/api/blog.php?action=delete', {
+                    method:'POST', headers:{'Content-Type':'application/json'}, credentials:'include',
+                    body: JSON.stringify({ id })
+                })).json();
+                if (!r.ok) { alert(r.error || 'Не удалось удалить'); return; }
+                if (editingId === id) resetEditor();
+                await loadMine();
+            } catch(e){ alert('Ошибка сети'); }
+        }
+
+        window.tb = tb; window.tbLine = tbLine; window.insertLink = insertLink; window.updatePreview = updatePreview;
+        window.uploadCover = uploadCover; window.saveArticle = saveArticle; window.resetEditor = resetEditor;
+        window.editArticle = editArticle; window.deleteArticle = deleteArticle;
+
+        (async function init(){
+            if (window.Auth && window.Auth.getCurrentUser) {
+                try { currentUser = await window.Auth.getCurrentUser(); } catch(e) {}
+            }
+            if (!currentUser) { window.location.href = '/login.html?redirect=' + encodeURIComponent('/psychologist-blog.html'); return; }
+            // Задача №75: блог доступен всем ролям, а не только специалистам.
+            // Боковое меню — по РОЛИ пользователя: клиенту незачем показывать разделы
+            // кабинета психолога, из них он всё равно ничего не откроет.
+            mountDashSidebar(currentUser.role || 'client', ((currentUser.first_name||'') + ' ' + (currentUser.last_name||'')).trim() || currentUser.email || '');
+            if (window.psyEditor) psyEditor.bindPaste(ta());   // вставка — простым текстом
+            await loadMine();
+        })();
+    </script>
+</body>
+</html>

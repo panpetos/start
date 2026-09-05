@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
+    <title>Оплата прошла успешно - psytalk.pro</title>
+    <link rel="stylesheet" href="/css/styles.css?v=20260823d">
+    <script src="/js/netguard.js?v=20260821c"></script>
+    <script src="/js/layout.js?v=20260823d"></script>
+    <link rel="preconnect" href="https://unpkg.com">
+    <script defer src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        body { background: #FAFAFA; display: flex; flex-direction: column; min-height: 100vh; }
+        .success-wrap { flex: 1; display: flex; align-items: flex-start; justify-content: center; padding: 3rem 1rem; }
+        .success-card {
+            background: white; border-radius: 1.5rem; padding: 3rem 2.5rem;
+            max-width: 500px; width: 100%; text-align: center;
+            box-shadow: 0 8px 40px rgba(0,0,0,0.08); border: 1px solid #F0F0F0;
+        }
+        .success-icon {
+            width: 96px; height: 96px;
+            background: linear-gradient(135deg, #34C759 0%, #28A745 100%);
+            border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            margin: 0 auto 1.75rem; box-shadow: 0 8px 24px rgba(52,199,89,0.35);
+            animation: pulse 2s ease-in-out infinite;
+        }
+        @keyframes pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.06)} }
+        .success-card h1 { color: #1A1A1A; font-size: 1.75rem; margin-bottom: 0.75rem; }
+        .success-card > p { color: #6B7280; line-height: 1.65; margin-bottom: 1.5rem; font-size: 1rem; }
+        .info-box {
+            background: #F0FDF4; border: 1px solid #BBF7D0; border-radius: 1rem;
+            padding: 1.25rem 1.5rem; margin-bottom: 1.75rem; text-align: left;
+        }
+        .info-row { display: flex; justify-content: space-between; padding: 0.4rem 0; font-size: 0.9375rem; }
+        .info-label { color: #6B7280; }
+        .info-value { font-weight: 700; color: #1A1A1A; }
+        .btn-dashboard {
+            display: inline-flex; align-items: center; gap: 0.5rem;
+            padding: 0.9375rem 2.25rem;
+            background: linear-gradient(135deg, #047857 0%, #059669 100%);
+            color: white; text-decoration: none; border-radius: 0.875rem;
+            font-weight: 700; font-size: 1rem; transition: all 0.2s;
+            box-shadow: 0 4px 14px rgba(4,120,87,0.35);
+        }
+        .btn-dashboard:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(4,120,87,0.45); color: white; }
+        .secondary-link { display: block; margin-top: 1rem; color: #047857; text-decoration: none; font-size: 0.9rem; }
+
+        body.dark { background: #191919 !important; }
+        body.dark .success-card { background: #252525; border-color: #333; box-shadow: 0 8px 40px rgba(0,0,0,0.3); }
+        body.dark .success-card h1 { color: #E6E6E6; }
+        body.dark .success-card > p { color: #999; }
+        body.dark .info-box { background: #1A3A1A; border-color: #2D5A2D; }
+        body.dark .info-label { color: #999; }
+        body.dark .info-value { color: #E6E6E6; }
+    </style>
+</head>
+
+<body>
+    <script>psyWriteHeader();</script>
+    <div class="success-wrap">
+    <div class="success-card">
+        <div class="success-icon">
+            <i data-lucide="check" style="width: 48px; height: 48px; color: white;"></i>
+        </div>
+
+        <h1>Оплата прошла успешно!</h1>
+        <p>Ваша запись на консультацию подтверждена. Психолог получит уведомление о вашей записи.</p>
+
+        <div class="info-box" id="appointmentInfo" style="display:none">
+            <div class="info-row">
+                <span class="info-label">Номер записи:</span>
+                <span class="info-value" id="appointmentId">—</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Статус:</span>
+                <span class="info-value" style="color: #16A34A;">✓ Подтверждено</span>
+            </div>
+        </div>
+
+        <p style="font-size: 0.875rem; color: #9CA3AF; margin-bottom: 1.75rem;">
+            📧 Подробности отправлены на вашу электронную почту
+        </p>
+
+        <a href="/client-dashboard.html" class="btn-dashboard">
+            <i data-lucide="layout-dashboard" style="width: 18px; height: 18px;"></i>
+            Перейти в личный кабинет
+        </a>
+
+        <a href="/" class="secondary-link">← На главную</a>
+    </div>
+    </div>
+
+    <script>psyWriteFooter();</script>
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        const appointmentId = urlParams.get('appointment_id');
+        if (appointmentId) {
+            document.getElementById('appointmentId').textContent = appointmentId.substring(0, 8).toUpperCase();
+            document.getElementById('appointmentInfo').style.display = '';
+        }
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+    </script>
+</body>
+
+</html>

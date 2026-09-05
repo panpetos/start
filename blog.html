@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
+    <title>Блог — psytalk.pro</title>
+    <link rel="stylesheet" href="/css/styles.css?v=20260823d">
+    <script src="/js/netguard.js?v=20260821c"></script>
+    <script src="/js/layout.js?v=20260823d"></script>
+    <script src="/js/lightbox.js?v=7"></script>
+    <link rel="preconnect" href="https://unpkg.com">
+    <script defer src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', -apple-system, sans-serif; background: #FAFAFA; min-height: 100vh; display: flex; flex-direction: column; color: #1A1A1A; }
+        main { flex: 1; }
+        .container { max-width: 1100px; margin: 0 auto; padding: 0 1.5rem; }
+
+        /* Hero */
+        .hero {
+            background: linear-gradient(135deg, #047857 0%, #059669 60%, #6EE7B7 100%);
+            padding: 3.5rem 1rem 4rem; text-align: center; color: white;
+        }
+        .hero h1 { font-size: clamp(1.75rem, 4vw, 2.5rem); font-weight: 800; letter-spacing: -0.03em; margin-bottom: 0.6rem; }
+        .hero p { font-size: 1rem; opacity: 0.88; max-width: 480px; margin: 0 auto; line-height: 1.6; }
+
+        /* Articles grid */
+        .articles {
+            display: grid;
+            /* min(300px, 100%) вместо жёстких 300px: иначе на экране 320px колонка
+               остаётся 300px + отступы контейнера, и карточка обрезается по краю. */
+            grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr));
+            gap: 1.5rem;
+            margin-top: -2rem;
+            padding: 0 0 4rem;
+        }
+        .article-card {
+            background: white; border-radius: 1.25rem; overflow: hidden;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.06); border: 1px solid #EFF7F3;
+            transition: transform 0.2s, box-shadow 0.2s; display: flex; flex-direction: column;
+        }
+        .article-card:hover { transform: translateY(-4px); box-shadow: 0 10px 36px rgba(4,120,87,0.12); }
+        .article-thumb {
+            height: 160px; display: flex; align-items: center; justify-content: center;
+            font-size: 3rem;
+        }
+        .article-body { padding: 1.25rem 1.5rem 1.5rem; flex: 1; display: flex; flex-direction: column; }
+        .article-tag {
+            display: inline-block; background: #D1FAE5; color: #047857;
+            font-size: 0.75rem; font-weight: 600; padding: 0.2rem 0.6rem; border-radius: 2rem;
+            margin-bottom: 0.625rem;
+        }
+        .article-title { font-size: 1.0625rem; font-weight: 700; color: #1A1A1A; line-height: 1.4; margin-bottom: 0.5rem; }
+        .article-excerpt { font-size: 0.875rem; color: #6B7280; line-height: 1.6; flex: 1; margin-bottom: 1rem; }
+        .article-meta { display: flex; align-items: center; justify-content: space-between; font-size: 0.8rem; color: #9CA3AF; }
+        .read-link { color: #047857; font-weight: 600; text-decoration: none; font-size: 0.875rem; }
+        .read-link:hover { text-decoration: underline; }
+
+        /* Soon banner */
+        .soon-banner {
+            background: linear-gradient(135deg, #D1FAE5, #D1FAE5);
+            border-radius: 1.5rem; padding: 2rem 2.5rem; text-align: center; margin: 2.5rem 0 4rem;
+        }
+        .soon-banner h2 { font-size: 1.375rem; font-weight: 700; color: #047857; margin-bottom: 0.5rem; }
+        .soon-banner p { color: #6B7280; font-size: 0.9375rem; line-height: 1.6; max-width: 420px; margin: 0 auto 1.25rem; }
+        .btn-subscribe {
+            display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.75rem 1.75rem;
+            background: linear-gradient(135deg, #047857, #059669);
+            color: white; text-decoration: none; border-radius: 0.75rem; font-weight: 700; font-size: 0.9375rem;
+            box-shadow: 0 4px 14px rgba(4,120,87,0.3); transition: all 0.2s; border: none; cursor: pointer; font-family: inherit;
+        }
+        .btn-subscribe:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(4,120,87,0.45); color: white; }
+
+        body.dark { background: #191919 !important; color: #E6E6E6 !important; }
+        body.dark .article-card { background: #252525; border-color: #333; }
+        body.dark .article-card:hover { box-shadow: 0 10px 36px rgba(0,0,0,0.3); }
+        body.dark .article-tag { background: #0B3B2E; color: #6EE7B7; }
+        body.dark .article-title { color: #E6E6E6; }
+        body.dark .article-excerpt { color: #A8A8A8; }
+        body.dark .article-meta { color: #9A9A9A; }
+        body.dark .read-link { color: #6EE7B7; }
+        body.dark .soon-banner { background: linear-gradient(135deg, #0B3B2E, #10402F); }
+        body.dark .soon-banner p { color: #999; }
+    </style>
+</head>
+<body>
+    <script>psyWriteHeader();</script>
+    <main>
+        <section class="hero">
+            <h1>Блог psytalk.pro</h1>
+            <p>Полезные статьи о психологии, ментальном здоровье и личностном росте</p>
+        </section>
+
+        <div class="container">
+            <div class="articles" id="articlesGrid"></div>
+
+            <div class="soon-banner">
+                <h2>✍️ Новые статьи каждую неделю</h2>
+                <p>Подпишитесь, чтобы получать полезные материалы о психологии и ментальном здоровье прямо на почту.</p>
+                <button class="btn-subscribe" onclick="subscribeEmail()">
+                    Подписаться на рассылку
+                </button>
+            </div>
+        </div>
+    </main>
+    <script>psyWriteFooter();</script>
+    <script src="/js/articles.js?v=20260821"></script>
+    <script>
+        function esc(s){ const d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
+
+        const GRADS = ['linear-gradient(135deg,#D1FAE5,#D1FAE5)','linear-gradient(135deg,#DBEAFE,#E0E7FF)',
+            'linear-gradient(135deg,#DCFCE7,#D1FAE5)','linear-gradient(135deg,#FEF3C7,#FDE68A)',
+            'linear-gradient(135deg,#FCE7F3,#FBCFE8)','linear-gradient(135deg,#CFFAFE,#E0F2FE)'];
+        function gradFor(key){ let h=0,s=String(key); for(let i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))>>>0; return GRADS[h%GRADS.length]; }
+
+        /** Карточка статьи из блога психолога (обложка-картинка либо цветная плашка с эмодзи). */
+        function apiCardHtml(a){
+            const author = `${a.first_name || ''} ${a.last_name || ''}`.trim();
+            const thumb = a.cover_url
+                ? `<div class="article-thumb" style="padding:0;overflow:hidden;"><img src="${esc(a.cover_url)}" alt="" style="width:100%;height:100%;object-fit:cover;"></div>`
+                : `<div class="article-thumb" style="background:${gradFor(a.slug || a.id)};">📝</div>`;
+            return `
+                <a class="article-card" href="/article.html?slug=${encodeURIComponent(a.slug)}" style="text-decoration:none;color:inherit;">
+                    ${thumb}
+                    <div class="article-body">
+                        <span class="article-tag">${esc(a.tag || 'Статья')}</span>
+                        <div class="article-title">${esc(a.title)}</div>
+                        <div class="article-excerpt">${esc(a.excerpt || '')}</div>
+                        <div class="article-meta">
+                            <span>${author ? esc(author) : 'Психолог psytalk.pro'}</span>
+                            <span class="read-link">Читать →</span>
+                        </div>
+                    </div>
+                </a>`;
+        }
+        function staticCardHtml(a){
+            return `
+                <a class="article-card" href="/article.html?id=${encodeURIComponent(a.id)}" style="text-decoration:none;color:inherit;">
+                    <div class="article-thumb" style="background:${a.grad};">${a.emoji}</div>
+                    <div class="article-body">
+                        <span class="article-tag">${esc(a.tag)}</span>
+                        <div class="article-title">${esc(a.title)}</div>
+                        <div class="article-excerpt">${esc(a.excerpt)}</div>
+                        <div class="article-meta">
+                            <span>${esc(a.read)} · Статья</span>
+                            <span class="read-link">Читать →</span>
+                        </div>
+                    </div>
+                </a>`;
+        }
+
+        // Статьи психологов из БД идут первыми, редакционные (js/articles.js) — после них.
+        (async function renderArticles(){
+            let apiRows = [];
+            try {
+                const r = await (await fetch('/api/blog.php?action=list&limit=60')).json();
+                if (r && r.ok) apiRows = r.data || [];
+            } catch(e) {}
+            const staticRows = window.PSY_ARTICLES || [];
+            document.getElementById('articlesGrid').innerHTML =
+                apiRows.map(apiCardHtml).join('') + staticRows.map(staticCardHtml).join('');
+        })();
+
+        async function subscribeEmail() {
+            const email = prompt('Введите ваш email для подписки на рассылку:');
+            if (email === null) return;
+            if (!email.includes('@')) { alert('Введите корректный email.'); return; }
+            try {
+                const r = await fetch('/api/subscribe.php?action=newsletter', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: email.trim() })
+                });
+                const d = await r.json();
+                if (d.ok) alert('Спасибо! Вы подписаны на рассылку.');
+                else alert(d.error || 'Не удалось подписаться, попробуйте позже.');
+            } catch(e) { alert('Ошибка соединения. Попробуйте позже.'); }
+        }
+        try { if (window.lucide) lucide.createIcons(); } catch(e) {}
+    </script>
+</body>
+</html>

@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
+    <title>Лента — psytalk.pro</title>
+    <link rel="stylesheet" href="/css/styles.css?v=20260823d">
+    <script src="/js/netguard.js?v=20260821c"></script>
+    <script src="/js/layout.js?v=20260823d"></script>
+    <script src="/js/lightbox.js?v=7"></script>
+    <script src="/js/api.js?v=20260821"></script>
+    <script src="/js/auth.js?v=20260821"></script>
+    <script src="/js/post-format.js?v=20260905"></script>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', -apple-system, sans-serif; background: var(--fd-bg); min-height: 100vh; display: flex; flex-direction: column; color: var(--fd-text); padding-top: 84px; transition: background 0.2s, color 0.2s; }
+        :root { --fd-bg:#FAFAFA; --fd-text:#1A1A1A; --fd-text-sec:#6B7280; --fd-card:#fff; --fd-card-border:#EFF7F3; --fd-border:#F0F0F0; }
+        body.dark { --fd-bg:#191919; --fd-text:#E6E6E6; --fd-text-sec:#A0A0A0; --fd-card:#252525; --fd-card-border:#333; --fd-border:#333; }
+        main { flex: 1; }
+        .wrap { max-width: 640px; margin: 0 auto; padding: 2rem 1.25rem 4rem; }
+        h1 { font-size: 1.5rem; font-weight: 800; margin-bottom: 0.25rem; }
+        .sub { color: var(--fd-text-sec); font-size: 0.9rem; margin-bottom: 1.5rem; }
+        .post-card { background: var(--fd-card); border: 1px solid var(--fd-card-border); border-radius: 1.1rem; padding: 1.1rem 1.25rem; margin-bottom: 1rem; box-shadow: 0 2px 12px rgba(0,0,0,0.04); }
+        .post-head { display: flex; align-items: center; gap: 0.7rem; }
+        .post-ava { width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 700; overflow: hidden; flex-shrink: 0; }
+        .post-ava img { width: 100%; height: 100%; object-fit: cover; }
+        .post-author { font-weight: 700; font-size: 0.95rem; }
+        .post-author a { color: inherit; text-decoration: none; }
+        .post-author a:hover { text-decoration: underline; }
+        .post-spec { color: #047857; font-size: 0.8rem; }
+        .post-date { color: var(--fd-text-sec); font-size: 0.75rem; margin-left: auto; white-space: nowrap; }
+        /* overflow-wrap: длинная ссылка без пробелов (её постят целиком) раньше распирала
+           карточку и выезжала за экран на телефоне */
+        .post-text { margin-top: 0.7rem; white-space: pre-wrap; line-height: 1.6; color: var(--fd-text);
+                     overflow-wrap: anywhere; word-break: break-word; }
+        .post-text img, .post-img { max-width: 100%; border-radius: 0.7rem; margin-top: 0.6rem; display: block; }
+        /* В ленте показываем начало поста, целиком он открывается попапом */
+        .post-body { cursor: pointer; }
+        .post-text.post-clamp { display: -webkit-box; -webkit-line-clamp: 7; -webkit-box-orient: vertical; overflow: hidden; }
+        .post-more { display: none; margin-top: 0.35rem; background: none; border: none; padding: 0; cursor: pointer;
+                     color: #047857; font-weight: 600; font-size: 0.85rem; font-family: inherit; }
+        .post-more.show { display: inline-block; }
+        .post-more:hover { text-decoration: underline; }
+
+        /* Попап с полным постом */
+        .pm-back { position: fixed; inset: 0; z-index: 4000; display: none; align-items: flex-start; justify-content: center;
+                   background: rgba(12,26,21,0.55); padding: 3rem 1rem; overflow-y: auto; }
+        .pm-back.open { display: flex; }
+        .pm-card { position: relative; width: 100%; max-width: 640px; background: var(--fd-card); color: var(--fd-text);
+                   border: 1px solid var(--fd-card-border); border-radius: 1.1rem; padding: 1.25rem 1.35rem 1.1rem; }
+        .pm-close { position: absolute; top: 0.6rem; right: 0.7rem; width: 32px; height: 32px; border: none; border-radius: 50%;
+                    background: var(--fd-border); color: var(--fd-text); font-size: 0.9rem; cursor: pointer; line-height: 1; }
+        .pm-card .post-text { white-space: pre-wrap; }
+        .post-actions { display: flex; align-items: center; gap: 0.4rem; margin-top: 0.8rem; padding-top: 0.7rem; border-top: 1px solid var(--fd-border); flex-wrap: wrap; }
+        .pbtn { display: inline-flex; align-items: center; gap: 0.3rem; background: none; border: none; cursor: pointer; color: var(--fd-text-sec); font-size: 0.85rem; font-family: inherit; padding: 0.35rem 0.6rem; border-radius: 0.5rem; transition: background 0.15s, color 0.15s; }
+        .pbtn:hover { background: var(--fd-border); }
+        .pbtn.liked { color: #DC2626; font-weight: 700; }
+        .sub-btn { margin-left: auto; padding: 0.35rem 0.8rem; border-radius: 2rem; border: 1.5px solid #047857; background: none; color: #047857; font-weight: 700; font-size: 0.78rem; cursor: pointer; font-family: inherit; }
+        .sub-btn.subscribed { background: var(--fd-border); color: var(--fd-text-sec); border-color: var(--fd-border); }
+        .load-more { display: block; width: 100%; padding: 0.8rem; margin-top: 0.5rem; border-radius: 0.8rem; border: 1.5px solid var(--fd-card-border); background: var(--fd-card); color: var(--fd-text); font-weight: 600; cursor: pointer; font-family: inherit; }
+        .empty { text-align: center; color: var(--fd-text-sec); padding: 3rem 1rem; }
+        .comments-box { margin-top: 0.7rem; padding-top: 0.7rem; border-top: 1px solid var(--fd-border); }
+        .comment-item { display: flex; gap: 0.55rem; margin-bottom: 0.6rem; }
+        .comment-ava { width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 700; font-size: 0.75rem; overflow: hidden; flex-shrink: 0; }
+        .comment-ava img { width: 100%; height: 100%; object-fit: cover; }
+        .comment-body { flex: 1; min-width: 0; background: var(--fd-bg); border-radius: 0.7rem; padding: 0.45rem 0.7rem; }
+        .comment-author { font-weight: 700; font-size: 0.8rem; }
+        .comment-text { font-size: 0.85rem; line-height: 1.4; white-space: pre-wrap; word-wrap: break-word; }
+        .comment-form { display: flex; gap: 0.5rem; margin-top: 0.5rem; }
+        .comment-form input { flex: 1; min-width: 0; padding: 0.5rem 0.8rem; border-radius: 1.2rem; border: 1.5px solid var(--fd-card-border); background: var(--fd-card); color: var(--fd-text); font-size: 0.85rem; font-family: inherit; outline: none; }
+        .comment-form input:focus { border-color: #047857; }
+        .comment-form button { padding: 0.5rem 0.9rem; border-radius: 1.2rem; border: none; background: #047857; color: #fff; font-weight: 600; font-size: 0.82rem; cursor: pointer; font-family: inherit; }
+        .comments-empty { color: var(--fd-text-sec); font-size: 0.82rem; }
+
+        @media (max-width: 480px) {
+            .wrap { padding: 1.25rem 0.75rem 3rem; }
+            .post-card { padding: 0.9rem 0.95rem; border-radius: 0.9rem; }
+            /* Пять действий в один ряд на узком экране не влезают — «Подписаться»
+               уезжала за правый край и была недоступна. Переносим её на свою строку. */
+            .pbtn { padding: 0.3rem 0.4rem; font-size: 0.82rem; }
+            .sub-btn { margin-left: 0; width: 100%; padding: 0.45rem 0.8rem; text-align: center; }
+            .post-head { gap: 0.55rem; }
+            .post-ava { width: 38px; height: 38px; }
+            .post-date { font-size: 0.7rem; }
+            .comment-form input { font-size: 16px; }
+        }
+    </style>
+</head>
+<body>
+    <script>(function(){var t=localStorage.getItem('psy-theme')||'light';if(t==='dark'||(t==='system'&&matchMedia('(prefers-color-scheme:dark)').matches))document.body.classList.add('dark');})()</script>
+    <script>psyWriteHeader();</script>
+    <main>
+        <div class="wrap">
+            <h1>📰 Лента</h1>
+            <div class="sub">Посты из каналов психологов — подпишитесь, чтобы не пропускать новое.</div>
+            <div id="feedList"><div class="empty">Загрузка…</div></div>
+            <button id="loadMoreBtn" class="load-more" style="display:none;" onclick="loadFeed(false)">Показать ещё</button>
+        </div>
+    </main>
+    <div class="pm-back" id="postModal" onclick="if(event.target===this)closePostModal()">
+        <div class="pm-card" role="dialog" aria-modal="true" aria-label="Пост">
+            <button class="pm-close" type="button" onclick="closePostModal()" aria-label="Закрыть">✕</button>
+            <div id="pmBody"></div>
+        </div>
+    </div>
+    <script>psyWriteFooter();</script>
+    <script>
+        const AV = ['#047857','#2563EB','#059669','#D97706','#DB2777','#0891B2','#059669'];
+        function colorFor(x){ let h=0,s=String(x); for(let i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))>>>0; return AV[h%AV.length]; }
+        function esc(s){ const d=document.createElement('div'); d.textContent=(s==null?'':String(s)); return d.innerHTML; }
+
+        let currentUser = null;
+        let lastId = 0;
+        let busy = false;
+        const postsById = {};   // чтобы попап рисовался из тех же данных, без второго запроса
+
+        async function loadFeed(reset) {
+            if (busy) return;
+            busy = true;
+            if (reset) lastId = 0;
+            const url = '/api/channels.php?action=feed&limit=20' + (lastId ? '&before_id=' + lastId : '');
+            let rows = [], loadError = '';
+            try {
+                const r = await fetch(url, { credentials: 'include' });
+                const d = await r.json();
+                if (d && d.error) loadError = d.error; else rows = (d && d.data) || [];
+            } catch (e) { loadError = 'нет связи с сервером'; }
+            const list = document.getElementById('feedList');
+            const moreBtn = document.getElementById('loadMoreBtn');
+            // Сломанную загрузку показываем как ошибку, а не как «постов пока нет».
+            if (reset && loadError) {
+                list.innerHTML = '<div class="empty">⚠️ Не удалось загрузить ленту.<br>' + esc(loadError) + '</div>';
+                moreBtn.style.display = 'none';
+                busy = false;
+                return;
+            }
+            if (reset && !rows.length) {
+                list.innerHTML = '<div class="empty">Пока нет постов в каналах психологов.<br>Загляните позже — специалисты уже начали делиться заметками и советами.</div>';
+                moreBtn.style.display = 'none';
+                busy = false;
+                return;
+            }
+            if (reset) list.innerHTML = '';
+            rows.forEach(p => { postsById[p.id] = p; });
+            list.insertAdjacentHTML('beforeend', rows.map(p => postCardHtml(p)).join(''));
+            if (rows.length) lastId = rows[rows.length - 1].id;
+            moreBtn.style.display = rows.length >= 20 ? 'block' : 'none';
+            markTruncated();
+            busy = false;
+        }
+
+        /**
+         * Разметка поста. В ленте (full = false) текст подрезан и открывается попапом,
+         * в попапе (full = true) — целиком. Из-за двух копий одного поста на странице
+         * счётчики и блоки комментариев адресуем не id-шниками, а data-атрибутами.
+         */
+        function postCardHtml(p, full) {
+            const name = `${p.first_name || ''} ${p.last_name || ''}`.trim() || 'Психолог';
+            const init = name.charAt(0).toUpperCase();
+            const date = new Date(p.created_at).toLocaleDateString('ru', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+            const img = p.image_url ? `<img class="post-img" src="${esc(p.image_url)}" alt="">` : '';
+            const sfx = full ? 'm' : '';
+            const text = p.text
+                ? `<div class="post-text${full ? '' : ' post-clamp'}">${formatPostText(p.text)}</div>`
+                : '';
+            const body = full
+                ? `${text}${img}`
+                : `<div class="post-body" onclick="onPostBodyClick(event, ${p.id})">${text}${img}
+                       <button class="post-more" type="button" onclick="openPost(${p.id})">Читать далее</button>
+                   </div>`;
+            return `
+                <div class="${full ? 'pm-post' : 'post-card'}" data-post-id="${p.id}">
+                    <div class="post-head">
+                        <div class="post-ava" style="background:${colorFor(p.psychologist_id)};">${p.avatar ? `<img src="${esc(p.avatar)}">` : init}</div>
+                        <div style="min-width:0;">
+                            <div class="post-author"><a href="/psychologist-profile.html?id=${encodeURIComponent(p.psychologist_id)}">${esc(name)}</a></div>
+                            <div class="post-spec">${esc(p.specialization || 'Психолог')}</div>
+                        </div>
+                        <div class="post-date">${date}</div>
+                    </div>
+                    ${body}
+                    <div class="post-actions">
+                        <button class="pbtn ${p.liked_by_me ? 'liked' : ''}" data-like="${p.id}" onclick="toggleLike(${p.id}, this)">${p.liked_by_me ? '❤️' : '🤍'} <span>${p.likes_count || 0}</span></button>
+                        <span class="pbtn" style="cursor:default;">👁 ${p.views_count || 0}</span>
+                        <button class="pbtn" onclick="toggleComments(${p.id}, this, '${sfx}')">💬 <span data-cc="${p.id}">${p.comments_count || 0}</span></button>
+                        <button class="pbtn" onclick="sharePost(${p.id}, '${encodeURIComponent(p.psychologist_id)}')">↗ Поделиться</button>
+                        <button class="pbtn" onclick="sharePostToChat(${p.id}, '${encodeURIComponent(p.psychologist_id)}')" title="Отправить пост своим контактам в чате">💬 В сообщения</button>
+                        <button class="sub-btn ${p.is_subscribed ? 'subscribed' : ''}" onclick="toggleSub('${p.psychologist_id}', this)">${p.is_subscribed ? '✓ Подписан' : 'Подписаться'}</button>
+                    </div>
+                    <div class="comments-box" id="comments-${sfx}${p.id}" style="display:none;"></div>
+                </div>`;
+        }
+
+        /** «Читать далее» показываем только там, где текст правда не поместился. */
+        function markTruncated() {
+            document.querySelectorAll('#feedList .post-text.post-clamp').forEach(el => {
+                const more = el.parentElement.querySelector('.post-more');
+                if (!more) return;
+                if (el.scrollHeight - el.clientHeight > 4) more.classList.add('show');
+                else { more.classList.remove('show'); el.classList.remove('post-clamp'); }
+            });
+        }
+
+        // Клик по телу поста открывает попап, но ссылки, картинки и кнопки живут своей жизнью
+        function onPostBodyClick(evt, postId) {
+            if (evt.target.closest('a, img, button, .comments-box')) return;
+            openPost(postId);
+        }
+        window.onPostBodyClick = onPostBodyClick;
+
+        // Пост открывается ОТДЕЛЬНОЙ страницей (/post.php) — не попапом. Так у поста
+        // свой адрес, серверные мета-теги и картинка для соцсетей: он читается в
+        // интернете и продвигает сервис. Попап оставлен только как запасной путь.
+        function openPost(postId) {
+            window.location.href = '/post.php?id=' + encodeURIComponent(postId);
+        }
+        window.openPost = openPost;
+
+        function closePostModal() {
+            document.getElementById('postModal').classList.remove('open');
+            document.getElementById('pmBody').innerHTML = '';
+            document.body.style.overflow = '';
+        }
+        window.closePostModal = closePostModal;
+
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape' && document.getElementById('postModal').classList.contains('open')) closePostModal();
+        });
+
+        function commentItemHtml(c) {
+            const name = `${c.first_name || ''} ${c.last_name || ''}`.trim() || 'Пользователь';
+            const init = name.charAt(0).toUpperCase();
+            const date = new Date(c.created_at).toLocaleDateString('ru', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+            return `<div class="comment-item">
+                <div class="comment-ava" style="background:${colorFor(c.user_id)};">${c.avatar ? `<img src="${esc(c.avatar)}">` : init}</div>
+                <div class="comment-body">
+                    <div class="comment-author">${esc(name)} <span style="font-weight:400;color:var(--fd-text-sec);font-size:0.72rem;">${date}</span></div>
+                    <div class="comment-text">${esc(c.text)}</div>
+                </div>
+            </div>`;
+        }
+
+        async function toggleComments(postId, btn, sfx) {
+            sfx = sfx || '';
+            const box = document.getElementById('comments-' + sfx + postId);
+            if (!box) return;
+            const opening = box.style.display === 'none';
+            box.style.display = opening ? 'block' : 'none';
+            if (!opening || box.dataset.loaded) return;
+            box.dataset.loaded = '1';
+            box.innerHTML = '<div class="comments-empty">Загрузка…</div>';
+            let rows = [];
+            try { const r = await fetch('/api/channels.php?action=comments&post_id=' + postId); const d = await r.json(); rows = (d && d.data) || []; } catch (e) {}
+            const list = rows.length ? rows.map(commentItemHtml).join('') : '<div class="comments-empty">Пока нет комментариев — будьте первым.</div>';
+            const form = currentUser
+                ? `<div class="comment-form"><input type="text" id="cinput-${sfx}${postId}" placeholder="Написать комментарий..." maxlength="2000" onkeypress="if(event.key==='Enter')submitComment(${postId}, '${sfx}')"><button onclick="submitComment(${postId}, '${sfx}')">➤</button></div>`
+                : `<div class="comments-empty"><a href="/login.html?redirect=${encodeURIComponent(location.pathname)}">Войдите</a>, чтобы оставить комментарий.</div>`;
+            box.innerHTML = `<div id="clist-${sfx}${postId}">${list}</div>${form}`;
+        }
+        window.toggleComments = toggleComments;
+
+        async function submitComment(postId, sfx) {
+            sfx = sfx || '';
+            const input = document.getElementById('cinput-' + sfx + postId);
+            const text = (input.value || '').trim();
+            if (!text) return;
+            input.disabled = true;
+            try {
+                const r = await fetch('/api/channels.php?action=comment', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+                    body: JSON.stringify({ post_id: postId, text })
+                });
+                const d = await r.json();
+                if (d.ok) {
+                    input.value = '';
+                    const list = document.getElementById('clist-' + sfx + postId);
+                    const empty = list.querySelector('.comments-empty');
+                    if (empty) empty.remove();
+                    list.insertAdjacentHTML('beforeend', commentItemHtml({ user_id: currentUser.id, first_name: currentUser.first_name, last_name: currentUser.last_name, avatar: currentUser.avatar, text, created_at: new Date().toISOString() }));
+                    // счётчик обновляем и в ленте, и в попапе
+                    document.querySelectorAll(`[data-cc="${postId}"]`).forEach(el => {
+                        el.textContent = (parseInt(el.textContent, 10) || 0) + 1;
+                    });
+                    if (postsById[postId]) postsById[postId].comments_count = (parseInt(postsById[postId].comments_count, 10) || 0) + 1;
+                }
+            } catch (e) {}
+            input.disabled = false;
+        }
+        window.submitComment = submitComment;
+
+        async function toggleLike(postId, btn) {
+            if (!currentUser) { window.location.href = '/login.html?redirect=' + encodeURIComponent(location.pathname); return; }
+            try {
+                const r = await fetch('/api/channels.php?action=like', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+                    body: JSON.stringify({ post_id: postId })
+                });
+                const d = await r.json();
+                if (!d.ok) return;
+                // лайк ставится один раз, а кнопок может быть две — в ленте и в попапе
+                document.querySelectorAll(`[data-like="${postId}"]`).forEach(b => {
+                    b.classList.toggle('liked', d.liked);
+                    b.innerHTML = (d.liked ? '❤️' : '🤍') + ' <span>' + d.likes_count + '</span>';
+                });
+                if (postsById[postId]) {
+                    postsById[postId].liked_by_me = d.liked ? 1 : 0;
+                    postsById[postId].likes_count = d.likes_count;
+                }
+            } catch (e) {}
+        }
+        window.toggleLike = toggleLike;
+
+        async function toggleSub(psychId, btn) {
+            if (!currentUser) { window.location.href = '/login.html?redirect=' + encodeURIComponent(location.pathname); return; }
+            const subscribed = btn.classList.contains('subscribed');
+            try {
+                await fetch('/api/channels.php?action=' + (subscribed ? 'unsubscribe' : 'subscribe'), {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+                    body: JSON.stringify({ psychologist_id: psychId })
+                });
+                btn.classList.toggle('subscribed', !subscribed);
+                btn.textContent = !subscribed ? '✓ Подписан' : 'Подписаться';
+                document.querySelectorAll(`.sub-btn[onclick*="'${psychId}'"]`).forEach(b => {
+                    b.classList.toggle('subscribed', !subscribed);
+                    b.textContent = !subscribed ? '✓ Подписан' : 'Подписаться';
+                });
+            } catch (e) {}
+        }
+        window.toggleSub = toggleSub;
+
+        function sharePost(postId, psychId) {
+            const url = location.origin + '/psychologist-profile.html?id=' + psychId + '#post-' + postId;
+            if (navigator.share) {
+                navigator.share({ title: 'psytalk.pro', url }).catch(() => {});
+            } else {
+                navigator.clipboard && navigator.clipboard.writeText(url).then(() => alert('Ссылка скопирована: ' + url)).catch(() => prompt('Скопируйте ссылку:', url));
+            }
+        }
+        window.sharePost = sharePost;
+
+        /** Отправить пост своим контактам: уходим в чат, там сразу откроется выбор получателя. */
+        function sharePostToChat(postId, psychId) {
+            window.location.href = '/chat.html?share=post:' + encodeURIComponent(postId) + ':' + psychId;
+        }
+        window.sharePostToChat = sharePostToChat;
+
+        // Просмотры засчитываем один раз, когда карточка появляется в области видимости
+        const seenViews = new Set();
+        const viewObserver = ('IntersectionObserver' in window) ? new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (!entry.isIntersecting) return;
+                const id = entry.target.dataset.postId;
+                if (!id || seenViews.has(id)) return;
+                seenViews.add(id);
+                fetch('/api/channels.php?action=view', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+                    body: JSON.stringify({ post_id: parseInt(id, 10) })
+                }).catch(() => {});
+                viewObserver.unobserve(entry.target);
+            });
+        }, { threshold: 0.5 }) : null;
+
+        function observeNewPosts() {
+            if (!viewObserver) return;
+            document.querySelectorAll('.post-card').forEach(el => viewObserver.observe(el));
+        }
+
+        (async function init() {
+            try { if (window.Auth) currentUser = await window.Auth.getCurrentUser(); } catch (e) {}
+            await loadFeed(true);
+            observeNewPosts();
+            const mo = new MutationObserver(observeNewPosts);
+            mo.observe(document.getElementById('feedList'), { childList: true });
+        })();
+    </script>
+</body>
+</html>
