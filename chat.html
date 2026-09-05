@@ -4929,6 +4929,8 @@
             return myOwnChannelId !== null && String(psychId) === String(myOwnChannelId);
         }
         const GROUP_PREFIX = 'group:'; // групповой чат — общий чат на несколько человек, как в Telegram
+        const BOT_PREFIX = 'bot:';     // виртуальный чат с ботом пользователя (создаётся в «+» → Бот)
+        let myBots = [];               // боты текущего пользователя (для строк списка и чата с ботом)
         let myGroups = [];
         let groupMembersCache = [];
         let pendingGroupMembers = [];  // выбранные участники в модалке создания группы
@@ -7419,6 +7421,7 @@
             await loadChatPrefs();
             initPaneResizer();
             await loadConversations();
+            loadMyBots();       // не await — боты пользователя отдельными чатами в списке
             loadStoriesRow();   // не await — истории не должны задерживать открытие чатов
             if (storiesPollTimer) clearInterval(storiesPollTimer);
             storiesPollTimer = setInterval(psyPollGuard(loadStoriesRow), 60000);
@@ -7522,6 +7525,7 @@
             if (!k) return;
             if (k === AI_ID) { openAiBot(); return; }
             if (k === FAVORITES_ID) { openFavorites(); return; }
+            if (k.indexOf(BOT_PREFIX) === 0) { openBotChat(k.slice(BOT_PREFIX.length)); return; }
             if (k.indexOf(GROUP_PREFIX) === 0) { openGroupChat(k.slice(GROUP_PREFIX.length)); return; }
             if (k === FEED_ID) { openFeedSection(); return; }
             if (k === PSY_ID) { openPsyCatalog(); return; }
@@ -10604,15 +10608,123 @@
                 msg.textContent = '✅ бот создан, токен ниже'; msg.style.color = '#16A34A';
                 document.getElementById('botStudioName').value = '';
                 await loadBotStudioList();
+                loadMyBots();   // бот сразу появляется отдельным чатом в списке
             } catch(e){ msg.textContent = '⚠️ ошибка сети'; msg.style.color = '#DC2626'; }
             btn.disabled = false;
         }
         function botStudioCopy(id){ const el = document.getElementById('bst-'+id); if (!el) return; el.select(); try { navigator.clipboard ? navigator.clipboard.writeText(el.value) : document.execCommand('copy'); } catch(e){} }
         async function botStudioRegen(id){ if (!confirm('Сменить токен? Старый перестанет работать во всех интеграциях.')) return; const d = await botStudioApi('regenerate', { id }); if (d && d.ok) loadBotStudioList(); else alert((d&&d.error)||'Не удалось'); }
-        async function botStudioToggle(id, active){ const d = await botStudioApi('toggle', { id, active }); if (d && d.ok) loadBotStudioList(); else alert((d&&d.error)||'Не удалось'); }
-        async function botStudioDelete(id){ if (!confirm('Удалить бота? Токен и подключения перестанут работать.')) return; const d = await botStudioApi('delete', { id }); if (d && d.ok) loadBotStudioList(); else alert((d&&d.error)||'Не удалось'); }
+        async function botStudioToggle(id, active){ const d = await botStudioApi('toggle', { id, active }); if (d && d.ok) { loadBotStudioList(); loadMyBots(); } else alert((d&&d.error)||'Не удалось'); }
+        async function botStudioDelete(id){ if (!confirm('Удалить бота? Токен и подключения перестанут работать.')) return; const d = await botStudioApi('delete', { id }); if (d && d.ok) { loadBotStudioList(); loadMyBots(); if (selectedUserId === BOT_PREFIX + id) goBackToList(); } else alert((d&&d.error)||'Не удалось'); }
         window.botStudioCreate = botStudioCreate; window.botStudioCopy = botStudioCopy;
         window.botStudioRegen = botStudioRegen; window.botStudioToggle = botStudioToggle; window.botStudioDelete = botStudioDelete;
+
+        /** Загрузить своих ботов и показать их отдельными чатами в списке. */
+        async function loadMyBots() {
+            try { const d = await botStudioApi('list'); myBots = (d && d.ok) ? (d.data || []) : []; }
+            catch (e) { myBots = []; }
+            refreshConversationList();
+        }
+        window.loadMyBots = loadMyBots;
+
+        // ── Виртуальный чат с ботом (как чат в Telegram) ─────────────────────────
+        function botById(id) { return (myBots || []).find(b => String(b.id) === String(id)) || null; }
+        function botChatKey(id) { return 'psy-botchat_' + ((currentUser && currentUser.id) || '') + '_' + id; }
+        function botChatHistory(id) { try { return JSON.parse(localStorage.getItem(botChatKey(id)) || '[]'); } catch (e) { return []; } }
+        function botChatSave(id, arr) { try { localStorage.setItem(botChatKey(id), JSON.stringify(arr.slice(-200))); } catch (e) {} }
+
+        async function openBotChat(id) {
+            let b = botById(id);
+            if (!b) { await loadMyBots(); b = botById(id); }
+            if (!b) { alert('Бот не найден'); return; }
+            clearPinnedBar();
+            selectedUserId = BOT_PREFIX + id;
+            syncChatUrl(selectedUserId);
+            cancelEditMessage();
+            headerRenderedFor = selectedUserId;
+            if (pollInterval) { clearInterval(pollInterval); pollInterval = null; }
+            document.getElementById('emptyState').style.display = 'none';
+            document.getElementById('chatContent').style.display = 'flex';
+            document.querySelector('.chat-container').classList.add('mobile-chat-open');
+            setComposerMode('none');   // у бота — свой ввод внутри окна
+            refreshConversationList();
+
+            const scopes = String(b.scopes || '').split(',').map(s => s.trim());
+            const hasAi = scopes.indexOf('ai') >= 0;
+            document.getElementById('chatHeader').innerHTML = `
+                <button class="chat-back-btn" onclick="goBackToList()" title="Назад к диалогам">←</button>
+                <div class="avatar" style="background:linear-gradient(135deg,#7C3AED,#4F46E5);"><span class="ava-ico">${ICO_BOT}</span></div>
+                <div style="flex:1;min-width:0;">
+                    <div class="name">${escapeHtml(b.name)}</div>
+                    <div class="role">Бот${parseInt(b.is_active) ? '' : ' · выключен'}${hasAi ? ' · отвечает ИИ' : ''}</div>
+                </div>
+                ${headerActionsHtml([
+                    { icon: '⚙️', label: 'Управление ботом', run: () => openBotStudio() },
+                    { icon: '📋', label: 'Скопировать токен', run: () => { try { navigator.clipboard && navigator.clipboard.writeText(b.token); } catch (e) {} } },
+                ], '')}`;
+            try { if (window.lucide) lucide.createIcons(); } catch (e) {}
+            botChatRender(id);
+        }
+        window.openBotChat = openBotChat;
+
+        function botChatRender(id) {
+            const b = botById(id); if (!b) return;
+            const box = document.getElementById('messagesContainer'); if (!box) return;
+            const scopes = String(b.scopes || '').split(',').map(s => s.trim());
+            const hasAi = scopes.indexOf('ai') >= 0;
+            const hist = botChatHistory(id);
+            const dark = document.body.classList.contains('dark');
+            const intro = `Привет! Я бот <b>${escapeHtml(b.name)}</b>.<br>Токен: <code style="word-break:break-all;">${escapeHtml(b.token)}</code><br>Права: ${escapeHtml(b.scopes || '—')}.<br>` +
+                (hasAi ? 'Напишите мне — отвечу с помощью ИИ. Этим же токеном бота можно подключать внешние системы (заявки, посты, OpenClaude).'
+                       : 'Диалог с ИИ выключен (нет права «ИИ»). Токеном можно принимать заявки и публиковать посты через API — см. «⚙️ Управление».');
+            const msgHtml = hist.map(m => `
+                <div class="message ${m.role === 'user' ? 'mine' : 'theirs'}" style="max-width:80%;">
+                    <div class="message-text">${formatPostText(m.text)}</div>
+                </div>`).join('');
+            box.innerHTML = `
+                <div style="display:flex;flex-direction:column;height:100%;">
+                    <div id="botChatScroll" style="flex:1;overflow-y:auto;padding:0.6rem;display:flex;flex-direction:column;gap:0.4rem;">
+                        <div class="message theirs" style="max-width:90%;background:${dark ? '#252525' : '#F3F1FA'};">
+                            <div class="message-text" style="line-height:1.5;">${intro}</div>
+                        </div>
+                        ${msgHtml}
+                    </div>
+                    <div style="display:flex;gap:0.5rem;padding:0.6rem;border-top:1px solid ${dark ? '#333' : '#eee'};">
+                        <textarea id="botChatInput" rows="1" placeholder="${hasAi ? 'Сообщение боту…' : 'Диалог с ИИ выключен'}" ${hasAi ? '' : 'disabled'}
+                            style="flex:1;min-width:0;resize:none;max-height:120px;padding:0.55rem 0.7rem;border:1.5px solid ${dark ? '#444' : '#e0e0e0'};border-radius:0.8rem;font-family:inherit;font-size:0.95rem;background:${dark ? '#2A2A2A' : '#fff'};color:inherit;"
+                            onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();botChatSend('${id}')}"></textarea>
+                        <button onclick="botChatSend('${id}')" ${hasAi ? '' : 'disabled'} title="Отправить"
+                            style="flex-shrink:0;width:42px;border:none;border-radius:50%;background:linear-gradient(135deg,#7C3AED,#4F46E5);color:#fff;cursor:pointer;font-size:1.1rem;${hasAi ? '' : 'opacity:0.5;'}">➤</button>
+                    </div>
+                </div>`;
+            const sc = document.getElementById('botChatScroll'); if (sc) sc.scrollTop = sc.scrollHeight;
+        }
+
+        async function botChatSend(id) {
+            const b = botById(id); if (!b) return;
+            const inp = document.getElementById('botChatInput'); if (!inp) return;
+            const text = inp.value.trim(); if (!text) return;
+            const hist = botChatHistory(id);
+            hist.push({ role: 'user', text });
+            botChatSave(id, hist);
+            inp.value = '';
+            botChatRender(id);
+            const sc = document.getElementById('botChatScroll');
+            if (sc) { const wait = document.createElement('div'); wait.className = 'message theirs'; wait.style.cssText = 'max-width:60%;opacity:0.6;'; wait.innerHTML = '<div class="message-text">ИИ печатает…</div>'; sc.appendChild(wait); sc.scrollTop = sc.scrollHeight; }
+            try {
+                const r = await fetch('/api/bots.php?action=ask', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + b.token }, credentials: 'include',
+                    body: JSON.stringify({ prompt: text })
+                });
+                const d = await r.json().catch(() => ({}));
+                const answer = (d && d.ok && d.answer) ? d.answer : ('⚠️ ' + ((d && d.error) || 'ИИ не ответил'));
+                const h2 = botChatHistory(id); h2.push({ role: 'bot', text: answer }); botChatSave(id, h2);
+            } catch (e) {
+                const h2 = botChatHistory(id); h2.push({ role: 'bot', text: '⚠️ Ошибка сети' }); botChatSave(id, h2);
+            }
+            botChatRender(id);
+        }
+        window.botChatSend = botChatSend;
         window.closeCreateMenu = closeCreateMenu;
         document.addEventListener('click', (e) => {
             const menu = document.getElementById('chatNewMenu');
@@ -11670,6 +11782,26 @@
                 </div>` }];
         }
 
+        /** Строки чатов с ботами пользователя — как в Telegram, бот виден отдельным чатом. */
+        function botRows() {
+            if (!Array.isArray(myBots) || !myBots.length) return [];
+            return myBots.map(b => {
+                const key = BOT_PREFIX + b.id;
+                if (!chatVisible('section', key, null)) return null;
+                const active = parseInt(b.is_active) === 1;
+                const preview = active ? 'Бот · токен, заявки, ИИ, посты' : 'Бот выключен';
+                return { key, name: b.name, html: `
+                <div class="conversation-item ${selectedUserId === key ? 'active' : ''}" onclick="openBotChat('${b.id}')" title="${escapeHtml(b.name)}">
+                    <div class="conversation-avatar" style="background:linear-gradient(135deg,#7C3AED,#4F46E5);"><span class="ava-ico">${ICO_BOT}</span></div>
+                    <div class="conversation-info">
+                        <div class="conversation-name"><span class="cn-text">${escapeHtml(b.name)}</span>${pinMarkHtml(key)}</div>
+                        <div class="conversation-preview">${escapeHtml(preview)}</div>
+                    </div>
+                    ${folderPickHtml(key, 'section', null, b.name)}
+                </div>` };
+            }).filter(Boolean);
+        }
+
         /** Строка «Лента» — публикации каналов, на которые человек подписан. */
         /** Строка «Психологи» в списке — рядом с «Лентой». */
         function psyRows() {
@@ -12177,6 +12309,7 @@
             const err = channelsErrHtml() + groupsErrHtml();   // сообщения об ошибках всегда сверху
             favoritesRows().filter(bySpecialQuery).forEach(r => rows.push(r));
             aiRows().filter(bySpecialQuery).forEach(r => rows.push(r));
+            botRows().filter(bySpecialQuery).forEach(r => rows.push(r));
             supportRows().filter(bySpecialQuery).forEach(r => rows.push(r));
             psyRows().filter(bySpecialQuery).forEach(r => rows.push(r));
             feedRows().filter(bySpecialQuery).forEach(r => rows.push(r));
