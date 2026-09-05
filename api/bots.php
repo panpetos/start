@@ -88,7 +88,7 @@ function newToken(): string {
 // ─────────────────────────────────────────────────────────────────────────────
 //  API БОТА (авторизация токеном) — сюда стучатся внешние системы
 // ─────────────────────────────────────────────────────────────────────────────
-$TOKEN_ACTIONS = ['me', 'lead', 'ask'];
+$TOKEN_ACTIONS = ['me', 'lead', 'ask', 'post'];
 if (in_array($action, $TOKEN_ACTIONS, true)) {
     // Токен: заголовок Authorization: Bearer …, либо ?token=, либо тело
     $token = '';
@@ -158,6 +158,38 @@ if (in_array($action, $TOKEN_ACTIONS, true)) {
         $answer = trim((string)$answer);
         if ($answer === '') { $mm = is_array($dd) ? ($dd['error']['message'] ?? $dd['message'] ?? '') : ''; bout(['error' => 'ИИ не вернул ответ' . ($mm ? ': ' . $mm : '')], 502); }
         bout(['ok' => true, 'answer' => $answer]);
+    }
+
+    if ($action === 'post') {
+        // Автопостинг в канал владельца бота. Канал у психолога — его psychologists.id,
+        // у остальных — собственный user_id (та же логика, что в channels.php).
+        if (!$has('post')) bout(['error' => 'У бота нет права на посты (scope post)'], 403);
+        $owner = (string)($bot['owner_user_id'] ?? '');
+        if ($owner === '') bout(['error' => 'У бота нет владельца'], 400);
+        $text = trim((string)($body['text'] ?? ($body['message'] ?? '')));
+        $image = trim((string)($body['image_url'] ?? ''));
+        if ($text === '' && $image === '') bout(['error' => 'Пустой пост: нужен text или image_url'], 400);
+        if ($image !== '' && !preg_match('~^(https?://|/uploads/)~', $image)) bout(['error' => 'image_url должен быть ссылкой http(s):// или /uploads/…'], 400);
+        // id канала владельца
+        $channelId = $owner;
+        try { $st = $pdo->prepare("SELECT id FROM psychologists WHERE user_id = ? LIMIT 1"); $st->execute([$owner]); $pid = $st->fetchColumn(); if ($pid) $channelId = (string)$pid; }
+        catch (Exception $e) {}
+        // таблица постов канала (та же, что у channels.php) — на случай, если ещё не создана
+        try {
+            $pdo->exec("CREATE TABLE IF NOT EXISTS channel_posts (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                psychologist_id VARCHAR(64) NOT NULL,
+                text TEXT NULL,
+                image_url VARCHAR(500) NULL,
+                created_at DATETIME NOT NULL,
+                INDEX idx_psych (psychologist_id)
+            ) DEFAULT CHARSET=utf8mb4");
+        } catch (Exception $e) {}
+        try {
+            $st = $pdo->prepare("INSERT INTO channel_posts (psychologist_id, text, image_url, created_at) VALUES (?,?,?,NOW())");
+            $st->execute([$channelId, ($text !== '' ? mb_substr($text, 0, 8000) : null), ($image !== '' ? $image : null)]);
+            bout(['ok' => true, 'id' => (int)$pdo->lastInsertId(), 'channel_id' => $channelId]);
+        } catch (Exception $e) { bout(['error' => 'Не удалось опубликовать пост'], 500); }
     }
 
     if ($action === 'lead') {

@@ -3977,6 +3977,7 @@
   -H "Content-Type: application/json" \\
   -d '{"name":"Иван","contact":"+7 900 000-00-00","message":"Хочу записаться","source":"лендинг"}'</pre>
                         ИИ-ответ (OpenClaude, право «ИИ»): <code>POST /api/bots.php?action=ask</code> с телом <code>{"prompt":"…"}</code> — вернёт <code>{"answer":"…"}</code>.
+                        Пост в канал (право «Посты в канал»): <code>POST /api/bots.php?action=post</code> с телом <code>{"text":"…","image_url":"/uploads/…"}</code>.
                         Проверить токен: <code>GET /api/bots.php?action=me</code> с тем же заголовком. Пришедшие заявки видно выше в «Заявки от ботов».
                     </div>
                 </div>`;
