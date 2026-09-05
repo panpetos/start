@@ -4226,6 +4226,7 @@
                 <button type="button" onclick="closeCreateMenu();openCreateGroupModal()"><span>👥</span><div><b>Группа</b><i>общая переписка на несколько человек</i></div></button>
                 <button type="button" onclick="closeCreateMenu();openMyChannel()"><span>📢</span><div><b>Канал</b><i>публикации для подписчиков, попадают в Ленту</i></div></button>
                 <button type="button" onclick="closeCreateMenu();openMyBlog()"><span>📝</span><div><b>Блог</b><i>статьи с просмотрами и лайками</i></div></button>
+                <button type="button" onclick="closeCreateMenu();openBotStudio()"><span>🤖</span><div><b>Бот</b><i>токен для заявок с сайта, интеграций и OpenClaude</i></div></button>
             </div>
             </div>
             <!-- Край для перетаскивания ширины списка -->
@@ -10493,6 +10494,117 @@
             if (btn) btn.classList.remove('open');
         }
         window.toggleCreateMenu = toggleCreateMenu;
+
+        // ── Боты (создание прямо в чате, как BotFather) ───────────────────────────
+        const BOT_STUDIO_SCOPES = [
+            { id:'lead',    label:'Заявки',        hint:'приём заявок с внешнего сайта' },
+            { id:'message', label:'Сообщения',     hint:'слать сообщения (скоро)' },
+            { id:'ai',      label:'ИИ / OpenClaude',hint:'ИИ-ответы (скоро)' },
+            { id:'post',    label:'Посты в канал',  hint:'автопостинг (скоро)' },
+        ];
+        async function botStudioApi(action, payload, qs) {
+            const url = '/api/bots.php?action=' + action + (qs ? '&' + qs : '');
+            const opt = payload
+                ? { method:'POST', headers:{'Content-Type':'application/json'}, credentials:'include', body: JSON.stringify(payload) }
+                : { credentials:'include' };
+            return (await (await fetch(url, opt)).json());
+        }
+        function openBotStudio() {
+            let m = document.getElementById('psyBotModal');
+            if (m) m.remove();
+            const dark = document.body.classList.contains('dark');
+            m = document.createElement('div');
+            m.id = 'psyBotModal';
+            m.style.cssText = 'position:fixed;inset:0;background:rgba(18,42,34,0.6);z-index:1330;display:flex;align-items:center;justify-content:center;padding:1rem;';
+            m.innerHTML = `
+                <div style="background:${dark?'#1E1E1E':'#fff'};color:${dark?'#E6E6E6':'#1A1A1A'};border-radius:1rem;width:min(560px,96vw);max-height:90vh;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 12px 40px rgba(0,0,0,0.3);">
+                    <div style="display:flex;align-items:center;justify-content:space-between;padding:1rem 1.1rem;border-bottom:1px solid ${dark?'#333':'#eee'};">
+                        <div style="font-weight:700;font-size:1.05rem;">🤖 Боты</div>
+                        <button onclick="closeBotStudio()" style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:inherit;line-height:1;">✕</button>
+                    </div>
+                    <div style="padding:1rem 1.1rem;overflow-y:auto;">
+                        <div style="font-size:0.85rem;color:${dark?'#A0A0A0':'#6B7280'};line-height:1.5;margin-bottom:0.9rem;">
+                            Создайте бота и получите <b>токен</b> — им подключают внешние системы: приём заявок с вашего сайта, интеграции и OpenClaude. Токен — секрет, не публикуйте его.
+                        </div>
+                        <label style="font-size:0.82rem;font-weight:600;">Название бота</label>
+                        <input id="botStudioName" maxlength="120" placeholder="Напр.: Заявки с лендинга"
+                               style="width:100%;margin-top:0.3rem;padding:0.6rem 0.7rem;border:1.5px solid ${dark?'#444':'#e0e0e0'};border-radius:0.6rem;font-family:inherit;font-size:0.95rem;background:${dark?'#2A2A2A':'#fff'};color:inherit;">
+                        <div style="font-size:0.82rem;font-weight:600;margin-top:0.7rem;">Права</div>
+                        <div id="botStudioScopes" style="display:flex;flex-wrap:wrap;gap:0.5rem 0.9rem;margin-top:0.35rem;">
+                            ${BOT_STUDIO_SCOPES.map(s => `<label style="display:inline-flex;align-items:center;gap:0.35rem;font-size:0.86rem;">
+                                <input type="checkbox" class="botStudioScope" value="${s.id}" ${s.id==='lead'?'checked':''}> ${escapeHtml(s.label)}</label>`).join('')}
+                        </div>
+                        <button onclick="botStudioCreate(this)" style="margin-top:0.9rem;width:100%;padding:0.65rem;background:linear-gradient(135deg,#047857,#059669);color:#fff;border:none;border-radius:0.6rem;font-weight:700;cursor:pointer;font-family:inherit;">➕ Создать бота</button>
+                        <div id="botStudioMsg" style="font-size:0.82rem;margin-top:0.5rem;"></div>
+                        <div style="font-weight:700;margin:1.1rem 0 0.5rem;">Мои боты</div>
+                        <div id="botStudioList"><div style="color:${dark?'#A0A0A0':'#9CA3AF'};font-size:0.85rem;">Загрузка…</div></div>
+                        <details style="margin-top:1rem;border:1px solid ${dark?'#333':'#eee'};border-radius:0.6rem;padding:0.6rem 0.8rem;">
+                            <summary style="cursor:pointer;font-weight:600;font-size:0.88rem;">Как подключить к сайту / OpenClaude</summary>
+                            <div style="font-size:0.82rem;line-height:1.55;margin-top:0.5rem;color:${dark?'#B4B4B4':'#4B5563'};">
+                                Отправляйте заявки POST-запросом, подставив токен бота:
+                                <pre style="background:${dark?'#111':'#F5F5F5'};border-radius:0.5rem;padding:0.7rem;overflow-x:auto;font-size:0.76rem;margin-top:0.4rem;">curl -X POST "https://psytalk.pro/api/bots.php?action=lead" \\
+  -H "Authorization: Bearer ВАШ_ТОКЕН" \\
+  -H "Content-Type: application/json" \\
+  -d '{"name":"Иван","contact":"+7...","message":"Заявка","source":"сайт"}'</pre>
+                                Проверить токен: <code>GET …?action=me</code>. Пришедшие заявки — в админке и здесь у бота.
+                            </div>
+                        </details>
+                    </div>
+                </div>`;
+            m.addEventListener('click', (e) => { if (e.target === m) closeBotStudio(); });
+            document.body.appendChild(m);
+            loadBotStudioList();
+        }
+        window.openBotStudio = openBotStudio;
+        function closeBotStudio() { const m = document.getElementById('psyBotModal'); if (m) m.remove(); }
+        window.closeBotStudio = closeBotStudio;
+        async function loadBotStudioList() {
+            const box = document.getElementById('botStudioList'); if (!box) return;
+            const dark = document.body.classList.contains('dark');
+            let d; try { d = await botStudioApi('list'); } catch(e){ box.innerHTML = '<div style="color:#DC2626;font-size:0.85rem;">Не удалось загрузить</div>'; return; }
+            const rows = (d && d.ok) ? (d.data||[]) : [];
+            if (!rows.length){ box.innerHTML = `<div style="color:${dark?'#A0A0A0':'#9CA3AF'};font-size:0.85rem;">Ботов пока нет — создайте выше.</div>`; return; }
+            box.innerHTML = rows.map(b => {
+                const active = parseInt(b.is_active) === 1;
+                return `<div style="border:1px solid ${dark?'#333':'#eee'};border-radius:0.7rem;padding:0.7rem 0.8rem;margin-bottom:0.55rem;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;gap:0.5rem;flex-wrap:wrap;">
+                        <b style="min-width:0;overflow-wrap:anywhere;">${escapeHtml(b.name)}</b>
+                        <span style="font-size:0.78rem;color:${active?'#16A34A':'#9CA3AF'};">${active?'● активен':'○ выключен'}</span>
+                    </div>
+                    <div style="display:flex;gap:0.4rem;align-items:center;margin-top:0.5rem;">
+                        <input readonly value="${escapeHtml(b.token)}" id="bst-${b.id}" style="flex:1;min-width:0;font-family:monospace;font-size:0.76rem;padding:0.4rem 0.55rem;border:1.5px solid ${dark?'#444':'#e0e0e0'};border-radius:0.5rem;background:${dark?'#2A2A2A':'#fff'};color:inherit;">
+                        <button onclick="botStudioCopy(${b.id})" style="padding:0.4rem 0.6rem;border:1.5px solid ${dark?'#444':'#e0e0e0'};border-radius:0.5rem;background:none;color:inherit;cursor:pointer;font-size:0.8rem;white-space:nowrap;">📋</button>
+                    </div>
+                    <div style="display:flex;gap:0.35rem;flex-wrap:wrap;margin-top:0.5rem;">
+                        <button onclick="botStudioRegen(${b.id})" style="padding:0.35rem 0.6rem;border:1.5px solid ${dark?'#444':'#e0e0e0'};border-radius:0.5rem;background:none;color:inherit;cursor:pointer;font-size:0.78rem;">↻ Токен</button>
+                        <button onclick="botStudioToggle(${b.id}, ${active?0:1})" style="padding:0.35rem 0.6rem;border:1.5px solid ${dark?'#444':'#e0e0e0'};border-radius:0.5rem;background:none;color:inherit;cursor:pointer;font-size:0.78rem;">${active?'Выключить':'Включить'}</button>
+                        <button onclick="botStudioDelete(${b.id})" style="padding:0.35rem 0.6rem;border:1.5px solid ${dark?'#5B2525':'#F0C8C8'};border-radius:0.5rem;background:none;color:#DC2626;cursor:pointer;font-size:0.78rem;">Удалить</button>
+                    </div>
+                    <div style="font-size:0.74rem;color:${dark?'#808080':'#9CA3AF'};margin-top:0.4rem;">Права: ${escapeHtml(b.scopes||'—')} · вызовов: ${b.calls_count||0}</div>
+                </div>`;
+            }).join('');
+        }
+        async function botStudioCreate(btn){
+            const name = document.getElementById('botStudioName').value.trim();
+            const msg = document.getElementById('botStudioMsg');
+            const scopes = Array.from(document.querySelectorAll('.botStudioScope:checked')).map(c => c.value);
+            if (!name){ msg.textContent = 'Введите название'; msg.style.color = '#DC2626'; return; }
+            btn.disabled = true; msg.textContent = 'создаю…'; msg.style.color = '#9CA3AF';
+            try {
+                const d = await botStudioApi('create', { name, scopes });
+                if (!d.ok){ msg.textContent = '⚠️ ' + (d.error||'ошибка'); msg.style.color = '#DC2626'; btn.disabled=false; return; }
+                msg.textContent = '✅ бот создан, токен ниже'; msg.style.color = '#16A34A';
+                document.getElementById('botStudioName').value = '';
+                await loadBotStudioList();
+            } catch(e){ msg.textContent = '⚠️ ошибка сети'; msg.style.color = '#DC2626'; }
+            btn.disabled = false;
+        }
+        function botStudioCopy(id){ const el = document.getElementById('bst-'+id); if (!el) return; el.select(); try { navigator.clipboard ? navigator.clipboard.writeText(el.value) : document.execCommand('copy'); } catch(e){} }
+        async function botStudioRegen(id){ if (!confirm('Сменить токен? Старый перестанет работать во всех интеграциях.')) return; const d = await botStudioApi('regenerate', { id }); if (d && d.ok) loadBotStudioList(); else alert((d&&d.error)||'Не удалось'); }
+        async function botStudioToggle(id, active){ const d = await botStudioApi('toggle', { id, active }); if (d && d.ok) loadBotStudioList(); else alert((d&&d.error)||'Не удалось'); }
+        async function botStudioDelete(id){ if (!confirm('Удалить бота? Токен и подключения перестанут работать.')) return; const d = await botStudioApi('delete', { id }); if (d && d.ok) loadBotStudioList(); else alert((d&&d.error)||'Не удалось'); }
+        window.botStudioCreate = botStudioCreate; window.botStudioCopy = botStudioCopy;
+        window.botStudioRegen = botStudioRegen; window.botStudioToggle = botStudioToggle; window.botStudioDelete = botStudioDelete;
         window.closeCreateMenu = closeCreateMenu;
         document.addEventListener('click', (e) => {
             const menu = document.getElementById('chatNewMenu');
@@ -10568,6 +10680,9 @@
             menu.innerHTML = `
                 <button class="folder-picker-row" onclick="event.stopPropagation();closeFolderPicker();openCreateGroupModal()">
                     <span class="fp-mark">👥</span>Новая группа
+                </button>
+                <button class="folder-picker-row" onclick="event.stopPropagation();closeFolderPicker();openBotStudio()">
+                    <span class="fp-mark">🤖</span>Бот (токен, заявки, интеграции)
                 </button>
                 <button class="folder-picker-row" onclick="event.stopPropagation();closeFolderPicker();openWallpaperPicker()">
                     <span class="fp-mark">🎨</span>Обои переписки

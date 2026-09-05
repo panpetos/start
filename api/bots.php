@@ -139,7 +139,8 @@ function botTouch(PDO $pdo, int $botId): void {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  УПРАВЛЕНИЕ (только администратор по сессии)
+//  УПРАВЛЕНИЕ (по сессии). Как BotFather: любой авторизованный пользователь заводит
+//  СВОИХ ботов и управляет только ими. Администратор видит и правит всех.
 // ─────────────────────────────────────────────────────────────────────────────
 if (session_status() === PHP_SESSION_NONE) session_start();
 $userId = $_SESSION['user_id'] ?? null;
@@ -147,7 +148,6 @@ if (!$userId) bout(['error' => 'Требуется авторизация'], 401
 $isAdmin = false;
 try { $st = $pdo->prepare("SELECT role FROM users WHERE id = ? LIMIT 1"); $st->execute([$userId]); $isAdmin = ((string)$st->fetchColumn() === 'admin'); }
 catch (Exception $e) {}
-if (!$isAdmin) bout(['error' => 'Доступ только для администратора'], 403);
 
 function normScopes($val, array $all): string {
     $list = is_array($val) ? $val : explode(',', (string)$val);
@@ -155,11 +155,18 @@ function normScopes($val, array $all): string {
     if (!$list) $list = ['lead'];
     return implode(',', $list);
 }
+/** Бот принадлежит пользователю? (админу — любой). Иначе — доступа нет. */
+function botOwned(PDO $pdo, int $id, $userId, bool $isAdmin): bool {
+    if ($isAdmin) return true;
+    try { $st = $pdo->prepare("SELECT owner_user_id FROM bots WHERE id = ? LIMIT 1"); $st->execute([$id]); return ((string)$st->fetchColumn() === (string)$userId); }
+    catch (Exception $e) { return false; }
+}
 
 if ($action === 'list') {
     try {
-        $rows = $pdo->query("SELECT id, name, token, scopes, is_active, calls_count, last_used_at, created_at FROM bots ORDER BY id DESC")->fetchAll(PDO::FETCH_ASSOC);
-        bout(['ok' => true, 'data' => $rows]);
+        if ($isAdmin) { $st = $pdo->query("SELECT id, name, token, scopes, is_active, calls_count, last_used_at, created_at, owner_user_id FROM bots ORDER BY id DESC"); }
+        else { $st = $pdo->prepare("SELECT id, name, token, scopes, is_active, calls_count, last_used_at, created_at, owner_user_id FROM bots WHERE owner_user_id = ? ORDER BY id DESC"); $st->execute([$userId]); }
+        bout(['ok' => true, 'data' => $st->fetchAll(PDO::FETCH_ASSOC), 'is_admin' => $isAdmin]);
     } catch (Exception $e) { bout(['ok' => true, 'data' => []]); }
 }
 
@@ -178,6 +185,7 @@ if ($action === 'create' && $_SERVER['REQUEST_METHOD'] === 'POST') {
 if ($action === 'regenerate' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $id = (int)($body['id'] ?? 0);
     if (!$id) bout(['error' => 'Не указан бот'], 400);
+    if (!botOwned($pdo, $id, $userId, $isAdmin)) bout(['error' => 'Это не ваш бот'], 403);
     try {
         $token = newToken();
         $pdo->prepare("UPDATE bots SET token = ? WHERE id = ?")->execute([$token, $id]);
@@ -189,13 +197,24 @@ if ($action === 'toggle' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $id = (int)($body['id'] ?? 0);
     $active = !empty($body['active']) ? 1 : 0;
     if (!$id) bout(['error' => 'Не указан бот'], 400);
+    if (!botOwned($pdo, $id, $userId, $isAdmin)) bout(['error' => 'Это не ваш бот'], 403);
     try { $pdo->prepare("UPDATE bots SET is_active = ? WHERE id = ?")->execute([$active, $id]); bout(['ok' => true]); }
     catch (Exception $e) { bout(['error' => 'Не удалось изменить'], 500); }
+}
+
+if ($action === 'scopes' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    $id = (int)($body['id'] ?? 0);
+    if (!$id) bout(['error' => 'Не указан бот'], 400);
+    if (!botOwned($pdo, $id, $userId, $isAdmin)) bout(['error' => 'Это не ваш бот'], 403);
+    $scopes = normScopes($body['scopes'] ?? 'lead', $ALL_SCOPES);
+    try { $pdo->prepare("UPDATE bots SET scopes = ? WHERE id = ?")->execute([$scopes, $id]); bout(['ok' => true, 'scopes' => $scopes]); }
+    catch (Exception $e) { bout(['error' => 'Не удалось изменить права'], 500); }
 }
 
 if ($action === 'delete' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $id = (int)($body['id'] ?? 0);
     if (!$id) bout(['error' => 'Не указан бот'], 400);
+    if (!botOwned($pdo, $id, $userId, $isAdmin)) bout(['error' => 'Это не ваш бот'], 403);
     try { $pdo->prepare("DELETE FROM bots WHERE id = ?")->execute([$id]); bout(['ok' => true]); }
     catch (Exception $e) { bout(['error' => 'Не удалось удалить'], 500); }
 }
@@ -203,8 +222,15 @@ if ($action === 'delete' && $_SERVER['REQUEST_METHOD'] === 'POST') {
 if ($action === 'leads') {
     $botId = (int)($_GET['bot_id'] ?? 0);
     try {
-        if ($botId) { $st = $pdo->prepare("SELECT l.*, b.name AS bot_name FROM bot_leads l LEFT JOIN bots b ON b.id=l.bot_id WHERE l.bot_id = ? ORDER BY l.id DESC LIMIT 500"); $st->execute([$botId]); }
-        else { $st = $pdo->query("SELECT l.*, b.name AS bot_name FROM bot_leads l LEFT JOIN bots b ON b.id=l.bot_id ORDER BY l.id DESC LIMIT 500"); }
+        // Не-админ видит заявки только своих ботов
+        if ($botId) {
+            if (!botOwned($pdo, $botId, $userId, $isAdmin)) bout(['error' => 'Это не ваш бот'], 403);
+            $st = $pdo->prepare("SELECT l.*, b.name AS bot_name FROM bot_leads l LEFT JOIN bots b ON b.id=l.bot_id WHERE l.bot_id = ? ORDER BY l.id DESC LIMIT 500"); $st->execute([$botId]);
+        } else if ($isAdmin) {
+            $st = $pdo->query("SELECT l.*, b.name AS bot_name FROM bot_leads l LEFT JOIN bots b ON b.id=l.bot_id ORDER BY l.id DESC LIMIT 500");
+        } else {
+            $st = $pdo->prepare("SELECT l.*, b.name AS bot_name FROM bot_leads l JOIN bots b ON b.id=l.bot_id WHERE b.owner_user_id = ? ORDER BY l.id DESC LIMIT 500"); $st->execute([$userId]);
+        }
         bout(['ok' => true, 'data' => $st->fetchAll(PDO::FETCH_ASSOC)]);
     } catch (Exception $e) { bout(['ok' => true, 'data' => []]); }
 }
