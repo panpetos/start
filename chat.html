@@ -10546,6 +10546,10 @@
   -H "Authorization: Bearer ВАШ_ТОКЕН" \\
   -H "Content-Type: application/json" \\
   -d '{"name":"Иван","contact":"+7...","message":"Заявка","source":"сайт"}'</pre>
+                                ИИ-ответ (OpenClaude, нужно право «ИИ»):
+                                <pre style="background:${dark?'#111':'#F5F5F5'};border-radius:0.5rem;padding:0.7rem;overflow-x:auto;font-size:0.76rem;margin-top:0.4rem;">curl -X POST "https://psytalk.pro/api/bots.php?action=ask" \\
+  -H "Authorization: Bearer ВАШ_ТОКЕН" -H "Content-Type: application/json" \\
+  -d '{"prompt":"Вопрос клиента"}'   →   {"ok":true,"answer":"…"}</pre>
                                 Проверить токен: <code>GET …?action=me</code>. Пришедшие заявки — в админке и здесь у бота.
                             </div>
                         </details>

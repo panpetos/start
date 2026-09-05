@@ -88,7 +88,7 @@ function newToken(): string {
 // ─────────────────────────────────────────────────────────────────────────────
 //  API БОТА (авторизация токеном) — сюда стучатся внешние системы
 // ─────────────────────────────────────────────────────────────────────────────
-$TOKEN_ACTIONS = ['me', 'lead'];
+$TOKEN_ACTIONS = ['me', 'lead', 'ask'];
 if (in_array($action, $TOKEN_ACTIONS, true)) {
     // Токен: заголовок Authorization: Bearer …, либо ?token=, либо тело
     $token = '';
@@ -112,6 +112,52 @@ if (in_array($action, $TOKEN_ACTIONS, true)) {
 
     if ($action === 'me') {
         bout(['ok' => true, 'bot' => ['name' => $bot['name'], 'scopes' => array_values($scopes)]]);
+    }
+
+    if ($action === 'ask') {
+        // ИИ-ответ (OpenClaude): внешняя система шлёт {prompt}, получает {answer}.
+        // Ключи/провайдер берём из того же ai_chat_config.php, что и ассистент.
+        if (!$has('ai')) bout(['error' => 'У бота нет права на ИИ (scope ai)'], 403);
+        $prompt = trim((string)($body['prompt'] ?? ($body['message'] ?? '')));
+        if ($prompt === '') bout(['error' => 'Пустой запрос: нужен prompt'], 400);
+        $system = mb_substr(trim((string)($body['system'] ?? 'Ты — помощник сервиса psytalk.pro. Отвечай кратко и по делу.')), 0, 2000);
+
+        $cfgFile = __DIR__ . '/ai_chat_config.php';
+        $cfg = file_exists($cfgFile) ? (require $cfgFile) : [];
+        if (!is_array($cfg)) $cfg = [];
+        $provider = ($cfg['provider'] ?? 'yandex') === 'openrouter' ? 'openrouter' : 'yandex';
+        $apiKey   = trim((string)($cfg['api_key'] ?? ''));
+        $folderId = trim((string)($cfg['folder_id'] ?? ''));
+        if ($apiKey === '') bout(['error' => 'ИИ не настроен на сервере (нет ключа)'], 503);
+        if ($provider === 'yandex' && $folderId === '') bout(['error' => 'Для Yandex не задан folder_id'], 503);
+
+        $models = $cfg['models'] ?? [];
+        $first = (is_array($models) && $models) ? (string)array_key_first($models) : '';
+        if ($provider === 'openrouter') { $model = $first !== '' ? $first : 'deepseek/deepseek-chat-v3-0324:free'; }
+        else { $m = $first !== '' ? $first : 'yandexgpt-lite/latest'; $model = (strpos($m, 'gpt://') === 0 || strpos($m, 'ds://') === 0) ? $m : ('gpt://' . $folderId . '/' . $m); }
+
+        $endpoint = $provider === 'openrouter'
+            ? 'https://openrouter.ai/api/v1/chat/completions'
+            : 'https://llm.api.cloud.yandex.net/v1/chat/completions';
+        $headers = ['Content-Type: application/json'];
+        if ($provider === 'openrouter') { $headers[] = 'Authorization: Bearer ' . $apiKey; $headers[] = 'HTTP-Referer: https://psytalk.pro'; $headers[] = 'X-Title: PsyTalk Bot'; }
+        else { $headers[] = 'Authorization: Api-Key ' . $apiKey; }
+        $payload = json_encode([
+            'model' => $model, 'temperature' => 0.6, 'max_tokens' => 900,
+            'messages' => [
+                ['role' => 'system', 'content' => $system],
+                ['role' => 'user',   'content' => mb_substr($prompt, 0, 4000)],
+            ],
+        ], JSON_UNESCAPED_UNICODE);
+        $ch = curl_init($endpoint);
+        curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_POST => true, CURLOPT_POSTFIELDS => $payload, CURLOPT_HTTPHEADER => $headers, CURLOPT_TIMEOUT => 60, CURLOPT_CONNECTTIMEOUT => 10]);
+        $raw = curl_exec($ch); $err = curl_error($ch); curl_close($ch);
+        if ($raw === false) bout(['error' => 'ИИ недоступен: ' . $err], 502);
+        $dd = json_decode($raw, true);
+        $answer = is_array($dd) ? ($dd['choices'][0]['message']['content'] ?? $dd['result']['alternatives'][0]['message']['text'] ?? '') : '';
+        $answer = trim((string)$answer);
+        if ($answer === '') { $mm = is_array($dd) ? ($dd['error']['message'] ?? $dd['message'] ?? '') : ''; bout(['error' => 'ИИ не вернул ответ' . ($mm ? ': ' . $mm : '')], 502); }
+        bout(['ok' => true, 'answer' => $answer]);
     }
 
     if ($action === 'lead') {
