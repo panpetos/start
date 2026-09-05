@@ -400,6 +400,9 @@
                     <button class="sidebar-item" data-tab="devtasks" onclick="switchTab('devtasks')">
                         <span class="sidebar-item-icon">🤖</span> Задачи Клоду
                     </button>
+                    <button class="sidebar-item" data-tab="bots" onclick="switchTab('bots')">
+                        <span class="sidebar-item-icon">🤖</span> Боты
+                    </button>
                     <button class="sidebar-item" data-tab="notifications" onclick="switchTab('notifications')">
                         <span class="sidebar-item-icon">🔔</span> Уведомления
                     </button>
@@ -577,7 +580,7 @@
             document.getElementById('sidebar').classList.remove('open');
             document.getElementById('sidebarOverlay').classList.remove('open');
             wrapTablesSoon();
-            ({ overview:renderOverview, support:renderSupport, users:renderUsers, psychologists:renderPsych, tariffs:renderTariffs, robokassa:renderRobokassa, yookassa:renderYookassa, devtasks:renderDevTasks, appointments:renderAppointments, replacements:renderReplacements, supervision:renderSupervision, calls:renderCalls, payments:renderPayments, payouts:renderPayouts, subscribers:renderSubscribers, referrals:renderReferrals, activity:renderActivity, notes:renderNotes, notifications:renderNotifications, adminperms:renderAdminPerms, metrics:renderMetrics, sitemap:renderSitemap, content:renderContentMod, complaints:renderComplaints }[tab])();
+            ({ overview:renderOverview, support:renderSupport, users:renderUsers, psychologists:renderPsych, tariffs:renderTariffs, robokassa:renderRobokassa, yookassa:renderYookassa, devtasks:renderDevTasks, appointments:renderAppointments, replacements:renderReplacements, supervision:renderSupervision, calls:renderCalls, payments:renderPayments, payouts:renderPayouts, subscribers:renderSubscribers, referrals:renderReferrals, activity:renderActivity, notes:renderNotes, notifications:renderNotifications, adminperms:renderAdminPerms, metrics:renderMetrics, sitemap:renderSitemap, content:renderContentMod, complaints:renderComplaints, bots:renderBots }[tab])();
         }
 
         /**
@@ -3926,8 +3929,131 @@
             tariffs:'💰 Тарифы', robokassa:'🏦 Робокасса', yookassa:'🏦 ЮKassa', subscribers:'📧 Подписчики',
             referrals:'🔗 Источники', activity:'📜 Журнал', support:'💬 Поддержка', devtasks:'🤖 Задачи Клоду',
             notifications:'🔔 Уведомления', notes:'📝 Записки', adminperms:'🔐 Права админов', metrics:'📊 Метрики',
-            sitemap:'🗺️ Карта сайта', content:'🛡 Контент'
+            sitemap:'🗺️ Карта сайта', content:'🛡 Контент', bots:'🤖 Боты'
         };
+        // ── Боты (платформа, база) ───────────────────────────────────────────
+        const BOT_SCOPES = [
+            { id:'lead',    label:'Заявки', hint:'принимать заявки с внешнего сайта' },
+            { id:'message', label:'Сообщения', hint:'слать сообщения (в разработке)' },
+            { id:'ai',      label:'ИИ / OpenClaude', hint:'ИИ-ответы (в разработке)' },
+            { id:'post',    label:'Посты в канал', hint:'публикация постов (в разработке)' },
+        ];
+        async function botApi(action, payload, qs){
+            const url = '/api/bots.php?action=' + action + (qs ? '&' + qs : '');
+            const opt = payload
+                ? { method:'POST', headers:{'Content-Type':'application/json'}, credentials:'include', body: JSON.stringify(payload) }
+                : { credentials:'include' };
+            return (await (await fetch(url, opt)).json());
+        }
+        async function renderBots(){
+            const box = document.getElementById('content');
+            box.innerHTML = `<div class="note">🤖 Боты подключают к платформе внешние системы по <b>токену</b>: приём заявок с вашего стороннего сайта, интеграции (OpenClaude и т.п.). Создайте бота, выдайте права и скопируйте токен — его вписывают в интеграцию на вашей стороне. Токен — секрет, не публикуйте его.</div>
+                <div class="panel"><div class="panel-head"><h2>Новый бот</h2></div>
+                    <div style="padding:1rem 1.1rem;">
+                        <label style="font-size:0.82rem;color:var(--a-text-sec);font-weight:600;">Название<br>
+                            <input id="botName" placeholder="Напр.: Заявки с лендинга" maxlength="120"
+                                   style="width:100%;max-width:360px;margin-top:0.3rem;padding:0.55rem 0.7rem;border:1.5px solid var(--a-input-border);border-radius:0.6rem;font-family:inherit;font-size:0.95rem;background:var(--a-input-bg);color:var(--a-text);"></label>
+                        <div style="margin-top:0.7rem;font-size:0.82rem;color:var(--a-text-sec);font-weight:600;">Права бота</div>
+                        <div style="display:flex;flex-wrap:wrap;gap:0.6rem;margin-top:0.35rem;">
+                            ${BOT_SCOPES.map(s => `<label style="display:inline-flex;align-items:center;gap:0.35rem;font-size:0.88rem;">
+                                <input type="checkbox" class="botScope" value="${s.id}" ${s.id==='lead'?'checked':''}> ${esc(s.label)}
+                                <span class="muted" style="font-size:0.75rem;">(${esc(s.hint)})</span></label>`).join('')}
+                        </div>
+                        <button class="btn-sm btn-brand" style="margin-top:0.9rem;padding:0.6rem 1.3rem;" onclick="botCreate(this)">➕ Создать бота</button>
+                        <span id="botMsg" style="font-size:0.85rem;margin-left:0.6rem;"></span>
+                    </div>
+                </div>
+                <div class="panel"><div class="panel-head"><h2>Мои боты</h2><button class="btn-sm btn-outline" onclick="renderBots()">↻ Обновить</button></div>
+                    <div id="botList" style="padding:0.6rem 1.1rem 1rem;"><div class="loading">Загрузка…</div></div>
+                </div>
+                <div class="panel"><div class="panel-head"><h2>Заявки от ботов</h2></div>
+                    <div id="botLeads" style="padding:0.6rem 1.1rem 1rem;"><div class="loading">Загрузка…</div></div>
+                </div>
+                <div class="panel"><div class="panel-head"><h2>Как подключить</h2></div>
+                    <div style="padding:1rem 1.1rem;font-size:0.86rem;line-height:1.6;">
+                        Заявку с вашего сайта отправляйте POST-запросом на адрес ниже, подставив токен бота:
+                        <pre style="background:var(--a-input-bg);border:1px solid var(--a-input-border);border-radius:0.6rem;padding:0.8rem;overflow-x:auto;font-size:0.8rem;margin-top:0.5rem;">curl -X POST "https://psytalk.pro/api/bots.php?action=lead" \\
+  -H "Authorization: Bearer ВАШ_ТОКЕН" \\
+  -H "Content-Type: application/json" \\
+  -d '{"name":"Иван","contact":"+7 900 000-00-00","message":"Хочу записаться","source":"лендинг"}'</pre>
+                        Проверить токен: <code>GET /api/bots.php?action=me</code> с тем же заголовком. Пришедшие заявки видно выше в «Заявки от ботов».
+                    </div>
+                </div>`;
+            loadBotList();
+            loadBotLeads();
+        }
+        async function loadBotList(){
+            const box = document.getElementById('botList'); if (!box) return;
+            let d; try { d = await botApi('list'); } catch(e){ box.innerHTML = '<div class="empty">Не удалось загрузить</div>'; return; }
+            const rows = (d && d.ok) ? (d.data||[]) : [];
+            if (!rows.length){ box.innerHTML = '<div class="empty">Ботов пока нет — создайте выше.</div>'; return; }
+            box.innerHTML = rows.map(b => {
+                const active = parseInt(b.is_active) === 1;
+                const last = b.last_used_at ? fmtDateTime(b.last_used_at) : 'ещё не использовался';
+                return `<div style="border:1px solid var(--a-input-border);border-radius:0.7rem;padding:0.8rem 0.9rem;margin-bottom:0.6rem;">
+                    <div style="display:flex;justify-content:space-between;gap:0.6rem;flex-wrap:wrap;align-items:center;">
+                        <div style="font-weight:700;">${esc(b.name)} ${active?'<span style="color:#16A34A;font-size:0.8rem;">● активен</span>':'<span style="color:#9CA3AF;font-size:0.8rem;">○ выключен</span>'}</div>
+                        <div style="display:flex;gap:0.35rem;flex-wrap:wrap;">
+                            <button class="btn-sm btn-outline" onclick="botRegen(${b.id})">↻ Сменить токен</button>
+                            <button class="btn-sm btn-outline" onclick="botToggle(${b.id}, ${active?0:1})">${active?'Выключить':'Включить'}</button>
+                            <button class="btn-sm btn-outline" style="color:#BE123C;" onclick="botDelete(${b.id})">Удалить</button>
+                        </div>
+                    </div>
+                    <div style="display:flex;gap:0.4rem;align-items:center;margin-top:0.5rem;">
+                        <input readonly value="${esc(b.token)}" id="bt-${b.id}" style="flex:1;min-width:0;font-family:monospace;font-size:0.8rem;padding:0.45rem 0.6rem;border:1.5px solid var(--a-input-border);border-radius:0.5rem;background:var(--a-input-bg);color:var(--a-text);">
+                        <button class="btn-sm btn-outline" onclick="botCopyToken(${b.id})">📋 Копировать</button>
+                    </div>
+                    <div class="muted" style="font-size:0.76rem;margin-top:0.4rem;">Права: ${esc(b.scopes||'—')} · вызовов: ${b.calls_count||0} · последний: ${esc(last)}</div>
+                </div>`;
+            }).join('');
+        }
+        async function loadBotLeads(){
+            const box = document.getElementById('botLeads'); if (!box) return;
+            let d; try { d = await botApi('leads'); } catch(e){ box.innerHTML = '<div class="empty">Не удалось загрузить</div>'; return; }
+            const rows = (d && d.ok) ? (d.data||[]) : [];
+            if (!rows.length){ box.innerHTML = '<div class="empty">Заявок пока нет.</div>'; return; }
+            box.innerHTML = `<table><thead><tr><th>Дата/время</th><th>Бот</th><th>Имя</th><th>Контакт</th><th>Сообщение</th><th>Источник</th><th>IP</th></tr></thead><tbody>` +
+                rows.map(l => `<tr><td class="muted">${fmtDateTime(l.created_at)}</td><td>${esc(l.bot_name||('#'+l.bot_id))}</td><td>${esc(l.name||'—')}</td><td>${esc(l.contact||'—')}</td>
+                    <td style="max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${esc(l.message||'')}">${esc(l.message||'—')}</td>
+                    <td>${esc(l.source||'—')}</td><td>${l.ip?`<code>${esc(l.ip)}</code>`:'—'}</td></tr>`).join('') + '</tbody></table>';
+        }
+        async function botCreate(btn){
+            const name = document.getElementById('botName').value.trim();
+            const msg = document.getElementById('botMsg');
+            const scopes = Array.from(document.querySelectorAll('.botScope:checked')).map(c => c.value);
+            if (!name){ msg.textContent = 'Введите название'; msg.style.color = '#DC2626'; return; }
+            btn.disabled = true; msg.textContent = 'создаю…'; msg.style.color = 'var(--a-text-muted)';
+            try {
+                const d = await botApi('create', { name, scopes });
+                if (!d.ok){ msg.textContent = '⚠️ ' + (d.error||'ошибка'); msg.style.color = '#DC2626'; btn.disabled=false; return; }
+                msg.textContent = '✅ создан'; msg.style.color = '#16A34A';
+                document.getElementById('botName').value = '';
+                await loadBotList();
+            } catch(e){ msg.textContent = '⚠️ ошибка сети'; msg.style.color = '#DC2626'; }
+            btn.disabled = false;
+        }
+        function botCopyToken(id){
+            const el = document.getElementById('bt-' + id); if (!el) return;
+            el.select();
+            navigator.clipboard ? navigator.clipboard.writeText(el.value).catch(()=>{}) : document.execCommand('copy');
+        }
+        async function botRegen(id){
+            if (!confirm('Сменить токен? Старый перестанет работать во всех подключённых интеграциях.')) return;
+            const d = await botApi('regenerate', { id });
+            if (d && d.ok) loadBotList(); else alert((d&&d.error)||'Не удалось');
+        }
+        async function botToggle(id, active){
+            const d = await botApi('toggle', { id, active });
+            if (d && d.ok) loadBotList(); else alert((d&&d.error)||'Не удалось');
+        }
+        async function botDelete(id){
+            if (!confirm('Удалить бота? Его токен и подключения перестанут работать.')) return;
+            const d = await botApi('delete', { id });
+            if (d && d.ok) loadBotList(); else alert((d&&d.error)||'Не удалось');
+        }
+        window.renderBots = renderBots; window.botCreate = botCreate; window.botCopyToken = botCopyToken;
+        window.botRegen = botRegen; window.botToggle = botToggle; window.botDelete = botDelete;
+
         async function renderAdminPerms(){
             let res;
             try { res = await (await fetch('/api/admin_permissions.php?action=list', { credentials:'include' })).json(); }

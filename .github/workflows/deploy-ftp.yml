@@ -119,6 +119,7 @@ jobs:
             put api/ai_kb.php -o api/ai_kb.php;
             put api/ai_text.php -o api/ai_text.php;
             put api/ai_post.php -o api/ai_post.php;
+            put api/bots.php -o api/bots.php;
             put api/msg_search.php -o api/msg_search.php;
             put api/messages_page.php -o api/messages_page.php;
             put api/link_preview.php -o api/link_preview.php;
