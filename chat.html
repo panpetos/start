@@ -19343,7 +19343,6 @@
             rtcWatchQuality(false);
             rtcKeepAwake(false);
             rtcDimDisarm();
-            rtcStopBoost();
         }
 
         /** Освободить камеру и микрофон — иначе индикатор записи останется гореть. */
@@ -19355,8 +19354,10 @@
             try { if (rtcScreenTrack) rtcScreenTrack.stop(); } catch (e) {}
             rtcScreenTrack = null; rtcScreenSender = null;
             const r = document.getElementById('rtcRemote'), l = document.getElementById('rtcLocal');
-            if (r) r.srcObject = null;
+            if (r) { r.srcObject = null; r.muted = false; }
             if (l) l.srcObject = null;
+            const ra = document.getElementById('rtcRemoteAudio');
+            if (ra) { try { ra.pause(); } catch (e) {} ra.srcObject = null; ra.muted = false; }
             rtcCallId = null; rtcRole = null; rtcPeer = null; rtcIceTries = 0; rtcLocalCandidates = [];
             rtcAfter = 0; rtcPendingIce = []; rtcStartedAt = 0;
             rtcIceOut = [];
@@ -19797,6 +19798,7 @@
                 const remote = document.getElementById('rtcRemote');
                 if (!remote || !ev.streams || !ev.streams[0]) return;
                 remote.srcObject = ev.streams[0];
+                rtcApplyAudioOut();      // направить звук в нужный динамик (к уху / громкий)
                 if (ev.track.kind !== 'video') return;
                 const scr = document.getElementById('rtcScreen');
                 // Собеседник включил камеру посреди разговора — уходим из режима
@@ -19933,74 +19935,67 @@
         //      когда собеседника плохо слышно;
         //    • если усиление почему-то не поднялось, возвращаем обычное воспроизведение
         //      мгновенно: остаться без звука в сессии недопустимо.
-        let rtcLoud = false;
-        let rtcAudioCtx = null, rtcGain = null, rtcSrcNode = null;
+        // Куда идёт звук собеседника: false — «к уху» (разговорный, через <audio>),
+        // true — громкая связь (через <video>, громкий динамик телефона).
+        // По умолчанию: звонок голосом → к уху; видеозвонок → громкая связь.
+        let rtcSpeakerLoud = false;
+
+        /** Применить выбранный вывод: перевести звук на нужный элемент. */
+        function rtcApplyAudioOut() {
+            const vid = document.getElementById('rtcRemote');
+            const aud = document.getElementById('rtcRemoteAudio');
+            if (!vid) return;
+            const stream = vid.srcObject;
+            if (aud && stream && aud.srcObject !== stream) aud.srcObject = stream;
+            if (rtcSpeakerLoud) {
+                // Громкая связь: звук из <video> → громкий динамик
+                if (aud) aud.muted = true;
+                vid.muted = false;
+            } else {
+                // К уху: звук из <audio> → обычный медиа-канал (разговорный динамик)
+                vid.muted = true;
+                if (aud) { aud.muted = false; aud.play().catch(() => {}); }
+                else { vid.muted = false; }   // если <audio> нет — не оставляем без звука
+            }
+            // Где браузер умеет выбирать устройство вывода (часть Android/ПК) — используем
+            const el = (!rtcSpeakerLoud && aud) ? aud : vid;
+            if (typeof el.setSinkId === 'function') {
+                navigator.mediaDevices.enumerateDevices().then(list => {
+                    const outs = list.filter(d => d.kind === 'audiooutput');
+                    if (outs.length < 2) return;
+                    const dev = rtcSpeakerLoud
+                        ? (outs.find(d => /speaker|динам/i.test(d.label)) || outs.find(d => d.deviceId !== 'default'))
+                        : (outs.find(d => /ear|receiver|уш|разговор/i.test(d.label)) || outs.find(d => d.deviceId === 'default'));
+                    if (dev) el.setSinkId(dev.deviceId).catch(() => {});
+                }).catch(() => {});
+            }
+        }
+        window.rtcApplyAudioOut = rtcApplyAudioOut;
 
         function rtcInitSpeakerBtn() {
             const btn = document.getElementById('rtcSpkBtn');
             if (!btn) return;
-            btn.style.display = 'flex';        // кнопка нужна всегда: «плохо слышно» бывает у всех
+            btn.style.display = 'flex';
             btn.classList.remove('off');
-            document.getElementById('rtcSpkIco').textContent = '🔊';
-            document.getElementById('rtcSpkLab').textContent = 'Громче';
-            rtcLoud = false;
-            rtcStopBoost();
+            // По умолчанию: голосовой звонок — к уху, видео — громкая связь
+            rtcSpeakerLoud = (rtcKind === 'video');
+            rtcApplyAudioOut();
+            rtcSyncSpeakerBtn();
         }
 
-        function rtcStopBoost() {
-            try { if (rtcSrcNode) rtcSrcNode.disconnect(); } catch (e) {}
-            try { if (rtcGain) rtcGain.disconnect(); } catch (e) {}
-            rtcSrcNode = null; rtcGain = null;
-            const rem = document.getElementById('rtcRemote');
-            if (rem) rem.muted = false;        // звук снова идёт обычным путём
-        }
-
-        async function rtcToggleSpeaker() {
-            const rem = document.getElementById('rtcRemote');
-            if (!rem) return;
-            const want = !rtcLoud;
-
-            // 1. Настоящее переключение устройства — там, где браузер это умеет
-            if (typeof rem.setSinkId === 'function') {
-                try {
-                    const outs = (await navigator.mediaDevices.enumerateDevices())
-                        .filter(d => d.kind === 'audiooutput');
-                    if (outs.length > 1) {
-                        const target = want ? (outs.find(d => d.deviceId !== 'default') || outs[0])
-                                            : (outs.find(d => d.deviceId === 'default') || outs[0]);
-                        await rem.setSinkId(target.deviceId);
-                    }
-                } catch (e) { /* нет прав или единственный выход — идём дальше */ }
-            }
-
-            // 2. Усиление громкости
-            if (want) {
-                try {
-                    const Ctx = window.AudioContext || window.webkitAudioContext;
-                    if (!Ctx || !rem.srcObject) throw new Error('нет Web Audio');
-                    if (!rtcAudioCtx || rtcAudioCtx.state === 'closed') rtcAudioCtx = new Ctx();
-                    if (rtcAudioCtx.state === 'suspended') await rtcAudioCtx.resume();
-                    if (rtcAudioCtx.state !== 'running') throw new Error('звук не запустился');
-                    rtcSrcNode = rtcAudioCtx.createMediaStreamSource(rem.srcObject);
-                    rtcGain = rtcAudioCtx.createGain();
-                    rtcGain.gain.value = 2.2;      // выше начинает хрипеть
-                    rtcSrcNode.connect(rtcGain).connect(rtcAudioCtx.destination);
-                    rem.muted = true;              // иначе звук пойдёт дважды
-                } catch (e) {
-                    rtcStopBoost();                // без звука не оставляем ни при каких условиях
-                    toast('Громче не вышло — браузер не разрешил');
-                    return;
-                }
-            } else {
-                rtcStopBoost();
-            }
-
-            rtcLoud = want;
+        function rtcSyncSpeakerBtn() {
             const btn = document.getElementById('rtcSpkBtn');
-            btn.classList.toggle('off', rtcLoud);
-            document.getElementById('rtcSpkIco').textContent = rtcLoud ? '📢' : '🔊';
-            document.getElementById('rtcSpkLab').textContent = rtcLoud ? 'Обычно' : 'Громче';
-            btn.setAttribute('aria-label', rtcLoud ? 'Обычная громкость' : 'Сделать громче');
+            if (!btn) return;
+            btn.classList.toggle('off', !rtcSpeakerLoud);
+            document.getElementById('rtcSpkIco').textContent = rtcSpeakerLoud ? '🔊' : '📞';
+            document.getElementById('rtcSpkLab').textContent = rtcSpeakerLoud ? 'Громкая' : 'К уху';
+            btn.setAttribute('aria-label', rtcSpeakerLoud ? 'Громкая связь (переключить к уху)' : 'Разговорный динамик (переключить на громкую связь)');
+        }
+
+        function rtcToggleSpeaker() {
+            rtcSpeakerLoud = !rtcSpeakerLoud;
+            rtcApplyAudioOut();
+            rtcSyncSpeakerBtn();
         }
         window.rtcToggleSpeaker = rtcToggleSpeaker;
 
@@ -21135,6 +21130,11 @@
          этого предка, и экран переставал разворачиваться на весь телефон. -->
     <div class="rtc-screen" id="rtcScreen" onpointerdown="rtcDimOff()">
         <video class="rtc-remote" id="rtcRemote" autoplay playsinline></video>
+        <!-- Звук собеседника воспроизводим отдельным <audio>, а не через <video>:
+             на телефоне звук из <video> уходит в громкий динамик, а из <audio> —
+             в обычный медиа-канал, который система может направить в разговорный
+             динамик «к уху» (по датчику приближения). Переключение — кнопкой «Динамик». -->
+        <audio id="rtcRemoteAudio" autoplay playsinline></audio>
         <div class="rtc-poster">
             <div class="rtc-ava" id="rtcAva"></div>
             <div class="rtc-name" id="rtcName">Собеседник</div>
