@@ -185,8 +185,10 @@ if ($action === 'me') {
         if ($by) $invitedBy = refUserName($pdo, $by);
     } catch (Exception $e) {}
     $host = ($_SERVER['HTTP_HOST'] ?? 'psytalk.pro');
+    // Ссылка ведёт на реальную страницу invite.html?r=КОД. Короткий вид /i/КОД
+    // требовал серверного rewrite, которого на nginx reg.ru нет — и открывался 404.
     refOut(['ok' => true, 'code' => $code,
-            'link' => 'https://' . $host . '/i/' . $code,
+            'link' => 'https://' . $host . '/invite.html?r=' . $code,
             'clicks' => $clicks, 'joined' => $joined, 'invited_by' => $invitedBy]);
 }
 
