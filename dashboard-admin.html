@@ -4013,7 +4013,7 @@
         }
         async function renderBots(){
             const box = document.getElementById('content');
-            box.innerHTML = `<div class="note">🤖 Боты подключают к платформе внешние системы по <b>токену</b>: приём заявок с вашего стороннего сайта, интеграции (OpenClaude и т.п.). Создайте бота, выдайте права и скопируйте токен — его вписывают в интеграцию на вашей стороне. Токен — секрет, не публикуйте его.</div>
+            box.innerHTML = `<div class="note">🤖 Боты подключают к платформе внешние системы по <b>токену</b> (заявки со стороннего сайта, интеграции, OpenClaude). Здесь — <b>обзор ботов ВСЕХ пользователей</b> (админский). Каждый пользователь создаёт и настраивает своих ботов сам — в чате через «+» → Бот. Токен — секрет.</div>
                 <div class="panel"><div class="panel-head"><h2>Новый бот</h2></div>
                     <div style="padding:1rem 1.1rem;">
                         <label style="font-size:0.82rem;color:var(--a-text-sec);font-weight:600;">Название<br>
@@ -4029,7 +4029,7 @@
                         <span id="botMsg" style="font-size:0.85rem;margin-left:0.6rem;"></span>
                     </div>
                 </div>
-                <div class="panel"><div class="panel-head"><h2>Мои боты</h2><button class="btn-sm btn-outline" onclick="renderBots()">↻ Обновить</button></div>
+                <div class="panel"><div class="panel-head"><h2>Все боты (всех пользователей)</h2><button class="btn-sm btn-outline" onclick="renderBots()">↻ Обновить</button></div>
                     <div id="botList" style="padding:0.6rem 1.1rem 1rem;"><div class="loading">Загрузка…</div></div>
                 </div>
                 <div class="panel"><div class="panel-head"><h2>Заявки от ботов</h2></div>
@@ -4071,7 +4071,7 @@
                         <input readonly value="${esc(b.token)}" id="bt-${b.id}" style="flex:1;min-width:0;font-family:monospace;font-size:0.8rem;padding:0.45rem 0.6rem;border:1.5px solid var(--a-input-border);border-radius:0.5rem;background:var(--a-input-bg);color:var(--a-text);">
                         <button class="btn-sm btn-outline" onclick="botCopyToken(${b.id})">📋 Копировать</button>
                     </div>
-                    <div class="muted" style="font-size:0.76rem;margin-top:0.4rem;">Права: ${esc(b.scopes||'—')} · вызовов: ${b.calls_count||0} · последний: ${esc(last)}</div>
+                    <div class="muted" style="font-size:0.76rem;margin-top:0.4rem;">Владелец: ${esc(b.owner_user_id||'—')} · Права: ${esc(b.scopes||'—')} · вызовов: ${b.calls_count||0} · последний: ${esc(last)}</div>
                 </div>`;
             }).join('');
         }

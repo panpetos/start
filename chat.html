@@ -10513,6 +10513,8 @@
                 : { credentials:'include' };
             return (await (await fetch(url, opt)).json());
         }
+        // «+» → Бот: только СОЗДАНИЕ нового бота и список СВОИХ ботов (открывают чат).
+        // Настройки каждого бота — внутри его чата (⚙️ → openBotSettings), не общей кучей.
         function openBotStudio() {
             let m = document.getElementById('psyBotModal');
             if (m) m.remove();
@@ -10521,46 +10523,27 @@
             m.id = 'psyBotModal';
             m.style.cssText = 'position:fixed;inset:0;background:rgba(18,42,34,0.6);z-index:1330;display:flex;align-items:center;justify-content:center;padding:1rem;';
             m.innerHTML = `
-                <div style="background:${dark?'#1E1E1E':'#fff'};color:${dark?'#E6E6E6':'#1A1A1A'};border-radius:1rem;width:min(560px,96vw);max-height:90vh;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 12px 40px rgba(0,0,0,0.3);">
+                <div style="background:${dark?'#1E1E1E':'#fff'};color:${dark?'#E6E6E6':'#1A1A1A'};border-radius:1rem;width:min(520px,96vw);max-height:90vh;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 12px 40px rgba(0,0,0,0.3);">
                     <div style="display:flex;align-items:center;justify-content:space-between;padding:1rem 1.1rem;border-bottom:1px solid ${dark?'#333':'#eee'};">
-                        <div style="font-weight:700;font-size:1.05rem;">🤖 Боты</div>
+                        <div style="font-weight:700;font-size:1.05rem;">🤖 Новый бот</div>
                         <button onclick="closeBotStudio()" style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:inherit;line-height:1;">✕</button>
                     </div>
-                    <div style="padding:1rem 1.1rem;overflow-y:auto;">
-                        <div style="font-size:0.85rem;color:${dark?'#A0A0A0':'#6B7280'};line-height:1.5;margin-bottom:0.9rem;">
-                            Создайте бота и получите <b>токен</b> — им подключают внешние системы: приём заявок с вашего сайта, интеграции и OpenClaude. Токен — секрет, не публикуйте его.
+                    <div style="padding:1.1rem;overflow-y:auto;">
+                        <div style="font-size:0.85rem;color:${dark?'#A0A0A0':'#6B7280'};line-height:1.5;margin:0 0 1rem;">
+                            Создайте бота — он появится отдельным чатом в списке. Токен и все настройки — внутри чата бота (кнопка ⚙️).
                         </div>
-                        <label style="font-size:0.82rem;font-weight:600;">Название бота</label>
+                        <label style="display:block;font-size:0.82rem;font-weight:600;margin-bottom:0.35rem;">Название бота</label>
                         <input id="botStudioName" maxlength="120" placeholder="Напр.: Заявки с лендинга"
-                               style="width:100%;margin-top:0.3rem;padding:0.6rem 0.7rem;border:1.5px solid ${dark?'#444':'#e0e0e0'};border-radius:0.6rem;font-family:inherit;font-size:0.95rem;background:${dark?'#2A2A2A':'#fff'};color:inherit;">
-                        <div style="font-size:0.82rem;font-weight:600;margin-top:0.7rem;">Права</div>
-                        <div id="botStudioScopes" style="display:flex;flex-wrap:wrap;gap:0.5rem 0.9rem;margin-top:0.35rem;">
-                            ${BOT_STUDIO_SCOPES.map(s => `<label style="display:inline-flex;align-items:center;gap:0.35rem;font-size:0.86rem;">
+                               style="width:100%;padding:0.6rem 0.7rem;border:1.5px solid ${dark?'#444':'#e0e0e0'};border-radius:0.6rem;font-family:inherit;font-size:0.95rem;background:${dark?'#2A2A2A':'#fff'};color:inherit;">
+                        <label style="display:block;font-size:0.82rem;font-weight:600;margin:0.9rem 0 0.4rem;">Права</label>
+                        <div style="display:flex;flex-wrap:wrap;gap:0.55rem 1rem;">
+                            ${BOT_STUDIO_SCOPES.map(s => `<label style="display:inline-flex;align-items:center;gap:0.4rem;font-size:0.86rem;">
                                 <input type="checkbox" class="botStudioScope" value="${s.id}" ${s.id==='lead'?'checked':''}> ${escapeHtml(s.label)}</label>`).join('')}
                         </div>
-                        <button onclick="botStudioCreate(this)" style="margin-top:0.9rem;width:100%;padding:0.65rem;background:linear-gradient(135deg,#047857,#059669);color:#fff;border:none;border-radius:0.6rem;font-weight:700;cursor:pointer;font-family:inherit;">➕ Создать бота</button>
-                        <div id="botStudioMsg" style="font-size:0.82rem;margin-top:0.5rem;"></div>
-                        <div style="font-weight:700;margin:1.1rem 0 0.5rem;">Мои боты</div>
+                        <button onclick="botStudioCreate(this)" style="margin-top:1.1rem;width:100%;padding:0.7rem;background:linear-gradient(135deg,#047857,#059669);color:#fff;border:none;border-radius:0.6rem;font-weight:700;cursor:pointer;font-family:inherit;">➕ Создать бота</button>
+                        <div id="botStudioMsg" style="font-size:0.82rem;margin-top:0.6rem;"></div>
+                        <div style="font-weight:700;margin:1.4rem 0 0.6rem;">Мои боты</div>
                         <div id="botStudioList"><div style="color:${dark?'#A0A0A0':'#9CA3AF'};font-size:0.85rem;">Загрузка…</div></div>
-                        <details style="margin-top:1rem;border:1px solid ${dark?'#333':'#eee'};border-radius:0.6rem;padding:0.6rem 0.8rem;">
-                            <summary style="cursor:pointer;font-weight:600;font-size:0.88rem;">Как подключить к сайту / OpenClaude</summary>
-                            <div style="font-size:0.82rem;line-height:1.55;margin-top:0.5rem;color:${dark?'#B4B4B4':'#4B5563'};">
-                                Отправляйте заявки POST-запросом, подставив токен бота:
-                                <pre style="background:${dark?'#111':'#F5F5F5'};border-radius:0.5rem;padding:0.7rem;overflow-x:auto;font-size:0.76rem;margin-top:0.4rem;">curl -X POST "https://psytalk.pro/api/bots.php?action=lead" \\
-  -H "Authorization: Bearer ВАШ_ТОКЕН" \\
-  -H "Content-Type: application/json" \\
-  -d '{"name":"Иван","contact":"+7...","message":"Заявка","source":"сайт"}'</pre>
-                                ИИ-ответ (OpenClaude, нужно право «ИИ»):
-                                <pre style="background:${dark?'#111':'#F5F5F5'};border-radius:0.5rem;padding:0.7rem;overflow-x:auto;font-size:0.76rem;margin-top:0.4rem;">curl -X POST "https://psytalk.pro/api/bots.php?action=ask" \\
-  -H "Authorization: Bearer ВАШ_ТОКЕН" -H "Content-Type: application/json" \\
-  -d '{"prompt":"Вопрос клиента"}'   →   {"ok":true,"answer":"…"}</pre>
-                                Пост в ваш канал (право «Посты в канал»):
-                                <pre style="background:${dark?'#111':'#F5F5F5'};border-radius:0.5rem;padding:0.7rem;overflow-x:auto;font-size:0.76rem;margin-top:0.4rem;">curl -X POST "https://psytalk.pro/api/bots.php?action=post" \\
-  -H "Authorization: Bearer ВАШ_ТОКЕН" -H "Content-Type: application/json" \\
-  -d '{"text":"Новый пост","image_url":"/uploads/..."}'</pre>
-                                Проверить токен: <code>GET …?action=me</code>. Пришедшие заявки — в админке и здесь у бота.
-                            </div>
-                        </details>
                     </div>
                 </div>`;
             m.addEventListener('click', (e) => { if (e.target === m) closeBotStudio(); });
@@ -10570,31 +10553,24 @@
         window.openBotStudio = openBotStudio;
         function closeBotStudio() { const m = document.getElementById('psyBotModal'); if (m) m.remove(); }
         window.closeBotStudio = closeBotStudio;
+
+        /** Список СВОИХ ботов в окне создания — каждая строка открывает чат бота. */
         async function loadBotStudioList() {
             const box = document.getElementById('botStudioList'); if (!box) return;
             const dark = document.body.classList.contains('dark');
-            let d; try { d = await botStudioApi('list'); } catch(e){ box.innerHTML = '<div style="color:#DC2626;font-size:0.85rem;">Не удалось загрузить</div>'; return; }
+            let d; try { d = await botStudioApi('list', null, 'mine=1'); } catch(e){ box.innerHTML = '<div style="color:#DC2626;font-size:0.85rem;">Не удалось загрузить</div>'; return; }
             const rows = (d && d.ok) ? (d.data||[]) : [];
             if (!rows.length){ box.innerHTML = `<div style="color:${dark?'#A0A0A0':'#9CA3AF'};font-size:0.85rem;">Ботов пока нет — создайте выше.</div>`; return; }
-            box.innerHTML = rows.map(b => {
+            box.innerHTML = `<div style="display:flex;flex-direction:column;gap:0.5rem;">` + rows.map(b => {
                 const active = parseInt(b.is_active) === 1;
-                return `<div style="border:1px solid ${dark?'#333':'#eee'};border-radius:0.7rem;padding:0.7rem 0.8rem;margin-bottom:0.55rem;">
-                    <div style="display:flex;justify-content:space-between;align-items:center;gap:0.5rem;flex-wrap:wrap;">
-                        <b style="min-width:0;overflow-wrap:anywhere;">${escapeHtml(b.name)}</b>
-                        <span style="font-size:0.78rem;color:${active?'#16A34A':'#9CA3AF'};">${active?'● активен':'○ выключен'}</span>
-                    </div>
-                    <div style="display:flex;gap:0.4rem;align-items:center;margin-top:0.5rem;">
-                        <input readonly value="${escapeHtml(b.token)}" id="bst-${b.id}" style="flex:1;min-width:0;font-family:monospace;font-size:0.76rem;padding:0.4rem 0.55rem;border:1.5px solid ${dark?'#444':'#e0e0e0'};border-radius:0.5rem;background:${dark?'#2A2A2A':'#fff'};color:inherit;">
-                        <button onclick="botStudioCopy(${b.id})" style="padding:0.4rem 0.6rem;border:1.5px solid ${dark?'#444':'#e0e0e0'};border-radius:0.5rem;background:none;color:inherit;cursor:pointer;font-size:0.8rem;white-space:nowrap;">📋</button>
-                    </div>
-                    <div style="display:flex;gap:0.35rem;flex-wrap:wrap;margin-top:0.5rem;">
-                        <button onclick="botStudioRegen(${b.id})" style="padding:0.35rem 0.6rem;border:1.5px solid ${dark?'#444':'#e0e0e0'};border-radius:0.5rem;background:none;color:inherit;cursor:pointer;font-size:0.78rem;">↻ Токен</button>
-                        <button onclick="botStudioToggle(${b.id}, ${active?0:1})" style="padding:0.35rem 0.6rem;border:1.5px solid ${dark?'#444':'#e0e0e0'};border-radius:0.5rem;background:none;color:inherit;cursor:pointer;font-size:0.78rem;">${active?'Выключить':'Включить'}</button>
-                        <button onclick="botStudioDelete(${b.id})" style="padding:0.35rem 0.6rem;border:1.5px solid ${dark?'#5B2525':'#F0C8C8'};border-radius:0.5rem;background:none;color:#DC2626;cursor:pointer;font-size:0.78rem;">Удалить</button>
-                    </div>
-                    <div style="font-size:0.74rem;color:${dark?'#808080':'#9CA3AF'};margin-top:0.4rem;">Права: ${escapeHtml(b.scopes||'—')} · вызовов: ${b.calls_count||0}</div>
-                </div>`;
-            }).join('');
+                return `<button onclick="closeBotStudio();openBotChat('${b.id}')" style="display:flex;align-items:center;gap:0.6rem;width:100%;text-align:left;border:1px solid ${dark?'#333':'#eee'};border-radius:0.7rem;padding:0.65rem 0.75rem;background:${dark?'#252525':'#fafafa'};color:inherit;cursor:pointer;font-family:inherit;">
+                    <span style="width:32px;height:32px;border-radius:9px;flex-shrink:0;display:grid;place-items:center;background:linear-gradient(135deg,#7C3AED,#4F46E5);color:#fff;">🤖</span>
+                    <span style="min-width:0;flex:1;">
+                        <span style="display:block;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(b.name)}</span>
+                        <span style="display:block;font-size:0.76rem;color:${active?'#16A34A':'#9CA3AF'};">${active?'● активен':'○ выключен'} · открыть чат и настройки →</span>
+                    </span>
+                </button>`;
+            }).join('') + `</div>`;
         }
         async function botStudioCreate(btn){
             const name = document.getElementById('botStudioName').value.trim();
@@ -10605,23 +10581,145 @@
             try {
                 const d = await botStudioApi('create', { name, scopes });
                 if (!d.ok){ msg.textContent = '⚠️ ' + (d.error||'ошибка'); msg.style.color = '#DC2626'; btn.disabled=false; return; }
-                msg.textContent = '✅ бот создан, токен ниже'; msg.style.color = '#16A34A';
-                document.getElementById('botStudioName').value = '';
-                await loadBotStudioList();
-                loadMyBots();   // бот сразу появляется отдельным чатом в списке
+                await loadMyBots();          // бот появляется отдельным чатом
+                closeBotStudio();
+                openBotChat(d.id);           // сразу открываем его чат
+                setTimeout(() => openBotSettings(d.id), 150);   // и его настройки (токен внутри бота)
             } catch(e){ msg.textContent = '⚠️ ошибка сети'; msg.style.color = '#DC2626'; }
             btn.disabled = false;
         }
-        function botStudioCopy(id){ const el = document.getElementById('bst-'+id); if (!el) return; el.select(); try { navigator.clipboard ? navigator.clipboard.writeText(el.value) : document.execCommand('copy'); } catch(e){} }
-        async function botStudioRegen(id){ if (!confirm('Сменить токен? Старый перестанет работать во всех интеграциях.')) return; const d = await botStudioApi('regenerate', { id }); if (d && d.ok) loadBotStudioList(); else alert((d&&d.error)||'Не удалось'); }
-        async function botStudioToggle(id, active){ const d = await botStudioApi('toggle', { id, active }); if (d && d.ok) { loadBotStudioList(); loadMyBots(); } else alert((d&&d.error)||'Не удалось'); }
-        async function botStudioDelete(id){ if (!confirm('Удалить бота? Токен и подключения перестанут работать.')) return; const d = await botStudioApi('delete', { id }); if (d && d.ok) { loadBotStudioList(); loadMyBots(); if (selectedUserId === BOT_PREFIX + id) goBackToList(); } else alert((d&&d.error)||'Не удалось'); }
-        window.botStudioCreate = botStudioCreate; window.botStudioCopy = botStudioCopy;
-        window.botStudioRegen = botStudioRegen; window.botStudioToggle = botStudioToggle; window.botStudioDelete = botStudioDelete;
+        window.botStudioCreate = botStudioCreate;
 
-        /** Загрузить своих ботов и показать их отдельными чатами в списке. */
+        // ── Настройки ОДНОГО бота (внутри его чата) ──────────────────────────────
+        function openBotSettings(id) {
+            const b = botById(id);
+            if (!b) { alert('Бот не найден'); return; }
+            let m = document.getElementById('psyBotSettings');
+            if (m) m.remove();
+            const dark = document.body.classList.contains('dark');
+            const scopes = String(b.scopes || '').split(',').map(s => s.trim());
+            const active = parseInt(b.is_active) === 1;
+            m = document.createElement('div');
+            m.id = 'psyBotSettings';
+            m.style.cssText = 'position:fixed;inset:0;background:rgba(18,42,34,0.6);z-index:1340;display:flex;align-items:center;justify-content:center;padding:1rem;';
+            m.innerHTML = `
+                <div style="background:${dark?'#1E1E1E':'#fff'};color:${dark?'#E6E6E6':'#1A1A1A'};border-radius:1rem;width:min(520px,96vw);max-height:90vh;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 12px 40px rgba(0,0,0,0.3);">
+                    <div style="display:flex;align-items:center;justify-content:space-between;padding:1rem 1.1rem;border-bottom:1px solid ${dark?'#333':'#eee'};">
+                        <div style="font-weight:700;font-size:1.05rem;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">⚙️ ${escapeHtml(b.name)}</div>
+                        <button onclick="closeBotSettings()" style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:inherit;line-height:1;">✕</button>
+                    </div>
+                    <div style="padding:1.1rem;overflow-y:auto;">
+                        <label style="display:block;font-size:0.82rem;font-weight:600;margin-bottom:0.35rem;">Токен бота</label>
+                        <div style="display:flex;gap:0.4rem;align-items:center;">
+                            <input readonly value="${escapeHtml(b.token)}" id="bsToken" style="flex:1;min-width:0;font-family:monospace;font-size:0.78rem;padding:0.5rem 0.6rem;border:1.5px solid ${dark?'#444':'#e0e0e0'};border-radius:0.5rem;background:${dark?'#2A2A2A':'#fff'};color:inherit;">
+                            <button onclick="botStudioCopy2()" style="padding:0.5rem 0.7rem;border:1.5px solid ${dark?'#444':'#e0e0e0'};border-radius:0.5rem;background:none;color:inherit;cursor:pointer;">📋</button>
+                        </div>
+                        <div style="display:flex;gap:0.4rem;flex-wrap:wrap;margin-top:0.6rem;">
+                            <button onclick="botSettingsRegen('${id}')" style="padding:0.45rem 0.75rem;border:1.5px solid ${dark?'#444':'#e0e0e0'};border-radius:0.5rem;background:none;color:inherit;cursor:pointer;font-size:0.82rem;">↻ Сменить токен</button>
+                            <button onclick="botSettingsToggle('${id}', ${active?0:1})" style="padding:0.45rem 0.75rem;border:1.5px solid ${dark?'#444':'#e0e0e0'};border-radius:0.5rem;background:none;color:inherit;cursor:pointer;font-size:0.82rem;">${active?'⏸ Выключить':'▶ Включить'}</button>
+                        </div>
+                        <label style="display:block;font-size:0.82rem;font-weight:600;margin:1.1rem 0 0.4rem;">Права бота</label>
+                        <div style="display:flex;flex-wrap:wrap;gap:0.55rem 1rem;">
+                            ${BOT_STUDIO_SCOPES.map(s => `<label style="display:inline-flex;align-items:center;gap:0.4rem;font-size:0.86rem;">
+                                <input type="checkbox" class="bsScope" value="${s.id}" ${scopes.indexOf(s.id)>=0?'checked':''}> ${escapeHtml(s.label)}
+                                <span style="font-size:0.72rem;color:${dark?'#808080':'#9CA3AF'};">(${escapeHtml(s.hint)})</span></label>`).join('')}
+                        </div>
+                        <button onclick="botSettingsSaveScopes('${id}', this)" style="margin-top:0.7rem;padding:0.5rem 1rem;background:linear-gradient(135deg,#047857,#059669);color:#fff;border:none;border-radius:0.5rem;font-weight:600;cursor:pointer;font-family:inherit;font-size:0.85rem;">Сохранить права</button>
+                        <span id="bsMsg" style="font-size:0.8rem;margin-left:0.5rem;"></span>
+                        <div style="font-size:0.74rem;color:${dark?'#808080':'#9CA3AF'};margin-top:0.5rem;">Вызовов: ${b.calls_count||0}${b.last_used_at ? ' · последний: ' + escapeHtml(String(b.last_used_at).slice(0,16)) : ''}</div>
+
+                        <div style="margin-top:1.1rem;padding-top:0.9rem;border-top:1px solid ${dark?'#333':'#eee'};">
+                            <label style="display:block;font-size:0.82rem;font-weight:600;margin-bottom:0.35rem;">🧠 OpenClaude / свой ИИ (необязательно)</label>
+                            <div style="font-size:0.78rem;color:${dark?'#A0A0A0':'#6B7280'};line-height:1.5;margin-bottom:0.5rem;">
+                                Чтобы бот общался через <b>ваш</b> OpenClaude — вставьте адрес, модель и ключ. Тогда ответы в чате с ботом и по API (<code>ask</code>) пойдут через него. Если оставить пустым — бот отвечает через ИИ платформы. Нужно право «ИИ».
+                                <br>Статус: ${b.ai_url ? '<b style="color:#16A34A;">подключён</b> (' + escapeHtml(b.ai_url) + ')' : 'не подключён — используется ИИ платформы'}.
+                            </div>
+                            <input id="bsAiUrl" placeholder="https://…/v1/chat/completions" value="${escapeHtml(b.ai_url||'')}" style="width:100%;margin-bottom:0.4rem;padding:0.5rem 0.6rem;border:1.5px solid ${dark?'#444':'#e0e0e0'};border-radius:0.5rem;font-family:inherit;font-size:0.85rem;background:${dark?'#2A2A2A':'#fff'};color:inherit;">
+                            <input id="bsAiModel" placeholder="Модель, напр. anthropic/claude-3.5-sonnet" value="${escapeHtml(b.ai_model||'')}" style="width:100%;margin-bottom:0.4rem;padding:0.5rem 0.6rem;border:1.5px solid ${dark?'#444':'#e0e0e0'};border-radius:0.5rem;font-family:inherit;font-size:0.85rem;background:${dark?'#2A2A2A':'#fff'};color:inherit;">
+                            <input id="bsAiKey" type="password" placeholder="${b.has_ai_key ? 'ключ сохранён — оставьте пустым, чтобы не менять' : 'API-ключ (Bearer)'}" style="width:100%;margin-bottom:0.5rem;padding:0.5rem 0.6rem;border:1.5px solid ${dark?'#444':'#e0e0e0'};border-radius:0.5rem;font-family:inherit;font-size:0.85rem;background:${dark?'#2A2A2A':'#fff'};color:inherit;">
+                            <div style="display:flex;gap:0.4rem;flex-wrap:wrap;align-items:center;">
+                                <button onclick="botSettingsSaveAi('${id}', this)" style="padding:0.5rem 1rem;background:linear-gradient(135deg,#7C3AED,#4F46E5);color:#fff;border:none;border-radius:0.5rem;font-weight:600;cursor:pointer;font-family:inherit;font-size:0.85rem;">Подключить ИИ</button>
+                                ${b.ai_url ? `<button onclick="botSettingsDisconnectAi('${id}')" style="padding:0.5rem 0.9rem;border:1.5px solid ${dark?'#444':'#e0e0e0'};border-radius:0.5rem;background:none;color:inherit;cursor:pointer;font-size:0.85rem;">Отключить</button>` : ''}
+                                <span id="bsAiMsg" style="font-size:0.8rem;"></span>
+                            </div>
+                        </div>
+
+                        <details style="margin-top:1.1rem;border:1px solid ${dark?'#333':'#eee'};border-radius:0.6rem;padding:0.6rem 0.8rem;">
+                            <summary style="cursor:pointer;font-weight:600;font-size:0.86rem;">Как подключить (заявки · OpenClaude · посты)</summary>
+                            <div style="font-size:0.8rem;line-height:1.5;margin-top:0.5rem;color:${dark?'#B4B4B4':'#4B5563'};">
+                                Заявка с сайта:
+                                <pre style="background:${dark?'#111':'#F5F5F5'};border-radius:0.5rem;padding:0.7rem;overflow-x:auto;font-size:0.74rem;margin:0.3rem 0;">curl -X POST "https://psytalk.pro/api/bots.php?action=lead" \\
+  -H "Authorization: Bearer ${escapeHtml(b.token)}" -H "Content-Type: application/json" \\
+  -d '{"name":"Иван","contact":"+7...","message":"Заявка"}'</pre>
+                                ИИ-ответ (OpenClaude, право «ИИ»):
+                                <pre style="background:${dark?'#111':'#F5F5F5'};border-radius:0.5rem;padding:0.7rem;overflow-x:auto;font-size:0.74rem;margin:0.3rem 0;">curl -X POST "https://psytalk.pro/api/bots.php?action=ask" \\
+  -H "Authorization: Bearer ${escapeHtml(b.token)}" -H "Content-Type: application/json" \\
+  -d '{"prompt":"Вопрос"}'   →   {"ok":true,"answer":"…"}</pre>
+                                Пост в канал (право «Посты в канал»):
+                                <pre style="background:${dark?'#111':'#F5F5F5'};border-radius:0.5rem;padding:0.7rem;overflow-x:auto;font-size:0.74rem;margin:0.3rem 0;">curl -X POST "https://psytalk.pro/api/bots.php?action=post" \\
+  -H "Authorization: Bearer ${escapeHtml(b.token)}" -H "Content-Type: application/json" \\
+  -d '{"text":"Новый пост"}'</pre>
+                            </div>
+                        </details>
+
+                        <button onclick="botSettingsDelete('${id}')" style="margin-top:1.1rem;width:100%;padding:0.6rem;border:1.5px solid ${dark?'#5B2525':'#F0C8C8'};border-radius:0.6rem;background:none;color:#DC2626;cursor:pointer;font-family:inherit;font-weight:600;">Удалить бота</button>
+                    </div>
+                </div>`;
+            m.addEventListener('click', (e) => { if (e.target === m) closeBotSettings(); });
+            document.body.appendChild(m);
+        }
+        window.openBotSettings = openBotSettings;
+        function closeBotSettings() { const m = document.getElementById('psyBotSettings'); if (m) m.remove(); }
+        window.closeBotSettings = closeBotSettings;
+        function botStudioCopy2(){ const el = document.getElementById('bsToken'); if (!el) return; el.select(); try { navigator.clipboard ? navigator.clipboard.writeText(el.value) : document.execCommand('copy'); } catch(e){} }
+        window.botStudioCopy2 = botStudioCopy2;
+        async function botSettingsRegen(id){
+            if (!confirm('Сменить токен? Старый перестанет работать во всех интеграциях.')) return;
+            const d = await botStudioApi('regenerate', { id }); if (!(d && d.ok)) { alert((d&&d.error)||'Не удалось'); return; }
+            await loadMyBots(); openBotSettings(id);
+        }
+        async function botSettingsToggle(id, active){
+            const d = await botStudioApi('toggle', { id, active }); if (!(d && d.ok)) { alert((d&&d.error)||'Не удалось'); return; }
+            await loadMyBots(); openBotSettings(id);
+            if (selectedUserId === BOT_PREFIX + id) openBotChat(id);
+        }
+        async function botSettingsSaveScopes(id, btn){
+            const scopes = Array.from(document.querySelectorAll('.bsScope:checked')).map(c => c.value);
+            const msg = document.getElementById('bsMsg'); if (btn) btn.disabled = true;
+            const d = await botStudioApi('scopes', { id, scopes });
+            if (d && d.ok) { if (msg){ msg.textContent = '✅ сохранено'; msg.style.color = '#16A34A'; } await loadMyBots(); if (selectedUserId === BOT_PREFIX + id) openBotChat(id); }
+            else if (msg){ msg.textContent = '⚠️ ' + ((d&&d.error)||'ошибка'); msg.style.color = '#DC2626'; }
+            if (btn) btn.disabled = false;
+        }
+        async function botSettingsDelete(id){
+            if (!confirm('Удалить бота? Токен и подключения перестанут работать.')) return;
+            const d = await botStudioApi('delete', { id }); if (!(d && d.ok)) { alert((d&&d.error)||'Не удалось'); return; }
+            closeBotSettings(); await loadMyBots();
+            if (selectedUserId === BOT_PREFIX + id) goBackToList();
+        }
+        async function botSettingsSaveAi(id, btn){
+            const url = document.getElementById('bsAiUrl').value.trim();
+            const model = document.getElementById('bsAiModel').value.trim();
+            const key = document.getElementById('bsAiKey').value.trim();
+            const msg = document.getElementById('bsAiMsg');
+            if (btn) btn.disabled = true; if (msg){ msg.textContent = 'сохраняю…'; msg.style.color = '#9CA3AF'; }
+            const d = await botStudioApi('save-ai', { id, ai_url: url, ai_model: model, ai_key: key });
+            if (d && d.ok) { if (msg){ msg.textContent = '✅ подключено'; msg.style.color = '#16A34A'; } await loadMyBots(); openBotSettings(id); }
+            else if (msg){ msg.textContent = '⚠️ ' + ((d&&d.error)||'ошибка'); msg.style.color = '#DC2626'; }
+            if (btn) btn.disabled = false;
+        }
+        async function botSettingsDisconnectAi(id){
+            if (!confirm('Отключить свой ИИ? Бот снова будет отвечать через ИИ платформы.')) return;
+            const d = await botStudioApi('disconnect-ai', { id }); if (!(d && d.ok)) { alert((d&&d.error)||'Не удалось'); return; }
+            await loadMyBots(); openBotSettings(id);
+        }
+        window.botSettingsRegen = botSettingsRegen; window.botSettingsToggle = botSettingsToggle;
+        window.botSettingsSaveScopes = botSettingsSaveScopes; window.botSettingsDelete = botSettingsDelete;
+        window.botSettingsSaveAi = botSettingsSaveAi; window.botSettingsDisconnectAi = botSettingsDisconnectAi;
+
+        /** Загрузить СВОИ боты (mine=1 — даже админ видит только свои в чате). */
         async function loadMyBots() {
-            try { const d = await botStudioApi('list'); myBots = (d && d.ok) ? (d.data || []) : []; }
+            try { const d = await botStudioApi('list', null, 'mine=1'); myBots = (d && d.ok) ? (d.data || []) : []; }
             catch (e) { myBots = []; }
             refreshConversationList();
         }
@@ -10659,7 +10757,7 @@
                     <div class="role">Бот${parseInt(b.is_active) ? '' : ' · выключен'}${hasAi ? ' · отвечает ИИ' : ''}</div>
                 </div>
                 ${headerActionsHtml([
-                    { icon: '⚙️', label: 'Управление ботом', run: () => openBotStudio() },
+                    { icon: '⚙️', label: 'Настройки этого бота', run: () => openBotSettings(id) },
                     { icon: '📋', label: 'Скопировать токен', run: () => { try { navigator.clipboard && navigator.clipboard.writeText(b.token); } catch (e) {} } },
                 ], '')}`;
             try { if (window.lucide) lucide.createIcons(); } catch (e) {}

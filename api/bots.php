@@ -74,6 +74,11 @@ try {
         INDEX idx_bot (bot_id),
         INDEX idx_created (created_at)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+    // Свой ИИ-эндпоинт бота (OpenClaude / любой OpenAI-совместимый). Если задан —
+    // ответы бота идут через него; иначе — через общий ИИ платформы.
+    try { $pdo->exec("ALTER TABLE bots ADD COLUMN ai_url VARCHAR(300) NULL"); } catch (Exception $e) {}
+    try { $pdo->exec("ALTER TABLE bots ADD COLUMN ai_key VARCHAR(300) NULL"); } catch (Exception $e) {}
+    try { $pdo->exec("ALTER TABLE bots ADD COLUMN ai_model VARCHAR(120) NULL"); } catch (Exception $e) {}
 } catch (Exception $e) {}
 
 $ALL_SCOPES = ['lead', 'message', 'ai', 'post'];   // реализованы: lead, me; остальные — задел
@@ -122,6 +127,32 @@ if (in_array($action, $TOKEN_ACTIONS, true)) {
         $prompt = trim((string)($body['prompt'] ?? ($body['message'] ?? '')));
         if ($prompt === '') bout(['error' => 'Пустой запрос: нужен prompt'], 400);
         $system = mb_substr(trim((string)($body['system'] ?? 'Ты — помощник сервиса psytalk.pro. Отвечай кратко и по делу.')), 0, 2000);
+
+        // Свой ИИ-эндпоинт бота (OpenClaude / OpenAI-совместимый). Если у бота задан
+        // ai_url + ai_key — говорим через него; иначе — через общий ИИ платформы.
+        $botUrl = trim((string)($bot['ai_url'] ?? ''));
+        $botKey = trim((string)($bot['ai_key'] ?? ''));
+        $botModel = trim((string)($bot['ai_model'] ?? ''));
+        if ($botUrl !== '' && $botKey !== '') {
+            $payload = json_encode([
+                'model' => ($botModel !== '' ? $botModel : 'gpt-4o-mini'),
+                'temperature' => 0.6, 'max_tokens' => 900,
+                'messages' => [
+                    ['role' => 'system', 'content' => $system],
+                    ['role' => 'user',   'content' => mb_substr($prompt, 0, 4000)],
+                ],
+            ], JSON_UNESCAPED_UNICODE);
+            $ch = curl_init($botUrl);
+            curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_POST => true, CURLOPT_POSTFIELDS => $payload,
+                CURLOPT_HTTPHEADER => ['Content-Type: application/json', 'Authorization: Bearer ' . $botKey], CURLOPT_TIMEOUT => 60, CURLOPT_CONNECTTIMEOUT => 10]);
+            $raw = curl_exec($ch); $err = curl_error($ch); curl_close($ch);
+            if ($raw === false) bout(['error' => 'ИИ-эндпоинт бота недоступен: ' . $err], 502);
+            $dd = json_decode($raw, true);
+            $answer = is_array($dd) ? ($dd['choices'][0]['message']['content'] ?? $dd['content'][0]['text'] ?? '') : '';
+            $answer = trim((string)$answer);
+            if ($answer === '') { $mm = is_array($dd) ? ($dd['error']['message'] ?? $dd['message'] ?? '') : ''; bout(['error' => 'ИИ бота не вернул ответ' . ($mm ? ': ' . $mm : '')], 502); }
+            bout(['ok' => true, 'answer' => $answer, 'via' => 'bot']);
+        }
 
         $cfgFile = __DIR__ . '/ai_chat_config.php';
         $cfg = file_exists($cfgFile) ? (require $cfgFile) : [];
@@ -242,11 +273,25 @@ function botOwned(PDO $pdo, int $id, $userId, bool $isAdmin): bool {
 }
 
 if ($action === 'list') {
+    // mine=1 — только СВОИ боты, даже для админа (личный список в чате).
+    // Без mine админ видит всех (обзор в админке).
+    $mineOnly = !$isAdmin || !empty($_GET['mine']);
+    // ai_key наружу не отдаём (секрет) — только признак, что он задан
+    $cols = "id, name, token, scopes, is_active, calls_count, last_used_at, created_at, owner_user_id, ai_url, ai_model";
     try {
-        if ($isAdmin) { $st = $pdo->query("SELECT id, name, token, scopes, is_active, calls_count, last_used_at, created_at, owner_user_id FROM bots ORDER BY id DESC"); }
-        else { $st = $pdo->prepare("SELECT id, name, token, scopes, is_active, calls_count, last_used_at, created_at, owner_user_id FROM bots WHERE owner_user_id = ? ORDER BY id DESC"); $st->execute([$userId]); }
-        bout(['ok' => true, 'data' => $st->fetchAll(PDO::FETCH_ASSOC), 'is_admin' => $isAdmin]);
-    } catch (Exception $e) { bout(['ok' => true, 'data' => []]); }
+        if ($mineOnly) { $st = $pdo->prepare("SELECT $cols FROM bots WHERE owner_user_id = ? ORDER BY id DESC"); $st->execute([$userId]); }
+        else { $st = $pdo->query("SELECT $cols FROM bots ORDER BY id DESC"); }
+        $data = $st->fetchAll(PDO::FETCH_ASSOC);
+        foreach ($data as &$r) { $r['has_ai_key'] = !empty($r['ai_url']); }
+        bout(['ok' => true, 'data' => $data, 'is_admin' => $isAdmin, 'mine_only' => $mineOnly]);
+    } catch (Exception $e) {
+        // старая схема без ai_* колонок — отдаём без них, чтобы список работал
+        try {
+            if ($mineOnly) { $st = $pdo->prepare("SELECT id, name, token, scopes, is_active, calls_count, last_used_at, created_at, owner_user_id FROM bots WHERE owner_user_id = ? ORDER BY id DESC"); $st->execute([$userId]); }
+            else { $st = $pdo->query("SELECT id, name, token, scopes, is_active, calls_count, last_used_at, created_at, owner_user_id FROM bots ORDER BY id DESC"); }
+            bout(['ok' => true, 'data' => $st->fetchAll(PDO::FETCH_ASSOC), 'is_admin' => $isAdmin, 'mine_only' => $mineOnly]);
+        } catch (Exception $e2) { bout(['ok' => true, 'data' => []]); }
+    }
 }
 
 if ($action === 'create' && $_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -296,6 +341,35 @@ if ($action === 'delete' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!botOwned($pdo, $id, $userId, $isAdmin)) bout(['error' => 'Это не ваш бот'], 403);
     try { $pdo->prepare("DELETE FROM bots WHERE id = ?")->execute([$id]); bout(['ok' => true]); }
     catch (Exception $e) { bout(['error' => 'Не удалось удалить'], 500); }
+}
+
+// Подключить свой ИИ-эндпоинт (OpenClaude / OpenAI-совместимый) к боту.
+if ($action === 'save-ai' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    $id = (int)($body['id'] ?? 0);
+    if (!$id) bout(['error' => 'Не указан бот'], 400);
+    if (!botOwned($pdo, $id, $userId, $isAdmin)) bout(['error' => 'Это не ваш бот'], 403);
+    $url = trim((string)($body['ai_url'] ?? ''));
+    $model = mb_substr(trim((string)($body['ai_model'] ?? '')), 0, 120);
+    $key = trim((string)($body['ai_key'] ?? ''));
+    if ($url !== '' && !preg_match('~^https://~i', $url)) bout(['error' => 'Адрес ИИ должен начинаться с https://'], 400);
+    try {
+        if ($key !== '') {
+            // ключ передан — обновляем всё
+            $pdo->prepare("UPDATE bots SET ai_url = ?, ai_model = ?, ai_key = ? WHERE id = ?")->execute([$url, $model, $key, $id]);
+        } else {
+            // ключ не передан — не затираем существующий, меняем только url/model
+            $pdo->prepare("UPDATE bots SET ai_url = ?, ai_model = ? WHERE id = ?")->execute([$url, $model, $id]);
+        }
+        bout(['ok' => true]);
+    } catch (Exception $e) { bout(['error' => 'Не удалось сохранить (обновите схему БД)'], 500); }
+}
+
+if ($action === 'disconnect-ai' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    $id = (int)($body['id'] ?? 0);
+    if (!$id) bout(['error' => 'Не указан бот'], 400);
+    if (!botOwned($pdo, $id, $userId, $isAdmin)) bout(['error' => 'Это не ваш бот'], 403);
+    try { $pdo->prepare("UPDATE bots SET ai_url = NULL, ai_key = NULL, ai_model = NULL WHERE id = ?")->execute([$id]); bout(['ok' => true]); }
+    catch (Exception $e) { bout(['error' => 'Не удалось отключить'], 500); }
 }
 
 if ($action === 'leads') {
