@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Технические работы — psytalk.pro</title>
+<style>
+  :root{
+    --bg1:#0E1512; --bg2:#0A1F18; --card:rgba(255,255,255,.04); --line:rgba(255,255,255,.10);
+    --ink:#EAF3EF; --soft:#9DB4AC; --green:#059669; --green2:#047857;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0; font-family:'Segoe UI',system-ui,-apple-system,Roboto,Arial,sans-serif;
+    color:var(--ink); background:radial-gradient(120% 120% at 50% 0%, #123125 0%, var(--bg1) 60%);
+    display:flex; align-items:center; justify-content:center; padding:24px; text-align:center;
+  }
+  .wrap{max-width:520px; width:100%}
+  .logo{display:inline-flex; align-items:center; gap:.5rem; font-weight:800; font-size:1.35rem; letter-spacing:-.01em; margin-bottom:2rem}
+  .logo .mark{width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,var(--green),var(--green2));display:grid;place-items:center;color:#fff;font-weight:900}
+  .logo .p1{color:#fff} .logo .p2{color:var(--green)}
+  .card{background:var(--card); border:1px solid var(--line); border-radius:22px; padding:38px 30px 32px; backdrop-filter:blur(4px)}
+  .emoji{font-size:3rem; line-height:1; margin-bottom:.6rem}
+  h1{font-size:1.5rem; margin:.2rem 0 .6rem; font-weight:700}
+  p{color:var(--soft); line-height:1.6; margin:.5rem 0; font-size:1rem}
+  .dots{display:inline-flex; gap:6px; margin:1.1rem 0 .4rem}
+  .dots i{width:9px;height:9px;border-radius:50%;background:var(--green);display:block;opacity:.35;animation:b 1.2s infinite ease-in-out}
+  .dots i:nth-child(2){animation-delay:.2s} .dots i:nth-child(3){animation-delay:.4s}
+  @keyframes b{0%,80%,100%{opacity:.3;transform:translateY(0)}40%{opacity:1;transform:translateY(-5px)}}
+  .actions{display:flex;flex-wrap:wrap;gap:.6rem;justify-content:center;margin-top:1.4rem}
+  a.btn{display:inline-flex;align-items:center;gap:.4rem;text-decoration:none;font-weight:600;font-size:.95rem;
+    padding:.7rem 1.2rem;border-radius:12px;transition:transform .12s, background .12s}
+  a.primary{background:linear-gradient(135deg,var(--green),var(--green2));color:#fff}
+  a.primary:hover{transform:translateY(-1px)}
+  a.ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}
+  a.ghost:hover{background:rgba(255,255,255,.05)}
+  .foot{margin-top:1.6rem;color:var(--soft);font-size:.82rem}
+  .foot a{color:var(--green);text-decoration:none}
+  @media (prefers-reduced-motion:reduce){.dots i{animation:none}}
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="logo"><span class="mark">p</span><span><span class="p1">psy</span><span class="p2">talk.pro</span></span></div>
+    <div class="card">
+      <div class="emoji">🛠️</div>
+      <h1>Идут технические работы</h1>
+      <p>Мы ненадолго отключили сайт, чтобы всё стало быстрее и стабильнее. Ваши данные, переписки и записи в безопасности — ничего не потеряется.</p>
+      <p>Обычно это занимает несколько минут. Пожалуйста, обновите страницу чуть позже.</p>
+      <div class="dots"><i></i><i></i><i></i></div>
+      <div class="actions">
+        <a class="btn primary" href="/" onclick="setTimeout(function(){location.reload(true)},50)">↻ Обновить</a>
+        <a class="btn ghost" href="mailto:support@psytalk.pro">✉ Написать в поддержку</a>
+      </div>
+      <div class="foot">Если это повторяется — напишите нам на <a href="mailto:support@psytalk.pro">support@psytalk.pro</a>, мы поможем.</div>
+    </div>
+  </div>
+</body>
+</html>

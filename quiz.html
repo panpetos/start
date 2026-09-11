@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
+    <title>Подбор психолога — psytalk.pro</title>
+    <link rel="stylesheet" href="/css/styles.css?v=20260823d">
+    <script src="/js/netguard.js?v=20260821c"></script>
+    <script src="/js/layout.js?v=20260823d"></script>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', -apple-system, sans-serif; background: #ECFDF5; min-height: 100vh; display: flex; flex-direction: column; color: #1A1A1A; padding-top: 84px; }
+        main { flex: 1; display: flex; align-items: flex-start; justify-content: center; padding: 2.5rem 1rem 4rem; }
+        .quiz { background: #fff; border-radius: 1.5rem; max-width: 560px; width: 100%; padding: 2.5rem; box-shadow: 0 8px 40px rgba(4,120,87,0.12); border: 1px solid #D1FAE5; }
+        .progress { height: 6px; background: #D1FAE5; border-radius: 3px; overflow: hidden; margin-bottom: 1.75rem; }
+        .progress > div { height: 100%; background: linear-gradient(90deg,#047857,#059669); transition: width 0.3s; }
+        .step-num { color: #9CA3AF; font-size: 0.85rem; font-weight: 600; margin-bottom: 0.5rem; }
+        h2 { font-size: 1.5rem; letter-spacing: -0.02em; margin-bottom: 1.5rem; }
+        .opts { display: grid; gap: 0.625rem; }
+        .opt { display: flex; align-items: center; gap: 0.75rem; padding: 1rem 1.125rem; border: 2px solid #E5E7EB; border-radius: 0.875rem; cursor: pointer; font-size: 1rem; font-weight: 500; transition: all 0.15s; }
+        .opt:hover { border-color: #6EE7B7; background: #ECFDF5; }
+        .opt.sel { border-color: #047857; background: #D1FAE5; color: #047857; font-weight: 600; }
+        .opt .em { font-size: 1.25rem; }
+        .nav-row { display: flex; justify-content: space-between; margin-top: 1.75rem; gap: 1rem; }
+        .btn-p { padding: 0.875rem 2rem; border-radius: 0.875rem; border: none; font-weight: 700; font-size: 1rem; cursor: pointer; font-family: inherit; }
+        .btn-next { background: linear-gradient(135deg,#047857,#059669); color: #fff; box-shadow: 0 4px 14px rgba(4,120,87,0.35); flex: 1; }
+        .btn-next:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-back { background: #F3F4F6; color: #374151; }
+
+        body.dark { background: #191919 !important; color: #E6E6E6 !important; }
+        body.dark .quiz { background: #252525; border-color: #333; box-shadow: 0 8px 40px rgba(0,0,0,0.3); }
+        body.dark .progress { background: #333; }
+        body.dark .step-num { color: #777; }
+        body.dark h2 { color: #E6E6E6; }
+        body.dark .opt { border-color: #444; color: #E6E6E6; }
+        body.dark .opt:hover { border-color: #047857; background: #0B3B2E; }
+        body.dark .opt.sel { border-color: #047857; background: #0B3B2E; color: #6EE7B7; }
+        body.dark .btn-back { background: #333; color: #CCC; }
+    </style>
+</head>
+<body>
+    <script>psyWriteHeader();</script>
+    <main>
+        <div class="quiz">
+            <div class="progress"><div id="bar" style="width:25%;"></div></div>
+            <div class="step-num" id="stepNum">Шаг 1 из 4</div>
+            <h2 id="qTitle"></h2>
+            <div class="opts" id="opts"></div>
+            <div class="nav-row">
+                <button class="btn-p btn-back" id="backBtn" onclick="prev()" style="display:none;">Назад</button>
+                <button class="btn-p btn-next" id="nextBtn" onclick="next()" disabled>Далее</button>
+            </div>
+        </div>
+    </main>
+    <script>psyWriteFooter();</script>
+    <script>
+        const QUESTIONS = [
+            { key: 'q', title: 'С чем хотите поработать?', multi: false, options: [
+                { em:'😰', label:'Тревога и стресс', val:'тревога' },
+                { em:'🔥', label:'Выгорание, усталость', val:'выгорание' },
+                { em:'💬', label:'Отношения', val:'отношения' },
+                { em:'🪞', label:'Самооценка, уверенность', val:'самооценка' },
+                { em:'🌧️', label:'Подавленность, апатия', val:'депрессия' },
+                { em:'🚀', label:'Карьера и рост', val:'карьера' },
+            ]},
+            { key: 'fmt', title: 'Какой формат удобнее?', multi: false, options: [
+                { em:'📹', label:'Видео', val:'video' },
+                { em:'💬', label:'Текстовый чат', val:'chat' },
+                { em:'📞', label:'Аудиозвонок', val:'audio' },
+                { em:'🤷', label:'Не важно', val:'' },
+            ]},
+            { key: 'who', title: 'Для кого консультация?', multi: false, options: [
+                { em:'🙂', label:'Для себя', val:'self' },
+                { em:'💞', label:'Для пары', val:'couple' },
+                { em:'🧑‍🎓', label:'Для подростка', val:'teen' },
+            ]},
+        ];
+        let step = 0;
+        const answers = {};
+
+        function render() {
+            const q = QUESTIONS[step];
+            document.getElementById('stepNum').textContent = `Шаг ${step+1} из ${QUESTIONS.length}`;
+            document.getElementById('bar').style.width = ((step+1)/QUESTIONS.length*100) + '%';
+            document.getElementById('qTitle').textContent = q.title;
+            document.getElementById('opts').innerHTML = q.options.map((o,i) =>
+                `<div class="opt ${answers[q.key]===o.val?'sel':''}" onclick="pick('${o.val.replace(/'/g,"")}',${i})">
+                    <span class="em">${o.em}</span> ${o.label}</div>`).join('');
+            document.getElementById('backBtn').style.display = step>0 ? 'block' : 'none';
+            document.getElementById('nextBtn').textContent = step===QUESTIONS.length-1 ? 'Подобрать психолога' : 'Далее';
+            document.getElementById('nextBtn').disabled = answers[q.key] === undefined;
+        }
+        function pick(val, i) {
+            const q = QUESTIONS[step];
+            answers[q.key] = QUESTIONS[step].options[i].val;
+            render();
+        }
+        function prev() { if (step>0){ step--; render(); } }
+        function next() {
+            if (step < QUESTIONS.length-1) { step++; render(); return; }
+            // финал → каталог с фильтрами
+            const p = new URLSearchParams();
+            if (answers.q) p.set('q', answers.q);
+            if (answers.fmt) p.set('fmt', answers.fmt);
+            if (answers.who) p.set('who', answers.who);
+            window.location.href = '/search.html?' + p.toString();
+        }
+        render();
+    </script>
+</body>
+</html>

@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Политика возврата средств платформы psytalk.pro">
+  <title>Политика возврата средств — psytalk.pro</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 16px; line-height: 1.7; color: #1a1a1a; background: #fff; }
+    a { color: #4A90D9; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    .site-header { padding: 18px 24px; border-bottom: 1px solid #e8e8e8; display: flex; align-items: center; gap: 24px; }
+    .site-header .logo { font-weight: 700; font-size: 18px; color: #1a1a1a; }
+    .site-header .back { font-size: 14px; color: #666; }
+
+    .container { max-width: 820px; margin: 0 auto; padding: 48px 24px 80px; }
+
+    .doc-badge { display: inline-block; font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: #666; border: 1px solid #ddd; border-radius: 4px; padding: 4px 10px; margin-bottom: 20px; }
+
+    h1 { font-size: 32px; font-weight: 800; line-height: 1.2; margin-bottom: 8px; }
+    .subtitle { font-size: 16px; color: #555; margin-bottom: 40px; }
+
+    .toc { background: #f7f8fa; border-radius: 10px; padding: 24px 28px; margin-bottom: 48px; }
+    .toc h2 { font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: #888; margin-bottom: 12px; }
+    .toc ol { padding-left: 20px; }
+    .toc li { margin-bottom: 6px; font-size: 15px; }
+
+    .section { margin-bottom: 48px; }
+    .section-num { display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; background: #1a1a1a; color: #fff; border-radius: 50%; font-size: 15px; font-weight: 700; margin-bottom: 16px; }
+    h2 { font-size: 22px; font-weight: 700; margin-bottom: 20px; }
+    h3 { font-size: 17px; font-weight: 600; margin: 24px 0 12px; }
+
+    p { margin-bottom: 14px; }
+    ul, ol { padding-left: 24px; margin-bottom: 14px; }
+    li { margin-bottom: 6px; }
+
+    .clause { margin-bottom: 16px; }
+    .clause-num { font-weight: 600; }
+
+    .highlight-box { background: #fff8e1; border-left: 4px solid #ffc107; border-radius: 0 8px 8px 0; padding: 16px 20px; margin: 20px 0; }
+    .highlight-box.info { background: #e8f4fd; border-left-color: #4A90D9; }
+    .highlight-box.warn { background: #fff3f3; border-left-color: #e53935; }
+
+    table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 15px; }
+    th { background: #f7f8fa; font-weight: 600; padding: 10px 14px; text-align: left; border-bottom: 2px solid #e8e8e8; }
+    td { padding: 10px 14px; border-bottom: 1px solid #f0f0f0; vertical-align: top; }
+    tr:last-child td { border-bottom: none; }
+
+    .requisites { background: #f7f8fa; border-radius: 10px; padding: 24px 28px; }
+    .requisites table { margin: 0; }
+    .requisites td:first-child { color: #666; width: 220px; }
+
+    .site-footer { border-top: 1px solid #e8e8e8; padding: 24px; text-align: center; font-size: 13px; color: #888; }
+    .site-footer a { color: #888; margin: 0 8px; }
+
+    body.dark { background: #191919 !important; color: #E6E6E6 !important; }
+    body.dark .site-header { background: #252525; border-bottom-color: #333; }
+    body.dark .site-header .logo { color: #E6E6E6; }
+    body.dark .site-header .back { color: #999; }
+    body.dark .doc-badge { color: #999; border-color: #555; }
+    body.dark h1, body.dark h2, body.dark h3 { color: #E6E6E6; }
+    body.dark .subtitle { color: #999; }
+    body.dark p, body.dark li { color: #CCCCCC; }
+    body.dark .toc { background: #252525; }
+    body.dark .toc h2 { color: #999; }
+    body.dark .section-num { background: #E6E6E6; color: #191919; }
+    body.dark .clause-num { color: #E6E6E6; }
+    body.dark .highlight-box { background: #3D3520; border-left-color: #D4A844; color: #E6E6E6; }
+    body.dark .highlight-box.info { background: #1A2A3D; border-left-color: #7AAFDD; }
+    body.dark .highlight-box.warn { background: #3D1F1F; border-left-color: #E53935; }
+    body.dark th { background: #252525; border-bottom-color: #444; color: #E6E6E6; }
+    body.dark td { border-bottom-color: #333; color: #CCCCCC; }
+    body.dark .requisites { background: #252525; }
+    body.dark .requisites td:first-child { color: #999; }
+    body.dark .site-footer { border-top-color: #333; color: #777; }
+    body.dark .site-footer a { color: #777; }
+    body.dark a { color: #6EE7B7; }
+    /* ── Мобильные экраны: таблицы с длинными значениями (реквизиты, сроки возврата)
+       не влезали в 320px и обрезались по краю. Уменьшаем отступы и разрешаем перенос. ── */
+    @media (max-width: 560px) {
+      body { padding-left: 0; padding-right: 0; }
+      table { font-size: 13.5px; }
+      th, td { padding: 7px 8px; overflow-wrap: anywhere; }
+      .requisites td:first-child { white-space: normal; }
+      h1 { font-size: 1.45rem; }
+      h2 { font-size: 1.15rem; }
+    }
+  </style>
+  <script src="/js/netguard.js?v=20260821c"></script>
+  <script src="/js/layout.js?v=20260823d"></script>
+</head>
+<body>
+
+<header class="site-header">
+  <a class="logo" href="https://psytalk.pro/">psytalk.pro</a>
+  <a class="back" href="https://psytalk.pro/">← На главную</a>
+</header>
+
+<div class="container">
+
+  <div class="doc-badge">Юридический документ</div>
+  <h1>Политика возврата средств</h1>
+  <p class="subtitle">Условия и порядок возврата денежных средств на платформе psytalk.pro<br><span style="font-size:14px;color:#888;">Дата публикации настоящей редакции: 27 августа 2026 г.</span></p>
+
+  <div class="toc">
+    <h2>Содержание</h2>
+    <ol>
+      <li><a href="#s1">Общие положения</a></li>
+      <li><a href="#s2">Что оплачивает Пользователь</a></li>
+      <li><a href="#s3">Основания для возврата</a></li>
+      <li><a href="#s4">Порядок оформления возврата</a></li>
+      <li><a href="#s5">Сроки рассмотрения и возврата</a></li>
+      <li><a href="#s6">Способ возврата</a></li>
+      <li><a href="#s7">Случаи отказа в возврате</a></li>
+      <li><a href="#s8">Частичный возврат</a></li>
+      <li><a href="#s9">Контактная информация</a></li>
+    </ol>
+  </div>
+
+  <!-- 1 -->
+  <div class="section" id="s1">
+    <div class="section-num">1</div>
+    <h2>Общие положения</h2>
+
+    <p class="clause"><span class="clause-num">1.1.</span> Настоящая Политика определяет условия и порядок возврата денежных средств, уплаченных Пользователем за использование сервиса psytalk.pro.</p>
+
+    <p class="clause"><span class="clause-num">1.2.</span> Платформа psytalk.pro является информационным посредником (агрегатором). Оператор платформы — ИП Вакульский Петр Валерьевич (ИНН: 230107911410, ОГРНИП: 326470400081272) — обеспечивает техническую инфраструктуру для организации консультаций и обработку платежей.</p>
+
+    <p class="clause"><span class="clause-num">1.3.</span> Психологические консультации оказываются независимыми Специалистами, самостоятельно несущими ответственность за качество своих услуг. Оператор не является исполнителем психологических услуг.</p>
+
+    <p class="clause"><span class="clause-num">1.4.</span> Приём и возврат платежей осуществляется через платёжный сервис Robokassa (интернет-эквайринг) в соответствии с его правилами и действующим законодательством РФ.</p>
+
+    <p class="clause"><span class="clause-num">1.5.</span> Настоящая Политика является неотъемлемой частью Публичной оферты (<a href="https://psytalk.pro/offer.html">offer.html</a>) и Политики конфиденциальности (<a href="https://psytalk.pro/privacy.html">privacy.html</a>).</p>
+
+    <p class="clause"><span class="clause-num">1.6.</span> Оплачивая консультацию, Пользователь подтверждает ознакомление с настоящей Политикой и принимает её условия.</p>
+  </div>
+
+  <!-- 2 -->
+  <div class="section" id="s2">
+    <div class="section-num">2</div>
+    <h2>Что оплачивает Пользователь</h2>
+
+    <div class="highlight-box info">
+      Платёж Пользователя включает вознаграждение Специалиста и Сервисный сбор Платформы. Оба компонента учитываются при расчёте возврата.
+    </div>
+
+    <p class="clause"><span class="clause-num">2.1.</span> При оплате консультации Пользователь оплачивает единую сумму, которая включает:
+    <ul>
+      <li><strong>Вознаграждение Специалиста</strong> — плата за психологическую консультацию, перечисляемая Специалисту;</li>
+      <li><strong>Сервисный сбор Платформы</strong> — вознаграждение Оператора за предоставление технической инфраструктуры.</li>
+    </ul>
+    </p>
+
+    <p class="clause"><span class="clause-num">2.2.</span> Ориентировочная стоимость (актуальные цены публикуются на странице <a href="/offers.html">«Пакеты и цены»</a>):
+    <table>
+      <tr><th>Тип консультации</th><th>Стоимость</th></tr>
+      <tr><td>Первая (ознакомительная)</td><td><span class="psy-first-price">1 500 ₽</span></td></tr>
+      <tr><td>Последующие консультации</td><td>от 1 000 до 5 000 ₽</td></tr>
+    </table>
+    </p>
+
+    <p class="clause"><span class="clause-num">2.3.</span> При полном возврате Пользователю возвращается вся уплаченная сумма. Сервисный сбор Платформы возвращается в случаях, когда консультация не состоялась по вине Специалиста или по техническим причинам на стороне Платформы.</p>
+  </div>
+
+  <!-- 3 -->
+  <div class="section" id="s3">
+    <div class="section-num">3</div>
+    <h2>Основания для возврата</h2>
+
+    <h3>3.1. Полный возврат</h3>
+    <p>Пользователь имеет право на полный возврат уплаченных средств в следующих случаях:</p>
+
+    <p class="clause"><span class="clause-num">3.1.1.</span> <strong>Отмена до начала консультации.</strong> Заявление об отмене подано не менее чем за 24 часа до запланированного времени сессии.</p>
+
+    <p class="clause"><span class="clause-num">3.1.2.</span> <strong>Неявка Специалиста.</strong> Специалист не подключился к сеансу в течение 15 минут после назначенного времени и не уведомил Пользователя о переносе.</p>
+
+    <p class="clause"><span class="clause-num">3.1.3.</span> <strong>Технический сбой на стороне Платформы.</strong> Сбой серверов или программного обеспечения Платформы, сделавший консультацию невозможной.</p>
+
+    <p class="clause"><span class="clause-num">3.1.4.</span> <strong>Отмена по инициативе Специалиста или Платформы.</strong> Консультация отменена не по вине Пользователя.</p>
+
+    <p class="clause"><span class="clause-num">3.1.5.</span> <strong>Двойное списание.</strong> Ошибочное повторное списание средств за одну консультацию — излишне списанная сумма возвращается в полном объёме.</p>
+
+    <p class="clause"><span class="clause-num">3.1.6.</span> <strong>Отказ в 14-дневный срок.</strong> В соответствии со ст. 32 Закона РФ «О защите прав потребителей» при условии компенсации фактически понесённых расходов.</p>
+
+    <div class="highlight-box warn">
+      <strong>По вопросам качества консультации</strong> обращайтесь непосредственно к Специалисту или в службу поддержки Платформы. Претензии к содержанию и результату консультации рассматриваются Специалистом, как стороной договора об оказании психологических услуг.
+    </div>
+  </div>
+
+  <!-- 4 -->
+  <div class="section" id="s4">
+    <div class="section-num">4</div>
+    <h2>Порядок оформления возврата</h2>
+
+    <p class="clause"><span class="clause-num">4.1.</span> Для оформления возврата Пользователь направляет заявление на адрес <a href="mailto:support@psytalk.pro">support@psytalk.pro</a> с темой <strong>«Заявление на возврат средств»</strong>. Заявления принимаются по электронной почте.</p>
+
+    <p class="clause"><span class="clause-num">4.2.</span> Заявление должно содержать:
+    <ul>
+      <li>ФИО Пользователя;</li>
+      <li>e-mail, использованный при регистрации;</li>
+      <li>дата и время оплаченной консультации;</li>
+      <li>номер транзакции или заказа (при наличии);</li>
+      <li>уплаченная сумма;</li>
+      <li>причина обращения и описание обстоятельств;</li>
+      <li>предпочтительный вариант: возврат средств или перенос консультации.</li>
+    </ul>
+    </p>
+
+    <p class="clause"><span class="clause-num">4.3.</span> Ответ на обращение направляется на e-mail Пользователя в течение 2 рабочих дней.</p>
+
+    <p class="clause"><span class="clause-num">4.4.</span> Срок подачи заявления — не позднее <strong>30 календарных дней</strong> с даты оплаты, если иное не предусмотрено законодательством.</p>
+
+    <p class="clause"><span class="clause-num">4.5.</span> Оператор вправе запросить дополнительные материалы: скриншоты, подтверждение оплаты, описание технических проблем.</p>
+
+    <div class="requisites" style="margin-top:20px;">
+      <table>
+        <tr><th colspan="2">Данные для заявления</th></tr>
+        <tr><td>Куда направлять</td><td><a href="mailto:support@psytalk.pro">support@psytalk.pro</a></td></tr>
+        <tr><td>Тема письма</td><td>Заявление на возврат средств</td></tr>
+        <tr><td>Срок подачи</td><td>Не позднее 30 календарных дней</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- 5 -->
+  <div class="section" id="s5">
+    <div class="section-num">5</div>
+    <h2>Сроки рассмотрения и возврата</h2>
+
+    <table>
+      <tr><th>Этап</th><th>Срок</th></tr>
+      <tr><td>Подтверждение получения заявления</td><td>2 рабочих дня</td></tr>
+      <tr><td>Рассмотрение заявления</td><td>До 10 рабочих дней</td></tr>
+      <tr><td>Перечисление средств после одобрения</td><td>До 10 рабочих дней</td></tr>
+      <tr><td>Зачисление банком на счёт Пользователя</td><td>До 30 календарных дней</td></tr>
+      <tr><td>Отмена по инициативе Специалиста / Платформы</td><td>До 5 рабочих дней</td></tr>
+      <tr><td>Двойное списание</td><td>До 3 рабочих дней</td></tr>
+    </table>
+
+    <p class="clause"><span class="clause-num">5.1.</span> Срок зачисления на счёт Пользователя зависит от банка-эмитента карты и не контролируется Оператором.</p>
+  </div>
+
+  <!-- 6 -->
+  <div class="section" id="s6">
+    <div class="section-num">6</div>
+    <h2>Способ возврата</h2>
+
+    <p class="clause"><span class="clause-num">6.1.</span> Возврат осуществляется на тот же платёжный инструмент, с которого была произведена оплата, через платёжный сервис Robokassa (интернет-эквайринг):
+    <ul>
+      <li>банковская карта — возврат на ту же карту;</li>
+      <li>электронный кошелёк — возврат на тот же кошелёк;</li>
+      <li>интернет-банк — возврат на тот же счёт.</li>
+    </ul>
+    </p>
+
+    <p class="clause"><span class="clause-num">6.2.</span> Возврат на иной платёжный инструмент допускается только при документальном подтверждении недоступности исходного (карта заблокирована, счёт закрыт).</p>
+
+    <p class="clause"><span class="clause-num">6.3.</span> В исключительных случаях при невозможности возврата через платёжный сервис Robokassa (интернет-эквайринг) Оператор осуществляет возврат банковским переводом на реквизиты, предоставленные Пользователем.</p>
+
+    <p class="clause"><span class="clause-num">6.4.</span> Возврат производится в рублях РФ. Комиссия за возврат с Пользователя не взимается. Возврат наличными не производится.</p>
+  </div>
+
+  <!-- 7 -->
+  <div class="section" id="s7">
+    <div class="section-num">7</div>
+    <h2>Случаи отказа в возврате</h2>
+
+    <p>Оператор вправе отказать в возврате в следующих случаях:</p>
+
+    <p class="clause"><span class="clause-num">7.1.</span> <strong>Консультация состоялась в полном объёме.</strong> Субъективная неудовлетворённость результатом не является основанием для возврата, поскольку результат психологической работы зависит от множества факторов.</p>
+
+    <p class="clause"><span class="clause-num">7.2.</span> <strong>Неявка Пользователя без уведомления.</strong> Если Пользователь не подключился к сессии и не отменил запись за 24 часа — консультация считается состоявшейся, время Специалиста использованным.</p>
+
+    <p class="clause"><span class="clause-num">7.3.</span> <strong>Поздняя отмена.</strong> Отмена менее чем за 24 часа до сессии — возможен лишь частичный возврат (см. раздел 8).</p>
+
+    <p class="clause"><span class="clause-num">7.4.</span> <strong>Технические проблемы на стороне Пользователя.</strong> Нестабильный интернет, неисправное оборудование или устаревшее ПО Пользователя не являются основаниями для возврата.</p>
+
+    <p class="clause"><span class="clause-num">7.5.</span> <strong>Нарушение правил Платформы Пользователем.</strong> Оскорбительное поведение или запись сеанса без согласия Специалиста, повлёкшие прекращение консультации.</p>
+
+    <p class="clause"><span class="clause-num">7.6.</span> <strong>Истечение срока подачи заявления</strong> (более 30 дней с даты оплаты).</p>
+
+    <p class="clause"><span class="clause-num">7.7.</span> <strong>Предоставление заведомо ложных сведений</strong> в заявлении на возврат.</p>
+
+    <div class="highlight-box">
+      Отказ всегда сопровождается письменным ответом с указанием оснований. Пользователь вправе обжаловать решение, направив повторное обращение, или обратиться за защитой прав в суд.
+    </div>
+  </div>
+
+  <!-- 8 -->
+  <div class="section" id="s8">
+    <div class="section-num">8</div>
+    <h2>Частичный возврат</h2>
+
+    <p class="clause"><span class="clause-num">8.1.</span> <strong>Прерывание по техническим причинам на стороне Платформы.</strong> Возвращается пропорциональная часть за неиспользованное время. Формула: Сумма возврата = Стоимость × (Неиспользованное время ÷ Общая продолжительность).</p>
+
+    <p class="clause"><span class="clause-num">8.2.</span> <strong>Поздняя отмена (менее чем за 24 часа до сессии).</strong> Удерживается 50% стоимости сессии (компенсация забронированного времени Специалиста), оставшиеся 50% возвращаются Пользователю. Для абонемента поздняя отмена списывает одну сессию.</p>
+
+    <p class="clause"><span class="clause-num">8.3.</span> <strong>Существенное нарушение профессиональной этики Специалистом.</strong> При подтверждении факта нарушения — частичный или полный возврат по результатам внутреннего разбирательства.</p>
+
+    <p class="clause"><span class="clause-num">8.4.</span> <strong>Опоздание Специалиста более 5 минут</strong> (но менее 15 минут) — возврат за потерянное время пропорционально либо дополнительное бесплатное время на следующей сессии.</p>
+
+    <p class="clause"><span class="clause-num">8.5.</span> <strong>Пакетные услуги.</strong> При покупке пакета консультаций возврат производится за неиспользованные сессии по полной стоимости за вычетом скидки; использованные сессии пересчитываются по полной цене без скидки.</p>
+
+    <p class="clause"><span class="clause-num">8.6.</span> Минимальная сумма возврата — 100 рублей. Пользователь уведомляется о размере частичного возврата до его осуществления.</p>
+  </div>
+
+  <!-- 9 -->
+  <div class="section" id="s9">
+    <div class="section-num">9</div>
+    <h2>Контактная информация</h2>
+
+    <div class="requisites">
+      <table>
+        <tr><th colspan="2">Служба поддержки psytalk.pro</th></tr>
+        <tr><td>Оператор</td><td>ИП Вакульский Петр Валерьевич</td></tr>
+        <tr><td>ИНН</td><td>230107911410</td></tr>
+        <tr><td>ОГРНИП</td><td>326470400081272</td></tr>
+        <tr><td>Электронная почта</td><td><a href="mailto:support@psytalk.pro">support@psytalk.pro</a></td></tr>
+        <tr><td>Сайт</td><td><a href="https://psytalk.pro/">psytalk.pro</a></td></tr>
+      </table>
+    </div>
+
+    <p style="margin-top:20px;" class="clause"><span class="clause-num">9.1.</span> Обращения, поступившие в нерабочее время, рассматриваются в следующий рабочий день.</p>
+
+    <p class="clause"><span class="clause-num">9.2.</span> При неурегулировании спора в досудебном порядке Пользователь вправе обратиться в суд по месту жительства или по месту нахождения Оператора.</p>
+
+    <p class="clause"><span class="clause-num">9.3.</span> Настоящая Политика вступает в силу с момента размещения на Сайте и действует бессрочно.</p>
+
+    <p class="clause"><span class="clause-num">9.4.</span> Изменения вступают в силу с момента публикации на Сайте и применяются к вновь оплаченным консультациям.</p>
+  </div>
+
+</div>
+
+<script>psyWriteFooter();</script>
+
+</body>
+</html>

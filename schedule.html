@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
+    <title>Моё расписание — psytalk.pro</title>
+    <link rel="stylesheet" href="/css/styles.css?v=20260823d">
+    <script src="/js/netguard.js?v=20260821c"></script>
+    <script src="/js/layout.js?v=20260823d"></script>
+    <!-- Одно меню в кабинете. Разделы сайта живут в боковом меню («Сайт»), поэтому
+         бургер шапки здесь лишний: на телефоне рядом оказывались два меню, и человек
+         не понимал, в какое жать. Правило дублирует логику layout.js намеренно —
+         HTML не кэшируется, а js мог остаться в кэше телефона прежней версии. -->
+    <style id="psyOneMenu">
+      #burgerMenu{display:none!important}
+      @media (max-width:768px){#navMenu.nav-menu:not(.nav-menu-slim){display:none!important}}
+    </style>
+    <script src="/js/api.js?v=20260821"></script>
+    <script src="/js/auth.js?v=20260821"></script>
+    <script src="/js/dash-sidebar.js?v=20260824a"></script>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --s-bg: #ECFDF5; --s-text: #1A1A1A; --s-text-sec: #6B7280;
+            --s-panel: #fff; --s-panel-border: #D1FAE5; --s-cell-border: #E5E7EB; --s-cell-bg: #fff;
+            --s-hint-bg: #ECFDF5; --s-hint-border: #D1FAE5;
+            --s-back-bg: #fff; --s-back-border: #E5E7EB; --s-back-color: #374151;
+            --s-accent: #047857; --s-green: #16A34A;
+            --d-bg: #ECFDF5; --d-panel: #FFFFFF; --d-panel-alt: #FAFAFA;
+            --d-border: #EFF7F3; --d-border-light: #F0F0F0; --d-border-accent: #D1FAE5;
+            --d-text: #1A1A1A; --d-text-sec: #6B7280; --d-text-muted: #9CA3AF; --d-text-dark: #374151;
+            --d-accent: #047857; --d-accent-bg: #D1FAE5; --d-accent-hover: #ECFDF5;
+        }
+        body.dark {
+            --s-bg: #191919; --s-text: #E6E6E6; --s-text-sec: #A0A0A0;
+            --s-panel: #252525; --s-panel-border: #333; --s-cell-border: #444; --s-cell-bg: #2A2A2A;
+            --s-hint-bg: #0B3B2E; --s-hint-border: #10402F;
+            --s-back-bg: #252525; --s-back-border: #444; --s-back-color: #C0C0C0;
+            --s-accent: #6EE7B7; --s-green: #4ADE80;
+            --d-bg: #191919; --d-panel: #252525; --d-panel-alt: #2A2A2A;
+            --d-border: #333; --d-border-light: #333; --d-border-accent: #10402F;
+            --d-text: #E6E6E6; --d-text-sec: #A0A0A0; --d-text-muted: #707070; --d-text-dark: #C0C0C0;
+            --d-accent: #6EE7B7; --d-accent-bg: #0B3B2E; --d-accent-hover: #10402F;
+        }
+        body { font-family: 'Inter', -apple-system, sans-serif; background: var(--s-bg); min-height: 100vh; color: var(--s-text); padding-top: 84px; transition: background 0.2s, color 0.2s; }
+        body.dark .nav { background: #1E1E1E !important; border-color: #333 !important; }
+        body.dark .nav-brand span:first-child { color: #E6E6E6 !important; }
+        body.dark .nav a.nav-link { color: #A0A0A0 !important; }
+        body.dark .nav a.nav-link:hover { color: #E6E6E6 !important; }
+        /* ── Notion-style sidebar layout (общая для всех кабинетных страниц, задача — единый сайдбар) ── */
+        .dash-layout { display: flex; min-height: calc(100vh - 84px); }
+        .dash-sidebar { width: 240px; background: var(--d-panel); border-right: 1px solid var(--d-border); display: flex; flex-direction: column; position: sticky; top: 84px; height: calc(100vh - 84px); flex-shrink: 0; transition: background 0.2s, border-color 0.2s; z-index: 10; }
+        .dash-sidebar-header { padding: 1rem 1rem 0.75rem; border-bottom: 1px solid var(--d-border); }
+        .dash-sidebar-header h2 { font-size: 0.95rem; font-weight: 700; color: var(--d-text); margin-bottom: 0.15rem; }
+        .dash-sidebar-header p { font-size: 0.75rem; color: var(--d-text-muted); }
+        .dash-sidebar-nav { flex: 1; padding: 0.5rem 0; overflow-y: auto; }
+        .dash-sidebar-group { padding: 0.5rem 0 0.15rem; }
+        .dash-sidebar-group-label { padding: 0.25rem 1rem 0.35rem; font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--d-text-muted); user-select: none; }
+        .dash-sidebar-item { display: flex; align-items: center; gap: 0.55rem; padding: 0.45rem 0.75rem; margin: 0.06rem 0.5rem; border-radius: 0.45rem; font-size: 0.875rem; color: var(--d-text-sec); cursor: pointer; transition: background 0.12s, color 0.12s; font-weight: 500; text-decoration: none; border: none; background: none; width: calc(100% - 1rem); text-align: left; font-family: inherit; line-height: 1.4; }
+        .dash-sidebar-item:hover { background: var(--d-accent-hover); color: var(--d-text); }
+        .dash-sidebar-item.active { background: var(--d-accent-bg); color: var(--d-accent); font-weight: 600; }
+        .dash-sidebar-icon { font-size: 1rem; width: 1.35rem; text-align: center; flex-shrink: 0; }
+        .dash-sidebar-footer { padding: 0.6rem 0.5rem; border-top: 1px solid var(--d-border); display: flex; flex-direction: column; gap: 0.15rem; }
+        .dash-sidebar-footer .dash-sidebar-item { margin: 0.06rem 0; }
+        /* Кнопка меню кабинета — в самой шапке справа, а не отдельной плашкой под ней:
+           на телефоне там пусто (меню сайта и его бургер в кабинете скрыты), и рука
+           тянется в правый верхний угол. Прежнее место — слева под шапкой — висело
+           поверх содержимого и закрывало первую строку страницы. */
+        .dash-sidebar-toggle { display: none; position: fixed; top: 13px; right: 0.9rem; left: auto; z-index: 1001; width: 38px; height: 38px; border-radius: 0.5rem; border: 1px solid var(--d-border); background: var(--d-panel); color: var(--d-text); font-size: 1.2rem; cursor: pointer; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+        .dash-sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.35); z-index: 999; }
+        .dash-sidebar-overlay.open { display: block; }
+        @media (max-width: 768px) {
+            .dash-sidebar { position: fixed; top: 0; left: -260px; bottom: 0; z-index: 1000; width: 240px; transition: left 0.25s ease; padding-top: 0.5rem; height: 100vh; height: 100dvh; max-height: 100dvh; overflow-y: auto; overscroll-behavior: contain; }
+            .dash-sidebar.open { left: 0; }
+            .dash-sidebar-toggle { display: flex; }
+            .dash-layout { display: block; }
+        }
+        .container { max-width: 1000px; margin: 0 auto; padding: 1.5rem; }
+        .head { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 0.5rem; }
+        h1 { font-size: 1.6rem; letter-spacing: -0.02em; }
+        .sub { color: var(--s-text-sec); margin-bottom: 1.5rem; }
+        .panel { background: var(--s-panel); border-radius: 1.1rem; border: 1px solid var(--s-panel-border); box-shadow: 0 2px 12px rgba(4,120,87,0.06); padding: 1.5rem; transition: background 0.2s, border-color 0.2s; }
+        .grid-wrap { overflow-x: auto; }
+        table { border-collapse: collapse; width: 100%; min-width: 640px; }
+        th, td { text-align: center; padding: 0.3rem; }
+        th { font-size: 0.8rem; color: var(--s-text-sec); font-weight: 600; }
+        td.time { color: var(--s-text-sec); font-size: 0.8rem; font-weight: 600; white-space: nowrap; text-align: right; padding-right: 0.6rem; }
+        .cell { width: 100%; height: 34px; border-radius: 0.5rem; border: 1.5px solid var(--s-cell-border); background: var(--s-cell-bg); cursor: pointer; transition: all 0.1s; }
+        .cell:hover { border-color: #6EE7B7; }
+        .cell.on { background: linear-gradient(135deg,#047857,#059669); border-color: transparent; }
+        .day-toggle { font-size: 0.72rem; color: var(--s-accent); cursor: pointer; display: block; margin-top: 2px; }
+        .actions { display: flex; gap: 0.75rem; margin-top: 1.5rem; align-items: center; flex-wrap: wrap; }
+        .btn-save { padding: 0.8rem 2rem; border: none; border-radius: 0.75rem; background: linear-gradient(135deg,#047857,#059669); color: #fff; font-weight: 700; cursor: pointer; font-family: inherit; box-shadow: 0 4px 14px rgba(4,120,87,0.35); }
+        .btn-back { padding: 0.8rem 1.5rem; border: 1.5px solid var(--s-back-border); border-radius: 0.75rem; background: var(--s-back-bg); color: var(--s-back-color); font-weight: 600; text-decoration: none; transition: background 0.2s, border-color 0.2s, color 0.2s; }
+        .saved { color: var(--s-green); font-weight: 600; display: none; }
+        .hint { background: var(--s-hint-bg); border: 1px solid var(--s-hint-border); border-radius: 0.75rem; padding: 0.875rem 1rem; color: var(--s-text-sec); font-size: 0.875rem; margin-bottom: 1.25rem; line-height: 1.5; transition: background 0.2s, border-color 0.2s, color 0.2s; }
+    </style>
+</head>
+<body>
+    <script>(function(){ var t = localStorage.getItem('psy-theme'); if (t === 'dark' || (!t && window.matchMedia('(prefers-color-scheme:dark)').matches)) document.body.classList.add('dark'); })();</script>
+    <script>psyWriteHeader();</script>
+    <div class="dash-layout">
+    <div id="dashSidebarMount"></div>
+    <div class="container">
+        <div class="head">
+            <div><h1>Моё расписание</h1></div>
+            <a href="/psychologist-dashboard.html" class="btn-back">← В кабинет</a>
+        </div>
+        <p class="sub">Отметьте дни и часы, когда вы доступны для онлайн-консультаций. Клиенты увидят только эти окна при записи.</p>
+        <div class="hint">💡 Нажимайте на клетки, чтобы включить/выключить слот. Можно включить весь день кнопкой «всё» под названием дня. Не забудьте сохранить.</div>
+        <div class="panel">
+            <div class="grid-wrap"><table id="grid"></table></div>
+            <div class="actions">
+                <button class="btn-save" onclick="saveSchedule()">Сохранить расписание</button>
+                <span class="saved" id="savedMsg">✓ Сохранено</span>
+            </div>
+        </div>
+    </div>
+    </div>
+    <script>
+        const DAYS = [['mon','Пн'],['tue','Вт'],['wed','Ср'],['thu','Чт'],['fri','Пт'],['sat','Сб'],['sun','Вс']];
+        const TIMES = ['09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00','20:00','21:00'];
+        let state = {}; DAYS.forEach(d => state[d[0]] = new Set());
+
+        function buildGrid() {
+            let html = '<tr><th></th>' + DAYS.map(d =>
+                `<th>${d[1]}<span class="day-toggle" onclick="toggleDay('${d[0]}')">всё</span></th>`).join('') + '</tr>';
+            TIMES.forEach(t => {
+                html += `<tr><td class="time">${t}</td>` + DAYS.map(d =>
+                    `<td><button class="cell" data-d="${d[0]}" data-t="${t}" onclick="toggleCell('${d[0]}','${t}',this)"></button></td>`).join('') + '</tr>';
+            });
+            document.getElementById('grid').innerHTML = html;
+            refresh();
+        }
+        function toggleCell(d, t, el) {
+            if (state[d].has(t)) state[d].delete(t); else state[d].add(t);
+            el.classList.toggle('on', state[d].has(t));
+        }
+        function toggleDay(d) {
+            const allOn = TIMES.every(t => state[d].has(t));
+            state[d] = new Set(allOn ? [] : TIMES);
+            refresh();
+        }
+        function refresh() {
+            document.querySelectorAll('.cell').forEach(el => {
+                el.classList.toggle('on', state[el.dataset.d].has(el.dataset.t));
+            });
+        }
+        function toObj() { const o = {}; DAYS.forEach(d => o[d[0]] = Array.from(state[d[0]]).sort()); return o; }
+
+        async function saveSchedule() {
+            try {
+                const r = await fetch('/api/schedule.php?action=save', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+                    body: JSON.stringify({ slots: toObj() })
+                });
+                const d = await r.json();
+                if (d.ok) { const m = document.getElementById('savedMsg'); m.style.display = 'inline'; setTimeout(()=>m.style.display='none', 2500); }
+                else alert(d.error || 'Не удалось сохранить');
+            } catch (e) { alert('Ошибка соединения'); }
+        }
+
+        async function init() {
+            let user = null;
+            if (window.Auth && window.Auth.getCurrentUser) { try { user = await window.Auth.getCurrentUser(); } catch(e){} }
+            if (!user) { window.location.href = '/login.html?redirect=' + encodeURIComponent('/schedule.html'); return; }
+            if (user.role !== 'psychologist') { window.location.href = '/client-dashboard.html'; return; }
+            mountDashSidebar('psychologist', ((user.first_name||'') + ' ' + (user.last_name||'')).trim() || user.email || '');
+            buildGrid();
+            try {
+                const r = await fetch('/api/schedule.php?action=mine', { credentials: 'include' });
+                const d = await r.json();
+                if (d.ok && d.slots) {
+                    DAYS.forEach(dd => { (d.slots[dd[0]] || []).forEach(t => state[dd[0]].add(t)); });
+                    refresh();
+                }
+            } catch (e) {}
+        }
+        init();
+    </script>
+</body>
+</html>

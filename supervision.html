@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
+    <title>Супервизия — psytalk.pro</title>
+    <meta name="description" content="Групповая и индивидуальная супервизия для психологов: учитесь у опытных коллег.">
+    <link rel="stylesheet" href="/css/styles.css?v=20260823d">
+    <script src="/js/netguard.js?v=20260821c"></script>
+    <script src="/js/layout.js?v=20260823d"></script>
+    <!-- Одно меню в кабинете. Разделы сайта живут в боковом меню («Сайт»), поэтому
+         бургер шапки здесь лишний: на телефоне рядом оказывались два меню, и человек
+         не понимал, в какое жать. Правило дублирует логику layout.js намеренно —
+         HTML не кэшируется, а js мог остаться в кэше телефона прежней версии. -->
+    <style id="psyOneMenu">
+      #burgerMenu{display:none!important}
+      @media (max-width:768px){#navMenu.nav-menu:not(.nav-menu-slim){display:none!important}}
+    </style>
+    <script src="/js/api.js?v=20260821"></script>
+    <script src="/js/auth.js?v=20260821"></script>
+    <script src="/js/dash-sidebar.js?v=20260824a"></script>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', -apple-system, sans-serif; background: #F7F6FB; min-height: 100vh; display: flex; flex-direction: column; color: #1A1A1A; padding-top: 84px; }
+        main { flex: 1; }
+        .wrap { max-width: 980px; margin: 0 auto; padding: 1.5rem 1.5rem 4rem; }
+        .hero { background: linear-gradient(135deg,#047857,#059669 60%,#6EE7B7); color: #fff; border-radius: 1.25rem; padding: 2.25rem; margin-bottom: 1.5rem; }
+        .hero h1 { font-size: 1.9rem; font-weight: 800; letter-spacing: -0.02em; margin-bottom: 0.5rem; }
+        .hero p { opacity: 0.92; line-height: 1.6; max-width: 640px; }
+        .card { background: #fff; border-radius: 1.1rem; border: 1px solid #D1FAE5; box-shadow: 0 2px 12px rgba(0,0,0,0.05); padding: 1.5rem; margin-bottom: 1.25rem; }
+        .card h2 { font-size: 1.25rem; margin-bottom: 0.3rem; }
+        .card .sub { color: #6B7280; font-size: 0.9rem; margin-bottom: 1.1rem; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(260px, 100%), 1fr)); gap: 1rem; }
+        .sess { border: 1px solid #D1FAE5; border-radius: 0.9rem; padding: 1.1rem; background: #FCFAFF; display: flex; flex-direction: column; }
+        .sess .t { font-weight: 700; margin-bottom: 0.25rem; }
+        .sess .meta { color: #6B7280; font-size: 0.84rem; line-height: 1.5; margin-bottom: 0.6rem; flex: 1; }
+        .price { font-size: 1.35rem; font-weight: 800; color: #047857; }
+        .btn { display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem; padding: 0.6rem 1.1rem; border: none; border-radius: 0.7rem; background: linear-gradient(135deg,#047857,#059669); color: #fff; font-weight: 700; cursor: pointer; font-family: inherit; text-decoration: none; font-size: 0.9rem; }
+        .btn:disabled { background: #E5E7EB; color: #9CA3AF; cursor: default; }
+        .btn-outline { background: #fff; color: #047857; border: 1.5px solid #6EE7B7; }
+        .field { display: block; margin-bottom: 0.7rem; }
+        .field label { display: block; font-size: 0.82rem; font-weight: 600; color: #374151; margin-bottom: 0.25rem; }
+        .field input, .field textarea, .field select { width: 100%; padding: 0.6rem 0.8rem; border: 1.5px solid #E5E7EB; border-radius: 0.6rem; font-family: inherit; font-size: 0.9rem; outline: none; }
+        .field input:focus, .field textarea:focus, .field select:focus { border-color: #047857; }
+        .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.7rem; }
+        .badge { display: inline-block; padding: 0.12rem 0.6rem; border-radius: 2rem; font-size: 0.72rem; font-weight: 700; }
+        .b-green { background: #F0FDF4; color: #16A34A; border: 1px solid #BBF7D0; }
+        .b-amber { background: #FFF8E7; color: #92400E; border: 1px solid #FCD34D; }
+        .b-brand { background: #D1FAE5; color: #047857; border: 1px solid #A7F3D0; }
+        .b-gray { background: #F3F4F6; color: #6B7280; border: 1px solid #E5E7EB; }
+        .muted { color: #9CA3AF; }
+        .reqrow { border-bottom: 1px solid #EFF7F3; padding: 0.7rem 0; display: flex; justify-content: space-between; gap: 0.75rem; flex-wrap: wrap; align-items: center; }
+        /* Переменные и стили общей боковой менюшки кабинета — те же, что на остальных
+           страницах (задача: «в разделе супервизии нет шторки меню»). */
+        :root {
+            --d-bg: #ECFDF5; --d-panel: #FFFFFF; --d-panel-alt: #FAFAFA;
+            --d-border: #EFF7F3; --d-border-light: #F0F0F0; --d-border-accent: #D1FAE5;
+            --d-text: #1A1A1A; --d-text-sec: #6B7280; --d-text-muted: #9CA3AF; --d-text-dark: #374151;
+            --d-accent: #047857; --d-accent-bg: #D1FAE5; --d-accent-hover: #ECFDF5;
+        }
+        body.dark {
+            --d-bg: #191919; --d-panel: #252525; --d-panel-alt: #2A2A2A;
+            --d-border: #333; --d-border-light: #333; --d-border-accent: #10402F;
+            --d-text: #E6E6E6; --d-text-sec: #A0A0A0; --d-text-muted: #707070; --d-text-dark: #C0C0C0;
+            --d-accent: #6EE7B7; --d-accent-bg: #0B3B2E; --d-accent-hover: #10402F;
+        }
+        /* ── Notion-style sidebar layout (общая для всех кабинетных страниц, задача — единый сайдбар) ── */
+        .dash-layout { display: flex; min-height: calc(100vh - 84px); }
+        .dash-sidebar { width: 240px; background: var(--d-panel); border-right: 1px solid var(--d-border); display: flex; flex-direction: column; position: sticky; top: 84px; height: calc(100vh - 84px); flex-shrink: 0; transition: background 0.2s, border-color 0.2s; z-index: 10; }
+        .dash-sidebar-header { padding: 1rem 1rem 0.75rem; border-bottom: 1px solid var(--d-border); }
+        .dash-sidebar-header h2 { font-size: 0.95rem; font-weight: 700; color: var(--d-text); margin-bottom: 0.15rem; }
+        .dash-sidebar-header p { font-size: 0.75rem; color: var(--d-text-muted); }
+        .dash-sidebar-nav { flex: 1; padding: 0.5rem 0; overflow-y: auto; }
+        .dash-sidebar-group { padding: 0.5rem 0 0.15rem; }
+        .dash-sidebar-group-label { padding: 0.25rem 1rem 0.35rem; font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--d-text-muted); user-select: none; }
+        .dash-sidebar-item { display: flex; align-items: center; gap: 0.55rem; padding: 0.45rem 0.75rem; margin: 0.06rem 0.5rem; border-radius: 0.45rem; font-size: 0.875rem; color: var(--d-text-sec); cursor: pointer; transition: background 0.12s, color 0.12s; font-weight: 500; text-decoration: none; border: none; background: none; width: calc(100% - 1rem); text-align: left; font-family: inherit; line-height: 1.4; }
+        .dash-sidebar-item:hover { background: var(--d-accent-hover); color: var(--d-text); }
+        .dash-sidebar-item.active { background: var(--d-accent-bg); color: var(--d-accent); font-weight: 600; }
+        .dash-sidebar-icon { font-size: 1rem; width: 1.35rem; text-align: center; flex-shrink: 0; }
+        .dash-sidebar-footer { padding: 0.6rem 0.5rem; border-top: 1px solid var(--d-border); display: flex; flex-direction: column; gap: 0.15rem; }
+        .dash-sidebar-footer .dash-sidebar-item { margin: 0.06rem 0; }
+        /* Кнопка меню кабинета — в самой шапке справа, а не отдельной плашкой под ней:
+           на телефоне там пусто (меню сайта и его бургер в кабинете скрыты), и рука
+           тянется в правый верхний угол. Прежнее место — слева под шапкой — висело
+           поверх содержимого и закрывало первую строку страницы. */
+        .dash-sidebar-toggle { display: none; position: fixed; top: 13px; right: 0.9rem; left: auto; z-index: 1001; width: 38px; height: 38px; border-radius: 0.5rem; border: 1px solid var(--d-border); background: var(--d-panel); color: var(--d-text); font-size: 1.2rem; cursor: pointer; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+        .dash-sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.35); z-index: 999; }
+        .dash-sidebar-overlay.open { display: block; }
+        @media (max-width: 768px) {
+            .dash-sidebar { position: fixed; top: 0; left: -260px; bottom: 0; z-index: 1000; width: 240px; transition: left 0.25s ease; padding-top: 0.5rem; height: 100vh; height: 100dvh; max-height: 100dvh; overflow-y: auto; overscroll-behavior: contain; }
+            .dash-sidebar.open { left: 0; }
+            .dash-sidebar-toggle { display: flex; }
+            .dash-layout { display: block; }
+        }
+        body.dark { background: #191919 !important; color: #E6E6E6; }
+        body.dark .card { background: #252525 !important; border-color: #333 !important; }
+        body.dark .card h2 { color: #E6E6E6; }
+        body.dark .card .sub { color: #A0A0A0; }
+        body.dark .sess { background: #2A2A2A !important; border-color: #17453A !important; }
+        body.dark .sess .t { color: #E6E6E6; }
+        body.dark .sess .meta { color: #A0A0A0; }
+        body.dark .price { color: #6EE7B7; }
+        body.dark .btn-outline { background: #252525; color: #6EE7B7; border-color: #227053; }
+        body.dark .field label { color: #C0C0C0; }
+        body.dark .field input, body.dark .field textarea, body.dark .field select { background: #2A2A2A !important; border-color: #444 !important; color: #E6E6E6 !important; }
+        body.dark .field input:focus, body.dark .field textarea:focus, body.dark .field select:focus { border-color: #6EE7B7 !important; }
+        body.dark #createForm { background: #0B3B2E !important; border-color: #227053 !important; }
+        body.dark #gEarn { background: #1A2E1A !important; border-color: #2E5A2E !important; color: #4ADE80 !important; }
+        body.dark #gErr { color: #FF6B6B !important; }
+        body.dark #reqErr { color: #FF6B6B !important; }
+        body.dark .muted { color: #707070; }
+        body.dark .reqrow { border-bottom-color: #333; }
+        body.dark .b-green { background: #1A2E1A; color: #4ADE80; border-color: #2E5A2E; }
+        body.dark .b-amber { background: #2E2A1A; color: #FBBF24; border-color: #5A4A1A; }
+        body.dark .b-brand { background: #0B3B2E; color: #6EE7B7; border-color: #227053; }
+        body.dark .b-gray { background: #2A2A2A; color: #A0A0A0; border-color: #444; }
+        body.dark .hero { background: linear-gradient(135deg,#065F46,#047857 60%,#065F46); }
+        body.dark h3 { color: #E6E6E6; }
+        body.dark .reqrow div[style*="font-weight:600"] { color: #E6E6E6; }
+        body.dark .nav { background: #1E1E1E !important; border-color: #333 !important; }
+        body.dark .nav-brand span:first-child { color: #E6E6E6 !important; }
+        body.dark .nav a.nav-link { color: #A0A0A0 !important; }
+        body.dark .nav a.nav-link:hover { color: #E6E6E6 !important; }
+        @media (max-width: 560px){
+            .row2 { grid-template-columns: minmax(0, 1fr); }
+            /* Кнопка с длинной надписью не влезала в 320px и уезжала вправо. */
+            #createToggle { width: 100%; white-space: normal; line-height: 1.3; }
+            .wrap, .container { padding-left: 0.85rem !important; padding-right: 0.85rem !important; }
+        }
+    </style>
+</head>
+<body>
+    <script>(function(){ var t = localStorage.getItem('psy-theme'); if (t === 'dark' || (!t && window.matchMedia('(prefers-color-scheme:dark)').matches)) document.body.classList.add('dark'); })();</script>
+    <script>psyWriteHeader();</script>
+    <div class="dash-layout">
+    <div id="dashSidebarMount"></div>
+    <main style="flex:1;min-width:0;">
+        <div class="wrap" id="wrap">
+            <div class="card">Загрузка...</div>
+        </div>
+    </main>
+    </div>
+    <script>psyWriteFooter();</script>
+    <script>
+        let user = null;
+        function esc(s){ const d=document.createElement('div'); d.textContent=(s==null?'':String(s)); return d.innerHTML; }
+        function rub(n){ return (parseFloat(n)||0).toLocaleString('ru-RU'); }
+        function fmtDt(s){ if(!s) return 'время уточняется'; const d=new Date(String(s).replace(' ','T')); if(isNaN(d)) return esc(s); return d.toLocaleString('ru-RU',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}); }
+
+        async function init(){
+            try { if (window.Auth) user = await window.Auth.getCurrentUser(); } catch(e){}
+            const wrap = document.getElementById('wrap');
+            if (!user) { window.location.href = '/login.html?redirect=' + encodeURIComponent('/supervision.html'); return; }
+            // Боковая менюшка кабинета — как на остальных страницах психолога
+            try {
+                if (window.mountDashSidebar) {
+                    await mountDashSidebar(user.role === 'admin' ? 'psychologist' : user.role,
+                        ((user.first_name || '') + ' ' + (user.last_name || '')).trim() || user.email || '');
+                }
+            } catch (e) {}
+            if (user.role !== 'psychologist' && user.role !== 'admin') {
+                wrap.innerHTML = `<div class="hero"><h1>Супервизия</h1><p>Раздел доступен психологам платформы. Если вы психолог — войдите в профессиональный аккаунт.</p></div>
+                    <div class="card">Этот раздел — для психологов: групповая и индивидуальная супервизия с опытными коллегами. <a href="/" style="color:#047857;font-weight:600;">На главную</a></div>`;
+                return;
+            }
+            render();
+        }
+
+        function render(){
+            document.getElementById('wrap').innerHTML = `
+                <div class="hero">
+                    <h1>Супервизия для психологов</h1>
+                    <p>Развивайтесь с поддержкой опытных коллег. Групповая супервизия — разбор случаев в группе (90–120 минут, до 1500 ₽ за участника). Индивидуальная — один на один с супервизором, цена по запросу.</p>
+                </div>
+
+                <div class="card">
+                    <h2>Групповая супервизия</h2>
+                    <div class="sub">Присоединяйтесь к ближайшим группам или создайте свою как супервизор.</div>
+                    <div style="margin-bottom:1rem;">
+                        <button class="btn btn-outline" onclick="toggleCreate()" id="createToggle">＋ Я супервизор — создать группу</button>
+                    </div>
+                    <div id="createForm" style="display:none;border:1px dashed #6EE7B7;border-radius:0.9rem;padding:1.1rem;margin-bottom:1.25rem;background:#FCFAFF;">
+                        <div class="field"><label>Тема группы *</label><input id="gTitle" placeholder="Напр.: Разбор сложных случаев в КПТ"></div>
+                        <div class="field"><label>Описание</label><textarea id="gDesc" rows="2" placeholder="Что разбираем, для кого, требования к участникам"></textarea></div>
+                        <div class="row2">
+                            <div class="field"><label>Дата и время</label><input id="gDateTime" type="datetime-local"></div>
+                            <div class="field"><label>Длительность</label><select id="gDuration"><option value="90">1,5 часа</option><option value="120">2 часа</option></select></div>
+                        </div>
+                        <div class="row2">
+                            <div class="field"><label>Цена за участника, ₽ (до 1500)</label><input id="gPrice" type="number" min="0" max="1500" step="50" value="1500" oninput="updateEarn()"></div>
+                            <div class="field"><label>Мест в группе</label><input id="gCapacity" type="number" min="2" max="30" step="1" value="6" oninput="updateEarn()"></div>
+                        </div>
+                        <div id="gEarn" style="background:#F0FDF4;border:1px solid #BBF7D0;border-radius:0.6rem;padding:0.5rem 0.7rem;font-size:0.82rem;color:#16A34A;margin-bottom:0.6rem;"></div>
+                        <div id="gErr" style="display:none;color:#DC2626;font-size:0.82rem;margin-bottom:0.5rem;"></div>
+                        <button class="btn" onclick="createGroup()">Создать группу</button>
+                    </div>
+                    <div id="groupsList" class="grid"><div class="muted">Загрузка групп...</div></div>
+                </div>
+
+                <div class="card">
+                    <h2>Индивидуальная супервизия</h2>
+                    <div class="sub">Один на один с супервизором. Цена — по запросу: опишите тему, супервизор назовёт цену, вы подтверждаете.</div>
+                    <div class="field"><label>Опишите запрос на супервизию</label><textarea id="reqTopic" rows="2" placeholder="С каким случаем/темой нужна супервизия, ваш подход и опыт"></textarea></div>
+                    <button class="btn" onclick="sendRequest()">Оставить запрос</button>
+                    <div id="reqErr" style="display:none;color:#DC2626;font-size:0.82rem;margin-top:0.5rem;"></div>
+                    <div id="requestsList" style="margin-top:1.25rem;"></div>
+                </div>
+
+                <div class="card">
+                    <h2>Мои супервизии</h2>
+                    <div id="myList"><div class="muted">Загрузка...</div></div>
+                </div>`;
+            updateEarn();
+            loadGroups();
+            loadRequests();
+            loadMy();
+        }
+
+        function toggleCreate(){ const f=document.getElementById('createForm'); f.style.display = f.style.display==='none'?'block':'none'; }
+        function updateEarn(){
+            const price = parseFloat((document.getElementById('gPrice')||{}).value)||0;
+            const cap = parseInt((document.getElementById('gCapacity')||{}).value)||0;
+            const el = document.getElementById('gEarn'); if(!el) return;
+            const gross = price*cap;
+            const yours = Math.round(gross*0.6);
+            el.textContent = `При полной группе сбор ${rub(gross)} ₽ · вы получите ≈ ${rub(yours)} ₽ (комиссия платформы 40%). Клиенту-психологу видна только цена за участие.`;
+        }
+
+        async function createGroup(){
+            const err = document.getElementById('gErr');
+            const title = document.getElementById('gTitle').value.trim();
+            const price = parseFloat(document.getElementById('gPrice').value)||0;
+            if (!title){ err.textContent='Укажите тему группы'; err.style.display='block'; return; }
+            if (price<=0||price>1500){ err.textContent='Цена от 1 до 1500 ₽'; err.style.display='block'; return; }
+            err.style.display='none';
+            const payload = {
+                title, description: document.getElementById('gDesc').value.trim(),
+                datetime: document.getElementById('gDateTime').value,
+                duration_min: parseInt(document.getElementById('gDuration').value)||90,
+                price, capacity: parseInt(document.getElementById('gCapacity').value)||6
+            };
+            try {
+                const r = await fetch('/api/supervision.php?action=create-group', { method:'POST', headers:{'Content-Type':'application/json'}, credentials:'include', body: JSON.stringify(payload) });
+                const d = await r.json();
+                if (!d.ok){ err.textContent=d.error||'Ошибка'; err.style.display='block'; return; }
+                document.getElementById('gTitle').value=''; document.getElementById('gDesc').value='';
+                toggleCreate(); loadGroups(); loadMy();
+            } catch(e){ err.textContent='Ошибка сети'; err.style.display='block'; }
+        }
+
+        async function loadGroups(){
+            const box = document.getElementById('groupsList');
+            try {
+                const d = await (await fetch('/api/supervision.php?action=list-groups', { credentials:'include' })).json();
+                const rows = (d && d.data) || [];
+                if (!rows.length){ box.innerHTML = '<div class="muted">Пока нет открытых групп. Будьте первым супервизором — создайте группу выше.</div>'; return; }
+                box.innerHTML = rows.map(s => {
+                    const full = s.seats_left <= 0;
+                    const btn = s.is_mine ? '<span class="badge b-brand">ваша группа</span>'
+                        : s.joined ? '<span class="badge b-green">вы записаны</span>'
+                        : full ? '<button class="btn" disabled>Мест нет</button>'
+                        : `<button class="btn" onclick="joinGroup(${s.id})">Записаться</button>`;
+                    return `<div class="sess">
+                        <div class="t">${esc(s.title)}</div>
+                        <div class="meta">
+                            Супервизор: ${esc(s.supervisor_name)}<br>
+                            ${fmtDt(s.datetime)} · ${s.duration_min==120?'2 часа':'1,5 часа'}<br>
+                            Свободно ${s.seats_left} из ${s.capacity} мест
+                            ${s.description?('<br>'+esc(s.description)):''}
+                        </div>
+                        <div style="display:flex;align-items:center;justify-content:space-between;gap:0.5rem;">
+                            <span class="price">${rub(s.price)} ₽</span> ${btn}
+                        </div>
+                    </div>`;
+                }).join('');
+            } catch(e){ box.innerHTML = '<div class="muted">Не удалось загрузить группы</div>'; }
+        }
+
+        async function joinGroup(id){
+            try {
+                const d = await (await fetch('/api/supervision.php?action=join-group', { method:'POST', headers:{'Content-Type':'application/json'}, credentials:'include', body: JSON.stringify({ session_id:id }) })).json();
+                if (!d.ok){ alert(d.error||'Не удалось записаться'); return; }
+                loadGroups(); loadMy();
+            } catch(e){ alert('Ошибка сети'); }
+        }
+
+        async function sendRequest(){
+            const err = document.getElementById('reqErr');
+            const topic = document.getElementById('reqTopic').value.trim();
+            if (!topic){ err.textContent='Опишите запрос'; err.style.display='block'; return; }
+            err.style.display='none';
+            try {
+                const d = await (await fetch('/api/supervision.php?action=request', { method:'POST', headers:{'Content-Type':'application/json'}, credentials:'include', body: JSON.stringify({ topic }) })).json();
+                if (!d.ok){ err.textContent=d.error||'Ошибка'; err.style.display='block'; return; }
+                document.getElementById('reqTopic').value='';
+                loadRequests();
+            } catch(e){ err.textContent='Ошибка сети'; err.style.display='block'; }
+        }
+
+        async function loadRequests(){
+            const box = document.getElementById('requestsList');
+            try {
+                const d = await (await fetch('/api/supervision.php?action=requests', { credentials:'include' })).json();
+                const rows = (d && d.data) || [];
+                if (!rows.length){ box.innerHTML=''; return; }
+                box.innerHTML = '<h3 style="font-size:0.95rem;margin-bottom:0.5rem;">Запросы на индивидуальную супервизию</h3>' + rows.map(r => {
+                    const stMap = { new:['b-amber','новый'], priced:['b-brand','названа цена'], accepted:['b-green','принят'], declined:['b-gray','отклонён'] };
+                    const s = stMap[r.status] || ['b-gray', r.status];
+                    let action = '';
+                    if (r.is_requester) {
+                        if (r.status==='priced') action = `<span>Цена: <b>${rub(r.price)} ₽</b></span> <button class="btn" style="padding:0.4rem 0.9rem;" onclick="respondReq(${r.id},1)">Принять</button> <button class="btn-outline btn" style="padding:0.4rem 0.9rem;" onclick="respondReq(${r.id},0)">Отклонить</button>`;
+                        else action = `<span class="muted">${r.price?('цена '+rub(r.price)+' ₽'):'ждём цену супервизора'}</span>`;
+                    } else {
+                        // супервизор/админ — может назначить цену
+                        if (r.status==='new'||r.status==='priced') action = `<button class="btn" style="padding:0.4rem 0.9rem;" onclick="priceReq(${r.id})">${r.price?'Изменить цену':'Назначить цену'}</button>`;
+                        else action = `<span class="muted">${r.price?('цена '+rub(r.price)+' ₽'):''}</span>`;
+                    }
+                    const who = r.is_requester ? ('Ваш запрос' + (r.supervisor_name?(' · супервизор '+esc(r.supervisor_name)):'')) : ('От: '+esc(r.requester_name));
+                    return `<div class="reqrow">
+                        <div style="flex:1;min-width:180px;"><div style="font-weight:600;">${who} <span class="badge ${s[0]}">${s[1]}</span></div><div class="muted" style="font-size:0.84rem;">${esc(r.topic||'')}</div></div>
+                        <div style="display:flex;gap:0.4rem;align-items:center;flex-wrap:wrap;">${action}</div>
+                    </div>`;
+                }).join('');
+            } catch(e){ box.innerHTML=''; }
+        }
+
+        async function priceReq(id){
+            const v = prompt('Цена индивидуальной супервизии для этого психолога (₽):');
+            if (v===null) return;
+            const price = parseFloat(v);
+            if (isNaN(price)||price<=0){ alert('Введите сумму'); return; }
+            try {
+                const d = await (await fetch('/api/supervision.php?action=price-request', { method:'POST', headers:{'Content-Type':'application/json'}, credentials:'include', body: JSON.stringify({ request_id:id, price }) })).json();
+                if (!d.ok){ alert(d.error||'Ошибка'); return; }
+                loadRequests();
+            } catch(e){ alert('Ошибка сети'); }
+        }
+        async function respondReq(id, accept){
+            try {
+                const d = await (await fetch('/api/supervision.php?action=respond-request', { method:'POST', headers:{'Content-Type':'application/json'}, credentials:'include', body: JSON.stringify({ request_id:id, accept }) })).json();
+                if (!d.ok){ alert(d.error||'Ошибка'); return; }
+                loadRequests();
+            } catch(e){ alert('Ошибка сети'); }
+        }
+
+        async function loadMy(){
+            const box = document.getElementById('myList');
+            try {
+                const d = await (await fetch('/api/supervision.php?action=my', { credentials:'include' })).json();
+                const created = (d && d.created) || [];
+                const joined = (d && d.joined) || [];
+                if (!created.length && !joined.length){ box.innerHTML = '<div class="muted">Вы пока не создавали и не посещали супервизии.</div>'; return; }
+                let html = '';
+                if (created.length) html += '<h3 style="font-size:0.95rem;margin:0.25rem 0 0.5rem;">Я веду (как супервизор)</h3>' + created.map(s=>`<div class="reqrow"><div><b>${esc(s.title)}</b><div class="muted" style="font-size:0.84rem;">${fmtDt(s.datetime)} · ${s.duration_min==120?'2 ч':'1,5 ч'} · ${rub(s.price)} ₽</div></div><span class="badge b-brand">${s.taken} участн.</span></div>`).join('');
+                if (joined.length) html += '<h3 style="font-size:0.95rem;margin:0.9rem 0 0.5rem;">Я участвую</h3>' + joined.map(s=>`<div class="reqrow"><div><b>${esc(s.title)}</b><div class="muted" style="font-size:0.84rem;">Супервизор ${esc(s.supervisor_name)} · ${fmtDt(s.datetime)} · ${rub(s.price)} ₽</div></div><span class="badge b-green">записан</span></div>`).join('');
+                box.innerHTML = html;
+            } catch(e){ box.innerHTML = '<div class="muted">Не удалось загрузить</div>'; }
+        }
+
+        init();
+    </script>
+</body>
+</html>
