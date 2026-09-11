@@ -64,37 +64,43 @@
 
         <!-- Registration Form -->
         <form id="register-form">
-          <!-- User Type Selection -->
+          <!-- User Type Selection — крупный явный переключатель в самом верху, чтобы
+               психологи сразу видели свой вариант, а не искали ссылку внизу. -->
           <div class="form-group" id="roleSelectGroup">
-            <label class="form-label">Я хочу зарегистрироваться как:</label>
+            <label class="form-label" style="font-size: 1rem; font-weight: 700; display: block; margin-bottom: 0.6rem;">Кто вы? Выберите, как зарегистрироваться:</label>
             <div class="flex gap-3 auth-buttons">
               <label class="flex-1" style="cursor: pointer;">
-                <input 
-                  type="radio" 
-                  name="role" 
-                  value="client" 
-                  checked 
+                <input
+                  type="radio"
+                  name="role"
+                  value="client"
+                  checked
                   style="display: none;"
                   data-testid="radio-client"
                 />
-                <div class="role-option active" data-role="client" style="padding: 1rem; border: 2px solid #047857; border-radius: 0.5rem; text-align: center; transition: all 0.2s; background: #D1FAE5;">
-                  <i data-lucide="user" style="width: 2rem; height: 2rem; margin: 0 auto 0.5rem; color: #047857;"></i>
-                  <div style="font-weight: 600; color: #047857;">Клиент</div>
+                <div class="role-option active" data-role="client" style="padding: 1.15rem 0.8rem; border: 2px solid #047857; border-radius: 0.75rem; text-align: center; transition: all 0.2s; background: #D1FAE5;">
+                  <i data-lucide="user" style="width: 2rem; height: 2rem; margin: 0 auto 0.45rem; color: #047857;"></i>
+                  <div style="font-weight: 700; color: #047857; font-size: 1.02rem;">Я клиент</div>
+                  <div class="role-sub" style="font-size: 0.78rem; color: #6B7280; margin-top: 0.15rem; line-height: 1.3;">Ищу психолога для себя</div>
                 </div>
               </label>
               <label class="flex-1" style="cursor: pointer;">
-                <input 
-                  type="radio" 
-                  name="role" 
-                  value="psychologist" 
+                <input
+                  type="radio"
+                  name="role"
+                  value="psychologist"
                   style="display: none;"
                   data-testid="radio-psychologist"
                 />
-                <div class="role-option" data-role="psychologist" style="padding: 1rem; border: 2px solid #E5E5E5; border-radius: 0.5rem; text-align: center; transition: all 0.2s; background: white;">
-                  <i data-lucide="brain" style="width: 2rem; height: 2rem; margin: 0 auto 0.5rem; color: #999;"></i>
-                  <div style="font-weight: 600; color: #666;">Психолог</div>
+                <div class="role-option" data-role="psychologist" style="padding: 1.15rem 0.8rem; border: 2px solid #E5E5E5; border-radius: 0.75rem; text-align: center; transition: all 0.2s; background: white;">
+                  <i data-lucide="brain" style="width: 2rem; height: 2rem; margin: 0 auto 0.45rem; color: #999;"></i>
+                  <div style="font-weight: 700; color: #666; font-size: 1.02rem;">Я психолог</div>
+                  <div class="role-sub" style="font-size: 0.78rem; color: #6B7280; margin-top: 0.15rem; line-height: 1.3;">Хочу консультировать на платформе</div>
                 </div>
               </label>
+            </div>
+            <div id="rolePsyHint" style="margin-top: 0.6rem; font-size: 0.82rem; color: #6B7280; text-align: center;">
+              Психолог? Нажмите «Я психолог» — ниже откроется анкета специалиста (опыт, образование, форматы работы).
             </div>
           </div>
 
