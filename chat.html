@@ -4816,7 +4816,7 @@
     <script src="/js/api.js?v=20260821"></script>
     <script src="/js/auth.js?v=20260821"></script>
     <script src="/js/lightbox.js?v=7"></script>
-    <script src="/js/post-format.js?v=20260905"></script>
+    <script src="/js/post-format.js?v=20260911"></script>
     <!-- Редакционные статьи блога (window.PSY_ARTICLES). Их же показывает /blog.html
          рядом со статьями психологов из БД — без этого файла раздел «Блог» в чате
          показывал бы «статей нет», пока в базе пусто. -->
@@ -5870,6 +5870,7 @@
                     <button type="button" class="ch-fmt" onmousedown="event.preventDefault()" onclick="chBlock('H3')" title="Заголовок">H</button>
                     <button type="button" class="ch-fmt" onmousedown="event.preventDefault()" onclick="chBlock('BLOCKQUOTE')" title="Цитата">❝</button>
                     <button type="button" class="ch-fmt" onmousedown="event.preventDefault()" onclick="chCmd('insertUnorderedList')" title="Список">•—</button>
+                    <button type="button" class="ch-fmt" onmousedown="event.preventDefault()" onclick="chChecklist()" title="Список задач (галочки)">☑</button>
                     <span class="ch-fmt-pos">
                         <button type="button" class="ch-fmt" onmousedown="event.preventDefault()" onclick="chToggleEmoji(event)" title="Смайлы">😊</button>
                         <div class="ch-emoji-pop" id="chEmojiPop" style="display:none;">
@@ -5910,8 +5911,10 @@
         }
         function chCmd(cmd) { chWith(() => cmpCmd(cmd)); }
         function chBlock(tag) { chWith(() => cmpBlock(tag)); }
+        function chChecklist() { chWith(() => cmpChecklist()); }
         window.chCmd = chCmd;
         window.chBlock = chBlock;
+        window.chChecklist = chChecklist;
 
         /** Текст поста как markdown-lite (для отправки и для ИИ). */
         function chGetMarkdown() {
@@ -6656,6 +6659,7 @@
                     <button type="button" class="ch-fmt" onmousedown="event.preventDefault()" onclick="chEditBlock(${id},'H3')" title="Заголовок">H</button>
                     <button type="button" class="ch-fmt" onmousedown="event.preventDefault()" onclick="chEditBlock(${id},'BLOCKQUOTE')" title="Цитата">❝</button>
                     <button type="button" class="ch-fmt" onmousedown="event.preventDefault()" onclick="chEditCmd(${id},'insertUnorderedList')" title="Список">•—</button>
+                    <button type="button" class="ch-fmt" onmousedown="event.preventDefault()" onclick="chEditChecklist(${id})" title="Список задач (галочки)">☑</button>
                 </div>
                 <div id="chEdit-${id}" class="ch-composer-text" contenteditable="true" style="min-height:120px;">${p.text ? formatPostText(p.text) : ''}</div>
                 <div style="display:flex;gap:0.5rem;margin-top:0.5rem;">
@@ -6670,7 +6674,8 @@
         }
         function chEditCmd(id, cmd) { const el = document.getElementById('chEdit-' + id); if (el) { cmpTargetEl = el; try { cmpCmd(cmd); } finally { cmpTargetEl = null; } } }
         function chEditBlock(id, tag) { const el = document.getElementById('chEdit-' + id); if (el) { cmpTargetEl = el; try { cmpBlock(tag); } finally { cmpTargetEl = null; } } }
-        window.chEditCmd = chEditCmd; window.chEditBlock = chEditBlock; window.chEditPost = chEditPost;
+        function chEditChecklist(id) { const el = document.getElementById('chEdit-' + id); if (el) { cmpTargetEl = el; try { cmpChecklist(); } finally { cmpTargetEl = null; } } }
+        window.chEditCmd = chEditCmd; window.chEditBlock = chEditBlock; window.chEditChecklist = chEditChecklist; window.chEditPost = chEditPost;
         function chCancelEdit(id) {
             const post = document.querySelector('.ch-post[data-post-id="' + id + '"]');
             if (!post) return;
@@ -14282,6 +14287,93 @@
             else await loadMessages();
         }
 
+        // ── Списки задач (чеклисты): галочки в сообщениях ──────────────────────
+        // Состояние галочки хранится прямо в тексте сообщения («- [x] …»), поэтому
+        // отметку видят все участники. Переключать может тот, кто вправе править
+        // сообщение (автор) — теми же эндпоинтами правки, что и обычная правка.
+        function psyChecklistCache(kind) {
+            return kind === 'group' ? groupMsgCache : kind === 'fav' ? favMsgCache : msgCache;
+        }
+        async function psyChecklistPersist(id, kind, content) {
+            try {
+                if (kind === 'group') {
+                    const d = await groupApi('edit-message', { message_id: id, content });
+                    return !!(d && d.ok);
+                }
+                const url = kind === 'fav' ? '/api/favorites.php?action=edit' : '/api/message_edit.php?action=edit';
+                const body = kind === 'fav' ? { id, content } : { message_id: id, content };
+                const r = await (await fetch(url, {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include', body: JSON.stringify(body)
+                })).json();
+                return !!(r && r.ok);
+            } catch (e) { return false; }
+        }
+        function psyClLabelStyle(box) {
+            const lbl = box.parentNode && box.parentNode.querySelector('.psy-cl-lbl');
+            if (!lbl) return;
+            lbl.style.opacity = box.checked ? '0.6' : '';
+            lbl.style.textDecoration = box.checked ? 'line-through' : '';
+        }
+        async function psyChecklistToggle(box) {
+            const msg = box.closest('[data-msg-id],[data-fav-id]');
+            if (!msg) { box.checked = !box.checked; return; }
+            const id = msg.getAttribute('data-msg-id') || msg.getAttribute('data-fav-id');
+            const cap = id && msgCaps[id];
+            // Право менять отметку — только у того, кто может править сообщение.
+            if (!cap || !cap.canEdit) { box.checked = !box.checked; return; }
+            const idx = parseInt(box.getAttribute('data-ci'), 10);
+            if (isNaN(idx) || typeof psyToggleCheck !== 'function') { box.checked = !box.checked; return; }
+            const cache = psyChecklistCache(cap.kind);
+            const cur = cache[id] || cache[String(id)] || {};
+            const raw = cur.content || '';
+            const sp = splitReply(raw);
+            const newBody = psyToggleCheck(sp.body, idx);
+            const newContent = sp.replyId ? '[RE#' + sp.replyId + '] ' + newBody : newBody;
+            psyClLabelStyle(box);       // сразу перечёркиваем/возвращаем подпись
+            box.disabled = true;
+            const ok = await psyChecklistPersist(id, cap.kind, newContent);
+            box.disabled = false;
+            if (ok) {
+                if (cache[id]) cache[id].content = newContent;
+                if (cache[String(id)]) cache[String(id)].content = newContent;
+            } else {
+                box.checked = !box.checked;   // не сохранилось — возвращаем как было
+                psyClLabelStyle(box);
+                if (typeof toast === 'function') toast('Не удалось сохранить отметку');
+            }
+        }
+        // Чекбоксы отрисовываются disabled (для чужих сообщений так и надо). Там, где
+        // сообщение можно править, — включаем, чтобы галочку можно было поставить.
+        function psyEnableEditableChecks(scope) {
+            const root = scope || document.getElementById('messagesContainer');
+            if (!root) return;
+            root.querySelectorAll('.psy-cl-box').forEach(box => {
+                if (box._psyClReady) return;
+                const msg = box.closest('[data-msg-id],[data-fav-id]');
+                const id = msg && (msg.getAttribute('data-msg-id') || msg.getAttribute('data-fav-id'));
+                const cap = id && msgCaps[id];
+                if (cap && cap.canEdit) { box.disabled = false; box.style.cursor = 'pointer'; box._psyClReady = true; }
+            });
+        }
+        (function initChecklistBinding() {
+            const bind = () => {
+                const box = document.getElementById('messagesContainer');
+                if (!box) { setTimeout(bind, 300); return; }
+                box.addEventListener('change', e => {
+                    const t = e.target;
+                    if (t && t.classList && t.classList.contains('psy-cl-box')) psyChecklistToggle(t);
+                });
+                try {
+                    new MutationObserver(() => psyEnableEditableChecks(box))
+                        .observe(box, { childList: true, subtree: true });
+                } catch (e) {}
+                psyEnableEditableChecks(box);
+            };
+            if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bind);
+            else bind();
+        })();
+
         function cancelEditMessage(evt) {
             if (evt && evt.stopPropagation) evt.stopPropagation();
             const was = editingMessageId;
@@ -15124,6 +15216,7 @@
             { t: '“ ”', title: 'Цитата',               cmd: 'blockquote', act: () => cmpBlock('BLOCKQUOTE') },
             { t: '• —', title: 'Маркированный список', cmd: 'insertUnorderedList', act: () => cmpCmd('insertUnorderedList') },
             { t: '1.',  title: 'Нумерованный список',  cmd: 'insertOrderedList',   act: () => cmpCmd('insertOrderedList') },
+            { t: '☑',   title: 'Список задач (галочки)', act: () => cmpChecklist() },
             { t: '🔗',  title: 'Ссылка',               act: () => cmpLink() },
             { t: '⤵',   title: 'Блок-схема',           act: () => cmpDiagram() },
             { t: '✕',   title: 'Убрать оформление',    act: () => cmpCmd('removeFormat') },
@@ -15534,6 +15627,16 @@
             cmpSyncToolbar();
         }
 
+        /** Пункт списка задач: вставляем «- [ ] » — при отправке отрисуется галочкой. */
+        function cmpChecklist() {
+            const el = cmpArea();
+            if (!el) return;
+            el.focus();
+            if (window.psyEditor && psyEditor.checklist) psyEditor.checklist(el);
+            else { try { document.execCommand('insertText', false, '\n- [ ] '); } catch (e) {} }
+            cmpSyncToolbar();
+        }
+
         function cmpLink() {
             const el = cmpArea();
             const sel = window.getSelection();
@@ -15603,6 +15706,14 @@
                         return Array.from(node.children).map((li, i) => (i + 1) + '. ' + walk(li).trim()).join('\n') + '\n';
                     case 'LI': return kids();
                     case 'DIV': case 'P': {
+                        // Отрисованный пункт-чеклист → обратно в «- [ ] » / «- [x] »,
+                        // чтобы галочки не терялись при повторной правке/пересылке.
+                        if (node.classList && node.classList.contains('psy-cl-item')) {
+                            const cb = node.querySelector('input.psy-cl-box');
+                            const lbl = node.querySelector('.psy-cl-lbl');
+                            const txt = (lbl ? walk(lbl) : kids()).trim();
+                            return '- [' + (cb && cb.checked ? 'x' : ' ') + '] ' + txt + '\n';
+                        }
                         const t = kids();
                         return t.endsWith('\n') ? t : t + '\n';
                     }

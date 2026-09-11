@@ -250,6 +250,7 @@
         if (!raw) return '';
         const lines = String(raw).split('\n');
         let html = '';
+        let checkIdx = 0;   // сквозной номер пункта-чеклиста (для отметки галочек)
         let list = null; // 'ul' | 'ol' | null
         const closeList = () => { if (list) { html += '</' + list + '>'; list = null; } };
         const openList = (kind) => {
@@ -270,9 +271,23 @@
             if (DIA_RE.test(line)) { diaBuf = []; return; }
             const h = /^\s*(#{2,3})\s+(.+)$/.exec(line);
             const q = /^\s*>\s?(.*)$/.exec(line);
-            const ul = /^\s*[-•]\s+(.+)$/.exec(line);
+            const cl = /^\s*[-*]\s+\[([ xXvV✓])\]\s*(.*)$/.exec(line);   // чеклист: - [ ] / - [x]
+            const ul = cl ? null : /^\s*[-•]\s+(.+)$/.exec(line);
             const ol = /^\s*\d+[.)]\s+(.+)$/.exec(line);
-            if (h) {
+            if (cl) {
+                closeList();
+                const done = /[xXvV✓]/.test(cl[1]);
+                const i = checkIdx++;
+                // Отдельный <input>-чекбокс; по умолчанию только показывает состояние
+                // (disabled). Страницы, где отметка должна сохраняться для всех (чат),
+                // включают его и вешают обработчик по data-ci. «Видно всем», потому что
+                // состояние хранится прямо в тексте сообщения/поста.
+                html += '<div class="psy-cl-item" data-ci="' + i + '" style="display:flex;align-items:flex-start;gap:0.5rem;margin:0.22rem 0;">'
+                    + '<input type="checkbox" class="psy-cl-box" data-ci="' + i + '"' + (done ? ' checked' : '') + ' disabled'
+                    + ' style="width:18px;height:18px;margin:2px 0 0;flex-shrink:0;accent-color:#047857;cursor:default;">'
+                    + '<span class="psy-cl-lbl" style="' + (done ? 'opacity:0.6;text-decoration:line-through;' : '') + '">' + inlineFmt(cl[2]) + '</span></div>';
+                prevWasBlock = true;
+            } else if (h) {
                 closeList();
                 const tag = h[1].length === 2 ? 'h2' : 'h3';
                 html += '<' + tag + '>' + inlineFmt(h[2]) + '</' + tag + '>';
@@ -393,7 +408,17 @@
                 case 'UL': return Array.from(node.children).map(li => '- ' + walk(li).trim()).join('\n') + '\n';
                 case 'OL': return Array.from(node.children).map((li, i) => (i + 1) + '. ' + walk(li).trim()).join('\n') + '\n';
                 case 'LI': return kids();
-                case 'DIV': case 'P': { const t = kids(); return t.endsWith('\n') ? t : t + '\n'; }
+                case 'DIV': case 'P': {
+                    // Отрисованный пункт-чеклист → обратно в «- [ ] » / «- [x] »,
+                    // иначе при повторном редактировании галочки бы потерялись.
+                    if (node.classList && node.classList.contains('psy-cl-item')) {
+                        const cb = node.querySelector('input.psy-cl-box');
+                        const lbl = node.querySelector('.psy-cl-lbl');
+                        const txt = (lbl ? walk(lbl) : kids()).trim();
+                        return '- [' + (cb && cb.checked ? 'x' : ' ') + '] ' + txt + '\n';
+                    }
+                    const t = kids(); return t.endsWith('\n') ? t : t + '\n';
+                }
                 default: return kids();
             }
         };
@@ -410,13 +435,35 @@
             try { document.execCommand('insertText', false, t); } catch (_) {}
         });
     }
+    /** Вставить пункт-чеклист в contenteditable (кнопка «Список задач»). */
+    function ceChecklist(el) {
+        if (!el) return;
+        el.focus();
+        // С новой строки — чтобы пункт не прилип к предыдущему тексту.
+        try { document.execCommand('insertText', false, '\n- [ ] '); } catch (e) {}
+    }
     global.psyEditor = {
-        cmd: ceCmd, block: ceBlock, link: ceLink, inside: ceInside,
+        cmd: ceCmd, block: ceBlock, link: ceLink, inside: ceInside, checklist: ceChecklist,
         toMarkdown: ceToMarkdown,
         getMarkdown: function (el) { return ceToMarkdown(el); },
         setMarkdown: function (el, md) { if (el) el.innerHTML = md ? formatPostText(md) : ''; },
         bindPaste: bindPlainPaste
     };
+
+    /** Переключить N-й пункт-чеклист в исходном тексте (markdown): [ ] ⇄ [x].
+     *  Возвращает новый текст — его сохраняют, и тогда галочку видят все. */
+    function toggleCheck(raw, index) {
+        let i = -1;
+        return String(raw).split('\n').map(function (line) {
+            var m = /^(\s*[-*]\s+\[)([ xXvV✓])(\].*)$/.exec(line);
+            if (!m) return line;
+            i++;
+            if (i !== index) return line;
+            var done = /[xXvV✓]/.test(m[2]);
+            return m[1] + (done ? ' ' : 'x') + m[3];
+        }).join('\n');
+    }
+    global.psyToggleCheck = toggleCheck;
 
     global.formatPostText = formatPostText;
     // Тем же правилом отрезает лишнее от адреса карточка ссылки в чате —

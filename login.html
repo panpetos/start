@@ -76,6 +76,27 @@
         .forgot-link:hover { text-decoration: underline; }
         .psy-register-note { font-size: 0.8125rem; color: #6B7280; margin-top: 1rem; text-align: center; }
         .psy-register-note a { color: #047857; font-weight: 600; }
+        /* Кто вы — выбор роли вверху регистрации: психологи не замечали ссылку внизу */
+        .role-pick { margin-bottom: 1.1rem; }
+        .role-pick-title { font-size: 0.9rem; font-weight: 700; color: #1A1A1A; margin: 0 0 0.6rem; text-align: center; }
+        .role-cards { display: flex; gap: 0.6rem; }
+        .role-card {
+            flex: 1; display: block; text-align: center; cursor: pointer; text-decoration: none;
+            padding: 0.85rem 0.7rem; border: 2px solid #E5E7EB; border-radius: 0.9rem; background: #fff;
+            transition: all 0.18s; color: #374151;
+        }
+        .role-card:hover { border-color: #047857; background: #ECFDF5; }
+        .role-card.active { border-color: #047857; background: #ECFDF5; box-shadow: 0 4px 14px rgba(4,120,87,0.18); }
+        .role-card .rc-ic { font-size: 1.6rem; line-height: 1; display: block; margin-bottom: 0.35rem; }
+        .role-card .rc-t { font-size: 0.9rem; font-weight: 700; color: #1A1A1A; display: block; }
+        .role-card .rc-d { font-size: 0.72rem; color: #6B7280; display: block; margin-top: 0.15rem; line-height: 1.35; }
+        .role-card.active .rc-t { color: #047857; }
+        body.dark .role-pick-title { color: #E6E6E6; }
+        body.dark .role-card { background: #2A2A2A; border-color: #444; color: #C0C0C0; }
+        body.dark .role-card:hover, body.dark .role-card.active { border-color: #047857; background: #10402F; }
+        body.dark .role-card .rc-t { color: #E6E6E6; }
+        body.dark .role-card.active .rc-t { color: #6EE7B7; }
+        body.dark .role-card .rc-d { color: #A0A0A0; }
         .success-msg {
             background: #F0FDF4; border: 1px solid #BBF7D0; color: #16A34A;
             border-radius: 0.625rem; padding: 0.625rem 0.875rem; font-size: 0.875rem;
@@ -194,6 +215,23 @@
 
             <!-- Register -->
             <div class="tab-panel" id="panel-register">
+                <!-- Кто вы: клиент или психолог. Раньше это была незаметная ссылка внизу —
+                     психологи её не видели и регистрировались как клиенты. -->
+                <div class="role-pick">
+                    <p class="role-pick-title">Кто вы?</p>
+                    <div class="role-cards">
+                        <div class="role-card active" id="roleCardClient" onclick="pickRole('client')">
+                            <span class="rc-ic">🙋</span>
+                            <span class="rc-t">Я клиент</span>
+                            <span class="rc-d">Ищу психолога для себя</span>
+                        </div>
+                        <a class="role-card" href="/register.html?type=psychologist">
+                            <span class="rc-ic">🧑‍⚕️</span>
+                            <span class="rc-t">Я психолог</span>
+                            <span class="rc-d">Хочу консультировать</span>
+                        </a>
+                    </div>
+                </div>
                 <div class="inline-error" id="regError"></div>
                 <div class="success-msg" id="regSuccess">Регистрация прошла успешно! Перенаправляем...</div>
                 <form id="regForm" onsubmit="handleRegister(event)">
@@ -226,9 +264,6 @@
 
                     <button type="submit" class="btn-submit" id="regBtn" disabled>Зарегистрироваться</button>
                 </form>
-                <p class="psy-register-note">
-                    Вы психолог? <a href="/register.html?type=psychologist">Регистрация как специалист →</a>
-                </p>
             </div>
         </div>
     </div>
@@ -252,6 +287,16 @@
             if (g && h && b) b.disabled = !(g.checked && h.checked);
         }
         window.syncRegBtn = syncRegBtn;
+
+        // Выбор роли на вкладке регистрации. «Психолог» — это ссылка на отдельную
+        // анкету специалиста, поэтому здесь остаётся только вариант «клиент».
+        function pickRole(role) {
+            if (role === 'client') {
+                const c = document.getElementById('roleCardClient');
+                if (c) c.classList.add('active');
+            }
+        }
+        window.pickRole = pickRole;
 
         // Фиксация фактов согласий на сервере (IP берёт сервер)
         async function recordClientConsents() {
