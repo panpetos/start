@@ -19153,6 +19153,9 @@
         // ══════════════════════════════════════════════════════════════════════════════
         let rtcPc = null;              // RTCPeerConnection текущего звонка
         let rtcLocalStream = null;
+        let rtcRemoteStream = null;    // единый поток собеседника: копим в него ВСЕ дорожки
+                                        // (иначе демонстрация экрана приходит отдельным
+                                        //  видео-потоком и затирает звук)
         let rtcCallId = null;
         let rtcRole = null;            // 'caller' | 'callee'
         let rtcKind = 'video';
@@ -19358,6 +19361,7 @@
             if (l) l.srcObject = null;
             const ra = document.getElementById('rtcRemoteAudio');
             if (ra) { try { ra.pause(); } catch (e) {} ra.srcObject = null; ra.muted = false; }
+            rtcRemoteStream = null;
             rtcCallId = null; rtcRole = null; rtcPeer = null; rtcIceTries = 0; rtcLocalCandidates = [];
             rtcAfter = 0; rtcPendingIce = []; rtcStartedAt = 0;
             rtcIceOut = [];
@@ -19796,13 +19800,18 @@
             };
             pc.ontrack = ev => {
                 const remote = document.getElementById('rtcRemote');
-                if (!remote || !ev.streams || !ev.streams[0]) return;
-                remote.srcObject = ev.streams[0];
+                if (!remote || !ev.track) return;
+                // Копим все дорожки в ОДИН постоянный поток, а не заменяем srcObject на
+                // ev.streams[0]: демонстрация экрана добавляется отдельным видео-потоком
+                // (без звука), и прежняя замена затирала аудио-дорожку — звук пропадал.
+                if (!rtcRemoteStream) rtcRemoteStream = new MediaStream();
+                try { if (!rtcRemoteStream.getTracks().some(t => t.id === ev.track.id)) rtcRemoteStream.addTrack(ev.track); } catch (e) {}
+                if (remote.srcObject !== rtcRemoteStream) remote.srcObject = rtcRemoteStream;
                 rtcApplyAudioOut();      // направить звук в нужный динамик (к уху / громкий)
                 if (ev.track.kind !== 'video') return;
                 const scr = document.getElementById('rtcScreen');
-                // Собеседник включил камеру посреди разговора — уходим из режима
-                // «только звук» и показываем картинку.
+                // Собеседник включил камеру/показ экрана посреди разговора — уходим из
+                // режима «только звук» и показываем картинку.
                 scr.classList.add('has-video');
                 scr.classList.remove('audio-only');
                 rtcKind = 'video';
@@ -19810,7 +19819,7 @@
                 // Камеру могут и выключить — тогда возвращаемся к аватару.
                 ev.track.onmute = () => scr.classList.remove('has-video');
                 ev.track.onunmute = () => scr.classList.add('has-video');
-                ev.track.onended = () => scr.classList.remove('has-video');
+                ev.track.onended = () => { scr.classList.remove('has-video'); try { rtcRemoteStream.removeTrack(ev.track); } catch (e) {} };
             };
             pc.onconnectionstatechange = () => {
                 if (!rtcPc) return;
@@ -20581,9 +20590,16 @@
          * кнопки, достаточно нажать на надпись.
          */
         let rtcDimTimer = null;
+        // Гашение экрана «от щеки» нужно только на телефонах. На ПК (есть мышь/наведение)
+        // разговор без видео идёт с открытым экраном — гасить нельзя.
+        function rtcIsPhone() {
+            try { return window.matchMedia('(pointer: coarse)').matches && window.matchMedia('(hover: none)').matches; }
+            catch (e) { return false; }
+        }
         function rtcDimArm() {
             rtcDimDisarm();
             if (!rtcCallId || rtcKind === 'video') return;
+            if (!rtcIsPhone()) return;   // на ПК не гасим
             rtcDimTimer = setTimeout(() => {
                 const d = document.getElementById('rtcDim');
                 if (d && rtcCallId && rtcKind !== 'video') d.classList.add('on');
