@@ -65,6 +65,13 @@ try {
         $pdo->exec("ALTER TABLE chat_pinned_messages
                     DROP PRIMARY KEY, ADD PRIMARY KEY (conversation_key, message_id)");
     }
+    // Разбор «слипшегося» избранного: раньше ключом было общее '__fav__', поэтому
+    // закрепления всех пользователей лежали вместе. Переносим каждую строку в личный
+    // ключ '__fav__:<pinned_by>'; уцелевшие после переноса дубли по общему ключу убираем.
+    $pdo->exec("UPDATE IGNORE chat_pinned_messages
+                SET conversation_key = CONCAT('__fav__:', pinned_by)
+                WHERE conversation_key = '__fav__'");
+    $pdo->exec("DELETE FROM chat_pinned_messages WHERE conversation_key = '__fav__'");
     $pdo->exec("CREATE TABLE IF NOT EXISTS chat_pinned_chats (
         user_id VARCHAR(64) NOT NULL,
         chat_key VARCHAR(120) NOT NULL,
@@ -88,7 +95,11 @@ $body = ($_SERVER['REQUEST_METHOD'] === 'POST') ? (json_decode(file_get_contents
 function conversationKey($chatKey, $userId) {
     $chatKey = (string)$chatKey;
     if ($chatKey === '' ) return '';
-    if (strpos($chatKey, 'group:') === 0 || strpos($chatKey, 'channel:') === 0 || $chatKey === '__fav__') {
+    // «Избранное» — личное пространство каждого, а не общий разговор. Ключ должен
+    // включать пользователя, иначе закрепления всех сваливаются в один бакет __fav__
+    // и человек видит чужие закрепы. Группа/канал — общие, у них ключ не персональный.
+    if ($chatKey === '__fav__') return '__fav__:' . $userId;
+    if (strpos($chatKey, 'group:') === 0 || strpos($chatKey, 'channel:') === 0) {
         return $chatKey;
     }
     if (strpos($chatKey, 'support:') === 0) return $chatKey;

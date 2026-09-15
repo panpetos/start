@@ -4816,7 +4816,7 @@
     <script src="/js/api.js?v=20260821"></script>
     <script src="/js/auth.js?v=20260821"></script>
     <script src="/js/lightbox.js?v=7"></script>
-    <script src="/js/post-format.js?v=20260911"></script>
+    <script src="/js/post-format.js?v=20260915"></script>
     <!-- Редакционные статьи блога (window.PSY_ARTICLES). Их же показывает /blog.html
          рядом со статьями психологов из БД — без этого файла раздел «Блог» в чате
          показывал бы «статей нет», пока в базе пусто. -->
@@ -5867,6 +5867,7 @@
                     <button type="button" class="ch-fmt i" onmousedown="event.preventDefault()" onclick="chCmd('italic')" title="Курсив">К</button>
                     <button type="button" class="ch-fmt u" onmousedown="event.preventDefault()" onclick="chCmd('underline')" title="Подчёркнутый">Ч</button>
                     <button type="button" class="ch-fmt s" onmousedown="event.preventDefault()" onclick="chCmd('strikeThrough')" title="Зачёркнутый">З</button>
+                    <button type="button" class="ch-fmt" onmousedown="event.preventDefault()" onclick="chCode()" title="Моноширный код (по клику копируется)">{ }</button>
                     <button type="button" class="ch-fmt" onmousedown="event.preventDefault()" onclick="chBlock('H3')" title="Заголовок">H</button>
                     <button type="button" class="ch-fmt" onmousedown="event.preventDefault()" onclick="chBlock('BLOCKQUOTE')" title="Цитата">❝</button>
                     <button type="button" class="ch-fmt" onmousedown="event.preventDefault()" onclick="chCmd('insertUnorderedList')" title="Список">•—</button>
@@ -5912,9 +5913,11 @@
         function chCmd(cmd) { chWith(() => cmpCmd(cmd)); }
         function chBlock(tag) { chWith(() => cmpBlock(tag)); }
         function chChecklist() { chWith(() => cmpChecklist()); }
+        function chCode() { chWith(() => cmpCode()); }
         window.chCmd = chCmd;
         window.chBlock = chBlock;
         window.chChecklist = chChecklist;
+        window.chCode = chCode;
 
         /** Текст поста как markdown-lite (для отправки и для ИИ). */
         function chGetMarkdown() {
@@ -6656,6 +6659,7 @@
                 <div class="ch-fmt-bar" role="toolbar" style="margin-bottom:0.4rem;">
                     <button type="button" class="ch-fmt b" onmousedown="event.preventDefault()" onclick="chEditCmd(${id},'bold')" title="Жирный">Ж</button>
                     <button type="button" class="ch-fmt i" onmousedown="event.preventDefault()" onclick="chEditCmd(${id},'italic')" title="Курсив">К</button>
+                    <button type="button" class="ch-fmt" onmousedown="event.preventDefault()" onclick="chEditCode(${id})" title="Моноширный код (по клику копируется)">{ }</button>
                     <button type="button" class="ch-fmt" onmousedown="event.preventDefault()" onclick="chEditBlock(${id},'H3')" title="Заголовок">H</button>
                     <button type="button" class="ch-fmt" onmousedown="event.preventDefault()" onclick="chEditBlock(${id},'BLOCKQUOTE')" title="Цитата">❝</button>
                     <button type="button" class="ch-fmt" onmousedown="event.preventDefault()" onclick="chEditCmd(${id},'insertUnorderedList')" title="Список">•—</button>
@@ -6675,7 +6679,8 @@
         function chEditCmd(id, cmd) { const el = document.getElementById('chEdit-' + id); if (el) { cmpTargetEl = el; try { cmpCmd(cmd); } finally { cmpTargetEl = null; } } }
         function chEditBlock(id, tag) { const el = document.getElementById('chEdit-' + id); if (el) { cmpTargetEl = el; try { cmpBlock(tag); } finally { cmpTargetEl = null; } } }
         function chEditChecklist(id) { const el = document.getElementById('chEdit-' + id); if (el) { cmpTargetEl = el; try { cmpChecklist(); } finally { cmpTargetEl = null; } } }
-        window.chEditCmd = chEditCmd; window.chEditBlock = chEditBlock; window.chEditChecklist = chEditChecklist; window.chEditPost = chEditPost;
+        function chEditCode(id) { const el = document.getElementById('chEdit-' + id); if (el) { cmpTargetEl = el; try { cmpCode(); } finally { cmpTargetEl = null; } } }
+        window.chEditCmd = chEditCmd; window.chEditBlock = chEditBlock; window.chEditChecklist = chEditChecklist; window.chEditCode = chEditCode; window.chEditPost = chEditPost;
         function chCancelEdit(id) {
             const post = document.querySelector('.ch-post[data-post-id="' + id + '"]');
             if (!post) return;
@@ -13951,7 +13956,8 @@
             msgCaps[String(m.id)] = {
                 kind: 'fav', author: 'Заметка', text: fav.body, tagName: m.tag_name || '',
                 // Как и в личных чатах и группах: править можно только текст, у вложения править нечего.
-                // Закрепления в «Избранном» тоже работают: ключ разговора — __fav__, он свой у каждого.
+                // Закрепления в «Избранном» тоже работают: сервер делает ключ личным
+                // (__fav__:<user_id>), поэтому чужие закрепы не подмешиваются.
                 canForward: true, canPin: true, canEdit: !m.attachment_url, canDelete: true,
             };
             return `

@@ -111,7 +111,7 @@
         const out = escapeHtml(work)
             .replace(rxPair('**'), '$1<b>$2</b>$3')
             .replace(rxPair('~~'), '$1<s>$2</s>$3')
-            .replace(rx('`', '`'), '<code style="background:rgba(127,127,127,0.18);padding:0.05em 0.3em;border-radius:0.25em;font-size:0.92em;">$1</code>')
+            .replace(rx('`', '`'), '<code class="psy-copy" title="Нажмите, чтобы скопировать" style="background:rgba(127,127,127,0.18);padding:0.05em 0.3em;border-radius:0.25em;font-size:0.92em;cursor:pointer;">$1</code>')
             // двойное подчёркивание разбираем ДО одинарного, иначе от него остались бы «хвосты»
             .replace(rxPair('__'), '$1<u>$2</u>$3')
             .replace(rx('*', '*'), '<i>$1</i>')
@@ -383,6 +383,21 @@
             try { document.execCommand('insertHTML', false, '<a href="' + escAttr(u) + '">' + escapeHtml(u) + '</a>&nbsp;'); } catch (e) {}
         }
     }
+    /** Моноширный код: своего execCommand нет — оборачиваем выделение в <code>. */
+    function ceCode(el) {
+        if (!el) return;
+        el.focus();
+        if (ceInside(el, 'CODE')) { try { document.execCommand('removeFormat', false, null); } catch (e) {} return; }
+        const sel = window.getSelection();
+        if (!sel || !sel.rangeCount) return;
+        const range = sel.getRangeAt(0);
+        if (range.collapsed) return;
+        const code = document.createElement('code');
+        try { range.surroundContents(code); }
+        catch (e) { code.appendChild(range.extractContents()); range.insertNode(code); }
+        sel.removeAllRanges();
+        const r = document.createRange(); r.selectNodeContents(code); sel.addRange(r);
+    }
     function ceToMarkdown(root) {
         if (!root) return '';
         const walk = (node) => {
@@ -443,7 +458,7 @@
         try { document.execCommand('insertText', false, '\n- [ ] '); } catch (e) {}
     }
     global.psyEditor = {
-        cmd: ceCmd, block: ceBlock, link: ceLink, inside: ceInside, checklist: ceChecklist,
+        cmd: ceCmd, block: ceBlock, link: ceLink, inside: ceInside, checklist: ceChecklist, code: ceCode,
         toMarkdown: ceToMarkdown,
         getMarkdown: function (el) { return ceToMarkdown(el); },
         setMarkdown: function (el, md) { if (el) el.innerHTML = md ? formatPostText(md) : ''; },
@@ -472,4 +487,50 @@
     global.psyDiagramSvg = diagramSvg;
     global.wrapPostSelection = wrapSelection;
     global.prefixPostLine = prefixLine;
+
+    // ── Моноширный код: нажатие копирует текст (как в Telegram) ───────────────
+    // Один делегированный обработчик на весь документ. В редакторе (contenteditable)
+    // клик по коду должен ставить курсор, а не копировать, — там пропускаем.
+    function copyText(txt) {
+        try {
+            if (navigator.clipboard && navigator.clipboard.writeText) return navigator.clipboard.writeText(txt);
+        } catch (e) {}
+        try {
+            const ta = document.createElement('textarea');
+            ta.value = txt; ta.style.position = 'fixed'; ta.style.opacity = '0';
+            document.body.appendChild(ta); ta.focus(); ta.select();
+            document.execCommand('copy'); document.body.removeChild(ta);
+        } catch (e) {}
+        return Promise.resolve();
+    }
+    function flashCopied(el) {
+        // Короткая подсказка «Скопировано» прямо над кодом, без сторонних тостов.
+        try {
+            const tip = document.createElement('span');
+            tip.textContent = 'Скопировано';
+            tip.style.cssText = 'position:absolute;background:#047857;color:#fff;'
+                + 'font-size:0.72rem;padding:2px 7px;border-radius:6px;white-space:nowrap;z-index:9999;'
+                + 'pointer-events:none;box-shadow:0 2px 8px rgba(0,0,0,0.2);';
+            const r = el.getBoundingClientRect();
+            tip.style.left = (window.scrollX + r.left) + 'px';
+            tip.style.top = (window.scrollY + r.top - 26) + 'px';
+            document.body.appendChild(tip);
+            setTimeout(() => { try { document.body.removeChild(tip); } catch (e) {} }, 1100);
+        } catch (e) {}
+    }
+    if (!global.__psyCopyBound) {
+        global.__psyCopyBound = true;
+        // Перехватываем на фазе погружения (capture), чтобы клик по коду не открывал
+        // заодно меню сообщения: сначала копируем, потом гасим всплытие.
+        document.addEventListener('click', function (e) {
+            const code = e.target && e.target.closest && e.target.closest('code.psy-copy');
+            if (!code) return;
+            // В поле ввода (contenteditable) — не мешаем правке.
+            if (code.closest('[contenteditable=""],[contenteditable=true]')) return;
+            e.preventDefault();
+            e.stopPropagation();
+            const p = copyText(code.innerText || code.textContent || '');
+            if (p && p.then) p.then(() => flashCopied(code)); else flashCopied(code);
+        }, true);
+    }
 })(window);

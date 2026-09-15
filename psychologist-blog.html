@@ -21,7 +21,7 @@
     <script src="/js/lightbox.js?v=7"></script>
     <script src="/js/api.js?v=20260821"></script>
     <script src="/js/auth.js?v=20260821"></script>
-    <script src="/js/post-format.js?v=20260911"></script>
+    <script src="/js/post-format.js?v=20260915"></script>
     <script src="/js/dash-sidebar.js?v=20260824a"></script>
     <style>
         *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
@@ -83,6 +83,7 @@
         .ce blockquote { margin: .5rem 0; padding: .2rem 0 .2rem .8rem; border-left: 3px solid var(--d-accent); color: var(--d-text-muted); }
         .ce ul, .ce ol { margin: .4rem 0; padding-left: 1.4rem; }
         .ce a { color: var(--d-accent); }
+        .ce code { background: rgba(127,127,127,0.18); padding: .05em .3em; border-radius: .25em; font-size: .92em; }
         .toolbar { display: flex; gap: .3rem; flex-wrap: wrap; margin-bottom: .35rem; align-items: center; }
         .tb { min-width: 2.1rem; height: 2.1rem; padding: 0 .5rem; border: 1.5px solid var(--d-border-accent); border-radius: .45rem; background: var(--d-panel-alt); color: var(--d-text); cursor: pointer; font-family: inherit; font-size: .85rem; }
         .tb:hover { background: var(--d-accent-bg); border-color: var(--d-accent); }
@@ -164,6 +165,7 @@
                     <button type="button" class="tb" title="Курсив" onmousedown="event.preventDefault()" onclick="fmt('italic')"><i>К</i></button>
                     <button type="button" class="tb" title="Подчёркнутый" onmousedown="event.preventDefault()" onclick="fmt('underline')"><u>Ч</u></button>
                     <button type="button" class="tb" title="Зачёркнутый" onmousedown="event.preventDefault()" onclick="fmt('strikeThrough')"><s>З</s></button>
+                    <button type="button" class="tb" title="Моноширный код (по клику копируется)" onmousedown="event.preventDefault()" onclick="fmtCode()">{ }</button>
                     <button type="button" class="tb" title="Подзаголовок" onmousedown="event.preventDefault()" onclick="fmtBlock('H2')">H2</button>
                     <button type="button" class="tb" title="Заголовок 3-го уровня" onmousedown="event.preventDefault()" onclick="fmtBlock('H3')">H3</button>
                     <button type="button" class="tb" title="Цитата" onmousedown="event.preventDefault()" onclick="fmtBlock('BLOCKQUOTE')">❝</button>
@@ -212,6 +214,7 @@
         function fmtBlock(tag){ if (window.psyEditor) psyEditor.block(ta(), tag); updatePreview(); }
         function fmtLink(){ if (window.psyEditor) psyEditor.link(ta()); updatePreview(); }
         function fmtChecklist(){ if (window.psyEditor && psyEditor.checklist) psyEditor.checklist(ta()); updatePreview(); }
+        function fmtCode(){ if (window.psyEditor && psyEditor.code) psyEditor.code(ta()); updatePreview(); }
         function updatePreview(){
             const body = bodyMd();
             const title = document.getElementById('aTitle').value.trim();
