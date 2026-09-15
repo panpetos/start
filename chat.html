@@ -5281,6 +5281,7 @@
                     { icon: '📹', label: 'Групповой видеозвонок', run: () => grcJoin(groupId) },
                     { icon: '🔗', label: 'Встреча в Телемосте (запасной путь)', run: () => startGroupVideoCall(groupId) },
                     { icon: '🔎', label: 'Поиск по переписке', run: () => openChatSearch() },
+                    { icon: '🧾', label: 'Краткое содержание (ИИ)', run: () => psySummarizeChat() },
                     { icon: 'A', label: 'Форматирование текста', run: () => openComposer() },
                     { icon: '🎨', label: 'Обои переписки', run: () => openWallpaperPicker() },
                 ], '')}`;
@@ -6955,6 +6956,7 @@
                     href: bookPsychId ? ('/book.html?id=' + encodeURIComponent(bookPsychId)) : '/search.html'
                 },
                 { icon: '🔎', label: 'Поиск по переписке', run: () => openChatSearch() },
+                { icon: '🧾', label: 'Краткое содержание (ИИ)', run: () => psySummarizeChat() },
                 { icon: 'A', label: 'Форматирование текста', run: () => openComposer() },
                 { icon: '🎨', label: 'Обои переписки', run: () => openWallpaperPicker() },
             ];
@@ -13480,6 +13482,104 @@
             sendToAi(String(text || ''));
         }
         window.aiAsk = aiAsk;
+
+        // ── ИИ-саммари переписки ─────────────────────────────────────────────────
+        // «Краткое содержание»: собираем текст открытой переписки и просим ИИ сжать
+        // его в несколько пунктов. Тот же эндпоинт, что и у ассистента (ai_chat.php).
+        async function psyAiComplete(messages, model) {
+            const res = await fetch('/api/ai_chat.php?action=chat', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+                body: JSON.stringify({ messages: messages, model: model || undefined, search: false, ui: 0 })
+            });
+            if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.error || ('сервер ответил ' + res.status)); }
+            const reader = res.body && res.body.getReader ? res.body.getReader() : null;
+            if (!reader) return await res.text();
+            const dec = new TextDecoder(); let buf = '', full = '';
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                buf += dec.decode(value, { stream: true });
+                const lines = buf.split('\n'); buf = lines.pop();
+                for (const line of lines) {
+                    if (line.indexOf('data: ') !== 0) continue;
+                    const raw = line.slice(6);
+                    if (raw === '[DONE]') continue;
+                    try {
+                        const obj = JSON.parse(raw);
+                        if (obj.psy) continue;
+                        if (obj.error) throw new Error(obj.error.message || obj.error);
+                        const piece = obj.choices && obj.choices[0] &&
+                            ((obj.choices[0].delta && obj.choices[0].delta.content) ||
+                             (obj.choices[0].message && obj.choices[0].message.content));
+                        if (piece) full += piece;
+                    } catch (e) {}
+                }
+            }
+            return full;
+        }
+
+        /** Собрать текст открытой переписки построчно (кто → что), для саммари. */
+        function psyCollectTranscript() {
+            const box = document.getElementById('messagesContainer');
+            if (!box) return '';
+            const bubbles = box.querySelectorAll('.message[data-msg-id], .message[data-fav-id]');
+            const lines = [];
+            bubbles.forEach(b => {
+                const clone = b.cloneNode(true);
+                clone.querySelectorAll('.msg-foot, .message-time, .msg-hover, .msg-actions, .g-msg-ava, .quoted-msg, .reply-quote, .quote, audio, video, img, svg, .psy-cl-cap, .msg-react-row')
+                    .forEach(el => el.remove());
+                const t = (clone.innerText || '').replace(/[ \t]+\n/g, '\n').replace(/\n{2,}/g, '\n').trim();
+                if (!t) return;
+                lines.push((b.classList.contains('mine') ? 'Я: ' : 'Собеседник: ') + t);
+            });
+            return lines.join('\n');
+        }
+
+        function psyShowSummaryModal(innerHtml, withCopy) {
+            let m = document.getElementById('psySummaryModal');
+            if (m) m.remove();
+            const dark = document.body.classList.contains('dark');
+            m = document.createElement('div');
+            m.id = 'psySummaryModal';
+            m.style.cssText = 'position:fixed;inset:0;background:rgba(18,42,34,0.6);z-index:1360;display:flex;align-items:center;justify-content:center;padding:1rem;';
+            m.onclick = (e) => { if (e.target === m) m.remove(); };
+            m.innerHTML = `
+                <div style="background:${dark ? '#1E1E1E' : '#fff'};color:${dark ? '#E6E6E6' : '#1A1A1A'};border-radius:1rem;width:min(560px,96vw);max-height:85vh;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 12px 40px rgba(0,0,0,0.3);">
+                    <div style="display:flex;align-items:center;justify-content:space-between;padding:0.9rem 1.1rem;border-bottom:1px solid ${dark ? '#333' : '#eee'};">
+                        <div style="font-weight:700;">🧾 Краткое содержание</div>
+                        <button onclick="document.getElementById('psySummaryModal').remove()" style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:inherit;line-height:1;">✕</button>
+                    </div>
+                    <div id="psySummaryBody" style="padding:1rem 1.1rem;overflow-y:auto;line-height:1.55;font-size:0.95rem;">${innerHtml}</div>
+                    ${withCopy ? `<div style="padding:0.7rem 1.1rem;border-top:1px solid ${dark ? '#333' : '#eee'};display:flex;justify-content:flex-end;gap:0.5rem;">
+                        <button onclick="psyCopySummary(this)" style="padding:0.5rem 0.9rem;background:linear-gradient(135deg,#047857,#059669);color:#fff;border:none;border-radius:0.6rem;font-weight:700;cursor:pointer;font-family:inherit;">Скопировать</button>
+                    </div>` : ''}
+                </div>`;
+            document.body.appendChild(m);
+        }
+        window.psyCopySummary = function (btn) {
+            const body = document.getElementById('psySummaryBody');
+            const txt = body ? (body.innerText || '') : '';
+            try { navigator.clipboard && navigator.clipboard.writeText(txt); } catch (e) {}
+            if (btn) { const o = btn.textContent; btn.textContent = 'Скопировано'; setTimeout(() => { btn.textContent = o; }, 1200); }
+        };
+
+        async function psySummarizeChat() {
+            const transcript = psyCollectTranscript();
+            if (!transcript || transcript.length < 10) { if (typeof toast === 'function') toast('Тут пока нечего пересказывать'); return; }
+            let text = transcript;
+            if (text.length > 9000) text = text.slice(-9000);   // берём хвост — самое свежее
+            psyShowSummaryModal('<div class="ai-typing">Составляю краткое содержание…</div>', false);
+            const prompt = 'Сделай краткое содержание переписки ниже на русском: 4–7 пунктов маркированным списком, только суть — темы, договорённости, вопросы и задачи. Без вступлений и воды. Если есть договорённости или задачи — вынеси их отдельным пунктом.\n\nПЕРЕПИСКА:\n' + text;
+            try {
+                const out = await psyAiComplete([{ role: 'user', content: prompt }]);
+                const bodyEl = document.getElementById('psySummaryBody');
+                if (!bodyEl) return;   // модалку закрыли
+                psyShowSummaryModal((out && out.trim()) ? formatPostText(out.trim()) : 'ИИ не вернул ответ. Попробуйте ещё раз.', !!(out && out.trim()));
+            } catch (e) {
+                if (document.getElementById('psySummaryBody')) psyShowSummaryModal('Не удалось составить: ' + (e.message || 'ошибка'), false);
+            }
+        }
+        window.psySummarizeChat = psySummarizeChat;
 
         /** Прервать ответ: длинные ответы иногда не нужны целиком. */
         let aiAbort = null;
