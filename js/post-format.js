@@ -130,6 +130,8 @@
     // и картинки с других доменов не загружаются), а схема в переписке нужна.
 
     const DIA_RE = /^\s*```\s*(?:схема|блок-схема|diagram|flow)\s*$/i;
+    // Открытие блока «список задач для всех»: ```задачи-всем / ```чеклист-всем.
+    const CL_ALL_RE = /^\s*```\s*(?:задачи|чеклист|todo)[-\s]*всем\s*$/i;
 
     /** Разобрать строки в узлы и связи. Стрелка: -> или → ; подпись связи: -> |текст| */
     function parseDiagram(src) {
@@ -258,6 +260,14 @@
         };
         let prevWasBlock = true;
         let diaBuf = null;           // строки схемы, пока не встретим закрывающие ```
+        let clBuf = null;            // строки списка задач «для всех», пока не встретим ```
+        // Одна отрисовка пункта — и для строчных «- [ ] », и для блока «задачи-всем».
+        const CL_ITEM = /^\s*[-*]\s+\[([ xXvV✓])\]\s*(.*)$/;
+        const clItemHtml = (done, i, labelRaw) =>
+            '<div class="psy-cl-item" data-ci="' + i + '" style="display:flex;align-items:flex-start;gap:0.5rem;margin:0.22rem 0;">'
+            + '<input type="checkbox" class="psy-cl-box" data-ci="' + i + '"' + (done ? ' checked' : '') + ' disabled'
+            + ' style="width:18px;height:18px;margin:2px 0 0;flex-shrink:0;accent-color:#047857;cursor:default;">'
+            + '<span class="psy-cl-lbl" style="' + (done ? 'opacity:0.6;text-decoration:line-through;' : '') + '">' + inlineFmt(labelRaw) + '</span></div>';
         lines.forEach(line => {
             if (diaBuf !== null) {
                 if (/^\s*```\s*$/.test(line)) {
@@ -268,7 +278,26 @@
                 } else { diaBuf.push(line); }
                 return;
             }
+            if (clBuf !== null) {
+                if (/^\s*```\s*$/.test(line)) {
+                    closeList();
+                    // Список задач «для всех»: обёртка помечена data-cl-scope="all",
+                    // чат по ней разрешает ставить галочки любому участнику.
+                    html += '<div class="psy-cl-block" data-cl-scope="all" style="border-left:3px solid #047857;padding:0.15rem 0 0.15rem 0.6rem;margin:0.35rem 0;">'
+                        + '<div class="psy-cl-cap" style="font-size:0.72rem;font-weight:700;opacity:0.6;margin-bottom:0.15rem;">☑ Общий список — отмечать может каждый</div>';
+                    clBuf.forEach(it => {
+                        const m = CL_ITEM.exec(it);
+                        if (!m) return;
+                        html += clItemHtml(/[xXvV✓]/.test(m[1]), checkIdx++, m[2]);
+                    });
+                    html += '</div>';
+                    clBuf = null;
+                    prevWasBlock = true;
+                } else { clBuf.push(line); }
+                return;
+            }
             if (DIA_RE.test(line)) { diaBuf = []; return; }
+            if (CL_ALL_RE.test(line)) { clBuf = []; return; }
             const h = /^\s*(#{2,3})\s+(.+)$/.exec(line);
             const q = /^\s*>\s?(.*)$/.exec(line);
             const cl = /^\s*[-*]\s+\[([ xXvV✓])\]\s*(.*)$/.exec(line);   // чеклист: - [ ] / - [x]
@@ -276,16 +305,9 @@
             const ol = /^\s*\d+[.)]\s+(.+)$/.exec(line);
             if (cl) {
                 closeList();
-                const done = /[xXvV✓]/.test(cl[1]);
-                const i = checkIdx++;
-                // Отдельный <input>-чекбокс; по умолчанию только показывает состояние
-                // (disabled). Страницы, где отметка должна сохраняться для всех (чат),
-                // включают его и вешают обработчик по data-ci. «Видно всем», потому что
-                // состояние хранится прямо в тексте сообщения/поста.
-                html += '<div class="psy-cl-item" data-ci="' + i + '" style="display:flex;align-items:flex-start;gap:0.5rem;margin:0.22rem 0;">'
-                    + '<input type="checkbox" class="psy-cl-box" data-ci="' + i + '"' + (done ? ' checked' : '') + ' disabled'
-                    + ' style="width:18px;height:18px;margin:2px 0 0;flex-shrink:0;accent-color:#047857;cursor:default;">'
-                    + '<span class="psy-cl-lbl" style="' + (done ? 'opacity:0.6;text-decoration:line-through;' : '') + '">' + inlineFmt(cl[2]) + '</span></div>';
+                // Строчный пункт «- [ ] » — личный: галочку по умолчанию ставит только
+                // автор (чат включает чекбокс лишь тем, кто вправе править сообщение).
+                html += clItemHtml(/[xXvV✓]/.test(cl[1]), checkIdx++, cl[2]);
                 prevWasBlock = true;
             } else if (h) {
                 closeList();
@@ -424,6 +446,15 @@
                 case 'OL': return Array.from(node.children).map((li, i) => (i + 1) + '. ' + walk(li).trim()).join('\n') + '\n';
                 case 'LI': return kids();
                 case 'DIV': case 'P': {
+                    // Список задач «для всех» → обратно в блок ```задачи-всем.
+                    if (node.classList && node.classList.contains('psy-cl-block')) {
+                        const items = Array.from(node.querySelectorAll('.psy-cl-item')).map(it => {
+                            const cb = it.querySelector('input.psy-cl-box');
+                            const lbl = it.querySelector('.psy-cl-lbl');
+                            return '- [' + (cb && cb.checked ? 'x' : ' ') + '] ' + (lbl ? walk(lbl) : '').trim();
+                        });
+                        return '```задачи-всем\n' + items.join('\n') + '\n```\n';
+                    }
                     // Отрисованный пункт-чеклист → обратно в «- [ ] » / «- [x] »,
                     // иначе при повторном редактировании галочки бы потерялись.
                     if (node.classList && node.classList.contains('psy-cl-item')) {

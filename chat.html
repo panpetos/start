@@ -4616,6 +4616,41 @@
         </div>
     </div>
 
+    <!-- Конструктор списка задач: пункты списком, режим «кто ставит галочки», живой просмотр.
+         Готовый список уходит в сообщение: «Только я» — строчными «- [ ] », «Все участники» —
+         блоком ```задачи-всем (по нему чат разрешает отмечать любому участнику). -->
+    <div id="checklistModal" style="display:none;position:fixed;inset:0;background:rgba(18,42,34,0.6);z-index:1350;align-items:center;justify-content:center;padding:1rem;">
+        <div class="dg-box">
+            <div class="dg-head">
+                <b>☑ Список задач</b>
+                <button onclick="closeChecklistBuilder()" title="Закрыть">✕</button>
+            </div>
+            <div class="dg-body">
+                <div class="dg-sec-title">Пункты</div>
+                <div id="clItems"></div>
+                <button type="button" class="dg-add" onclick="clAddItem()">＋ Пункт</button>
+
+                <div class="dg-sec-title" id="clModeTitle">Кто может ставить галочки</div>
+                <div id="clModeWrap" style="display:flex;flex-direction:column;gap:0.4rem;">
+                    <label style="display:flex;gap:0.5rem;align-items:flex-start;cursor:pointer;font-size:0.9rem;">
+                        <input type="radio" name="clMode" value="self" checked onchange="clSetMode('self')" style="margin-top:2px;accent-color:#047857;">
+                        <span><b>Только я</b> — отмечаю сам, остальные видят отметки</span></label>
+                    <label style="display:flex;gap:0.5rem;align-items:flex-start;cursor:pointer;font-size:0.9rem;">
+                        <input type="radio" name="clMode" value="all" onchange="clSetMode('all')" style="margin-top:2px;accent-color:#047857;">
+                        <span><b>Все участники</b> — отмечать может каждый в этом чате</span></label>
+                </div>
+
+                <div class="dg-sec-title">Как это будет выглядеть</div>
+                <div id="clPreview" class="dg-preview"></div>
+            </div>
+            <div class="dg-foot">
+                <div style="flex:1;"></div>
+                <button type="button" class="cmp-btn-ghost" onclick="closeChecklistBuilder()">Отмена</button>
+                <button type="button" class="cmp-btn-send" onclick="clInsert()">Вставить</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Обои переписки -->
     <div id="wallpaperModal" style="display:none;position:fixed;inset:0;background:rgba(18,42,34,0.6);z-index:1320;align-items:center;justify-content:center;padding:1rem;">
         <div style="background:#fff;border-radius:1rem;max-width:420px;width:100%;max-height:85vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
@@ -4816,7 +4851,7 @@
     <script src="/js/api.js?v=20260821"></script>
     <script src="/js/auth.js?v=20260821"></script>
     <script src="/js/lightbox.js?v=7"></script>
-    <script src="/js/post-format.js?v=20260915"></script>
+    <script src="/js/post-format.js?v=20260915b"></script>
     <!-- Редакционные статьи блога (window.PSY_ARTICLES). Их же показывает /blog.html
          рядом со статьями психологов из БД — без этого файла раздел «Блог» в чате
          показывал бы «статей нет», пока в базе пусто. -->
@@ -14321,22 +14356,55 @@
             lbl.style.opacity = box.checked ? '0.6' : '';
             lbl.style.textDecoration = box.checked ? 'line-through' : '';
         }
+        // Обновить кэш сообщения под новое состояние N-го пункта (флип на индексе).
+        function psyClUpdateCache(cache, id, idx) {
+            const cur = cache[id] || cache[String(id)];
+            if (!cur || typeof psyToggleCheck !== 'function') return;
+            const sp = splitReply(cur.content || '');
+            const body = psyToggleCheck(sp.body, idx);
+            cur.content = sp.replyId ? '[RE#' + sp.replyId + '] ' + body : body;
+        }
         async function psyChecklistToggle(box) {
             const msg = box.closest('[data-msg-id],[data-fav-id]');
             if (!msg) { box.checked = !box.checked; return; }
             const id = msg.getAttribute('data-msg-id') || msg.getAttribute('data-fav-id');
             const cap = id && msgCaps[id];
-            // Право менять отметку — только у того, кто может править сообщение.
-            if (!cap || !cap.canEdit) { box.checked = !box.checked; return; }
             const idx = parseInt(box.getAttribute('data-ci'), 10);
-            if (isNaN(idx) || typeof psyToggleCheck !== 'function') { box.checked = !box.checked; return; }
+            const scopeAll = !!box.closest('[data-cl-scope="all"]');
+            if (!cap || isNaN(idx)) { box.checked = !box.checked; return; }
+
+            // Общий список (```задачи-всем): отметить может ЛЮБОЙ участник — сохраняем
+            // через checklist.php, право проверяет сервер по составу разговора.
+            if (scopeAll) {
+                const want = box.checked;
+                psyClLabelStyle(box);
+                box.disabled = true;
+                let ok = false;
+                try {
+                    const r = await (await fetch('/api/checklist.php?action=toggle', {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+                        body: JSON.stringify({ kind: cap.kind || 'msg', message_id: id, index: idx, checked: want })
+                    })).json();
+                    ok = !!(r && r.ok);
+                } catch (e) {}
+                box.disabled = false;
+                if (ok) psyClUpdateCache(psyChecklistCache(cap.kind), id, idx);
+                else {
+                    box.checked = !box.checked;
+                    psyClLabelStyle(box);
+                    if (typeof toast === 'function') toast('Не удалось сохранить отметку');
+                }
+                return;
+            }
+
+            // Личный пункт: галочку ставит только автор — через правку сообщения.
+            if (!cap.canEdit || typeof psyToggleCheck !== 'function') { box.checked = !box.checked; return; }
             const cache = psyChecklistCache(cap.kind);
             const cur = cache[id] || cache[String(id)] || {};
-            const raw = cur.content || '';
-            const sp = splitReply(raw);
+            const sp = splitReply(cur.content || '');
             const newBody = psyToggleCheck(sp.body, idx);
             const newContent = sp.replyId ? '[RE#' + sp.replyId + '] ' + newBody : newBody;
-            psyClLabelStyle(box);       // сразу перечёркиваем/возвращаем подпись
+            psyClLabelStyle(box);
             box.disabled = true;
             const ok = await psyChecklistPersist(id, cap.kind, newContent);
             box.disabled = false;
@@ -14344,22 +14412,25 @@
                 if (cache[id]) cache[id].content = newContent;
                 if (cache[String(id)]) cache[String(id)].content = newContent;
             } else {
-                box.checked = !box.checked;   // не сохранилось — возвращаем как было
+                box.checked = !box.checked;
                 psyClLabelStyle(box);
                 if (typeof toast === 'function') toast('Не удалось сохранить отметку');
             }
         }
-        // Чекбоксы отрисовываются disabled (для чужих сообщений так и надо). Там, где
-        // сообщение можно править, — включаем, чтобы галочку можно было поставить.
+        // Чекбоксы отрисовываются disabled. Включаем те, что человек вправе менять:
+        // общий список (data-cl-scope="all") — любому участнику; личный — только автору.
         function psyEnableEditableChecks(scope) {
             const root = scope || document.getElementById('messagesContainer');
             if (!root) return;
             root.querySelectorAll('.psy-cl-box').forEach(box => {
                 if (box._psyClReady) return;
+                const scopeAll = !!box.closest('[data-cl-scope="all"]');
                 const msg = box.closest('[data-msg-id],[data-fav-id]');
                 const id = msg && (msg.getAttribute('data-msg-id') || msg.getAttribute('data-fav-id'));
                 const cap = id && msgCaps[id];
-                if (cap && cap.canEdit) { box.disabled = false; box.style.cursor = 'pointer'; box._psyClReady = true; }
+                if (scopeAll || (cap && cap.canEdit)) {
+                    box.disabled = false; box.style.cursor = 'pointer'; box._psyClReady = true;
+                }
             });
         }
         (function initChecklistBinding() {
@@ -15222,7 +15293,7 @@
             { t: '“ ”', title: 'Цитата',               cmd: 'blockquote', act: () => cmpBlock('BLOCKQUOTE') },
             { t: '• —', title: 'Маркированный список', cmd: 'insertUnorderedList', act: () => cmpCmd('insertUnorderedList') },
             { t: '1.',  title: 'Нумерованный список',  cmd: 'insertOrderedList',   act: () => cmpCmd('insertOrderedList') },
-            { t: '☑',   title: 'Список задач (галочки)', act: () => cmpChecklist() },
+            { t: '☑',   title: 'Список задач (конструктор)', act: () => openChecklistBuilder('composer') },
             { t: '🔗',  title: 'Ссылка',               act: () => cmpLink() },
             { t: '⤵',   title: 'Блок-схема',           act: () => cmpDiagram() },
             { t: '✕',   title: 'Убрать оформление',    act: () => cmpCmd('removeFormat') },
@@ -15643,6 +15714,107 @@
             cmpSyncToolbar();
         }
 
+        // ── Конструктор списка задач (как конструктор блок-схем) ──────────────────
+        let clItems = [];        // [{id, text, done}]
+        let clMode = 'self';     // 'self' — отмечает автор, 'all' — любой участник
+        let clTarget = 'composer';
+        function clNewId() { return 'c' + Math.random().toString(36).slice(2, 8); }
+
+        function clParseItems(text) {
+            return String(text || '').split('\n').map(l => {
+                const m = /^\s*[-*]\s+\[([ xXvV✓])\]\s*(.*)$/.exec(l);
+                return m ? { id: clNewId(), text: m[2], done: /[xXvV✓]/.test(m[1]) } : null;
+            }).filter(Boolean);
+        }
+        /** Если в поле уже есть наш общий список — подхватим его, а не начнём с нуля. */
+        function clPickExisting() {
+            const el = cmpArea();
+            const src = el ? cmpToMarkdown(el) : '';
+            const mAll = /```\s*(?:задачи|чеклист|todo)[-\s]*всем\s*\n([\s\S]*?)```/i.exec(src || '');
+            if (mAll) { const items = clParseItems(mAll[1]); if (items.length) return { items, mode: 'all' }; }
+            return { items: [], mode: 'self' };
+        }
+
+        function openChecklistBuilder(target) {
+            clTarget = target || 'composer';
+            const existing = clPickExisting();
+            if (existing.items.length) { clItems = existing.items; clMode = existing.mode; }
+            else if (!clItems.length) { clItems = [{ id: clNewId(), text: '', done: false }]; clMode = 'self'; }
+            // В «Избранном» участник один — вариант «для всех» не имеет смысла.
+            const isFav = (typeof selectedUserId !== 'undefined') && selectedUserId === FAVORITES_ID;
+            const modeWrap = document.getElementById('clModeWrap');
+            const modeTitle = document.getElementById('clModeTitle');
+            if (modeWrap) modeWrap.style.display = isFav ? 'none' : 'flex';
+            if (modeTitle) modeTitle.style.display = isFav ? 'none' : 'block';
+            if (isFav) clMode = 'self';
+            document.querySelectorAll('#checklistModal input[name=clMode]').forEach(r => r.checked = (r.value === clMode));
+            document.getElementById('checklistModal').style.display = 'flex';
+            clRender();
+        }
+        window.openChecklistBuilder = openChecklistBuilder;
+
+        function closeChecklistBuilder() { const m = document.getElementById('checklistModal'); if (m) m.style.display = 'none'; }
+        window.closeChecklistBuilder = closeChecklistBuilder;
+        function clSetMode(m) { clMode = m; clPreview(); }
+        function clAddItem() {
+            clItems.push({ id: clNewId(), text: '', done: false });
+            clRender();
+            const inp = document.querySelectorAll('#clItems .dg-name');
+            const last = inp[inp.length - 1]; if (last) last.focus();
+        }
+        function clDelItem(id) { clItems = clItems.filter(x => x.id !== id); clRender(); }
+        function clSetText(id, v) { const it = clItems.find(x => x.id === id); if (it) { it.text = v; clPreview(); } }
+        function clSetDone(id, v) { const it = clItems.find(x => x.id === id); if (it) { it.done = v; clPreview(); } }
+        window.clSetMode = clSetMode; window.clAddItem = clAddItem; window.clDelItem = clDelItem;
+        window.clSetText = clSetText; window.clSetDone = clSetDone;
+
+        function clToMarkdown() {
+            const rows = clItems.filter(it => String(it.text).trim() !== '')
+                .map(it => '- [' + (it.done ? 'x' : ' ') + '] ' + it.text.trim());
+            if (!rows.length) return '';
+            return clMode === 'all' ? '```задачи-всем\n' + rows.join('\n') + '\n```' : rows.join('\n');
+        }
+        function clPreview() {
+            const box = document.getElementById('clPreview'); if (!box) return;
+            const md = clToMarkdown();
+            box.innerHTML = (md && typeof formatPostText === 'function')
+                ? formatPostText(md) : '<div class="dg-empty">Добавьте пункты — список появится здесь</div>';
+        }
+        function clRender() {
+            const wrap = document.getElementById('clItems'); if (!wrap) return;
+            wrap.innerHTML = clItems.map(it => `
+                <div class="dg-row">
+                    <input type="checkbox" ${it.done ? 'checked' : ''} onchange="clSetDone('${it.id}', this.checked)"
+                           style="width:18px;height:18px;flex-shrink:0;accent-color:#047857;cursor:pointer;">
+                    <input class="dg-name" value="${escapeHtml(it.text)}" placeholder="Пункт списка" maxlength="200"
+                           oninput="clSetText('${it.id}', this.value)">
+                    <button type="button" class="dg-x" onclick="clDelItem('${it.id}')" title="Убрать пункт">✕</button>
+                </div>`).join('') || '<div class="dg-empty">Пунктов пока нет</div>';
+            clPreview();
+        }
+        function clInsert() {
+            const md = clToMarkdown().trim();
+            if (!md) { toast('Список пустой'); return; }
+            closeChecklistBuilder();
+            const el = cmpArea();
+            if (clTarget === 'input' || !el || document.getElementById('composerModal').style.display === 'none') {
+                const input = document.getElementById('messageInput');
+                if (input) {
+                    input.value = (input.value ? input.value.replace(/\n*$/, '\n') : '') + md + '\n';
+                    input.focus(); autoGrowInput(input); saveDraftSoon();
+                }
+                return;
+            }
+            el.focus();
+            // Кладём ТЕКСТОМ построчно (как схему): formatPostText в поле превратил бы в
+            // чекбоксы, а обратно в разметку не собралось бы.
+            const node = document.createElement('div');
+            md.split('\n').forEach(line => { const d = document.createElement('div'); d.textContent = line; node.appendChild(d); });
+            el.appendChild(node);
+            cmpSyncToolbar();
+        }
+        window.clInsert = clInsert;
+
         function cmpLink() {
             const el = cmpArea();
             const sel = window.getSelection();
@@ -15712,6 +15884,15 @@
                         return Array.from(node.children).map((li, i) => (i + 1) + '. ' + walk(li).trim()).join('\n') + '\n';
                     case 'LI': return kids();
                     case 'DIV': case 'P': {
+                        // Список задач «для всех» → обратно в блок ```задачи-всем.
+                        if (node.classList && node.classList.contains('psy-cl-block')) {
+                            const items = Array.from(node.querySelectorAll('.psy-cl-item')).map(it => {
+                                const cb = it.querySelector('input.psy-cl-box');
+                                const lbl = it.querySelector('.psy-cl-lbl');
+                                return '- [' + (cb && cb.checked ? 'x' : ' ') + '] ' + (lbl ? walk(lbl) : '').trim();
+                            });
+                            return '```задачи-всем\n' + items.join('\n') + '\n```\n';
+                        }
                         // Отрисованный пункт-чеклист → обратно в «- [ ] » / «- [x] »,
                         // чтобы галочки не терялись при повторной правке/пересылке.
                         if (node.classList && node.classList.contains('psy-cl-item')) {
@@ -16073,6 +16254,7 @@
             // Схему часто рисуют без остального оформления — пусть будет отдельным
             // пунктом, а не только кнопкой внутри окна форматирования.
             items.push({ ico: '⤵', label: 'Блок-схема', run: () => openDiagramBuilder('input') });
+            items.push({ ico: '☑', label: 'Список задач', run: () => openChecklistBuilder('input') });
             // Отложенная отправка — везде, кроме ассистента: ему пишут ради ответа сейчас
             if (typeof schedAvailable === 'function' && schedAvailable()) {
                 items.push({ ico: '🕒', label: 'Отправить позже', run: () => scheduleCurrentInput() });
