@@ -155,6 +155,7 @@ jobs:
             put api/checklist.php -o api/checklist.php;
             put api/quick_replies.php -o api/quick_replies.php;
             put api/mood.php -o api/mood.php;
+            put api/homework.php -o api/homework.php;
             put api/scheduled.php -o api/scheduled.php;
             put api/calls.php -o api/calls.php;
             put api/rtc_calls.php -o api/rtc_calls.php;
