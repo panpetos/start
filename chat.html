@@ -13581,6 +13581,86 @@
         }
         window.psySummarizeChat = psySummarizeChat;
 
+        // ── Быстрые ответы / шаблоны ─────────────────────────────────────────────
+        let quickReplies = [];
+        function qrInsert(text) {
+            const input = document.getElementById('messageInput');
+            if (!input) return;
+            input.value = (input.value ? input.value.replace(/\s*$/, ' ') : '') + String(text || '');
+            input.focus();
+            try { autoGrowInput(input); } catch (e) {}
+            try { saveDraftSoon(); } catch (e) {}
+            const m = document.getElementById('psyQrModal'); if (m) m.remove();
+        }
+        window.qrInsert = qrInsert;
+        async function qrDelete(id, btn) {
+            try {
+                await fetch('/api/quick_replies.php?action=delete', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+                    body: JSON.stringify({ id })
+                });
+            } catch (e) {}
+            quickReplies = quickReplies.filter(x => String(x.id) !== String(id));
+            qrRenderList();
+        }
+        window.qrDelete = qrDelete;
+        async function qrSaveCurrent() {
+            const ta = document.getElementById('qrNewText');
+            const text = ta ? ta.value.trim() : '';
+            if (!text) { if (typeof toast === 'function') toast('Введите текст шаблона'); return; }
+            try {
+                const r = await (await fetch('/api/quick_replies.php?action=add', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+                    body: JSON.stringify({ text })
+                })).json();
+                if (r && r.ok && r.item) { quickReplies.push(r.item); if (ta) ta.value = ''; qrRenderList(); }
+                else if (typeof toast === 'function') toast(r && r.error ? r.error : 'Не удалось сохранить');
+            } catch (e) { if (typeof toast === 'function') toast('Ошибка сети'); }
+        }
+        window.qrSaveCurrent = qrSaveCurrent;
+        function qrRenderList() {
+            const box = document.getElementById('qrList');
+            if (!box) return;
+            if (!quickReplies.length) { box.innerHTML = '<div style="color:#9CA3AF;font-size:0.9rem;padding:0.4rem 0;">Пока нет шаблонов. Сохраните первый ниже.</div>'; return; }
+            box.innerHTML = quickReplies.map(q => `
+                <div style="display:flex;gap:0.5rem;align-items:flex-start;padding:0.5rem 0;border-bottom:1px solid rgba(127,127,127,0.15);">
+                    <button type="button" onclick="qrInsert(${JSON.stringify(q.text).replace(/"/g, '&quot;')})"
+                            style="flex:1;text-align:left;background:none;border:none;cursor:pointer;font-family:inherit;font-size:0.9rem;color:inherit;line-height:1.4;">${escapeHtml(q.text)}</button>
+                    <button type="button" onclick="qrDelete(${q.id})" title="Удалить" style="background:none;border:none;cursor:pointer;color:#9CA3AF;font-size:1rem;flex-shrink:0;">🗑</button>
+                </div>`).join('');
+        }
+        async function openQuickReplies() {
+            const dark = document.body.classList.contains('dark');
+            let m = document.getElementById('psyQrModal'); if (m) m.remove();
+            m = document.createElement('div');
+            m.id = 'psyQrModal';
+            m.style.cssText = 'position:fixed;inset:0;background:rgba(18,42,34,0.6);z-index:1360;display:flex;align-items:center;justify-content:center;padding:1rem;';
+            m.onclick = (e) => { if (e.target === m) m.remove(); };
+            const input = document.getElementById('messageInput');
+            const cur = input && input.value.trim() ? input.value.trim() : '';
+            m.innerHTML = `
+                <div style="background:${dark ? '#1E1E1E' : '#fff'};color:${dark ? '#E6E6E6' : '#1A1A1A'};border-radius:1rem;width:min(520px,96vw);max-height:85vh;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 12px 40px rgba(0,0,0,0.3);">
+                    <div style="display:flex;align-items:center;justify-content:space-between;padding:0.9rem 1.1rem;border-bottom:1px solid ${dark ? '#333' : '#eee'};">
+                        <div style="font-weight:700;">⚡ Быстрые ответы</div>
+                        <button onclick="document.getElementById('psyQrModal').remove()" style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:inherit;line-height:1;">✕</button>
+                    </div>
+                    <div id="qrList" style="padding:0.4rem 1.1rem;overflow-y:auto;"></div>
+                    <div style="padding:0.7rem 1.1rem;border-top:1px solid ${dark ? '#333' : '#eee'};">
+                        <textarea id="qrNewText" rows="2" placeholder="Новый шаблон…" style="width:100%;resize:vertical;padding:0.55rem 0.7rem;border:1.5px solid ${dark ? '#444' : '#e0e0e0'};border-radius:0.6rem;font-family:inherit;font-size:0.9rem;background:${dark ? '#2A2A2A' : '#fff'};color:inherit;">${escapeHtml(cur)}</textarea>
+                        <div style="display:flex;justify-content:flex-end;margin-top:0.5rem;">
+                            <button onclick="qrSaveCurrent()" style="padding:0.5rem 0.9rem;background:linear-gradient(135deg,#047857,#059669);color:#fff;border:none;border-radius:0.6rem;font-weight:700;cursor:pointer;font-family:inherit;">＋ Сохранить шаблон</button>
+                        </div>
+                    </div>
+                </div>`;
+            document.body.appendChild(m);
+            qrRenderList();
+            try {
+                const r = await (await fetch('/api/quick_replies.php?action=list', { credentials: 'include' })).json();
+                if (r && r.ok) { quickReplies = r.data || []; qrRenderList(); }
+            } catch (e) {}
+        }
+        window.openQuickReplies = openQuickReplies;
+
         /** Прервать ответ: длинные ответы иногда не нужны целиком. */
         let aiAbort = null;
         function aiStop() {
@@ -16417,6 +16497,7 @@
             // пунктом, а не только кнопкой внутри окна форматирования.
             items.push({ ico: '⤵', label: 'Блок-схема', run: () => openDiagramBuilder('input') });
             items.push({ ico: '☑', label: 'Список задач', run: () => openChecklistBuilder('input') });
+            items.push({ ico: '⚡', label: 'Быстрые ответы', run: () => openQuickReplies() });
             // Отложенная отправка — везде, кроме ассистента: ему пишут ради ответа сейчас
             if (typeof schedAvailable === 'function' && schedAvailable()) {
                 items.push({ ico: '🕒', label: 'Отправить позже', run: () => scheduleCurrentInput() });
