@@ -102,10 +102,14 @@
             align-items: center;
         }
         .chat-sb-search {
-            flex: 1; min-width: 0; padding: 0.5rem 0.75rem;
-            border: 1.5px solid #e0e0e0; border-radius: 0.5rem;
-            font-family: inherit; font-size: 0.875rem; outline: none; background: #f9fafb;
+            flex: 1; min-width: 0; padding: 0.55rem 0.95rem;
+            border: 1.5px solid transparent; border-radius: 999px;
+            font-family: inherit; font-size: 0.9rem; outline: none; background: #F1F3F5;
+            transition: background 0.15s, border-color 0.15s;
         }
+        .chat-sb-search:focus { background: #fff; border-color: #6EE7B7; }
+        body.dark .chat-sb-search { background: #2A2A2A; color: #E6E6E6; }
+        body.dark .chat-sb-search:focus { background: #1E1E1E; border-color: #047857; }
         /* Поиск свёрнут в иконку: поле и крестик прячем, показываем только при .searching.
            Так в шапке остаётся место для кнопки «в кабинет», а поле разворачивается по клику. */
         .chat-sb-head .chat-sb-search { display: none; }
@@ -1651,15 +1655,18 @@
         /* Кнопки в шапке списка диалогов. Раньше фон задавался инлайново (#f9fafb) и в тёмной
            теме оставался светлым, а цвет текста становился светлым — контраст 1.19, кнопка
            темы была фактически невидимой. Теперь цвета берутся из темы. */
+        /* Кнопки шапки — «призрачные» иконки без рамок (стиль Telegram/MAX):
+           круглая подсветка появляется только при наведении/нажатии. */
         .chat-hdr-btn {
-            flex-shrink: 0; width: 36px; height: 36px; border-radius: 50%;
-            border: 1.5px solid #e0e0e0; background: #f9fafb; color: #4B5563;
+            flex-shrink: 0; width: 38px; height: 38px; border-radius: 50%;
+            border: none; background: transparent; color: #6B7280;
             cursor: pointer; font-size: 1rem; display: flex; align-items: center; justify-content: center;
-            transition: background 0.15s, border-color 0.15s, color 0.15s;
+            transition: background 0.15s, color 0.15s;
         }
-        .chat-hdr-btn:hover { background: #D1FAE5; border-color: #6EE7B7; color: #047857; }
-        body.dark .chat-hdr-btn { background: #2A2A2A; border-color: #444; color: #C9C9C9; }
-        body.dark .chat-hdr-btn:hover { background: #10402F; border-color: #047857; color: #6EE7B7; }
+        .chat-hdr-btn:hover { background: #ECFDF5; color: #047857; }
+        .chat-hdr-btn:active { background: #D1FAE5; }
+        body.dark .chat-hdr-btn { background: transparent; color: #A8A8A8; }
+        body.dark .chat-hdr-btn:hover { background: #10402F; color: #6EE7B7; }
 
         /* Пузырь сжимается по содержимому, поэтому width:100% у textarea упирался в её
            min-width и поле для правки получалось узкой полоской (220px в переписке шириной
@@ -3493,29 +3500,39 @@
             .conversations-pane { flex-direction: column; min-height: 0; overflow: hidden; }
             .chat-folders {
                 width: 100%; flex-direction: row; align-items: center;
-                padding: 0.4rem 0.5rem; gap: 0.3rem;
+                padding: 0.5rem 0.6rem; gap: 0.4rem;
                 border-right: none; border-bottom: 1px solid #ECECF2;
                 overflow-x: auto; overflow-y: hidden;
+                scrollbar-width: none;
             }
+            .chat-folders::-webkit-scrollbar { display: none; }
+            /* Таблетки-вкладки в стиле Telegram/MAX: скруглённые, с плавным
+               переключением; активная — фирменным градиентом с мягкой тенью. */
             .folder-tab {
-                flex-direction: row; gap: 0.3rem; white-space: nowrap;
-                padding: 0.4rem 0.75rem; font-size: 0.8rem; border-radius: 2rem;
-                background: #F3F4F6;
+                flex-direction: row; gap: 0.35rem; white-space: nowrap; align-items: center;
+                padding: 0.44rem 0.95rem; font-size: 0.82rem; font-weight: 600; border-radius: 999px;
+                background: #EEF1F4; color: #4B5563;
+                transition: background 0.15s, color 0.15s, box-shadow 0.15s;
             }
+            .folder-tab:hover { background: #E4E7EB; color: #1F2937; }
             .folder-tab .ftab-ico { font-size: 0.95rem; }
             /* На телефоне папки — ряд «таблеток», там увеличенная иконка ПК не нужна */
             .folder-tab .ftab-ico svg { width: 18px; height: 18px; }
-            .folder-tab.active { background: #047857; color: #fff; }
+            .folder-tab.active {
+                background: linear-gradient(135deg,#047857,#059669); color: #fff;
+                box-shadow: 0 2px 8px rgba(4,120,87,0.28);
+            }
             .folder-tab.active::before { display: none; }
             .folder-tab .fcount {
-                position: static; background: rgba(0,0,0,0.14); color: inherit;
-                min-width: 0; padding: 0 0.3rem; line-height: 1.35;
+                position: static; background: rgba(0,0,0,0.12); color: inherit;
+                min-width: 0; padding: 0 0.36rem; line-height: 1.4; border-radius: 999px; font-weight: 700;
             }
-            .folder-tab.active .fcount { background: rgba(255,255,255,0.28); }
-            .folder-tab-add { background: transparent; border: 1px dashed #6EE7B7; }
+            .folder-tab.active .fcount { background: rgba(255,255,255,0.3); }
+            .folder-tab-add { background: transparent; border: 1px dashed #6EE7B7; color: #047857; }
             body.dark .chat-folders { border-bottom-color: #333; }
-            body.dark .folder-tab { background: #2F2F2F; }
-            body.dark .folder-tab.active { background: #047857; color: #fff; }
+            body.dark .folder-tab { background: #2A2A2A; color: #A8A8A8; }
+            body.dark .folder-tab:hover { background: #333; color: #E6E6E6; }
+            body.dark .folder-tab.active { background: linear-gradient(135deg,#047857,#059669); color: #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.4); }
             body.dark .folder-tab-add { background: transparent; border-color: #1F6B4F; }
             /* Кнопка «⋮» была мелкой для пальца — зона нажатия 34×34 */
             .folder-pick-btn { width: 34px; height: 34px; }
