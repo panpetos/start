@@ -6927,9 +6927,13 @@
         let chatPeerInfo = null;
 
         function renderChatHeader(other) {
-            const name = `${other.first_name || ''} ${other.last_name || ''}`.trim() || 'Пользователь';
-            chatPeerInfo = { id: other.id || selectedUserId, name, avatar: other.avatar || '' };
-            const roleText = other.role === 'psychologist' ? 'Психолог' : 'Клиент';
+            // Переписка с админом у обычного пользователя — это «Тех поддержка».
+            const isSupportPeer = currentUser && currentUser.role !== 'admin' && other.role === 'admin';
+            const name = isSupportPeer ? 'Тех поддержка'
+                : (`${other.first_name || ''} ${other.last_name || ''}`.trim() || 'Пользователь');
+            chatPeerInfo = { id: other.id || selectedUserId, name, avatar: isSupportPeer ? '' : (other.avatar || '') };
+            const roleText = isSupportPeer ? 'Поддержка'
+                : (other.role === 'psychologist' ? 'Психолог' : 'Клиент');
             const isPsy = currentUser && currentUser.role === 'psychologist';
             // Кнопок «Начать сессию» / «Завершить» здесь больше нет. Они появились,
             // когда звонка внутри сайта не было и время консультации приходилось
@@ -6945,7 +6949,7 @@
                 isPsy && { icon: '💳', label: 'Выставить счёт', run: () => openOrderModal() },
                 isPsy && { icon: '📝', label: 'Заметки по клиенту', run: () => openNotes() },
                 isPsy && { icon: '📹', label: 'Встреча в Телемосте (запасной путь)', run: () => startVideoCall() },
-                { icon: '🚩', label: 'Пожаловаться на собеседника', run: () => openComplaint(selectedUserId, name) },
+                !isSupportPeer && { icon: '🚩', label: 'Пожаловаться на собеседника', run: () => openComplaint(selectedUserId, name) },
                 (!isPsy && other.role === 'psychologist') && {
                     icon: '📅', label: 'Записаться на приём',
                     href: bookPsychId ? ('/book.html?id=' + encodeURIComponent(bookPsychId)) : '/search.html'
@@ -6956,11 +6960,17 @@
             ];
             return `
                 <button class="chat-back-btn" onclick="goBackToList()" title="Назад к диалогам">←</button>
-                <div class="avatar" onclick="openUserCard('${selectedUserId}')" style="cursor:pointer;" title="Открыть карточку">${other.avatar ? `<img src="${other.avatar}" alt="${name}">` : name.charAt(0)}</div>
-                <div style="flex:1;min-width:0;cursor:pointer;" onclick="openUserCard('${selectedUserId}')">
-                    <div class="name">${name}</div>
-                    <div class="role" id="chatPeerStatus" data-role="${escapeHtml(roleText)}">${roleText}</div>
-                </div>
+                ${isSupportPeer
+                    ? `<div class="avatar" style="background:linear-gradient(135deg,#F59E0B,#EF4444);">🆘</div>
+                       <div style="flex:1;min-width:0;">
+                           <div class="name">${name}</div>
+                           <div class="role" id="chatPeerStatus" data-role="${escapeHtml(roleText)}">${roleText}</div>
+                       </div>`
+                    : `<div class="avatar" onclick="openUserCard('${selectedUserId}')" style="cursor:pointer;" title="Открыть карточку">${other.avatar ? `<img src="${other.avatar}" alt="${name}">` : name.charAt(0)}</div>
+                       <div style="flex:1;min-width:0;cursor:pointer;" onclick="openUserCard('${selectedUserId}')">
+                           <div class="name">${name}</div>
+                           <div class="role" id="chatPeerStatus" data-role="${escapeHtml(roleText)}">${roleText}</div>
+                       </div>`}
                 ${headerActionsHtml(actions, '')}`;
         }
 
@@ -8425,6 +8435,24 @@
                 // Раньше при каждом открытии чата список запрашивался ЗАНОВО, только
                 // чтобы найти в нём имя собеседника, — лишний круг к серверу.
                 convCache = conversations;
+
+                // Единый чат поддержки. Приветствие и ответы админа приходят обычной
+                // личной перепиской от аккаунта-админа — у человека получалось два
+                // «саппорта»: «Тех поддержка» (виджет) и отдельный чат «Админ». Поэтому
+                // переписку с админом показываем КАК «Тех поддержка», а дублирующую
+                // строку виджета ниже прячем. Самому админу ничего не переименовываем.
+                window.__psyHasSupportDm = false;
+                if (currentUser && currentUser.role !== 'admin') {
+                    conversations.forEach(c => {
+                        if (c && !c._isNew && c.role === 'admin') {
+                            c._supportDm = true;
+                            c.first_name = 'Тех поддержка';
+                            c.last_name = '';
+                            c.avatar = null;   // покажем значок 🆘 вместо фото админа
+                            window.__psyHasSupportDm = true;
+                        }
+                    });
+                }
 
                 // Сортировка нужна ВСЕГДА, а не только когда есть обращения в поддержку:
                 // раньше без них список оставался в том порядке, в каком его отдал сервер.
@@ -12215,6 +12243,9 @@
             // легко было перепутать: админ открывал «Тех поддержку», видел пустой
             // разговор и решал, что сообщения не доходят.
             if (currentUser && currentUser.role === 'admin') return [];
+            // Уже есть живая переписка с админом — она и показана как «Тех поддержка».
+            // Вторую строку-виджет не рисуем, чтобы саппорт был один.
+            if (window.__psyHasSupportDm) return [];
             if (!chatVisible('section', SUPPORT_ID, null)) return [];
             return [{ key: SUPPORT_ID, name: 'Тех поддержка', html: `
                 <div class="conversation-item ${selectedUserId === SUPPORT_ID ? 'active' : ''}" onclick="openMySupportChat()" title="Тех поддержка">
@@ -12504,6 +12535,7 @@
                 const initial = name.charAt(0).toUpperCase();
                 const isNew = !!c._isNew;
                 const isSupport = !!c._support;
+                const isSupportDm = !!c._supportDm;   // переписка с админом под видом «Тех поддержка»
                 let lastMsg = previewText((c.last_message || '').replace(/^\[ORDER#\d+\]\s*/, ''));
                 // Недописанное показываем прямо в списке, как в мессенджерах: видно,
                 // где остался незаконченный ответ. Обрезаем текст ДО добавления пометки,
@@ -12524,8 +12556,8 @@
                     <div class="conversation-item ${activeId === selectedUserId ? 'active' : ''}"
                          data-user-id="${escapeHtml(String(activeId))}"
                          onclick="${clickHandler}" title="${escapeHtml(name)}">
-                        <div class="conversation-avatar" ${isSupport ? 'style="background:linear-gradient(135deg,#F59E0B,#EF4444);"' : ''}>
-                            ${c.avatar ? `<img src="${c.avatar}" alt="${name}">` : (isSupport ? '🆘' : initial)}
+                        <div class="conversation-avatar" ${(isSupport || isSupportDm) ? 'style="background:linear-gradient(135deg,#F59E0B,#EF4444);"' : ''}>
+                            ${c.avatar ? `<img src="${c.avatar}" alt="${name}">` : ((isSupport || isSupportDm) ? '🆘' : initial)}
                         </div>
                         <div class="conversation-info">
                             <div class="conversation-name"><span class="cn-text">${name}</span>${pinMarkHtml(String(activeId))}${isMuted(String(activeId)) ? '<span class="conv-muted" title="Уведомления отключены">🔕</span>' : ''}</div>
