@@ -26,6 +26,7 @@ header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store');
 
 require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/rtc_lib.php';   // rtcSendDm() — завести чат с пригласившим
 if (!function_exists('getDB') && !function_exists('getDbConnection') && !function_exists('getPDO')) {
     require_once __DIR__ . '/db.php';
 }
@@ -163,6 +164,17 @@ if ($action === 'claim') {
         if ($chk->fetchColumn()) refOut(['ok' => true, 'claimed' => false, 'why' => 'уже засчитано']);
         $pdo->prepare("INSERT INTO referral_invites (inviter_id, invited_id, code, joined_at) VALUES (?, ?, ?, NOW())")
             ->execute([$inviter, $userId, $code]);
+        // Сразу заводим переписку с пригласившим — чтобы у новичка появился живой чат
+        // с человеком, по чьей ссылке он пришёл (а не только зачёт в счётчике). Приветствие
+        // уходит от лица пригласившего. Только при ПЕРВОМ зачёте — INSERT выше уникален
+        // по invited_id, так что повторно сюда не попадём. rtcSendDm молчит при любой ошибке.
+        if (function_exists('rtcSendDm')) {
+            $inviterName = refUserName($pdo, $inviter);
+            $newcomer = refUserName($pdo, $userId);
+            $hi = trim($newcomer) !== '' ? ('Привет, ' . $newcomer . '! 👋') : 'Привет! 👋';
+            rtcSendDm($pdo, $inviter, $userId,
+                $hi . ' Ты присоединился к psytalk.pro по моей ссылке — рад видеть тебя здесь. Если будут вопросы, пиши.');
+        }
         refOut(['ok' => true, 'claimed' => true, 'inviter' => refUserName($pdo, $inviter)]);
     } catch (Exception $e) {
         refOut(['ok' => true, 'claimed' => false, 'why' => 'не удалось засчитать']);

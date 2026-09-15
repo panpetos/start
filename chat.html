@@ -4226,7 +4226,7 @@
                 <button type="button" onclick="closeCreateMenu();openCreateGroupModal()"><span>👥</span><div><b>Группа</b><i>общая переписка на несколько человек</i></div></button>
                 <button type="button" onclick="closeCreateMenu();openMyChannel()"><span>📢</span><div><b>Канал</b><i>публикации для подписчиков, попадают в Ленту</i></div></button>
                 <button type="button" onclick="closeCreateMenu();openMyBlog()"><span>📝</span><div><b>Блог</b><i>статьи с просмотрами и лайками</i></div></button>
-                <button type="button" onclick="closeCreateMenu();openBotStudio()"><span>🤖</span><div><b>Бот</b><i>токен для заявок с сайта, интеграций и OpenClaude</i></div></button>
+                <button type="button" id="createBotBtn" style="display:none;" onclick="closeCreateMenu();openBotStudio()"><span>🤖</span><div><b>Бот</b><i>токен для заявок с сайта, интеграций и OpenClaude</i></div></button>
             </div>
             </div>
             <!-- Край для перетаскивания ширины списка -->
@@ -7428,6 +7428,13 @@
             bookPsychId = urlParams.get('pid');
             isAdminMode = urlParams.get('admin') === '1' && currentUser.role === 'admin';
 
+            // Боты пока в разработке — создавать их могут только админы. Для остальных
+            // прячем пункт «Бот» в меню «Создать…».
+            try {
+                const botBtn = document.getElementById('createBotBtn');
+                if (botBtn) botBtn.style.display = (currentUser.role === 'admin') ? '' : 'none';
+            } catch (e) {}
+
             // Комиссия сервиса — для предпросмотра выплаты психологу при выставлении счёта
             try {
                 const sr = await fetch('/api/settings.php?action=public');
@@ -10561,6 +10568,11 @@
         // «+» → Бот: только СОЗДАНИЕ нового бота и список СВОИХ ботов (открывают чат).
         // Настройки каждого бота — внутри его чата (⚙️ → openBotSettings), не общей кучей.
         function openBotStudio() {
+            // Боты пока в разработке — создавать их могут только админы.
+            if (!currentUser || currentUser.role !== 'admin') {
+                if (typeof toast === 'function') toast('Боты пока в разработке');
+                return;
+            }
             let m = document.getElementById('psyBotModal');
             if (m) m.remove();
             const dark = document.body.classList.contains('dark');
@@ -10944,9 +10956,10 @@
                 <button class="folder-picker-row" onclick="event.stopPropagation();closeFolderPicker();openCreateGroupModal()">
                     <span class="fp-mark">👥</span>Новая группа
                 </button>
+                ${(currentUser && currentUser.role === 'admin') ? `
                 <button class="folder-picker-row" onclick="event.stopPropagation();closeFolderPicker();openBotStudio()">
                     <span class="fp-mark">🤖</span>Бот (токен, заявки, интеграции)
-                </button>
+                </button>` : ''}
                 <button class="folder-picker-row" onclick="event.stopPropagation();closeFolderPicker();openWallpaperPicker()">
                     <span class="fp-mark">🎨</span>Обои переписки
                 </button>

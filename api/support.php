@@ -83,6 +83,65 @@ try {
     });
 } catch (Exception $e) {}
 
+/**
+ * Слить раздвоившиеся обращения в одно на человека.
+ *
+ * ЗАЧЕМ. У людей набиралось по два обращения в поддержку: писали не войдя (обращение
+ * без user_id), потом заходили и писали снова (обращение уже с user_id) — либо с
+ * разных устройств. В списке админа висели две строки на одного, разговор рвался.
+ *
+ * КАК. (1) Гостевые обращения с известным e-mail привязываем к пользователю, у кого
+ * такой же e-mail (если он ровно один). (2) Все обращения одного user_id сливаем в
+ * самое свежее: переносим в него сообщения и удаляем пустые дубли. (3) То же для
+ * гостевых обращений с одинаковым e-mail. Идемпотентно: когда дублей нет — ничего не
+ * делает, поэтому безопасно гонять периодически.
+ */
+function consolidateSupportThreads(PDO $pdo) {
+    // (1) гость → пользователь по совпадающему e-mail (только при однозначном совпадении)
+    try {
+        $guests = $pdo->query("SELECT id, email FROM support_threads
+            WHERE (user_id IS NULL OR user_id = '') AND email IS NOT NULL AND email <> ''")->fetchAll(PDO::FETCH_ASSOC);
+        $find = $pdo->prepare("SELECT id FROM users WHERE email = ? LIMIT 2");
+        $set  = $pdo->prepare("UPDATE support_threads SET user_id = ? WHERE id = ?");
+        foreach ($guests as $g) {
+            $find->execute([$g['email']]);
+            $ids = $find->fetchAll(PDO::FETCH_COLUMN);
+            if (count($ids) === 1) $set->execute([(string)$ids[0], (int)$g['id']]);
+        }
+    } catch (Exception $e) {}
+
+    // Перенести сообщения дубля в основной тред и удалить дубль.
+    $merge = function ($rows) use ($pdo) {
+        $primary = [];   // ключ (user_id или e-mail) => id оставляемого треда (самого свежего)
+        $mv  = $pdo->prepare("UPDATE support_messages SET thread_id = ? WHERE thread_id = ?");
+        $del = $pdo->prepare("DELETE FROM support_threads WHERE id = ?");
+        foreach ($rows as $r) {
+            $k = $r['k'];
+            if ($k === '') continue;
+            if (!isset($primary[$k])) { $primary[$k] = (int)$r['id']; continue; }  // первый = самый свежий
+            $mv->execute([$primary[$k], (int)$r['id']]);
+            $del->execute([(int)$r['id']]);
+        }
+    };
+    // (2) по user_id
+    try {
+        $rows = $pdo->query("SELECT id, user_id AS k FROM support_threads
+            WHERE user_id IS NOT NULL AND user_id <> ''
+            ORDER BY user_id, last_at DESC, id DESC")->fetchAll(PDO::FETCH_ASSOC);
+        $merge($rows);
+    } catch (Exception $e) {}
+    // (3) по e-mail среди оставшихся гостевых
+    try {
+        $rows = $pdo->query("SELECT id, LOWER(TRIM(email)) AS k FROM support_threads
+            WHERE (user_id IS NULL OR user_id = '') AND email IS NOT NULL AND email <> ''
+            ORDER BY LOWER(TRIM(email)), last_at DESC, id DESC")->fetchAll(PDO::FETCH_ASSOC);
+        $merge($rows);
+    } catch (Exception $e) {}
+}
+// Раз в час: разбор дублей — фоновая уборка, отдельным ключом от создания схемы.
+try { psy_schema_once('support_dedupe_v1', 3600, function () use ($pdo) { consolidateSupportThreads($pdo); }); }
+catch (Exception $e) {}
+
 /** Профиль текущего пользователя (для авто-подстановки контактов). */
 function currentUserRow(PDO $pdo, $userId) {
     if (!$userId) return null;
