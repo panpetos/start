@@ -6957,6 +6957,7 @@
                 },
                 { icon: '🔎', label: 'Поиск по переписке', run: () => openChatSearch() },
                 { icon: '🧾', label: 'Краткое содержание (ИИ)', run: () => psySummarizeChat() },
+                { icon: '🙂', label: 'Настроение (чек-ин)', run: () => openMoodPanel() },
                 { icon: 'A', label: 'Форматирование текста', run: () => openComposer() },
                 { icon: '🎨', label: 'Обои переписки', run: () => openWallpaperPicker() },
             ];
@@ -13660,6 +13661,76 @@
             } catch (e) {}
         }
         window.openQuickReplies = openQuickReplies;
+
+        // ── Чек-ин настроения ────────────────────────────────────────────────────
+        const MOOD_EMO = { 1: '😞', 2: '😕', 3: '😐', 4: '🙂', 5: '😄' };
+        const MOOD_COL = { 1: '#EF4444', 2: '#F59E0B', 3: '#9CA3AF', 4: '#10B981', 5: '#047857' };
+        function moodTimelineHtml(rows) {
+            if (!rows || !rows.length) return '<div style="color:#9CA3AF;font-size:0.85rem;">Пока нет отметок.</div>';
+            return '<div style="display:flex;gap:3px;flex-wrap:wrap;align-items:flex-end;">' + rows.map(r => {
+                const s = +r.score;
+                const note = r.note ? (' — ' + String(r.note)) : '';
+                return `<div title="${escapeHtml(String(r.day) + ': ' + (MOOD_EMO[s] || '') + note)}"
+                    style="width:16px;height:${8 + s * 7}px;border-radius:3px;background:${MOOD_COL[s] || '#9CA3AF'};"></div>`;
+            }).join('') + '</div>';
+        }
+        async function moodLog(score) {
+            try {
+                await fetch('/api/mood.php?action=log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ score }) });
+            } catch (e) {}
+            if (typeof toast === 'function') toast('Настроение отмечено · ' + (MOOD_EMO[score] || ''));
+            moodRefreshSelf();
+        }
+        window.moodLog = moodLog;
+        async function moodRefreshSelf() {
+            const box = document.getElementById('moodSelfTl'); if (!box) return;
+            try {
+                const r = await (await fetch('/api/mood.php?action=history&days=30', { credentials: 'include' })).json();
+                if (r && r.ok) box.innerHTML = moodTimelineHtml(r.data) + (r.avg ? `<div style="font-size:0.8rem;color:#6B7280;margin-top:0.35rem;">Среднее за период: ${r.avg}/5</div>` : '');
+            } catch (e) {}
+        }
+        async function openMoodPanel() {
+            const dark = document.body.classList.contains('dark');
+            let m = document.getElementById('psyMoodModal'); if (m) m.remove();
+            m = document.createElement('div'); m.id = 'psyMoodModal';
+            m.style.cssText = 'position:fixed;inset:0;background:rgba(18,42,34,0.6);z-index:1360;display:flex;align-items:center;justify-content:center;padding:1rem;';
+            m.onclick = (e) => { if (e.target === m) m.remove(); };
+            m.innerHTML = `
+                <div style="background:${dark ? '#1E1E1E' : '#fff'};color:${dark ? '#E6E6E6' : '#1A1A1A'};border-radius:1rem;width:min(520px,96vw);max-height:85vh;overflow:auto;box-shadow:0 12px 40px rgba(0,0,0,0.3);">
+                    <div style="display:flex;align-items:center;justify-content:space-between;padding:0.9rem 1.1rem;border-bottom:1px solid ${dark ? '#333' : '#eee'};">
+                        <div style="font-weight:700;">🙂 Настроение</div>
+                        <button onclick="document.getElementById('psyMoodModal').remove()" style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:inherit;line-height:1;">✕</button>
+                    </div>
+                    <div style="padding:1rem 1.1rem;">
+                        <div style="font-weight:600;margin-bottom:0.5rem;">Как ты сегодня?</div>
+                        <div style="display:flex;gap:0.5rem;max-width:340px;">
+                            ${[1, 2, 3, 4, 5].map(s => `<button onclick="moodLog(${s})" title="${s}/5" style="flex:1;font-size:1.7rem;background:none;border:1.5px solid ${dark ? '#444' : '#e5e7eb'};border-radius:0.7rem;padding:0.35rem 0;cursor:pointer;line-height:1;">${MOOD_EMO[s]}</button>`).join('')}
+                        </div>
+                        <div style="font-weight:600;margin:1.1rem 0 0.4rem;">Моя динамика (30 дней)</div>
+                        <div id="moodSelfTl"></div>
+                        <div id="moodPeerWrap" style="display:none;">
+                            <div style="font-weight:600;margin:1.1rem 0 0.4rem;">Динамика собеседника (30 дней)</div>
+                            <div id="moodPeerTl"></div>
+                        </div>
+                    </div>
+                </div>`;
+            document.body.appendChild(m);
+            moodRefreshSelf();
+            const peer = selectedUserId;
+            const isPersonalPeer = peer && !isGroupMode() && !isSupportMode() && peer !== FAVORITES_ID
+                && String(peer).indexOf(BOT_PREFIX) !== 0;
+            if (isPersonalPeer) {
+                try {
+                    const r = await (await fetch('/api/mood.php?action=history&days=30&user_id=' + encodeURIComponent(peer), { credentials: 'include' })).json();
+                    if (r && r.ok && r.data && r.data.length) {
+                        const w = document.getElementById('moodPeerWrap'); if (w) w.style.display = '';
+                        const t = document.getElementById('moodPeerTl');
+                        if (t) t.innerHTML = moodTimelineHtml(r.data) + (r.avg ? `<div style="font-size:0.8rem;color:#6B7280;margin-top:0.35rem;">Среднее: ${r.avg}/5</div>` : '');
+                    }
+                } catch (e) {}
+            }
+        }
+        window.openMoodPanel = openMoodPanel;
 
         /** Прервать ответ: длинные ответы иногда не нужны целиком. */
         let aiAbort = null;
