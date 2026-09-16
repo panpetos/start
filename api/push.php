@@ -56,6 +56,10 @@ if (!$pdo) {
 
 if (session_status() === PHP_SESSION_NONE) session_start();
 $userId = $_SESSION['user_id'] ?? null;
+// Снимаем блокировку файла сессии сразу после чтения: этот эндпоинт в сессию
+// больше не пишет, а параллельные опросы одного клиента иначе выстраивались бы в
+// очередь на блокировке сессии и тормозили друг друга (важно под нагрузкой).
+if (session_status() === PHP_SESSION_ACTIVE) session_write_close();
 
 function pushOut($d, $code = 200) { http_response_code($code); echo json_encode($d, JSON_UNESCAPED_UNICODE); exit; }
 

@@ -32,6 +32,10 @@ if (!$pdo) { http_response_code(500); echo json_encode(['error' => 'Нет по�
 
 if (session_status() === PHP_SESSION_NONE) session_start();
 $userId = $_SESSION['user_id'] ?? null;
+// Снимаем блокировку файла сессии сразу после чтения: этот эндпоинт в сессию
+// больше не пишет, а параллельные опросы одного клиента иначе выстраивались бы в
+// очередь на блокировке сессии и тормозили друг друга (важно под нагрузкой).
+if (session_status() === PHP_SESSION_ACTIVE) session_write_close();
 if (!$userId) { http_response_code(401); echo json_encode(['error' => 'Требуется авторизация']); exit; }
 
 function out($d, $c = 200) { http_response_code($c); echo json_encode($d, JSON_UNESCAPED_UNICODE); exit; }
