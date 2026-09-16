@@ -29,6 +29,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') { http_response_code(204); exit; }
 
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/schema_util.php';
+require_once __DIR__ . '/rate_limit.php';   // антифлуд на отправку в группу
 if (!function_exists('getDB') && !function_exists('getDbConnection') && !function_exists('getPDO')) {
     require_once __DIR__ . '/db.php';
 }
@@ -238,6 +239,10 @@ if ($action === 'send' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $content = trim((string)($body['content'] ?? ''));
     if (!$groupId) out(['error' => 'Не передан номер группы'], 400);
     if (!isMember($pdo, $groupId, $userId)) out(['error' => 'Вы не участник этой группы (или группа удалена)'], 403);
+    // Антифлуд: не больше 40 сообщений за 20 секунд от одного человека.
+    if (function_exists('psyRateLimit') && !psyRateLimit($pdo, 'grp_send:' . $userId, 40, 20)) {
+        out(['error' => 'Слишком часто. Подождите пару секунд.'], 429);
+    }
     // Вложение (фото, файл, голосовое, кружок). Ссылку принимаем только свою — либо
     // относительный путь на сайте, либо https, иначе в группу можно было бы подсунуть что угодно.
     $attUrl  = trim((string)($body['attachment_url'] ?? ''));

@@ -34,6 +34,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') { http_response_code(204); exit; }
 
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/schema_util.php';
+require_once __DIR__ . '/rate_limit.php';   // антифлуд на публикацию историй
 if (!function_exists('getDB') && !function_exists('getDbConnection') && !function_exists('getPDO')) {
     require_once __DIR__ . '/db.php';
 }
@@ -274,6 +275,9 @@ try {
         $mediaType = trim((string)($body['media_type'] ?? 'image'));
         $caption = trim((string)($body['caption'] ?? ''));
         if ($mediaUrl === '') out(['ok' => false, 'error' => 'Не передано фото'], 400);
+        if (function_exists('psyRateLimit') && !psyRateLimit($pdo, 'story_create:' . $userId, 15, 3600)) {
+            out(['ok' => false, 'error' => 'Слишком часто публикуете истории — попробуйте позже'], 429);
+        }
         if (mb_strlen($caption) > 300) $caption = mb_substr($caption, 0, 300, 'UTF-8');
         // Не больше 20 активных историй на человека — не подсчитывать бесконечно растущий список.
         $cnt = $pdo->prepare("SELECT COUNT(*) FROM stories WHERE user_id = ? AND expires_at > NOW()");

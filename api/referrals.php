@@ -27,6 +27,7 @@ header('Cache-Control: no-store');
 
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/rtc_lib.php';   // rtcSendDm() — завести чат с пригласившим
+require_once __DIR__ . '/rate_limit.php';   // антифлуд на счётчик переходов
 if (!function_exists('getDB') && !function_exists('getDbConnection') && !function_exists('getPDO')) {
     require_once __DIR__ . '/db.php';
 }
@@ -138,6 +139,10 @@ if ($action === 'who') {
 if ($action === 'touch') {
     $code = refCleanCode($body['code'] ?? '');
     if ($code === '') refOut(['ok' => true]);
+    // Антифлуд: счётчик переходов не должен накручиваться ботами — не чаще 20/мин с адреса.
+    if (function_exists('psyRateLimit') && !psyRateLimit($pdo, 'ref_touch:' . psyClientIp(), 20, 60)) {
+        refOut(['ok' => true]);   // тихо игнорируем, не ругаемся
+    }
     try {
         $pdo->prepare("INSERT INTO referral_clicks (code, day, hits) VALUES (?, CURDATE(), 1)
                        ON DUPLICATE KEY UPDATE hits = hits + 1")->execute([$code]);

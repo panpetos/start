@@ -34,6 +34,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') { http_response_code(204); exit; }
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/schema_util.php';
 require_once __DIR__ . '/notify_lib.php';
+require_once __DIR__ . '/rate_limit.php';   // антифлуд: поддержка открыта анонимно
 if (!function_exists('getDB') && !function_exists('getDbConnection') && !function_exists('getPDO')) {
     require_once __DIR__ . '/db.php';
 }
@@ -182,6 +183,10 @@ if ($action === 'start') {
     // не читалось и не сохранялось — фото/файл/голосовое, отправленные самым первым
     // сообщением, молча терялись. Теперь как во всех остальных действиях: нужен текст ИЛИ вложение.
     if ($message === '' && $attUrl === '') { http_response_code(400); echo json_encode(['error' => 'Введите сообщение']); exit; }
+    // Антифлуд: не больше 5 новых обращений в минуту с одного адреса.
+    if (!psyRateLimit($pdo, 'sup_start:' . psyClientIp(), 5, 60)) {
+        http_response_code(429); echo json_encode(['error' => 'Слишком часто. Подождите немного и попробуйте снова.']); exit;
+    }
 
     $me = currentUserRow($pdo, $userId);
     if ($me) {
@@ -247,6 +252,10 @@ if ($action === 'send') {
     $thread = threadByToken($pdo, $token);
     if (!$thread) { http_response_code(404); echo json_encode(['error' => 'Сессия чата не найдена']); exit; }
     if ($message === '' && $attUrl === '') { http_response_code(400); echo json_encode(['error' => 'Пустое сообщение']); exit; }
+    // Антифлуд: не больше 30 сообщений в минуту в одном обращении.
+    if (!psyRateLimit($pdo, 'sup_send:' . (int)$thread['id'], 30, 60)) {
+        http_response_code(429); echo json_encode(['error' => 'Слишком часто. Подождите немного.']); exit;
+    }
     try {
         $st = $pdo->prepare("INSERT INTO support_messages (thread_id, sender, body, attachment_url, attachment_type, attachment_name) VALUES (?, 'user', ?, ?, ?, ?)");
         $st->execute([(int)$thread['id'], $message, $attUrl ?: null, $attType ?: null, $attName ?: null]);
@@ -303,6 +312,10 @@ if ($action === 'upload') {
     // Вложения виджета поддержки (фото/файл/голосовое) — доступно анонимным посетителям.
     // /api/upload.php требует обычную сессию Auth, которой у гостя нет — оттуда и «не аутентифицирован»
     // при отправке чего угодно, кроме текста. Свой загрузчик, без проверки логина.
+    // Антифлуд: анонимная загрузка файлов — самый прожорливый путь к диску.
+    if (!psyRateLimit($pdo, 'sup_upload:' . psyClientIp(), 12, 3600)) {
+        http_response_code(429); echo json_encode(['error' => 'Слишком много файлов. Попробуйте позже.']); exit;
+    }
     if (empty($_FILES['file']) || !is_array($_FILES['file'])) { http_response_code(400); echo json_encode(['error' => 'Файл не передан']); exit; }
     $f = $_FILES['file'];
     if (($f['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) { http_response_code(400); echo json_encode(['error' => 'Ошибка загрузки файла']); exit; }
