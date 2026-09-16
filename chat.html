@@ -13680,7 +13680,8 @@
                 await fetch('/api/mood.php?action=log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ score }) });
             } catch (e) {}
             if (typeof toast === 'function') toast('Настроение отмечено · ' + (MOOD_EMO[score] || ''));
-            moodRefreshSelf();
+            // Отметил — окно закрываем: человек выбрал и пошёл дальше, как в трекерах.
+            const m = document.getElementById('psyMoodModal'); if (m) m.remove();
         }
         window.moodLog = moodLog;
         async function moodRefreshSelf() {
@@ -13735,6 +13736,16 @@
 
         // ── Домашние задания ─────────────────────────────────────────────────────
         let hwItems = [];
+        let hwPendingAtt = null;   // {url,type,name} — выбранный файл к новому заданию
+        function hwAttHtml(h) {
+            if (!h.attachment_url) return '';
+            const nm = h.attachment_name || 'файл';
+            if (h.attachment_type === 'image') {
+                return `<a href="${escapeHtml(h.attachment_url)}" target="_blank" rel="noopener" style="display:inline-block;margin-top:0.3rem;">
+                    <img src="${escapeHtml(h.attachment_url)}" alt="${escapeHtml(nm)}" style="max-width:160px;max-height:120px;border-radius:0.5rem;border:1px solid rgba(127,127,127,0.2);"></a>`;
+            }
+            return `<a href="${escapeHtml(h.attachment_url)}" target="_blank" rel="noopener" style="display:inline-block;margin-top:0.3rem;font-size:0.82rem;color:#047857;font-weight:600;">📎 ${escapeHtml(nm)}</a>`;
+        }
         function hwRenderList() {
             const box = document.getElementById('hwList'); if (!box) return;
             if (!hwItems.length) { box.innerHTML = '<div style="color:#9CA3AF;font-size:0.9rem;padding:0.4rem 0;">Пока нет заданий.</div>'; return; }
@@ -13749,6 +13760,7 @@
                     <div style="flex:1;min-width:0;">
                         <div style="font-weight:600;${done ? 'opacity:0.6;text-decoration:line-through;' : ''}">${escapeHtml(h.title)}</div>
                         ${h.details ? `<div style="font-size:0.85rem;color:#6B7280;margin-top:0.15rem;white-space:pre-wrap;">${escapeHtml(h.details)}</div>` : ''}
+                        ${hwAttHtml(h)}
                         <div style="margin-top:0.2rem;display:flex;gap:0.6rem;align-items:center;">
                             ${due}
                             <span style="font-size:0.72rem;color:#9CA3AF;">${h.mine ? 'вы выдали' : 'вам'}</span>
@@ -13770,18 +13782,47 @@
             hwRenderList();
         }
         window.hwDelete = hwDelete;
+        function hwAttChipHtml() {
+            if (!hwPendingAtt) return '';
+            return `📎 ${escapeHtml(hwPendingAtt.name || 'файл')} <button type="button" onclick="hwClearAtt()" title="Убрать" style="background:none;border:none;cursor:pointer;color:#EF4444;font-weight:700;">✕</button>`;
+        }
+        function hwPaintChip() {
+            const c = document.getElementById('hwAttChip'); if (c) c.innerHTML = hwAttChipHtml();
+        }
+        function hwClearAtt() { hwPendingAtt = null; hwPaintChip(); const f = document.getElementById('hwFile'); if (f) f.value = ''; }
+        window.hwClearAtt = hwClearAtt;
+        async function hwAttPick(input) {
+            const file = input && input.files && input.files[0];
+            if (!file) return;
+            const c = document.getElementById('hwAttChip'); if (c) c.textContent = 'Загружаю файл…';
+            try {
+                const url = await uploadFileUrl(file);
+                const isImg = (file.type || '').startsWith('image/');
+                const isVid = (file.type || '').startsWith('video/');
+                hwPendingAtt = { url, name: file.name, type: isImg ? 'image' : (isVid ? 'video' : 'file') };
+            } catch (e) {
+                hwPendingAtt = null;
+                if (typeof toast === 'function') toast('Не удалось загрузить: ' + (e.message || 'ошибка'));
+            }
+            hwPaintChip();
+        }
+        window.hwAttPick = hwAttPick;
         async function hwAddNew() {
             const t = document.getElementById('hwTitle'); const d = document.getElementById('hwDetails'); const due = document.getElementById('hwDue');
             const title = t ? t.value.trim() : '';
             if (!title) { if (typeof toast === 'function') toast('Введите название задания'); return; }
+            const att = hwPendingAtt;
             try {
                 const r = await (await fetch('/api/homework.php?action=add', {
                     method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
-                    body: JSON.stringify({ to_id: selectedUserId, title, details: d ? d.value.trim() : '', due: due ? due.value : '' })
+                    body: JSON.stringify({ to_id: selectedUserId, title, details: d ? d.value.trim() : '', due: due ? due.value : '',
+                                           attachment_url: att ? att.url : '', attachment_type: att ? att.type : '', attachment_name: att ? att.name : '' })
                 })).json();
                 if (r && r.ok) {
-                    hwItems.unshift({ id: r.id, from_id: currentUser.id, to_id: selectedUserId, title, details: d ? d.value.trim() : '', due_date: (due && due.value) || null, status: 'open', mine: true });
+                    hwItems.unshift({ id: r.id, from_id: currentUser.id, to_id: selectedUserId, title, details: d ? d.value.trim() : '', due_date: (due && due.value) || null, status: 'open', mine: true,
+                                      attachment_url: att ? att.url : null, attachment_type: att ? att.type : null, attachment_name: att ? att.name : null });
                     if (t) t.value = ''; if (d) d.value = ''; if (due) due.value = '';
+                    hwClearAtt();
                     hwRenderList();
                     if (typeof toast === 'function') toast('Задание выдано');
                 } else if (typeof toast === 'function') toast(r && r.error ? r.error : 'Не удалось');
@@ -13810,13 +13851,18 @@
                         ${inp('Детали (необязательно)', 'hwDetails', 2)}
                         <label style="font-size:0.8rem;color:#6B7280;display:flex;align-items:center;gap:0.5rem;">Срок:
                             <input type="date" id="hwDue" style="padding:0.35rem 0.5rem;border:1.5px solid ${dark ? '#444' : '#e0e0e0'};border-radius:0.5rem;font-family:inherit;background:${dark ? '#2A2A2A' : '#fff'};color:inherit;"></label>
+                        <div style="display:flex;align-items:center;gap:0.6rem;flex-wrap:wrap;">
+                            <button type="button" onclick="document.getElementById('hwFile').click()" style="padding:0.45rem 0.75rem;border:1.5px solid ${dark ? '#444' : '#e0e0e0'};border-radius:0.6rem;background:none;color:inherit;cursor:pointer;font-family:inherit;font-size:0.85rem;">📎 Прикрепить файл</button>
+                            <input type="file" id="hwFile" style="display:none;" onchange="hwAttPick(this)">
+                            <span id="hwAttChip" style="font-size:0.82rem;color:#6B7280;"></span>
+                        </div>
                         <div style="display:flex;justify-content:flex-end;">
                             <button onclick="hwAddNew()" style="padding:0.5rem 0.9rem;background:linear-gradient(135deg,#047857,#059669);color:#fff;border:none;border-radius:0.6rem;font-weight:700;cursor:pointer;font-family:inherit;">Выдать задание</button>
                         </div>
                     </div>
                 </div>`;
             document.body.appendChild(m);
-            hwItems = []; hwRenderList();
+            hwItems = []; hwPendingAtt = null; hwRenderList();
             try {
                 const r = await (await fetch('/api/homework.php?action=list&with=' + encodeURIComponent(selectedUserId), { credentials: 'include' })).json();
                 if (r && r.ok) { hwItems = r.data || []; hwRenderList(); }

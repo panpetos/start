@@ -52,6 +52,10 @@ try {
         INDEX idx_pair (from_id, to_id),
         INDEX idx_to (to_id)
     ) DEFAULT CHARSET=utf8mb4");
+    // Вложения к заданию — добавляем отдельно, у кого таблица уже создана без них.
+    try { $pdo->exec("ALTER TABLE homework ADD COLUMN attachment_url VARCHAR(500) NULL"); } catch (Exception $e) {}
+    try { $pdo->exec("ALTER TABLE homework ADD COLUMN attachment_type VARCHAR(40) NULL"); } catch (Exception $e) {}
+    try { $pdo->exec("ALTER TABLE homework ADD COLUMN attachment_name VARCHAR(255) NULL"); } catch (Exception $e) {}
 } catch (Exception $e) { hwOut(['ok' => false, 'error' => 'Не удалось подготовить таблицу'], 500); }
 
 $action = $_GET['action'] ?? '';
@@ -67,7 +71,8 @@ if ($action === 'list') {
     $peer = trim((string)($_GET['with'] ?? ''));
     if ($peer === '') hwOut(['ok' => true, 'data' => []]);
     try {
-        $st = $pdo->prepare("SELECT id, from_id, to_id, title, details, due_date, status, created_at, done_at
+        $st = $pdo->prepare("SELECT id, from_id, to_id, title, details, due_date, status, created_at, done_at,
+                                    attachment_url, attachment_type, attachment_name
                              FROM homework
                              WHERE (from_id = ? AND to_id = ?) OR (from_id = ? AND to_id = ?)
                              ORDER BY (status = 'done') ASC, COALESCE(due_date, '9999-12-31') ASC, id DESC
@@ -91,15 +96,27 @@ if ($action === 'add' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $details = $details !== '' ? mb_substr($details, 0, 4000) : null;
     // Дату принимаем только в виде YYYY-MM-DD, иначе — без срока.
     if ($due !== '' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $due)) $due = '';
+    // Вложение (уже загружено клиентом через upload.php — сюда приходит только ссылка).
+    $attUrl = trim((string)($body['attachment_url'] ?? ''));
+    $attType = trim((string)($body['attachment_type'] ?? ''));
+    $attName = trim((string)($body['attachment_name'] ?? ''));
+    // Пускаем только свои загруженные пути, чтобы через это поле нельзя было подсунуть чужой адрес.
+    if ($attUrl !== '' && strpos($attUrl, '/uploads/') !== 0) { $attUrl = ''; $attType = ''; $attName = ''; }
+    $attUrl = mb_substr($attUrl, 0, 500);
+    $attType = mb_substr($attType, 0, 40);
+    $attName = mb_substr($attName, 0, 255);
     try {
-        $st = $pdo->prepare("INSERT INTO homework (from_id, to_id, title, details, due_date, status, created_at)
-                             VALUES (?, ?, ?, ?, ?, 'open', NOW())");
-        $st->execute([$userId, $to, $title, $details, $due !== '' ? $due : null]);
+        $st = $pdo->prepare("INSERT INTO homework (from_id, to_id, title, details, due_date, status, created_at,
+                                                   attachment_url, attachment_type, attachment_name)
+                             VALUES (?, ?, ?, ?, ?, 'open', NOW(), ?, ?, ?)");
+        $st->execute([$userId, $to, $title, $details, $due !== '' ? $due : null,
+                      $attUrl !== '' ? $attUrl : null, $attType !== '' ? $attType : null, $attName !== '' ? $attName : null]);
         $id = (int)$pdo->lastInsertId();
     } catch (Exception $e) { hwOut(['ok' => false, 'error' => 'Не удалось создать задание'], 500); }
     // Строка-напоминание в переписку — побочное действие, тихо и после сохранения.
     if (function_exists('rtcSendDm')) {
-        $line = '📌 Домашнее задание: ' . $title . ($due !== '' ? ' (до ' . $due . ')' : '');
+        $line = '📌 Домашнее задание: ' . $title . ($due !== '' ? ' (до ' . $due . ')' : '')
+              . ($attUrl !== '' ? ' 📎 файл прикреплён' : '');
         rtcSendDm($pdo, $userId, $to, $line);
     }
     hwOut(['ok' => true, 'id' => $id]);
