@@ -5282,7 +5282,8 @@
                     { icon: '🔗', label: 'Встреча в Телемосте (запасной путь)', run: () => startGroupVideoCall(groupId) },
                     { icon: '🔎', label: 'Поиск по переписке', run: () => openChatSearch() },
                     { icon: '🧾', label: 'Краткое содержание (ИИ)', run: () => psySummarizeChat() },
-                    { icon: 'A', label: 'Форматирование текста', run: () => openComposer() },
+                    // На телефоне форматирование живёт в меню ввода снизу — в шапке не дублируем.
+                    !isPhoneLayout() && { icon: 'A', label: 'Форматирование текста', run: () => openComposer() },
                     { icon: '🎨', label: 'Обои переписки', run: () => openWallpaperPicker() },
                 ], '')}`;
         }
@@ -6959,7 +6960,8 @@
                 { icon: '🧾', label: 'Краткое содержание (ИИ)', run: () => psySummarizeChat() },
                 { icon: '🙂', label: 'Настроение (чек-ин)', run: () => openMoodPanel() },
                 { icon: '📌', label: 'Домашние задания', run: () => openHomework() },
-                { icon: 'A', label: 'Форматирование текста', run: () => openComposer() },
+                // На телефоне форматирование живёт в меню ввода снизу — в шапке его не дублируем.
+                !isPhoneLayout() && { icon: 'A', label: 'Форматирование текста', run: () => openComposer() },
                 { icon: '🎨', label: 'Обои переписки', run: () => openWallpaperPicker() },
             ];
             return `
@@ -16701,7 +16703,9 @@
             }
             if (ai) items.push({ ico: '🎤', label: 'Продиктовать голосом', run: () => toggleDictation() });
             if (ai) items.push({ ico: '🎨', label: 'Нарисовать картинку', run: () => aiDrawImage() });
-            if (!mob) items.push({ ico: 'A', label: 'Форматирование текста', run: () => openComposer() });
+            // Форматирование — и на телефоне тоже здесь, в меню ввода снизу: в шапке
+            // (три точки) на телефоне его убрали, чтобы кнопка была одна и под рукой.
+            items.push({ ico: 'A', label: 'Форматирование текста', run: () => openComposer() });
             // Схему часто рисуют без остального оформления — пусть будет отдельным
             // пунктом, а не только кнопкой внутри окна форматирования.
             items.push({ ico: '⤵', label: 'Блок-схема', run: () => openDiagramBuilder('input') });
