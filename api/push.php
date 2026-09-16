@@ -407,33 +407,42 @@ if ($action === 'pending') {
         }
     } catch (Exception $e) { /* таблицы звонков может ещё не быть */ }
 
-    $cnt = 0; $names = [];
+    // Короткий и «чистый» текст сообщения для уведомления: убираем служебные
+    // метки, схлопываем пробелы, режем длину; пустой текст (вложение) — значком.
+    $prev = function ($text) {
+        $t = preg_replace('/^\s*\[RE#[0-9A-Za-z]+\]\s*/', '', (string)$text);
+        $t = preg_replace('/^\s*\[ORDER#\d+\]\s*/', '', (string)$t);
+        $t = trim(preg_replace('/\s+/u', ' ', (string)$t));
+        if ($t === '') return '📎 Вложение';
+        return (function_exists('mb_strlen') && mb_strlen($t) > 90) ? mb_substr($t, 0, 90) . '…' : $t;
+    };
+
+    // Личные: общий счёт (для бейджа) и самое свежее сообщение (для текста).
+    $cnt = 0;
     try {
-        $st = $pdo->prepare("SELECT m.sender_id, COUNT(*) AS c
-                              FROM messages m
+        $st = $pdo->prepare("SELECT COUNT(*) FROM messages m
                               WHERE m.receiver_id = ? AND m.sender_id <> ?
-                                AND NOT EXISTS (
-                                    SELECT 1 FROM messages r
-                                    WHERE r.sender_id = m.receiver_id AND r.receiver_id = m.sender_id
-                                      AND r.created_at > m.created_at)
-                                AND m.created_at > DATE_SUB(NOW(), INTERVAL 24 HOUR)
-                              GROUP BY m.sender_id ORDER BY MAX(m.created_at) DESC LIMIT 3");
+                                AND NOT EXISTS (SELECT 1 FROM messages r
+                                    WHERE r.sender_id = m.receiver_id AND r.receiver_id = m.sender_id AND r.created_at > m.created_at)
+                                AND m.created_at > DATE_SUB(NOW(), INTERVAL 24 HOUR)");
         $st->execute([$userId, $userId]);
-        foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $r) {
-            $cnt += (int)$r['c'];
-            try {
-                $u = $pdo->prepare("SELECT first_name, last_name FROM users WHERE id = ? LIMIT 1");
-                $u->execute([$r['sender_id']]);
-                $row = $u->fetch(PDO::FETCH_ASSOC);
-                $nm = trim((($row['first_name'] ?? '') . ' ' . ($row['last_name'] ?? '')));
-                if ($nm !== '') $names[] = $nm;
-            } catch (Exception $e) {}
-        }
+        $cnt = (int)$st->fetchColumn();
+    } catch (Exception $e) {}
+    $latestP = null;
+    try {
+        $st = $pdo->prepare("SELECT m.sender_id, m.content, m.created_at, u.first_name, u.last_name
+                              FROM messages m LEFT JOIN users u ON u.id = m.sender_id
+                              WHERE m.receiver_id = ? AND m.sender_id <> ?
+                                AND NOT EXISTS (SELECT 1 FROM messages r
+                                    WHERE r.sender_id = m.receiver_id AND r.receiver_id = m.sender_id AND r.created_at > m.created_at)
+                                AND m.created_at > DATE_SUB(NOW(), INTERVAL 24 HOUR)
+                              ORDER BY m.created_at DESC LIMIT 1");
+        $st->execute([$userId, $userId]);
+        $latestP = $st->fetch(PDO::FETCH_ASSOC) ?: null;
     } catch (Exception $e) {}
 
-    // Группы и каналы считаем тоже: иначе пуш о сообщении в группе показывал
-    // «Загляните в чаты» — человек не понимал, что вообще случилось.
-    $grp = 0;
+    // Группы: счёт и самое свежее непрочитанное сообщение.
+    $grp = 0; $latestG = null;
     try {
         $st = $pdo->prepare("SELECT COUNT(*) FROM chat_group_messages gm
                               JOIN chat_group_members me ON me.group_id = gm.group_id AND me.user_id = ?
@@ -441,17 +450,43 @@ if ($action === 'pending') {
         $st->execute([$userId, $userId]);
         $grp = (int)$st->fetchColumn();
     } catch (Exception $e) {}
+    try {
+        $st = $pdo->prepare("SELECT gm.group_id, gm.content, gm.created_at, gm.sender_id, u.first_name, u.last_name
+                              FROM chat_group_messages gm
+                              JOIN chat_group_members me ON me.group_id = gm.group_id AND me.user_id = ?
+                              LEFT JOIN users u ON u.id = gm.sender_id
+                              WHERE gm.sender_id <> ? AND gm.id > COALESCE(me.last_read_message_id, 0)
+                              ORDER BY gm.id DESC LIMIT 1");
+        $st->execute([$userId, $userId]);
+        $latestG = $st->fetch(PDO::FETCH_ASSOC) ?: null;
+    } catch (Exception $e) {}
 
     $total = $cnt + $grp;
     if ($total <= 0) pushOut(['ok' => true, 'count' => 0, 'title' => 'psytalk.pro', 'body' => 'Загляните в чаты', 'url' => '/chat.html']);
-    $who = implode(', ', $names);
-    // Заголовок — имя автора, если сообщение личное и одно; в остальных случаях
-    // общий, чтобы не врать «от Ивана», когда написали ещё и в группу.
-    $title = ($cnt > 0 && $who !== '' && $grp === 0) ? $who : 'psytalk.pro';
-    $body = $total === 1
-        ? ($grp === 1 ? 'Новое сообщение в группе' : 'Новое сообщение в чатах')
-        : "Новых сообщений: $total";
-    pushOut(['ok' => true, 'count' => $total, 'title' => $title, 'body' => $body, 'url' => '/chat.html']);
+
+    // Заголовок и текст — по самому свежему сообщению (личному или групповому).
+    $useGroup = ($latestG && (!$latestP || strtotime((string)$latestG['created_at']) > strtotime((string)$latestP['created_at'])));
+    $title = 'psytalk.pro'; $bodyTxt = 'Новое сообщение'; $url = '/chat.html'; $canReply = false;
+    if ($useGroup && $latestG) {
+        $gname = 'Группа';
+        try { $g = $pdo->prepare("SELECT * FROM chat_groups WHERE id = ? LIMIT 1"); $g->execute([$latestG['group_id']]);
+              $gr = $g->fetch(PDO::FETCH_ASSOC) ?: []; $gname = trim((string)($gr['name'] ?? ($gr['title'] ?? ''))) ?: 'Группа'; } catch (Exception $e) {}
+        $sender = trim((($latestG['first_name'] ?? '') . ' ' . ($latestG['last_name'] ?? ''))) ?: 'Участник';
+        $title = $gname;
+        $bodyTxt = $sender . ': ' . $prev($latestG['content']);
+        $url = '/chat.html?open=group:' . rawurlencode((string)$latestG['group_id']);
+        $canReply = true;
+    } elseif ($latestP) {
+        $title = trim((($latestP['first_name'] ?? '') . ' ' . ($latestP['last_name'] ?? ''))) ?: 'Собеседник';
+        $bodyTxt = $prev($latestP['content']);
+        $url = '/chat.html?open=' . rawurlencode((string)$latestP['sender_id']);
+        $canReply = true;
+    }
+    // Есть ещё непрочитанные помимо показанного — намекнём цифрой.
+    if ($total > 1) $bodyTxt .= '  ·  +' . ($total - 1);
+
+    pushOut(['ok' => true, 'count' => $total, 'title' => $title, 'body' => $bodyTxt,
+             'url' => $url, 'can_reply' => $canReply, 'reply_url' => $canReply ? ($url . '&reply=1') : null]);
 }
 
 /**

@@ -7526,6 +7526,15 @@
                 await openSupportThread(supportIdFromUrl);
             }
 
+            // Пришли по кнопке «Ответить» из пуш-уведомления — сразу ставим курсор в поле
+            // ввода нужного чата, чтобы можно было ответить с одного касания.
+            if (urlParams.get('reply') === '1') {
+                setTimeout(() => {
+                    const inp = document.getElementById('messageInput');
+                    if (inp) { try { inp.focus(); inp.scrollIntoView({ block: 'end' }); } catch (e) {} }
+                }, 700);
+            }
+
             // ?share=… — сюда приходят из ленты и из блога кнопкой «Поделиться».
             // Сразу открываем выбор получателя, чтобы человек не искал, куда жать.
             const shareFromUrl = urlParams.get('share');

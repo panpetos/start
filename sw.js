@@ -13,7 +13,7 @@
  * переписка — это ещё и чужие данные на общем устройстве.
  */
 
-const VERSION = 'psy-v7';   // поднято: приём «Поделиться» из других приложений
+const VERSION = 'psy-v8';   // поднято: текст сообщения в пуше + кнопка «Ответить»
 const SHELL = VERSION + '-shell';
 
 // Оболочка: то, без чего окно не нарисуется. Страницы сюда не входят намеренно —
@@ -188,6 +188,11 @@ self.addEventListener('push', (e) => {
         const url = (d && d.url) || '/chat.html';
         const count = d && typeof d.count === 'number' ? d.count : 0;
         const isCall = !!(d && d.call);
+        const canReply = !!(d && d.can_reply);
+        // Куда вести кнопку «Ответить»: прямо в нужный чат с раскрытым полём ввода.
+        // (Веб-уведомления не умеют ввод текста прямо в шторке — это только у нативных
+        //  приложений; поэтому «ответить» открывает чат сразу на поле ответа.)
+        const replyUrl = (d && d.reply_url) || (url + (url.indexOf('?') >= 0 ? '&' : '?') + 'reply=1');
         // Звонок ведёт себя иначе, чем сообщение: не гаснет сам, вибрирует «очередью»
         // и не сворачивается в общую ленту уведомлений — иначе вызов легко пропустить
         // при выключенном экране.
@@ -202,9 +207,11 @@ self.addEventListener('push', (e) => {
             // кармане должен дать понять, что это вызов, а не сообщение.
             vibrate: isCall ? [500, 250, 500, 250, 500, 250, 500] : undefined,
             silent: false,
-            // Кнопка прямо в уведомлении — не нужно искать вкладку, чтобы ответить
-            actions: isCall ? [{ action: 'answer', title: 'Ответить' }] : undefined,
-            data: { url },
+            // Кнопки прямо в уведомлении. Для звонка — «Ответить»; для сообщения —
+            // «Ответить» (откроет чат на поле ввода) и «Открыть».
+            actions: isCall ? [{ action: 'answer', title: 'Ответить' }]
+                   : (canReply ? [{ action: 'reply', title: '✍️ Ответить' }, { action: 'open', title: 'Открыть' }] : undefined),
+            data: { url, reply_url: replyUrl },
         });
         // Число на иконке приложения, где это поддерживается
         try {
@@ -218,7 +225,9 @@ self.addEventListener('push', (e) => {
 self.addEventListener('notificationclick', (e) => {
     e.notification.close();
     try { if (self.navigator && self.navigator.clearAppBadge) self.navigator.clearAppBadge(); } catch (err) {}
-    const target = (e.notification.data && e.notification.data.url) || '/chat.html';
+    const data = e.notification.data || {};
+    // «Ответить» ведёт сразу к полю ввода нужного чата; остальное — просто открыть чат.
+    const target = (e.action === 'reply' && data.reply_url) ? data.reply_url : (data.url || '/chat.html');
     e.waitUntil((async () => {
         const all = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
         for (const c of all) {
