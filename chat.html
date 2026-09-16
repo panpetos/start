@@ -13985,12 +13985,56 @@
                         <div style="margin-top:0.9rem;padding-top:0.8rem;border-top:1px solid ${dark ? '#333' : '#eee'};">
                             <button onclick="sosAlert(this)" style="width:100%;padding:0.8rem;background:linear-gradient(135deg,#DC2626,#B91C1C);color:#fff;border:none;border-radius:0.8rem;font-weight:700;font-size:0.98rem;cursor:pointer;font-family:inherit;">Сообщить моему специалисту, что нужна помощь</button>
                             <p style="font-size:0.78rem;color:#9CA3AF;margin:0.5rem 0 0;text-align:center;">Специалист может быть не онлайн — при острой ситуации сначала звоните по телефону выше.</p>
+                            <button onclick="document.getElementById('psySosModal').remove();openBreathing()" style="width:100%;margin-top:0.6rem;padding:0.7rem;background:none;border:1.5px solid ${dark ? '#1F6B4F' : '#A7F3D0'};color:${dark ? '#6EE7B7' : '#047857'};border-radius:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;">🫁 Подышать и успокоиться</button>
                         </div>
                     </div>
                 </div>`;
             document.body.appendChild(m);
         }
         window.openSosPanel = openSosPanel;
+
+        // ── Дыхательное упражнение (успокоиться за минуту) ────────────────────────
+        let breathTimer = null;
+        function breathStop() {
+            if (breathTimer) { clearTimeout(breathTimer); breathTimer = null; }
+            const m = document.getElementById('psyBreathModal'); if (m) m.remove();
+        }
+        window.breathStop = breathStop;
+        function openBreathing() {
+            const dark = document.body.classList.contains('dark');
+            let m = document.getElementById('psyBreathModal'); if (m) m.remove();
+            m = document.createElement('div'); m.id = 'psyBreathModal';
+            m.style.cssText = 'position:fixed;inset:0;background:' + (dark ? 'rgba(10,20,16,0.92)' : 'rgba(236,253,245,0.96)') + ';z-index:1400;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:1rem;';
+            m.innerHTML = `
+                <button onclick="breathStop()" style="position:absolute;top:1rem;right:1rem;background:none;border:none;font-size:1.6rem;cursor:pointer;color:${dark ? '#9CA3AF' : '#6B7280'};line-height:1;">✕</button>
+                <div style="font-weight:800;font-size:1.15rem;margin-bottom:0.3rem;color:${dark ? '#E6E6E6' : '#065F46'};">Дыхание 4·4·6</div>
+                <div style="font-size:0.85rem;color:#6B7280;margin-bottom:2rem;text-align:center;max-width:280px;">Следуйте за кругом. Вдох носом, выдох ртом — плавно.</div>
+                <div style="position:relative;width:220px;height:220px;display:flex;align-items:center;justify-content:center;">
+                    <div id="breathCircle" style="width:120px;height:120px;border-radius:50%;background:radial-gradient(circle at 50% 40%, #34D399, #047857);box-shadow:0 8px 40px rgba(4,120,87,0.4);transition:transform 4s ease-in-out;transform:scale(0.8);"></div>
+                    <div id="breathPhase" style="position:absolute;color:#fff;font-weight:700;font-size:1.05rem;text-shadow:0 1px 4px rgba(0,0,0,0.35);">Приготовьтесь…</div>
+                </div>
+                <div id="breathCount" style="margin-top:2rem;font-size:0.9rem;color:#6B7280;">Циклов: 0</div>
+                <button onclick="breathStop()" style="margin-top:1.4rem;padding:0.6rem 1.4rem;border:1.5px solid ${dark ? '#444' : '#A7F3D0'};border-radius:0.8rem;background:none;color:${dark ? '#E6E6E6' : '#047857'};font-weight:700;cursor:pointer;font-family:inherit;">Готово</button>`;
+            document.body.appendChild(m);
+            const circle = m.querySelector('#breathCircle');
+            const phase = m.querySelector('#breathPhase');
+            const countEl = m.querySelector('#breathCount');
+            // Фазы: [подпись, секунды, масштаб круга]
+            const phases = [['Вдох', 4, 1.6], ['Задержка', 4, 1.6], ['Выдох', 6, 0.8], ['Пауза', 2, 0.8]];
+            let pi = 0, cycles = 0;
+            const step = () => {
+                if (!document.getElementById('psyBreathModal')) return;
+                const [label, secs, scale] = phases[pi];
+                phase.textContent = label;
+                circle.style.transitionDuration = secs + 's';
+                circle.style.transform = 'scale(' + scale + ')';
+                pi++;
+                if (pi >= phases.length) { pi = 0; cycles++; countEl.textContent = 'Циклов: ' + cycles; }
+                breathTimer = setTimeout(step, secs * 1000);
+            };
+            breathTimer = setTimeout(step, 600);
+        }
+        window.openBreathing = openBreathing;
 
         /** Прервать ответ: длинные ответы иногда не нужны целиком. */
         let aiAbort = null;
@@ -16832,6 +16876,7 @@
             items.push({ ico: '☑', label: 'Список задач', run: () => openChecklistBuilder('input') });
             items.push({ ico: '⚡', label: 'Быстрые ответы', run: () => openQuickReplies() });
             items.push({ ico: '🆘', label: 'Мне плохо сейчас', run: () => openSosPanel() });
+            items.push({ ico: '🫁', label: 'Дыхание (успокоиться)', run: () => openBreathing() });
             // Отложенная отправка — везде, кроме ассистента: ему пишут ради ответа сейчас
             if (typeof schedAvailable === 'function' && schedAvailable()) {
                 items.push({ ico: '🕒', label: 'Отправить позже', run: () => scheduleCurrentInput() });
