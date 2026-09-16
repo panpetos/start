@@ -86,6 +86,12 @@ try {
     $storiesError = $e->getMessage();
 }
 
+// Уборка диска раз в сутки: истёкшие истории и старые вложения. stories.php
+// опрашивается лентой часто, поэтому это удобная (и единственная не требующая
+// внешнего cron) точка запуска. psy_schema_once гарантирует «не чаще раза в сутки».
+try { require_once __DIR__ . '/storage_cleanup.php'; if (function_exists('psyStorageCleanupTick')) psyStorageCleanupTick($pdo); }
+catch (Exception $e) {}
+
 $action = $_GET['action'] ?? '';
 $body = ($_SERVER['REQUEST_METHOD'] === 'POST') ? (json_decode(file_get_contents('php://input'), true) ?: []) : [];
 
@@ -422,12 +428,19 @@ try {
     if ($action === 'delete' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         $storyId = (int)($body['story_id'] ?? 0);
         if (!$storyId) out(['ok' => false, 'error' => 'Не передана история'], 400);
+        // Ссылку на файл берём ДО удаления записи — потом освободим место на диске.
+        $mediaUrl = '';
+        try { $g = $pdo->prepare("SELECT media_url FROM stories WHERE id = ? AND user_id = ? LIMIT 1"); $g->execute([$storyId, $userId]); $mediaUrl = (string)($g->fetchColumn() ?: ''); } catch (Exception $e) {}
         $st = $pdo->prepare("DELETE FROM stories WHERE id = ? AND user_id = ?");
         $st->execute([$storyId, $userId]);
         $gone = $st->rowCount() > 0;
         if ($gone) {   // без этого от удалённой истории оставались просмотры и список аудитории
             foreach (['story_views', 'story_audience'] as $t) {
                 try { $pdo->prepare("DELETE FROM `$t` WHERE story_id = ?")->execute([$storyId]); } catch (Exception $e) {}
+            }
+            // Файл удаляем, только если на него больше никто не ссылается.
+            if ($mediaUrl !== '' && function_exists('psySafeUnlink') && function_exists('psyFileRefCount') && psyFileRefCount($pdo, $mediaUrl) === 0) {
+                $b = 0; psySafeUnlink($mediaUrl, $b);
             }
         }
         out(['ok' => true, 'deleted' => $gone]);

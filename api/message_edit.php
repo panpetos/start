@@ -147,6 +147,16 @@ if ($action === 'delete' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($pdo->inTransaction()) $pdo->rollBack();
         out(['error' => 'Не удалось удалить: ' . $e->getMessage()], 500);
     }
+    // Освобождаем место на диске: файл вложения удаляем, если на него больше нет
+    // ссылок (пересланная копия могла указывать на тот же файл). Побочное действие
+    // после ответа неважного — молчим при любой ошибке.
+    try {
+        $url = (string)($msg['attachment_url'] ?? '');
+        if ($url !== '') {
+            require_once __DIR__ . '/storage_cleanup.php';
+            if (function_exists('psyFileRefCount') && psyFileRefCount($pdo, $url) === 0) { $b = 0; psySafeUnlink($url, $b); }
+        }
+    } catch (Exception $e) {}
     out(['ok' => true]);
 }
 

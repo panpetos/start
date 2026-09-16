@@ -143,8 +143,16 @@ if ($action === 'delete' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $row = hwRow($pdo, $id);
     if (!$row) hwOut(['ok' => true]);
     if ((string)$row['from_id'] !== (string)$userId) hwOut(['ok' => false, 'error' => 'Удалить может только автор'], 403);
-    try { $pdo->prepare("DELETE FROM homework WHERE id = ?")->execute([$id]); hwOut(['ok' => true]); }
-    catch (Exception $e) { hwOut(['ok' => false, 'error' => 'Не удалось удалить'], 500); }
+    try {
+        $pdo->prepare("DELETE FROM homework WHERE id = ?")->execute([$id]);
+        // Освобождаем место: файл задания удаляем, если на него больше нет ссылок.
+        $url = (string)($row['attachment_url'] ?? '');
+        if ($url !== '') {
+            require_once __DIR__ . '/storage_cleanup.php';
+            if (function_exists('psyFileRefCount') && psyFileRefCount($pdo, $url) === 0) { $b = 0; psySafeUnlink($url, $b); }
+        }
+        hwOut(['ok' => true]);
+    } catch (Exception $e) { hwOut(['ok' => false, 'error' => 'Не удалось удалить'], 500); }
 }
 
 hwOut(['ok' => false, 'error' => 'Неизвестное действие'], 400);

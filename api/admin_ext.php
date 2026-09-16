@@ -173,7 +173,9 @@ function allowedSettingKeys(): array {
              // Эквайринг: чем принимаем оплату и тестовая сумма (см. sber_acquiring.php)
              'payment_provider', 'sber_test_amount',
              // Текст автоприветствия новому пользователю (api/welcome.php)
-             'welcome_message'];
+             'welcome_message',
+             // Срок хранения медиа-вложений в днях (api/storage_cleanup.php). 0 — не удалять.
+             'media_retention_days'];
     foreach (['self', 'couple', 'teen'] as $t) {
         foreach (['enabled', 'price', 'title', 'duration', 'deadline'] as $f) {
             $keys[] = "promo_{$t}_{$f}";
