@@ -238,6 +238,92 @@ function pushSendOne(PDO $pdo, string $endpoint, array $keys) {
             'error' => $err ?: (($code >= 400) ? substr((string)$resp, 0, 200) : null)];
 }
 
+/** Собрать curl-хэндл для пуша (без выполнения) — для параллельной отправки. */
+function pushBuildHandle(string $endpoint, array $keys) {
+    $jwt = vapidJwt($endpoint, $keys);
+    if (!$jwt || !function_exists('curl_init')) return null;
+    $ch = curl_init($endpoint);
+    curl_setopt_array($ch, [
+        CURLOPT_POST => true,
+        CURLOPT_POSTFIELDS => '',
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_HTTPHEADER => [
+            'Authorization: vapid t=' . $jwt . ', k=' . $keys['public'],
+            'TTL: 3600', 'Urgency: high', 'Content-Length: 0',
+        ],
+        CURLOPT_TIMEOUT => 15,
+        CURLOPT_CONNECTTIMEOUT => 8,
+    ]);
+    return $ch;
+}
+
+/** Применить результат отправки к подписке: отметить успех, удалить мёртвую, копить ошибки. */
+function pushApplyResult(PDO $pdo, array $s, array $r, &$sent, &$removed, &$errors, &$details) {
+    $host = parse_url((string)$s['endpoint'], PHP_URL_HOST);
+    if ($r['ok']) {
+        $sent++; $details[] = ['host' => $host, 'code' => $r['code'], 'ok' => true];
+        if (!empty($s['id'])) { try { $pdo->prepare("UPDATE push_subs SET last_ok = NOW(), fails = 0 WHERE id = ?")->execute([$s['id']]); } catch (Exception $e) {} }
+        return;
+    }
+    if (!empty($r['gone'])) {
+        $removed++; $details[] = ['host' => $host, 'code' => $r['code'], 'ok' => false, 'gone' => true];
+        if (!empty($s['id'])) { try { $pdo->prepare("DELETE FROM push_subs WHERE id = ?")->execute([$s['id']]); } catch (Exception $e) {} }
+        return;
+    }
+    $errors[] = 'HTTP ' . $r['code'] . ($r['error'] ? ': ' . $r['error'] : '');
+    $details[] = ['host' => $host, 'code' => $r['code'], 'ok' => false];
+    if (!empty($s['id'])) {
+        try {
+            $pdo->prepare("UPDATE push_subs SET fails = fails + 1 WHERE id = ?")->execute([$s['id']]);
+            $pdo->prepare("DELETE FROM push_subs WHERE id = ? AND fails >= 5")->execute([$s['id']]);
+        } catch (Exception $e) {}
+    }
+}
+
+/**
+ * Отправить пустой пуш сразу по МНОГИМ подпискам параллельно (curl_multi).
+ * $subs — строки с полями id, endpoint. Раньше слали строго по одной подряд:
+ * группа на 30 человек занимала воркер на несколько секунд. Теперь — все разом.
+ */
+function pushSendMany(PDO $pdo, array $subs, array $keys) {
+    $sent = 0; $removed = 0; $errors = []; $details = [];
+    if (!$subs) return ['sent' => 0, 'removed' => 0, 'errors' => [], 'details' => []];
+    // Нет curl_multi — запасной путь по одной, поведение прежнее.
+    if (!function_exists('curl_multi_init')) {
+        foreach ($subs as $s) {
+            $r = pushSendOne($pdo, (string)$s['endpoint'], $keys);
+            pushApplyResult($pdo, $s, $r, $sent, $removed, $errors, $details);
+        }
+        return ['sent' => $sent, 'removed' => $removed, 'errors' => $errors, 'details' => $details];
+    }
+    $mh = curl_multi_init();
+    $handles = [];
+    foreach ($subs as $s) {
+        $ch = pushBuildHandle((string)$s['endpoint'], $keys);
+        if (!$ch) { $errors[] = 'не удалось подписать запрос'; continue; }
+        curl_multi_add_handle($mh, $ch);
+        $handles[] = ['ch' => $ch, 'sub' => $s];
+    }
+    do {
+        $status = curl_multi_exec($mh, $running);
+        if ($running) curl_multi_select($mh, 1.0);
+    } while ($running && $status === CURLM_OK);
+    foreach ($handles as $h) {
+        $ch = $h['ch'];
+        $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $err = curl_error($ch);
+        $resp = curl_multi_getcontent($ch);
+        $r = ['ok' => $code >= 200 && $code < 300, 'code' => $code,
+              'gone' => in_array($code, [404, 410], true),
+              'error' => $err ?: (($code >= 400) ? substr((string)$resp, 0, 200) : null)];
+        pushApplyResult($pdo, $h['sub'], $r, $sent, $removed, $errors, $details);
+        curl_multi_remove_handle($mh, $ch);
+        curl_close($ch);
+    }
+    curl_multi_close($mh);
+    return ['sent' => $sent, 'removed' => $removed, 'errors' => $errors, 'details' => $details];
+}
+
 /**
  * Разослать пуш всем устройствам человека. Возвращает [отправлено, удалено, ошибки].
  * Вызывается из notify_dispatch.php наравне с почтой и Telegram.
@@ -250,33 +336,8 @@ function push_send_to_user(PDO $pdo, $userId) {
         $st->execute([$userId]);
         $subs = $st->fetchAll(PDO::FETCH_ASSOC);
     } catch (Exception $e) { return ['sent' => 0, 'removed' => 0, 'errors' => [$e->getMessage()]]; }
-
-    $sent = 0; $removed = 0; $errors = []; $details = [];
-    foreach ($subs as $s) {
-        $r = pushSendOne($pdo, (string)$s['endpoint'], $keys);
-        if ($r['ok']) {
-            $sent++;
-            // Подробности нужны для разбора «отправили, а не пришло»: по коду и
-            // службе доставки видно, приняли ли сообщение и кто именно.
-            $details[] = ['host' => parse_url((string)$s['endpoint'], PHP_URL_HOST), 'code' => $r['code'], 'ok' => true];
-            try { $pdo->prepare("UPDATE push_subs SET last_ok = NOW(), fails = 0 WHERE id = ?")->execute([$s['id']]); } catch (Exception $e) {}
-            continue;
-        }
-        if ($r['gone']) {
-            $removed++;
-            $details[] = ['host' => parse_url((string)$s['endpoint'], PHP_URL_HOST), 'code' => $r['code'], 'ok' => false, 'gone' => true];
-            try { $pdo->prepare("DELETE FROM push_subs WHERE id = ?")->execute([$s['id']]); } catch (Exception $e) {}
-            continue;
-        }
-        $errors[] = 'HTTP ' . $r['code'] . ($r['error'] ? ': ' . $r['error'] : '');
-        $details[] = ['host' => parse_url((string)$s['endpoint'], PHP_URL_HOST), 'code' => $r['code'], 'ok' => false];
-        // Пять неудач подряд — подписка, скорее всего, безнадёжна, чтобы не долбить вечно
-        try {
-            $pdo->prepare("UPDATE push_subs SET fails = fails + 1 WHERE id = ?")->execute([$s['id']]);
-            $pdo->prepare("DELETE FROM push_subs WHERE id = ? AND fails >= 5")->execute([$s['id']]);
-        } catch (Exception $e) {}
-    }
-    return ['sent' => $sent, 'removed' => $removed, 'errors' => $errors, 'details' => $details];
+    // Устройства одного человека отправляем параллельно (обычно 1–3, но не блокируем).
+    return pushSendMany($pdo, $subs, $keys);
 }
 
 /**
@@ -316,18 +377,32 @@ function push_flush_response() {
     return false;
 }
 
-/** Пуш всем участникам группы, кроме автора сообщения. */
+/** Пуш всем участникам группы, кроме автора сообщения — одним параллельным пакетом. */
 function push_notify_group(PDO $pdo, $groupId, $senderId, $limit = 30) {
+    $keys = vapidKeys($pdo);
+    if (!$keys) return 0;
+    // Берём подписки всех участников разом (JOIN), а не по одному человеку в цикле:
+    // раньше группа на 30 человек держала воркер несколько секунд подряд.
     try {
-        $st = $pdo->prepare("SELECT user_id FROM chat_group_members WHERE group_id = ? AND user_id <> ? LIMIT $limit");
+        $st = $pdo->prepare("SELECT s.id, s.endpoint
+                             FROM chat_group_members m
+                             JOIN push_subs s ON s.user_id = m.user_id
+                             WHERE m.group_id = ? AND m.user_id <> ? LIMIT 500");
         $st->execute([$groupId, $senderId]);
-        $ids = $st->fetchAll(PDO::FETCH_COLUMN);
-    } catch (Exception $e) { return 0; }
-    $n = 0;
-    foreach ($ids as $uid) {
-        try { $r = push_send_to_user($pdo, $uid); $n += (int)$r['sent']; } catch (Exception $e) {}
+        $subs = $st->fetchAll(PDO::FETCH_ASSOC);
+        $r = pushSendMany($pdo, $subs, $keys);
+        return (int)$r['sent'];
+    } catch (Exception $e) {
+        // JOIN не удался (например, рассогласование collation) — запасной путь по одному.
+        try {
+            $st = $pdo->prepare("SELECT user_id FROM chat_group_members WHERE group_id = ? AND user_id <> ? LIMIT $limit");
+            $st->execute([$groupId, $senderId]);
+            $ids = $st->fetchAll(PDO::FETCH_COLUMN);
+        } catch (Exception $e2) { return 0; }
+        $n = 0;
+        foreach ($ids as $uid) { try { $rr = push_send_to_user($pdo, $uid); $n += (int)$rr['sent']; } catch (Exception $e3) {} }
+        return $n;
     }
-    return $n;
 }
 
 // ── Дальше — обработка запросов страницы ─────────────────────────────────────
