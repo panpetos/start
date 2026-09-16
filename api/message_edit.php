@@ -152,11 +152,11 @@ if ($action === 'delete' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     // после ответа неважного — молчим при любой ошибке.
     try {
         $url = (string)($msg['attachment_url'] ?? '');
-        if ($url !== '') {
+        if ($url !== '' && @file_exists(__DIR__ . '/storage_cleanup.php')) {
             require_once __DIR__ . '/storage_cleanup.php';
             if (function_exists('psyFileRefCount') && psyFileRefCount($pdo, $url) === 0) { $b = 0; psySafeUnlink($url, $b); }
         }
-    } catch (Exception $e) {}
+    } catch (\Throwable $e) {}
     out(['ok' => true]);
 }
 

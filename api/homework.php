@@ -147,7 +147,7 @@ if ($action === 'delete' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         $pdo->prepare("DELETE FROM homework WHERE id = ?")->execute([$id]);
         // Освобождаем место: файл задания удаляем, если на него больше нет ссылок.
         $url = (string)($row['attachment_url'] ?? '');
-        if ($url !== '') {
+        if ($url !== '' && @file_exists(__DIR__ . '/storage_cleanup.php')) {
             require_once __DIR__ . '/storage_cleanup.php';
             if (function_exists('psyFileRefCount') && psyFileRefCount($pdo, $url) === 0) { $b = 0; psySafeUnlink($url, $b); }
         }

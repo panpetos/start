@@ -89,8 +89,10 @@ try {
 // Уборка диска раз в сутки: истёкшие истории и старые вложения. stories.php
 // опрашивается лентой часто, поэтому это удобная (и единственная не требующая
 // внешнего cron) точка запуска. psy_schema_once гарантирует «не чаще раза в сутки».
-try { require_once __DIR__ . '/storage_cleanup.php'; if (function_exists('psyStorageCleanupTick')) psyStorageCleanupTick($pdo); }
-catch (Exception $e) {}
+if (@file_exists(__DIR__ . '/storage_cleanup.php')) {
+    try { require_once __DIR__ . '/storage_cleanup.php'; if (function_exists('psyStorageCleanupTick')) psyStorageCleanupTick($pdo); }
+    catch (\Throwable $e) {}
+}
 
 $action = $_GET['action'] ?? '';
 $body = ($_SERVER['REQUEST_METHOD'] === 'POST') ? (json_decode(file_get_contents('php://input'), true) ?: []) : [];
