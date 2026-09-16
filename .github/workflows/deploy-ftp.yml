@@ -158,6 +158,7 @@ jobs:
             put api/homework.php -o api/homework.php;
             put api/storage_cleanup.php -o api/storage_cleanup.php;
             put api/rate_limit.php -o api/rate_limit.php;
+            put api/reminders.php -o api/reminders.php;
             put api/scheduled.php -o api/scheduled.php;
             put api/calls.php -o api/calls.php;
             put api/rtc_calls.php -o api/rtc_calls.php;

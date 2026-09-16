@@ -11477,6 +11477,7 @@
             if (mineMsg && cap.kind !== 'fav' && !isAiMode())
                 html += row('👁', 'Кто прочитал', `showReaders('${id}')`);
             if (cap.canForward) html += row('↪', 'Переслать', `openForwardMenu(null,'${cap.kind || 'msg'}','${id}')`);
+            if (!isAiMode()) html += row('⏰', 'Напомнить', `openReminderPicker('${id}')`);
             // Админу — быстрый путь из любой переписки в очередь доработок
             if (currentUser && currentUser.role === 'admin')
                 html += row('🧩', 'В задачи Клоду', `sendToDevTasks('${id}')`);
@@ -13880,6 +13881,67 @@
             } catch (e) {}
         }
         window.openHomework = openHomework;
+
+        // ── Напоминания по сообщению ─────────────────────────────────────────────
+        let remCtx = null;   // {id, peer, preview}
+        function remWhen(ts) {
+            try { return new Date(ts * 1000).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }); }
+            catch (e) { return ''; }
+        }
+        function remTodayAt(h, m) { const d = new Date(); d.setHours(h, m, 0, 0); if (d.getTime() <= Date.now() + 60000) d.setDate(d.getDate() + 1); return Math.floor(d.getTime() / 1000); }
+        function remTomorrowAt(h, m) { const d = new Date(); d.setDate(d.getDate() + 1); d.setHours(h, m, 0, 0); return Math.floor(d.getTime() / 1000); }
+        async function remCreate(ts) {
+            const c = remCtx || {};
+            const m = document.getElementById('psyRemModal'); if (m) m.remove();
+            if (!ts || ts < Math.floor(Date.now() / 1000) + 30) { if (typeof toast === 'function') toast('Выберите время в будущем'); return; }
+            try {
+                const r = await (await fetch('/api/reminders.php?action=create', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+                    body: JSON.stringify({ peer: c.peer || selectedUserId, message_id: c.id || '', preview: c.preview || '', remind_at_ts: ts })
+                })).json();
+                if (typeof toast === 'function') toast(r && r.ok ? ('Напомню ' + remWhen(ts)) : (r && r.error ? r.error : 'Не удалось'));
+            } catch (e) { if (typeof toast === 'function') toast('Ошибка сети'); }
+        }
+        window.remCreate = remCreate;
+        function remCustom() {
+            const inp = document.getElementById('remCustomInput');
+            if (!inp || !inp.value) { if (typeof toast === 'function') toast('Выберите дату и время'); return; }
+            const ts = Math.floor(new Date(inp.value).getTime() / 1000);
+            remCreate(ts);
+        }
+        window.remCustom = remCustom;
+        function openReminderPicker(id) {
+            const cap = msgCaps[id] || {};
+            remCtx = { id, peer: selectedUserId, preview: (cap.text || '').slice(0, 300) };
+            const dark = document.body.classList.contains('dark');
+            let m = document.getElementById('psyRemModal'); if (m) m.remove();
+            m = document.createElement('div'); m.id = 'psyRemModal';
+            m.style.cssText = 'position:fixed;inset:0;background:rgba(18,42,34,0.6);z-index:1360;display:flex;align-items:center;justify-content:center;padding:1rem;';
+            m.onclick = (e) => { if (e.target === m) m.remove(); };
+            const opt = (label, ts) => `<button onclick="remCreate(${ts})" style="display:block;width:100%;text-align:left;padding:0.7rem 0.9rem;margin:0.25rem 0;border:1.5px solid ${dark ? '#444' : '#e5e7eb'};border-radius:0.7rem;background:none;color:inherit;cursor:pointer;font-family:inherit;font-size:0.95rem;">${label} <span style="color:#9CA3AF;font-size:0.8rem;">· ${remWhen(ts)}</span></button>`;
+            const nowS = Math.floor(Date.now() / 1000);
+            m.innerHTML = `
+                <div style="background:${dark ? '#1E1E1E' : '#fff'};color:${dark ? '#E6E6E6' : '#1A1A1A'};border-radius:1rem;width:min(420px,96vw);max-height:85vh;overflow:auto;box-shadow:0 12px 40px rgba(0,0,0,0.3);">
+                    <div style="display:flex;align-items:center;justify-content:space-between;padding:0.9rem 1.1rem;border-bottom:1px solid ${dark ? '#333' : '#eee'};">
+                        <div style="font-weight:700;">⏰ Напомнить</div>
+                        <button onclick="document.getElementById('psyRemModal').remove()" style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:inherit;line-height:1;">✕</button>
+                    </div>
+                    <div style="padding:0.6rem 1.1rem 1rem;">
+                        ${remCtx.preview ? `<div style="font-size:0.85rem;color:#6B7280;margin-bottom:0.5rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">«${escapeHtml(remCtx.preview)}»</div>` : ''}
+                        ${opt('Через 1 час', nowS + 3600)}
+                        ${opt('Через 3 часа', nowS + 3 * 3600)}
+                        ${opt('Сегодня в 18:00', remTodayAt(18, 0))}
+                        ${opt('Завтра в 9:00', remTomorrowAt(9, 0))}
+                        <div style="margin-top:0.6rem;font-size:0.82rem;color:#6B7280;">Своё время:</div>
+                        <div style="display:flex;gap:0.5rem;margin-top:0.3rem;">
+                            <input type="datetime-local" id="remCustomInput" style="flex:1;padding:0.5rem;border:1.5px solid ${dark ? '#444' : '#e0e0e0'};border-radius:0.6rem;font-family:inherit;background:${dark ? '#2A2A2A' : '#fff'};color:inherit;">
+                            <button onclick="remCustom()" style="padding:0.5rem 0.9rem;background:linear-gradient(135deg,#047857,#059669);color:#fff;border:none;border-radius:0.6rem;font-weight:700;cursor:pointer;font-family:inherit;">ОК</button>
+                        </div>
+                    </div>
+                </div>`;
+            document.body.appendChild(m);
+        }
+        window.openReminderPicker = openReminderPicker;
 
         /** Прервать ответ: длинные ответы иногда не нужны целиком. */
         let aiAbort = null;

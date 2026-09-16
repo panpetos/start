@@ -98,6 +98,11 @@ if (@file_exists(__DIR__ . '/storage_cleanup.php')) {
     try { require_once __DIR__ . '/storage_cleanup.php'; if (function_exists('psyStorageCleanupTick')) psyStorageCleanupTick($pdo); }
     catch (\Throwable $e) {}
 }
+// Разослать назревшие напоминания (лента опрашивается часто — cron не обязателен).
+if (@file_exists(__DIR__ . '/reminders.php')) {
+    try { require_once __DIR__ . '/reminders.php'; if (function_exists('reminders_tick')) reminders_tick($pdo); }
+    catch (\Throwable $e) {}
+}
 
 $action = $_GET['action'] ?? '';
 $body = ($_SERVER['REQUEST_METHOD'] === 'POST') ? (json_decode(file_get_contents('php://input'), true) ?: []) : [];

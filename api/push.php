@@ -486,6 +486,18 @@ if ($action === 'pending') {
         }
     } catch (Exception $e) { /* таблицы звонков может ещё не быть */ }
 
+    // Созревшее напоминание важнее обычного «новое сообщение»: человек сам просил
+    // напомнить в это время. Показываем его текстом со ссылкой на нужный чат.
+    if (@file_exists(__DIR__ . '/reminders.php')) {
+        try {
+            require_once __DIR__ . '/reminders.php';
+            if (function_exists('reminders_pending_for')) {
+                $rem = reminders_pending_for($pdo, $userId);
+                if ($rem) pushOut(['ok' => true, 'count' => 0, 'title' => $rem['title'], 'body' => $rem['body'], 'url' => $rem['url']]);
+            }
+        } catch (\Throwable $e) {}
+    }
+
     // Короткий и «чистый» текст сообщения для уведомления: убираем служебные
     // метки, схлопываем пробелы, режем длину; пустой текст (вложение) — значком.
     $prev = function ($text) {
