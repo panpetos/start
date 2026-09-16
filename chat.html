@@ -6957,6 +6957,7 @@
                     href: bookPsychId ? ('/book.html?id=' + encodeURIComponent(bookPsychId)) : '/search.html'
                 },
                 { icon: '🔎', label: 'Поиск по переписке', run: () => openChatSearch() },
+                { icon: '🆘', label: 'Мне плохо сейчас', run: () => openSosPanel() },
                 { icon: '🧾', label: 'Краткое содержание (ИИ)', run: () => psySummarizeChat() },
                 { icon: '🙂', label: 'Настроение (чек-ин)', run: () => openMoodPanel() },
                 { icon: '📌', label: 'Домашние задания', run: () => openHomework() },
@@ -11013,6 +11014,9 @@
             menu.className = 'folder-picker';
             menu.id = 'folderPicker';
             menu.innerHTML = `
+                <button class="folder-picker-row" onclick="event.stopPropagation();closeFolderPicker();openSosPanel()">
+                    <span class="fp-mark">🆘</span>Мне плохо сейчас
+                </button>
                 <button class="folder-picker-row" onclick="event.stopPropagation();closeFolderPicker();openCreateGroupModal()">
                     <span class="fp-mark">👥</span>Новая группа
                 </button>
@@ -13943,6 +13947,51 @@
         }
         window.openReminderPicker = openReminderPicker;
 
+        // ── Кризисная кнопка (SOS) ───────────────────────────────────────────────
+        async function sosAlert(btn) {
+            if (btn) { btn.disabled = true; btn.textContent = 'Отправляю…'; }
+            try {
+                const r = await (await fetch('/api/sos.php?action=alert', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+                    body: JSON.stringify({ peer: (typeof selectedUserId !== 'undefined' ? selectedUserId : '') })
+                })).json();
+                if (r && r.ok && r.delivered) { if (btn) btn.textContent = 'Сигнал отправлен ✓'; }
+                else if (btn) btn.textContent = 'Пока некому — позвоните по телефону';
+            } catch (e) { if (btn) { btn.disabled = false; btn.textContent = 'Не вышло, повторить'; } }
+        }
+        window.sosAlert = sosAlert;
+        function openSosPanel() {
+            const dark = document.body.classList.contains('dark');
+            let m = document.getElementById('psySosModal'); if (m) m.remove();
+            m = document.createElement('div'); m.id = 'psySosModal';
+            m.style.cssText = 'position:fixed;inset:0;background:rgba(30,10,10,0.72);z-index:1400;display:flex;align-items:center;justify-content:center;padding:1rem;';
+            m.onclick = (e) => { if (e.target === m) m.remove(); };
+            const tel = (label, num, note) => `
+                <a href="tel:${num.replace(/[^0-9+]/g, '')}" style="display:block;text-decoration:none;padding:0.75rem 0.9rem;margin:0.35rem 0;border-radius:0.8rem;background:${dark ? '#2A2A2A' : '#F1F5F9'};color:inherit;">
+                    <div style="font-weight:700;font-size:1.05rem;color:#DC2626;">${label}</div>
+                    <div style="font-size:0.82rem;color:#6B7280;margin-top:0.1rem;">${note}</div>
+                </a>`;
+            m.innerHTML = `
+                <div style="background:${dark ? '#1E1E1E' : '#fff'};color:${dark ? '#E6E6E6' : '#1A1A1A'};border-radius:1rem;width:min(460px,96vw);max-height:88vh;overflow:auto;box-shadow:0 12px 40px rgba(0,0,0,0.4);">
+                    <div style="padding:1rem 1.1rem;border-bottom:1px solid ${dark ? '#333' : '#eee'};display:flex;justify-content:space-between;align-items:center;">
+                        <div style="font-weight:800;font-size:1.1rem;">🆘 Вы не одни. Помощь рядом</div>
+                        <button onclick="document.getElementById('psySosModal').remove()" style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:inherit;line-height:1;">✕</button>
+                    </div>
+                    <div style="padding:1rem 1.1rem;">
+                        <p style="margin:0 0 0.6rem;font-size:0.95rem;line-height:1.5;">Если тяжело прямо сейчас — позвоните. Это бесплатно, анонимно и круглосуточно. Вам ответит живой специалист.</p>
+                        ${tel('8&nbsp;800&nbsp;2000&nbsp;122', '88002000122', 'Всероссийский телефон доверия — дети, подростки, взрослые')}
+                        ${tel('8&nbsp;495&nbsp;989&nbsp;50&nbsp;50', '84959895050', 'Психологическая помощь МЧС России')}
+                        ${tel('112', '112', 'Единый номер экстренных служб — если есть угроза жизни')}
+                        <div style="margin-top:0.9rem;padding-top:0.8rem;border-top:1px solid ${dark ? '#333' : '#eee'};">
+                            <button onclick="sosAlert(this)" style="width:100%;padding:0.8rem;background:linear-gradient(135deg,#DC2626,#B91C1C);color:#fff;border:none;border-radius:0.8rem;font-weight:700;font-size:0.98rem;cursor:pointer;font-family:inherit;">Сообщить моему специалисту, что нужна помощь</button>
+                            <p style="font-size:0.78rem;color:#9CA3AF;margin:0.5rem 0 0;text-align:center;">Специалист может быть не онлайн — при острой ситуации сначала звоните по телефону выше.</p>
+                        </div>
+                    </div>
+                </div>`;
+            document.body.appendChild(m);
+        }
+        window.openSosPanel = openSosPanel;
+
         /** Прервать ответ: длинные ответы иногда не нужны целиком. */
         let aiAbort = null;
         function aiStop() {
@@ -16782,6 +16831,7 @@
             items.push({ ico: '⤵', label: 'Блок-схема', run: () => openDiagramBuilder('input') });
             items.push({ ico: '☑', label: 'Список задач', run: () => openChecklistBuilder('input') });
             items.push({ ico: '⚡', label: 'Быстрые ответы', run: () => openQuickReplies() });
+            items.push({ ico: '🆘', label: 'Мне плохо сейчас', run: () => openSosPanel() });
             // Отложенная отправка — везде, кроме ассистента: ему пишут ради ответа сейчас
             if (typeof schedAvailable === 'function' && schedAvailable()) {
                 items.push({ ico: '🕒', label: 'Отправить позже', run: () => scheduleCurrentInput() });
