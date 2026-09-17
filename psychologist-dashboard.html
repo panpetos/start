@@ -86,19 +86,28 @@
             .dash-sidebar.open { left: 0; }
             .dash-sidebar-toggle { display: flex; }
             .dash-layout { display: block; }
-            .container { padding: 1rem !important; }
-            .header { flex-direction: column; align-items: flex-start; gap: 0.75rem; padding: 1.25rem !important; }
-            .header-left h1 { font-size: 1.25rem !important; }
-            .cards { grid-template-columns: 1fr !important; }
+            /* Всё плотнее: на телефоне отступы и крупные заголовки съедали экран,
+               и данные приходилось долго листать. Ужимаем контейнер, шапку,
+               карточки, заголовки и кнопки — не только плитки статистики. */
+            .container { padding: 0.55rem !important; }
+            .header { flex-direction: column; align-items: flex-start; gap: 0.3rem;
+                      padding: 0.7rem 0.85rem !important; margin-bottom: 0.7rem; border-radius: 0.8rem; }
+            .header-left h1 { font-size: 1.05rem !important; margin-bottom: 0.1rem; }
+            .header-left p { font-size: 0.8rem; }
             /* Компактная статистика: «Предстоящие» и «Проведено» — рядом, «Доход» —
-               узкой полосой на всю ширину. Раньше карточки шли в один столбец
-               во весь экран, и цифры приходилось листать по одной. */
-            .stats { grid-template-columns: 1fr 1fr !important; gap: 0.6rem; margin-bottom: 1rem; }
-            .stat-card { padding: 0.85rem 0.6rem; border-radius: 0.85rem; }
+               узкой полосой на всю ширину. */
+            .stats { grid-template-columns: 1fr 1fr !important; gap: 0.45rem; margin-bottom: 0.7rem; }
+            .stat-card { padding: 0.6rem 0.5rem; border-radius: 0.7rem; }
             .stat-card:last-child { grid-column: 1 / -1; }
-            .stat-value { font-size: 1.5rem; }
-            .stat-label { font-size: 0.75rem; margin-top: 0.15rem; }
-            .appointment-item { flex-direction: column; align-items: flex-start; gap: 0.5rem; }
+            .stat-value { font-size: 1.3rem; }
+            .stat-label { font-size: 0.7rem; margin-top: 0.1rem; }
+            /* Карточки-разделы */
+            .cards { grid-template-columns: 1fr !important; gap: 0.6rem; }
+            .card { padding: 0.85rem 0.85rem; border-radius: 0.8rem; }
+            .card h2 { font-size: 1rem; margin-bottom: 0.55rem; }
+            .card p { line-height: 1.45; font-size: 0.9rem; }
+            .btn { padding: 0.5rem 1rem; font-size: 0.9rem; }
+            .appointment-item { flex-direction: column; align-items: flex-start; gap: 0.4rem; padding: 0.7rem !important; }
         }
 
         .container { max-width: 1200px; margin: 0 auto; padding: 2rem; flex: 1; min-width: 0; }
