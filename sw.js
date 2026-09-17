@@ -13,7 +13,7 @@
  * переписка — это ещё и чужие данные на общем устройстве.
  */
 
-const VERSION = 'psy-v9';   // тап по уведомлению открывает чат на поле ввода; ложную «Ответить» убрали
+const VERSION = 'psy-v10';  // быстрые ответы-кнопки в уведомлении (отправляют фразу без открытия)
 const SHELL = VERSION + '-shell';
 
 // Оболочка: то, без чего окно не нарисуется. Страницы сюда не входят намеренно —
@@ -195,6 +195,11 @@ self.addEventListener('push', (e) => {
         // как «Открыть»). Вместо этого сам тап по уведомлению открывает нужный чат
         // сразу с курсором в поле ввода (reply=1) — это лучшее, что доступно в вебе.
         const openUrl = canReply ? (d.reply_url || (url + (url.indexOf('?') >= 0 ? '&' : '?') + 'reply=1')) : url;
+        // Быстрые ответы прямо из уведомления: свободный текст в вебе печатать нельзя,
+        // но готовую фразу можно отправить по кнопке БЕЗ открытия приложения — сервис-
+        // воркер сам сделает запрос с кукой сессии. Показываем только для одиночного
+        // диалога (когда точно известно, кому слать).
+        const quick = !!(d && d.quick && d.peer);
         // Звонок ведёт себя иначе, чем сообщение: не гаснет сам, вибрирует «очередью»
         // и не сворачивается в общую ленту уведомлений — иначе вызов легко пропустить
         // при выключенном экране.
@@ -209,10 +214,11 @@ self.addEventListener('push', (e) => {
             // кармане должен дать понять, что это вызов, а не сообщение.
             vibrate: isCall ? [500, 250, 500, 250, 500, 250, 500] : undefined,
             silent: false,
-            // Кнопка только у звонка («Ответить» = принять вызов). У сообщения кнопок
-            // нет: тап по самому уведомлению уже открывает чат готовым к ответу.
-            actions: isCall ? [{ action: 'answer', title: 'Ответить' }] : undefined,
-            data: { url: openUrl },
+            // Звонок → «Ответить»; одиночное сообщение → две кнопки быстрого ответа,
+            // которые отправляют готовую фразу без открытия приложения.
+            actions: isCall ? [{ action: 'answer', title: 'Ответить' }]
+                   : (quick ? [{ action: 'qr_ok', title: '👍 Ок' }, { action: 'qr_later', title: 'Позже отвечу' }] : undefined),
+            data: { url: openUrl, peer: (d && d.peer) || '', kind: (d && d.kind) || 'msg' },
         });
         // Число на иконке приложения, где это поддерживается
         try {
@@ -222,13 +228,62 @@ self.addEventListener('push', (e) => {
     })());
 });
 
-// Клик по уведомлению: переводим в уже открытое окно, а не плодим новые вкладки.
+// Готовые фразы для кнопок быстрого ответа.
+const QUICK_REPLIES = { qr_ok: '👍 Ок', qr_later: 'Отвечу чуть позже 🙏' };
+
+/** Отправить готовую фразу нужному собеседнику — прямо из воркера, без открытия окна. */
+async function swSendQuickReply(data, text) {
+    const peer = data.peer || '';
+    if (!peer) return false;
+    const opt = (b) => ({ method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(b) });
+    try {
+        if (data.kind === 'group' || peer.indexOf('group:') === 0) {
+            const gid = peer.indexOf('group:') === 0 ? peer.slice(6) : peer;
+            const r = await fetch('/api/group_chat.php?action=send', opt({ group_id: gid, content: text }));
+            return r.ok;
+        }
+        const r = await fetch('/api/messages.php?action=send', opt({ receiver_id: peer, content: text }));
+        // Разбудить получателя пушем (best-effort).
+        try { await fetch('/api/push.php?action=poke', opt({ to: peer })); } catch (e) {}
+        return r.ok;
+    } catch (e) { return false; }
+}
+
+// Клик по уведомлению: кнопки быстрого ответа отправляют фразу без открытия окна;
+// остальное — переводим в уже открытое окно, а не плодим новые вкладки.
 self.addEventListener('notificationclick', (e) => {
+    const data = e.notification.data || {};
+    const action = e.action || '';
     e.notification.close();
     try { if (self.navigator && self.navigator.clearAppBadge) self.navigator.clearAppBadge(); } catch (err) {}
-    const data = e.notification.data || {};
-    // Тап по уведомлению (или «Ответить» у звонка) открывает нужный чат; для сообщений
-    // data.url уже ведёт на чат с полем ввода в фокусе.
+
+    // Быстрый ответ готовой фразой — приложение НЕ открываем.
+    if (action.indexOf('qr_') === 0) {
+        const text = QUICK_REPLIES[action] || 'Ок';
+        e.waitUntil((async () => {
+            const ok = await swSendQuickReply(data, text);
+            if (ok) {
+                // Короткое подтверждение, что ответ ушёл, и авто-закрытие.
+                try {
+                    await self.registration.showNotification('Ответ отправлен ✓', {
+                        body: text, icon: '/assets/icon-192.png', badge: '/assets/icon-192.png',
+                        tag: 'psy-reply', silent: true,
+                    });
+                    await new Promise(res => setTimeout(res, 3000));
+                    const ns = await self.registration.getNotifications({ tag: 'psy-reply' });
+                    ns.forEach(n => n.close());
+                } catch (err) {}
+            } else {
+                // Не отправилось — открываем чат, чтобы человек ответил вручную.
+                const t = data.url || '/chat.html';
+                const all = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+                for (const c of all) { if (c.url.includes(self.location.origin)) { await c.focus(); if ('navigate' in c) { try { await c.navigate(t); } catch (err) {} } return; } }
+                await self.clients.openWindow(t);
+            }
+        })());
+        return;
+    }
+
     const target = data.url || '/chat.html';
     e.waitUntil((async () => {
         const all = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });

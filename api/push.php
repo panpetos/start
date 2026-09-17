@@ -558,6 +558,7 @@ if ($action === 'pending') {
     // Заголовок и текст — по самому свежему сообщению (личному или групповому).
     $useGroup = ($latestG && (!$latestP || strtotime((string)$latestG['created_at']) > strtotime((string)$latestP['created_at'])));
     $title = 'psytalk.pro'; $bodyTxt = 'Новое сообщение'; $url = '/chat.html'; $canReply = false;
+    $peer = ''; $kind = '';   // для быстрых ответов из уведомления: кому и каким путём слать
     if ($useGroup && $latestG) {
         $gname = 'Группа';
         try { $g = $pdo->prepare("SELECT * FROM chat_groups WHERE id = ? LIMIT 1"); $g->execute([$latestG['group_id']]);
@@ -566,18 +567,21 @@ if ($action === 'pending') {
         $title = $gname;
         $bodyTxt = $sender . ': ' . $prev($latestG['content']);
         $url = '/chat.html?open=group:' . rawurlencode((string)$latestG['group_id']);
-        $canReply = true;
+        $canReply = true; $peer = 'group:' . (string)$latestG['group_id']; $kind = 'group';
     } elseif ($latestP) {
         $title = trim((($latestP['first_name'] ?? '') . ' ' . ($latestP['last_name'] ?? ''))) ?: 'Собеседник';
         $bodyTxt = $prev($latestP['content']);
         $url = '/chat.html?open=' . rawurlencode((string)$latestP['sender_id']);
-        $canReply = true;
+        $canReply = true; $peer = (string)$latestP['sender_id']; $kind = 'msg';
     }
     // Есть ещё непрочитанные помимо показанного — намекнём цифрой.
     if ($total > 1) $bodyTxt .= '  ·  +' . ($total - 1);
 
+    // quick_replies — только для одиночного диалога: в общем «+N» непонятно, кому слать.
+    $quick = ($canReply && $total === 1) ? true : false;
     pushOut(['ok' => true, 'count' => $total, 'title' => $title, 'body' => $bodyTxt,
-             'url' => $url, 'can_reply' => $canReply, 'reply_url' => $canReply ? ($url . '&reply=1') : null]);
+             'url' => $url, 'can_reply' => $canReply, 'reply_url' => $canReply ? ($url . '&reply=1') : null,
+             'peer' => $peer, 'kind' => $kind, 'quick' => $quick]);
 }
 
 /**
