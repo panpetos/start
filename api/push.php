@@ -623,6 +623,24 @@ if ($action === 'poke' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     } catch (Exception $e) {}
     if (!$wrote) pushOut(['ok' => false, 'error' => 'Нет свежего сообщения этому получателю'], 403);
 
+    // Автоответ получателя. Ядро сообщений серверное, поэтому ловим момент здесь:
+    // poke зовёт именно тот, кто только что написал получателю. Если у получателя
+    // включён автоответ — один раз в 4 часа шлём его отправителю и будим пушем.
+    try {
+        if (@file_exists(__DIR__ . '/status.php')) require_once __DIR__ . '/status.php';
+        if (@file_exists(__DIR__ . '/rate_limit.php')) require_once __DIR__ . '/rate_limit.php';
+        if (@file_exists(__DIR__ . '/rtc_lib.php')) require_once __DIR__ . '/rtc_lib.php';
+        if (function_exists('status_get_row') && function_exists('rtcSendDm')) {
+            $srow = status_get_row($pdo, $to);
+            $arText = $srow ? trim((string)($srow['auto_reply'] ?? '')) : '';
+            if ($srow && (int)($srow['auto_reply_on'] ?? 0) === 1 && $arText !== ''
+                && (!function_exists('psyRateLimit') || psyRateLimit($pdo, 'autoreply:' . $to . ':' . $userId, 1, 14400))) {
+                rtcSendDm($pdo, $to, $userId, $arText);
+                try { push_send_to_user($pdo, $userId); } catch (\Throwable $e) {}
+            }
+        }
+    } catch (\Throwable $e) {}
+
     // Не чаще раза в 20 секунд на пару: при быстрой переписке иначе полетит
     // по пушу на каждую реплику, а уведомление и так одно (одинаковый tag).
     $last = push_last_ok($pdo, $to);

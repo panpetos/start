@@ -5282,6 +5282,7 @@
                     { icon: '🔗', label: 'Встреча в Телемосте (запасной путь)', run: () => startGroupVideoCall(groupId) },
                     { icon: '🔎', label: 'Поиск по переписке', run: () => openChatSearch() },
                     { icon: '🧾', label: 'Краткое содержание (ИИ)', run: () => psySummarizeChat() },
+                    { icon: '📤', label: 'Экспорт переписки', run: () => exportChat() },
                     // На телефоне форматирование живёт в меню ввода снизу — в шапке не дублируем.
                     !isPhoneLayout() && { icon: 'A', label: 'Форматирование текста', run: () => openComposer() },
                     { icon: '🎨', label: 'Обои переписки', run: () => openWallpaperPicker() },
@@ -6931,6 +6932,12 @@
         function renderChatHeader(other) {
             // Переписка с админом у обычного пользователя — это «Тех поддержка».
             const isSupportPeer = currentUser && currentUser.role !== 'admin' && other.role === 'admin';
+            // Кастомный статус собеседника подтянем после вставки шапки (микрозадача
+            // сработает уже когда innerHTML присвоен вызывающим кодом).
+            if (!isSupportPeer) {
+                const pid = String(other.id || selectedUserId || '');
+                if (pid) setTimeout(() => fillPeerStatus(pid), 0);
+            }
             const name = isSupportPeer ? 'Тех поддержка'
                 : (`${other.first_name || ''} ${other.last_name || ''}`.trim() || 'Пользователь');
             chatPeerInfo = { id: other.id || selectedUserId, name, avatar: isSupportPeer ? '' : (other.avatar || '') };
@@ -6961,6 +6968,7 @@
                 { icon: '🧾', label: 'Краткое содержание (ИИ)', run: () => psySummarizeChat() },
                 { icon: '🙂', label: 'Настроение (чек-ин)', run: () => openMoodPanel() },
                 { icon: '📌', label: 'Домашние задания', run: () => openHomework() },
+                { icon: '📤', label: 'Экспорт переписки', run: () => exportChat() },
                 // На телефоне форматирование живёт в меню ввода снизу — в шапке его не дублируем.
                 !isPhoneLayout() && { icon: 'A', label: 'Форматирование текста', run: () => openComposer() },
                 { icon: '🎨', label: 'Обои переписки', run: () => openWallpaperPicker() },
@@ -6977,6 +6985,7 @@
                        <div style="flex:1;min-width:0;cursor:pointer;" onclick="openUserCard('${selectedUserId}')">
                            <div class="name">${name}</div>
                            <div class="role" id="chatPeerStatus" data-role="${escapeHtml(roleText)}">${roleText}</div>
+                           <div class="role" id="chatPeerCustomStatus" style="display:none;font-style:italic;opacity:0.85;"></div>
                        </div>`}
                 ${headerActionsHtml(actions, '')}`;
         }
@@ -11014,6 +11023,9 @@
             menu.className = 'folder-picker';
             menu.id = 'folderPicker';
             menu.innerHTML = `
+                <button class="folder-picker-row" onclick="event.stopPropagation();closeFolderPicker();openStatusEditor()">
+                    <span class="fp-mark">🟢</span>Мой статус / автоответ
+                </button>
                 <button class="folder-picker-row" onclick="event.stopPropagation();closeFolderPicker();openSosPanel()">
                     <span class="fp-mark">🆘</span>Мне плохо сейчас
                 </button>
@@ -14035,6 +14047,105 @@
             breathTimer = setTimeout(step, 600);
         }
         window.openBreathing = openBreathing;
+
+        // ── Экспорт переписки в файл ──────────────────────────────────────────────
+        function exportChat() {
+            const box = document.getElementById('messagesContainer');
+            if (!box) return;
+            const bubbles = box.querySelectorAll('.message[data-msg-id], .message[data-fav-id]');
+            if (!bubbles.length) { if (typeof toast === 'function') toast('Тут пока нечего выгружать'); return; }
+            // Имя собеседника — из шапки чата (у групп там название группы).
+            let peerName = 'Переписка';
+            const nm = document.querySelector('#chatHeader .name');
+            if (nm && nm.textContent.trim()) peerName = nm.textContent.trim();
+            const lines = [];
+            bubbles.forEach(b => {
+                const clone = b.cloneNode(true);
+                clone.querySelectorAll('.msg-foot, .msg-hover, .msg-actions, .g-msg-ava, audio, video, img, svg, .psy-cl-cap, .message-time').forEach(el => el.remove());
+                const txt = (clone.innerText || '').replace(/[ \t]+\n/g, '\n').replace(/\n{2,}/g, '\n').trim();
+                if (!txt) return;
+                const who = b.classList.contains('mine') ? 'Вы' : peerName;
+                const timeEl = b.querySelector('.message-time');
+                const time = timeEl ? timeEl.textContent.replace(/\(ред\.\)/, '').trim() : '';
+                lines.push((time ? '[' + time + '] ' : '') + who + ': ' + txt);
+            });
+            if (!lines.length) { if (typeof toast === 'function') toast('Нет текстовых сообщений для выгрузки'); return; }
+            const head = 'Переписка: ' + peerName + '\nВыгружено: ' + new Date().toLocaleString('ru-RU')
+                + '\nЭкспортированы загруженные сообщения (прокрутите вверх, чтобы подгрузить всю историю).\n'
+                + '—'.repeat(30) + '\n\n';
+            const blob = new Blob([head + lines.join('\n')], { type: 'text/plain;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            const safe = peerName.replace(/[^\wа-яА-ЯёЁ -]/g, '').slice(0, 40).trim().replace(/\s+/g, '_') || 'chat';
+            a.href = url;
+            a.download = 'psytalk-' + safe + '-' + new Date().toISOString().slice(0, 10) + '.txt';
+            document.body.appendChild(a); a.click();
+            setTimeout(() => { try { document.body.removeChild(a); URL.revokeObjectURL(url); } catch (e) {} }, 1000);
+            if (typeof toast === 'function') toast('Файл переписки сохранён');
+        }
+        window.exportChat = exportChat;
+
+        // ── Статус пользователя + автоответ ──────────────────────────────────────
+        async function fillPeerStatus(peerId) {
+            const el = document.getElementById('chatPeerCustomStatus');
+            if (!el || !peerId) return;
+            try {
+                const r = await (await fetch('/api/status.php?action=get&user_id=' + encodeURIComponent(peerId), { credentials: 'include' })).json();
+                if (r && r.ok && r.status_text) { el.textContent = '💬 ' + r.status_text; el.style.display = ''; }
+                else { el.style.display = 'none'; }
+            } catch (e) {}
+        }
+        window.fillPeerStatus = fillPeerStatus;
+        async function openStatusEditor() {
+            const dark = document.body.classList.contains('dark');
+            let cur = { status_text: '', auto_reply: '', auto_reply_on: 0 };
+            try { const r = await (await fetch('/api/status.php?action=get', { credentials: 'include' })).json(); if (r && r.ok) cur = r; } catch (e) {}
+            let m = document.getElementById('psyStatusModal'); if (m) m.remove();
+            m = document.createElement('div'); m.id = 'psyStatusModal';
+            m.style.cssText = 'position:fixed;inset:0;background:rgba(18,42,34,0.6);z-index:1360;display:flex;align-items:center;justify-content:center;padding:1rem;';
+            m.onclick = (e) => { if (e.target === m) m.remove(); };
+            const presets = ['🟢 На связи', '🧑‍⚕️ На сессии', '🌙 Отвечу после 18:00', '🏖 В отпуске', '📵 Не беспокоить'];
+            m.innerHTML = `
+                <div style="background:${dark ? '#1E1E1E' : '#fff'};color:${dark ? '#E6E6E6' : '#1A1A1A'};border-radius:1rem;width:min(460px,96vw);max-height:88vh;overflow:auto;box-shadow:0 12px 40px rgba(0,0,0,0.3);">
+                    <div style="display:flex;align-items:center;justify-content:space-between;padding:0.9rem 1.1rem;border-bottom:1px solid ${dark ? '#333' : '#eee'};">
+                        <div style="font-weight:700;">🟢 Мой статус</div>
+                        <button onclick="document.getElementById('psyStatusModal').remove()" style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:inherit;line-height:1;">✕</button>
+                    </div>
+                    <div style="padding:1rem 1.1rem;">
+                        <div style="font-size:0.85rem;color:#6B7280;margin-bottom:0.35rem;">Статус (виден собеседникам)</div>
+                        <input id="stText" maxlength="120" value="${escapeHtml(cur.status_text || '')}" placeholder="Например: на сессии до 15:00"
+                               style="width:100%;padding:0.6rem 0.7rem;border:1.5px solid ${dark ? '#444' : '#e0e0e0'};border-radius:0.6rem;font-family:inherit;font-size:0.92rem;background:${dark ? '#2A2A2A' : '#fff'};color:inherit;">
+                        <div style="display:flex;gap:0.35rem;flex-wrap:wrap;margin-top:0.5rem;">
+                            ${presets.map(p => `<button onclick="document.getElementById('stText').value='${p.replace(/'/g, "\\'")}'" style="padding:0.35rem 0.6rem;border:1px solid ${dark ? '#444' : '#e5e7eb'};border-radius:999px;background:none;color:inherit;cursor:pointer;font-family:inherit;font-size:0.8rem;">${p}</button>`).join('')}
+                        </div>
+                        <label style="display:flex;align-items:center;gap:0.5rem;margin-top:1rem;cursor:pointer;font-size:0.92rem;">
+                            <input type="checkbox" id="stAutoOn" ${cur.auto_reply_on ? 'checked' : ''} style="width:18px;height:18px;accent-color:#047857;">
+                            Автоответ тем, кто напишет
+                        </label>
+                        <textarea id="stAuto" rows="2" maxlength="500" placeholder="Например: Спасибо за сообщение! Я на сессии, отвечу после 18:00."
+                                  style="width:100%;margin-top:0.5rem;resize:vertical;padding:0.6rem 0.7rem;border:1.5px solid ${dark ? '#444' : '#e0e0e0'};border-radius:0.6rem;font-family:inherit;font-size:0.9rem;background:${dark ? '#2A2A2A' : '#fff'};color:inherit;">${escapeHtml(cur.auto_reply || '')}</textarea>
+                        <div style="font-size:0.76rem;color:#9CA3AF;margin-top:0.3rem;">Автоответ уходит не чаще раза в 4 часа одному человеку.</div>
+                        <div style="display:flex;justify-content:flex-end;gap:0.5rem;margin-top:0.9rem;">
+                            <button onclick="statusSave(this)" style="padding:0.55rem 1rem;background:linear-gradient(135deg,#047857,#059669);color:#fff;border:none;border-radius:0.6rem;font-weight:700;cursor:pointer;font-family:inherit;">Сохранить</button>
+                        </div>
+                    </div>
+                </div>`;
+            document.body.appendChild(m);
+        }
+        window.openStatusEditor = openStatusEditor;
+        async function statusSave(btn) {
+            const st = document.getElementById('stText'), au = document.getElementById('stAuto'), on = document.getElementById('stAutoOn');
+            if (btn) btn.disabled = true;
+            try {
+                const r = await (await fetch('/api/status.php?action=set', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+                    body: JSON.stringify({ status_text: st ? st.value : '', auto_reply: au ? au.value : '', auto_reply_on: on && on.checked ? 1 : 0 })
+                })).json();
+                if (r && r.ok) { const m = document.getElementById('psyStatusModal'); if (m) m.remove(); if (typeof toast === 'function') toast('Статус сохранён'); }
+                else { if (btn) btn.disabled = false; if (typeof toast === 'function') toast(r && r.error ? r.error : 'Не удалось'); }
+            } catch (e) { if (btn) btn.disabled = false; if (typeof toast === 'function') toast('Ошибка сети'); }
+        }
+        window.statusSave = statusSave;
 
         /** Прервать ответ: длинные ответы иногда не нужны целиком. */
         let aiAbort = null;
