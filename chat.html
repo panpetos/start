@@ -11494,6 +11494,7 @@
                 html += row('👁', 'Кто прочитал', `showReaders('${id}')`);
             if (cap.canForward) html += row('↪', 'Переслать', `openForwardMenu(null,'${cap.kind || 'msg'}','${id}')`);
             if (!isAiMode()) html += row('⏰', 'Напомнить', `openReminderPicker('${id}')`);
+            if ((cap.text || '').trim() && !cap.placeholder) html += row('🌐', 'Перевести', `translateMessage('${id}')`);
             // Админу — быстрый путь из любой переписки в очередь доработок
             if (currentUser && currentUser.role === 'admin')
                 html += row('🧩', 'В задачи Клоду', `sendToDevTasks('${id}')`);
@@ -13565,7 +13566,7 @@
             return lines.join('\n');
         }
 
-        function psyShowSummaryModal(innerHtml, withCopy) {
+        function psyShowSummaryModal(innerHtml, withCopy, title) {
             let m = document.getElementById('psySummaryModal');
             if (m) m.remove();
             const dark = document.body.classList.contains('dark');
@@ -13576,7 +13577,7 @@
             m.innerHTML = `
                 <div style="background:${dark ? '#1E1E1E' : '#fff'};color:${dark ? '#E6E6E6' : '#1A1A1A'};border-radius:1rem;width:min(560px,96vw);max-height:85vh;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 12px 40px rgba(0,0,0,0.3);">
                     <div style="display:flex;align-items:center;justify-content:space-between;padding:0.9rem 1.1rem;border-bottom:1px solid ${dark ? '#333' : '#eee'};">
-                        <div style="font-weight:700;">🧾 Краткое содержание</div>
+                        <div style="font-weight:700;">${escapeHtml(title || '🧾 Краткое содержание')}</div>
                         <button onclick="document.getElementById('psySummaryModal').remove()" style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:inherit;line-height:1;">✕</button>
                     </div>
                     <div id="psySummaryBody" style="padding:1rem 1.1rem;overflow-y:auto;line-height:1.55;font-size:0.95rem;">${innerHtml}</div>
@@ -13610,6 +13611,53 @@
             }
         }
         window.psySummarizeChat = psySummarizeChat;
+
+        // ── Переводчик сообщения (ИИ) ────────────────────────────────────────────
+        async function translateMessage(id) {
+            const cap = msgCaps[id] || {};
+            const text = (cap.text || '').trim();
+            if (!text) { if (typeof toast === 'function') toast('Нет текста для перевода'); return; }
+            psyShowSummaryModal('<div class="ai-typing">Перевожу…</div>', false, '🌐 Перевод');
+            const prompt = 'Определи язык текста ниже. Если он НЕ русский — переведи на русский. Если русский — переведи на английский. '
+                + 'Верни ТОЛЬКО перевод, без пояснений и кавычек.\n\nТЕКСТ:\n' + text;
+            try {
+                const out = await psyAiComplete([{ role: 'user', content: prompt }]);
+                if (!document.getElementById('psySummaryBody')) return;
+                psyShowSummaryModal((out && out.trim()) ? formatPostText(out.trim()) : 'Не удалось перевести', !!(out && out.trim()), '🌐 Перевод');
+            } catch (e) {
+                if (document.getElementById('psySummaryBody')) psyShowSummaryModal('Не удалось перевести: ' + (e.message || 'ошибка'), false, '🌐 Перевод');
+            }
+        }
+        window.translateMessage = translateMessage;
+
+        // ── Подсказки ответа (ИИ) ────────────────────────────────────────────────
+        function suggestInsert(text) {
+            const input = document.getElementById('messageInput');
+            if (input) { input.value = String(text || ''); input.focus(); try { autoGrowInput(input); } catch (e) {} try { saveDraftSoon(); } catch (e) {} }
+            const m = document.getElementById('psySummaryModal'); if (m) m.remove();
+        }
+        window.suggestInsert = suggestInsert;
+        async function suggestReplies() {
+            let transcript = psyCollectTranscript();
+            if (!transcript || transcript.length < 2) { if (typeof toast === 'function') toast('Пока не по чему подсказывать'); return; }
+            if (transcript.length > 4000) transcript = transcript.slice(-4000);
+            psyShowSummaryModal('<div class="ai-typing">Придумываю варианты…</div>', false, '✨ Варианты ответа');
+            const prompt = 'Это переписка. Предложи 3 коротких, вежливых варианта ответа ОТ ЛИЦА «Я» на последнее сообщение собеседника. '
+                + 'Каждый вариант — одна строка, без нумерации, без кавычек, по-русски.\n\nПЕРЕПИСКА:\n' + transcript;
+            try {
+                const out = await psyAiComplete([{ role: 'user', content: prompt }]);
+                if (!document.getElementById('psySummaryBody')) return;
+                const lines = String(out || '').split('\n').map(s => s.replace(/^\s*[-–—0-9.)\s"«»]+/, '').replace(/["»]\s*$/, '').trim()).filter(s => s.length > 0).slice(0, 4);
+                if (!lines.length) { psyShowSummaryModal('ИИ не вернул варианты. Попробуйте ещё раз.', false, '✨ Варианты ответа'); return; }
+                const html = '<div style="display:flex;flex-direction:column;gap:0.5rem;">' + lines.map(l =>
+                    `<button type="button" onclick='suggestInsert(${JSON.stringify(l).replace(/'/g, "&#39;")})' style="text-align:left;padding:0.6rem 0.8rem;border:1.5px solid rgba(4,120,87,0.4);border-radius:0.7rem;background:none;color:inherit;cursor:pointer;font-family:inherit;font-size:0.95rem;line-height:1.4;">${escapeHtml(l)}</button>`
+                ).join('') + '</div><div style="font-size:0.78rem;color:#9CA3AF;margin-top:0.5rem;">Нажмите вариант — он подставится в поле ввода (можно поправить перед отправкой).</div>';
+                psyShowSummaryModal(html, false, '✨ Варианты ответа');
+            } catch (e) {
+                if (document.getElementById('psySummaryBody')) psyShowSummaryModal('Не удалось: ' + (e.message || 'ошибка'), false, '✨ Варианты ответа');
+            }
+        }
+        window.suggestReplies = suggestReplies;
 
         // ── Быстрые ответы / шаблоны ─────────────────────────────────────────────
         let quickReplies = [];
@@ -17137,6 +17185,7 @@
             items.push({ ico: '☑', label: 'Список задач', run: () => openChecklistBuilder('input') });
             items.push({ ico: '📊', label: 'Опрос', run: () => openPollBuilder() });
             items.push({ ico: '⚡', label: 'Быстрые ответы', run: () => openQuickReplies() });
+            if (!ai) items.push({ ico: '✨', label: 'Подсказать ответ (ИИ)', run: () => suggestReplies() });
             items.push({ ico: '🆘', label: 'Мне плохо сейчас', run: () => openSosPanel() });
             items.push({ ico: '🫁', label: 'Дыхание (успокоиться)', run: () => openBreathing() });
             // Отложенная отправка — везде, кроме ассистента: ему пишут ради ответа сейчас
