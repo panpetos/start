@@ -14097,30 +14097,67 @@
         window.openBreathing = openBreathing;
 
         // ── Экспорт переписки в файл ──────────────────────────────────────────────
-        function exportChat() {
+        /** Подтянуть ВСЮ историю личной переписки постранично (для полного экспорта). */
+        async function fetchAllDm(peer) {
+            let all = [], cursor = '', guard = 0;
+            while (guard++ < 300) {
+                const u = '/api/messages_page.php?with=' + encodeURIComponent(peer) + '&limit=100'
+                    + (cursor ? '&before=' + encodeURIComponent(cursor) : '');
+                let p = null;
+                try { p = await (await fetch(u, { credentials: 'include' })).json(); } catch (e) { break; }
+                if (!p || !p.ok || !Array.isArray(p.data)) break;
+                all = p.data.concat(all);          // старые страницы — в начало (хронология)
+                if (!p.has_more || !p.cursor) break;
+                cursor = p.cursor;
+            }
+            return all;
+        }
+        async function exportChat() {
             const box = document.getElementById('messagesContainer');
-            if (!box) return;
-            const bubbles = box.querySelectorAll('.message[data-msg-id], .message[data-fav-id]');
-            if (!bubbles.length) { if (typeof toast === 'function') toast('Тут пока нечего выгружать'); return; }
-            // Имя собеседника — из шапки чата (у групп там название группы).
             let peerName = 'Переписка';
             const nm = document.querySelector('#chatHeader .name');
             if (nm && nm.textContent.trim()) peerName = nm.textContent.trim();
-            const lines = [];
-            bubbles.forEach(b => {
-                const clone = b.cloneNode(true);
-                clone.querySelectorAll('.msg-foot, .msg-hover, .msg-actions, .g-msg-ava, audio, video, img, svg, .psy-cl-cap, .message-time').forEach(el => el.remove());
-                const txt = (clone.innerText || '').replace(/[ \t]+\n/g, '\n').replace(/\n{2,}/g, '\n').trim();
-                if (!txt) return;
-                const who = b.classList.contains('mine') ? 'Вы' : peerName;
-                const timeEl = b.querySelector('.message-time');
-                const time = timeEl ? timeEl.textContent.replace(/\(ред\.\)/, '').trim() : '';
-                lines.push((time ? '[' + time + '] ' : '') + who + ': ' + txt);
-            });
+            const key = selectedUserId;
+            const isDm = key && typeof key === 'string' && key.indexOf(GROUP_PREFIX) !== 0
+                && key !== FAVORITES_ID && !(typeof isSupportMode === 'function' && isSupportMode())
+                && !(typeof isAiMode === 'function' && isAiMode()) && key.indexOf(BOT_PREFIX) !== 0;
+            let lines = [];
+            let full = false;
+            if (isDm) {
+                if (typeof toast === 'function') toast('Собираю всю историю…');
+                try {
+                    const all = await fetchAllDm(key);
+                    all.forEach(m => {
+                        const body = (typeof splitReply === 'function' ? splitReply(m.content || '').body : (m.content || ''));
+                        let t = String(body || '').trim();
+                        if (!t && m.attachment_url) t = '[вложение]';
+                        if (!t) return;
+                        const who = String(m.sender_id) === String(currentUser.id) ? 'Вы' : peerName;
+                        let when = '';
+                        try { when = new Date(m.created_at).toLocaleString('ru-RU'); } catch (e) {}
+                        lines.push((when ? '[' + when + '] ' : '') + who + ': ' + t);
+                    });
+                    if (lines.length) full = true;
+                } catch (e) {}
+            }
+            // Группы/избранное/поддержка или если полная выгрузка не удалась — берём из окна.
+            if (!lines.length) {
+                if (!box) { if (typeof toast === 'function') toast('Тут пока нечего выгружать'); return; }
+                box.querySelectorAll('.message[data-msg-id], .message[data-fav-id]').forEach(b => {
+                    const clone = b.cloneNode(true);
+                    clone.querySelectorAll('.msg-foot, .msg-hover, .msg-actions, .g-msg-ava, audio, video, img, svg, .psy-cl-cap, .message-time').forEach(el => el.remove());
+                    const txt = (clone.innerText || '').replace(/[ \t]+\n/g, '\n').replace(/\n{2,}/g, '\n').trim();
+                    if (!txt) return;
+                    const who = b.classList.contains('mine') ? 'Вы' : peerName;
+                    const timeEl = b.querySelector('.message-time');
+                    const time = timeEl ? timeEl.textContent.replace(/\(ред\.\)/, '').trim() : '';
+                    lines.push((time ? '[' + time + '] ' : '') + who + ': ' + txt);
+                });
+            }
             if (!lines.length) { if (typeof toast === 'function') toast('Нет текстовых сообщений для выгрузки'); return; }
             const head = 'Переписка: ' + peerName + '\nВыгружено: ' + new Date().toLocaleString('ru-RU')
-                + '\nЭкспортированы загруженные сообщения (прокрутите вверх, чтобы подгрузить всю историю).\n'
-                + '—'.repeat(30) + '\n\n';
+                + (full ? '\nПолная история переписки.' : '\nЭкспортированы загруженные сообщения (прокрутите вверх, чтобы подгрузить всю историю).')
+                + '\n' + '—'.repeat(30) + '\n\n';
             const blob = new Blob([head + lines.join('\n')], { type: 'text/plain;charset=utf-8' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
