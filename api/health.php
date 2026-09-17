@@ -98,6 +98,21 @@ if ($sd && is_dir($sd)) {
     $r['session_files'] = ($cnt !== null && trim((string)$cnt) !== '') ? (int)trim($cnt) : null;
 }
 
+// 4a. Готовность к переезду: расширения PHP и наличие server-only конфигов.
+//     Отдаём только факт (да/нет) — ни содержимого, ни ключей. После переезда
+//     на ВДС все нужные расширения и все конфиги должны быть true (кроме тех
+//     платёжек, которыми не пользуемся). apcu — не обязателен, но с ним быстрее
+//     работает антифлуд (rate_limit.php), поэтому на ВДС его стоит поставить.
+$extNeed = ['pdo_mysql', 'mbstring', 'curl', 'openssl', 'json', 'gd', 'fileinfo'];
+$r['ext'] = [];
+foreach ($extNeed as $e) $r['ext'][$e] = extension_loaded($e);
+$r['ext']['apcu'] = extension_loaded('apcu');
+$cfgNeed = ['config.php', 'db.php', 'robokassa_config.php', 'yookassa_config.php',
+            'sber_acquiring_config.php', 'ai_chat_config.php', 'rtc_calls_config.php',
+            'notifications_config.php', 'notify_dispatch_config.php', 'dev_tasks_config.php'];
+$r['config_present'] = [];
+foreach ($cfgNeed as $f) $r['config_present'][$f] = is_file(__DIR__ . '/' . $f);
+
 // 4b. ?msgcols=1 — почему из переписки могли пропасть вложения.
 //     messages_page.php выбирает поля по списку колонок. Если список не читается,
 //     из выборки молча выпадают attachment_url/type/name, и вместо фото, голосовых
