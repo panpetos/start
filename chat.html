@@ -2087,6 +2087,17 @@
             animation: dictPulse 1.1s ease-in-out infinite;
         }
         @keyframes dictPulse { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.35; transform: scale(0.78); } }
+        /* Стикеры «живые»: пружинистое появление один раз при первом показе и по тапу. */
+        .psy-sticker { display: inline-block; cursor: pointer; user-select: none;
+            transform-origin: center bottom; will-change: transform; -webkit-tap-highlight-color: transparent; }
+        .psy-sticker.playing { animation: psyStickerPop 0.62s cubic-bezier(0.18,0.89,0.32,1.28) both; }
+        @keyframes psyStickerPop {
+            0%   { transform: scale(0.2) rotate(-9deg); opacity: 0; }
+            55%  { transform: scale(1.18) rotate(5deg);  opacity: 1; }
+            75%  { transform: scale(0.93) rotate(-2deg); }
+            100% { transform: scale(1) rotate(0); }
+        }
+        @media (prefers-reduced-motion: reduce) { .psy-sticker.playing { animation: none; } }
         .dict-title { flex: 1; font-weight: 700; font-size: 0.82rem; }
         .dict-btn {
             border: none; border-radius: 0.5rem; padding: 0.32rem 0.75rem;
@@ -14447,6 +14458,36 @@
         }
         window.pollHydrate = pollHydrate;
 
+        // ── «Живые» стикеры ──────────────────────────────────────────────────────
+        // Анимируем стикер один раз — когда сообщение впервые появляется на экране
+        // (и у отправителя, и у собеседника). Ключ — id сообщения: опрос раз в 5с
+        // перерисовывает ленту заново, но по тому же id повторно не проигрываем.
+        // Тап по стикеру запускает анимацию снова.
+        const psyStickerSeen = new Set();
+        function psyStickerPlay(el) {
+            el.classList.remove('playing');
+            void el.offsetWidth;              // форс-reflow, иначе анимация не перезапустится
+            el.classList.add('playing');
+        }
+        function stickerHydrate(scope) {
+            const root = scope || document.getElementById('messagesContainer');
+            if (!root) return;
+            root.querySelectorAll('.psy-sticker').forEach(el => {
+                if (!el._stickerBound) {
+                    el._stickerBound = true;
+                    el.addEventListener('click', () => psyStickerPlay(el));
+                }
+                const host = el.closest('[data-msg-id], [data-fav-id]');
+                const key = host ? (host.getAttribute('data-msg-id') || host.getAttribute('data-fav-id')) : '';
+                if (key) {
+                    if (!psyStickerSeen.has(key)) { psyStickerSeen.add(key); psyStickerPlay(el); }
+                } else if (!el._stickerPlayed) {          // без id — проигрываем один раз на элемент
+                    el._stickerPlayed = true; psyStickerPlay(el);
+                }
+            });
+        }
+        window.stickerHydrate = stickerHydrate;
+
         /** Прервать ответ: длинные ответы иногда не нужны целиком. */
         let aiAbort = null;
         function aiStop() {
@@ -15470,11 +15511,12 @@
                     if (t && t.classList && t.classList.contains('psy-cl-box')) psyChecklistToggle(t);
                 });
                 try {
-                    new MutationObserver(() => { psyEnableEditableChecks(box); if (typeof pollHydrate === 'function') pollHydrate(box); })
+                    new MutationObserver(() => { psyEnableEditableChecks(box); if (typeof pollHydrate === 'function') pollHydrate(box); if (typeof stickerHydrate === 'function') stickerHydrate(box); })
                         .observe(box, { childList: true, subtree: true });
                 } catch (e) {}
                 psyEnableEditableChecks(box);
                 if (typeof pollHydrate === 'function') pollHydrate(box);
+                if (typeof stickerHydrate === 'function') stickerHydrate(box);
             };
             if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bind);
             else bind();
