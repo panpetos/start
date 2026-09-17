@@ -306,6 +306,15 @@
                 prevWasBlock = true;
                 return;
             }
+            // Стикер [[sticker:🤗]] — крупная эмодзи-иллюстрация вместо текста.
+            const stickerM = /^\s*\[\[sticker:([^\]]{1,12})\]\]\s*$/.exec(line);
+            if (stickerM) {
+                closeList();
+                html += '<div class="psy-sticker" style="font-size:4.2rem;line-height:1.1;margin:0.15rem 0;">'
+                     + esc(stickerM[1]) + '</div>';
+                prevWasBlock = true;
+                return;
+            }
             const h = /^\s*(#{2,3})\s+(.+)$/.exec(line);
             const q = /^\s*>\s?(.*)$/.exec(line);
             const cl = /^\s*[-*]\s+\[([ xXvV✓])\]\s*(.*)$/.exec(line);   // чеклист: - [ ] / - [x]

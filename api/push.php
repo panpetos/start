@@ -503,6 +503,8 @@ if ($action === 'pending') {
     $prev = function ($text) {
         $t = preg_replace('/^\s*\[RE#[0-9A-Za-z]+\]\s*/', '', (string)$text);
         $t = preg_replace('/^\s*\[ORDER#\d+\]\s*/', '', (string)$t);
+        $t = preg_replace('/^\s*\[\[sticker:([^\]]{1,12})\]\]\s*$/u', '$1', (string)$t);   // стикер → эмодзи
+        $t = preg_replace('/^\s*\[\[poll:\d+\]\]\s*$/', '📊 Опрос', (string)$t);
         $t = trim(preg_replace('/\s+/u', ' ', (string)$t));
         if ($t === '') return '📎 Вложение';
         return (function_exists('mb_strlen') && mb_strlen($t) > 90) ? mb_substr($t, 0, 90) . '…' : $t;

@@ -4868,7 +4868,7 @@
     <script src="/js/api.js?v=20260821"></script>
     <script src="/js/auth.js?v=20260821"></script>
     <script src="/js/lightbox.js?v=7"></script>
-    <script src="/js/post-format.js?v=20260917"></script>
+    <script src="/js/post-format.js?v=20260917b"></script>
     <!-- Редакционные статьи блога (window.PSY_ARTICLES). Их же показывает /blog.html
          рядом со статьями психологов из БД — без этого файла раздел «Блог» в чате
          показывал бы «статей нет», пока в базе пусто. -->
@@ -11366,6 +11366,8 @@
             return String(t || '')
                 .replace(RE_MARK, '')
                 .replace(ALB_MARK, '')
+                .replace(/^\s*\[\[sticker:([^\]]{1,12})\]\]\s*$/, '$1')   // стикер — сама эмодзи
+                .replace(/^\s*\[\[poll:\d+\]\]\s*$/, '📊 Опрос')
                 // В списке чатов вместо «[Фото: IMG_6507.png]» — просто «Фото»:
                 // имя файла с телефона ничего не говорит о сообщении.
                 .replace(/^\[Фото(:[^\]]*)?\]$/, '📷 Фото')
@@ -14315,7 +14317,7 @@
 
         /** Отправить сообщение-маркер опроса прямо в нужный чат — без поля ввода,
          *  чтобы не мелькал текст [[poll:ID]] и не всплывали проверки отправки. */
-        async function pollSendMarker(marker) {
+        async function pollSendMarker(marker, errMsg) {
             const key = selectedUserId;
             try {
                 if (typeof key === 'string' && key.indexOf(GROUP_PREFIX) === 0) {
@@ -14333,9 +14335,44 @@
                     await loadMessages();
                 }
                 const box = document.getElementById('messagesContainer'); if (box) box.scrollTop = box.scrollHeight;
-            } catch (e) { if (typeof toast === 'function') toast('Опрос создан, но не отправился — попробуйте ещё раз'); }
+            } catch (e) { if (typeof toast === 'function') toast(errMsg || 'Не удалось отправить — попробуйте ещё раз'); }
         }
         window.pollSendMarker = pollSendMarker;
+
+        // ── Стикеры ──────────────────────────────────────────────────────────────
+        // Набор эмодзи-стикеров, тёплый под тему платформы. Тап — сразу отправляет
+        // сообщение-маркер [[sticker:X]], который post-format.js рисует крупно.
+        const PSY_STICKERS = [
+            { title: 'Поддержка', items: ['🤗', '🫂', '💜', '🙏', '💪', '🌟', '✨', '👏', '🤝', '❤️‍🩹'] },
+            { title: 'Спокойствие', items: ['🌿', '🍃', '🕊️', '🧘', '🌾', '☁️', '🌙', '🫧', '🐢', '🍵'] },
+            { title: 'Радость', items: ['☀️', '🌈', '🌸', '🌻', '💐', '⭐', '🎉', '😊', '🥰', '🦋'] }
+        ];
+        function openStickerPanel() {
+            const dark = document.body.classList.contains('dark');
+            const ov = document.createElement('div');
+            ov.style.cssText = 'position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,0.45);display:flex;align-items:flex-end;justify-content:center;';
+            let groups = '';
+            PSY_STICKERS.forEach(g => {
+                let cells = '';
+                g.items.forEach(e => {
+                    cells += '<button type="button" data-st="' + e + '" style="font-size:2rem;line-height:1;padding:0.35rem;border:none;background:none;cursor:pointer;border-radius:0.6rem;">' + e + '</button>';
+                });
+                groups += '<div style="margin-bottom:0.6rem;"><div style="font-size:0.78rem;color:#9CA3AF;margin:0.2rem 0 0.3rem;">' + g.title + '</div>'
+                        + '<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:0.2rem;">' + cells + '</div></div>';
+            });
+            ov.innerHTML = '<div style="width:100%;max-width:460px;background:' + (dark ? '#1e1e1e' : '#fff') + ';color:inherit;border-radius:1rem 1rem 0 0;padding:0.9rem 1rem 1.2rem;max-height:70vh;overflow:auto;">'
+                + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem;"><b>Стикеры</b>'
+                + '<button type="button" data-close="1" style="border:none;background:none;font-size:1.4rem;cursor:pointer;color:inherit;">×</button></div>'
+                + groups + '</div>';
+            document.body.appendChild(ov);
+            const close = () => { try { document.body.removeChild(ov); } catch (e) {} };
+            ov.addEventListener('click', (ev) => {
+                if (ev.target === ov || ev.target.getAttribute('data-close')) { close(); return; }
+                const btn = ev.target.closest('[data-st]');
+                if (btn) { close(); pollSendMarker('[[sticker:' + btn.getAttribute('data-st') + ']]', 'Не удалось отправить стикер'); }
+            });
+        }
+        window.openStickerPanel = openStickerPanel;
 
         function pollRenderWidget(el, snap) {
             const dark = document.body.classList.contains('dark');
@@ -17250,6 +17287,7 @@
             items.push({ ico: '⤵', label: 'Блок-схема', run: () => openDiagramBuilder('input') });
             items.push({ ico: '☑', label: 'Список задач', run: () => openChecklistBuilder('input') });
             items.push({ ico: '📊', label: 'Опрос', run: () => openPollBuilder() });
+            if (!ai) items.push({ ico: '🤗', label: 'Стикеры', run: () => openStickerPanel() });
             items.push({ ico: '⚡', label: 'Быстрые ответы', run: () => openQuickReplies() });
             if (!ai) items.push({ ico: '✨', label: 'Подсказать ответ (ИИ)', run: () => suggestReplies() });
             items.push({ ico: '🆘', label: 'Мне плохо сейчас', run: () => openSosPanel() });
