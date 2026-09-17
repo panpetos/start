@@ -14294,22 +14294,28 @@
             const dark = document.body.classList.contains('dark');
             const voters = Math.max(0, snap.voters || 0);
             const opts = snap.options || [], counts = snap.counts || [], mine = snap.my_votes || [];
+            const closed = !!snap.closed;
             let rows = '';
             for (let i = 0; i < opts.length; i++) {
                 const n = counts[i] || 0;
                 const pct = voters > 0 ? Math.round(n / voters * 100) : 0;
                 const voted = mine.indexOf(i) >= 0;
-                rows += `<button type="button" onclick="pollVote(${snap.id}, ${i}, this)" style="display:block;width:100%;text-align:left;position:relative;overflow:hidden;margin:0.25rem 0;padding:0.5rem 0.6rem;border:1.5px solid ${voted ? '#047857' : (dark ? '#3a3a3a' : '#e5e7eb')};border-radius:0.6rem;background:${dark ? '#242424' : '#fafafa'};color:inherit;cursor:pointer;font-family:inherit;font-size:0.9rem;">
+                const clickAttr = closed ? '' : ` onclick="pollVote(${snap.id}, ${i}, this)"`;
+                rows += `<button type="button"${clickAttr} ${closed ? 'disabled' : ''} style="display:block;width:100%;text-align:left;position:relative;overflow:hidden;margin:0.25rem 0;padding:0.5rem 0.6rem;border:1.5px solid ${voted ? '#047857' : (dark ? '#3a3a3a' : '#e5e7eb')};border-radius:0.6rem;background:${dark ? '#242424' : '#fafafa'};color:inherit;cursor:${closed ? 'default' : 'pointer'};font-family:inherit;font-size:0.9rem;">
                     <span style="position:absolute;inset:0 auto 0 0;width:${pct}%;background:rgba(4,120,87,0.14);"></span>
                     <span style="position:relative;display:flex;justify-content:space-between;gap:0.5rem;">
                         <span>${voted ? '✓ ' : ''}${escapeHtml(opts[i])}</span>
                         <span style="opacity:0.7;flex-shrink:0;">${pct}% · ${n}</span>
                     </span></button>`;
             }
+            const foot = closed
+                ? '<div style="font-size:0.76rem;color:#9CA3AF;margin-top:0.4rem;">🔒 Опрос завершён · проголосовало: ' + voters + '</div>'
+                : '<div style="font-size:0.76rem;color:#9CA3AF;margin-top:0.4rem;">Проголосовало: ' + voters + (snap.multi ? ' · можно несколько' : '') + '</div>'
+                  + (snap.is_creator ? `<button type="button" onclick="pollClose(${snap.id}, this)" style="margin-top:0.5rem;padding:0.35rem 0.7rem;border:1px solid ${dark ? '#444' : '#e5e7eb'};border-radius:0.5rem;background:none;color:#DC2626;cursor:pointer;font-family:inherit;font-size:0.8rem;">Закрыть опрос</button>` : '');
             el.innerHTML = `<div style="border:1px solid ${dark ? '#333' : 'rgba(127,127,127,0.25)'};border-radius:0.8rem;padding:0.7rem 0.8rem;max-width:340px;">
                 <div style="font-weight:700;margin-bottom:0.5rem;">📊 ${escapeHtml(snap.question || '')}</div>
                 ${rows}
-                <div style="font-size:0.76rem;color:#9CA3AF;margin-top:0.4rem;">Проголосовало: ${voters}${snap.multi ? ' · можно несколько' : ''}</div>
+                ${foot}
             </div>`;
         }
         async function pollLoad(el) {
@@ -14333,6 +14339,19 @@
             } catch (e) { if (typeof toast === 'function') toast('Ошибка сети'); }
         }
         window.pollVote = pollVote;
+        async function pollClose(pollId, btn) {
+            if (!confirm('Закрыть опрос? Голосовать больше будет нельзя.')) return;
+            const el = btn && btn.closest('.psy-poll');
+            try {
+                const r = await (await fetch('/api/polls.php?action=close', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+                    body: JSON.stringify({ poll_id: pollId })
+                })).json();
+                if (r && r.ok && el) pollRenderWidget(el, r);
+                else if (typeof toast === 'function') toast(r && r.error ? r.error : 'Не удалось');
+            } catch (e) { if (typeof toast === 'function') toast('Ошибка сети'); }
+        }
+        window.pollClose = pollClose;
         function pollHydrate(scope) {
             const root = scope || document.getElementById('messagesContainer');
             if (!root) return;

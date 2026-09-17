@@ -53,12 +53,13 @@ try {
         PRIMARY KEY (poll_id, user_id, option_idx),
         INDEX idx_poll (poll_id)
     ) DEFAULT CHARSET=utf8mb4");
+    try { $pdo->exec("ALTER TABLE polls ADD COLUMN closed TINYINT NOT NULL DEFAULT 0"); } catch (Exception $e) {}
 } catch (Exception $e) { pollOut(['ok' => false, 'error' => 'Не удалось подготовить таблицы'], 500); }
 
 /** Полный снимок опроса для клиента: вопрос, варианты, счётчики, мои голоса. */
 function pollSnapshot(PDO $pdo, $pollId, $userId) {
-    $st = $pdo->prepare("SELECT id, creator_id, question, options, multi FROM polls WHERE id = ? LIMIT 1");
-    $st->execute([$pollId]);
+    try { $st = $pdo->prepare("SELECT id, creator_id, question, options, multi, closed FROM polls WHERE id = ? LIMIT 1"); $st->execute([$pollId]); }
+    catch (Exception $e) { $st = $pdo->prepare("SELECT id, creator_id, question, options, multi FROM polls WHERE id = ? LIMIT 1"); $st->execute([$pollId]); }
     $p = $st->fetch(PDO::FETCH_ASSOC);
     if (!$p) return null;
     $options = json_decode((string)$p['options'], true);
@@ -84,7 +85,9 @@ function pollSnapshot(PDO $pdo, $pollId, $userId) {
     } catch (Exception $e) {}
     return ['ok' => true, 'id' => (int)$p['id'], 'question' => (string)$p['question'],
             'options' => $options, 'multi' => (int)$p['multi'], 'counts' => $counts,
-            'my_votes' => $mine, 'voters' => $voters];
+            'my_votes' => $mine, 'voters' => $voters,
+            'closed' => (int)($p['closed'] ?? 0),
+            'is_creator' => ((string)$p['creator_id'] === (string)$userId)];
 }
 
 $action = $_GET['action'] ?? '';
@@ -122,11 +125,12 @@ if ($action === 'vote' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $pollId = (int)($body['poll_id'] ?? 0);
     $idx = (int)($body['option_idx'] ?? -1);
     if ($pollId <= 0 || $idx < 0) pollOut(['ok' => false, 'error' => 'Некорректный голос'], 400);
-    // Загружаем опрос — проверить границы и режим.
-    $st = $pdo->prepare("SELECT options, multi FROM polls WHERE id = ? LIMIT 1");
-    $st->execute([$pollId]);
+    // Загружаем опрос — проверить границы, режим и не закрыт ли он.
+    try { $st = $pdo->prepare("SELECT options, multi, closed FROM polls WHERE id = ? LIMIT 1"); $st->execute([$pollId]); }
+    catch (Exception $e) { $st = $pdo->prepare("SELECT options, multi FROM polls WHERE id = ? LIMIT 1"); $st->execute([$pollId]); }
     $p = $st->fetch(PDO::FETCH_ASSOC);
     if (!$p) pollOut(['ok' => false, 'error' => 'Опрос не найден'], 404);
+    if ((int)($p['closed'] ?? 0) === 1) pollOut(['ok' => false, 'error' => 'Опрос завершён'], 400);
     $options = json_decode((string)$p['options'], true);
     if (!is_array($options) || $idx >= count($options)) pollOut(['ok' => false, 'error' => 'Нет такого варианта'], 400);
     if (!psyRateLimit($pdo, 'poll_vote:' . $userId, 120, 60)) pollOut(['ok' => false, 'error' => 'Слишком часто'], 429);
@@ -147,6 +151,20 @@ if ($action === 'vote' && $_SERVER['REQUEST_METHOD'] === 'POST') {
                 ->execute([$pollId, $userId, $idx]);
         }
     } catch (Exception $e) { pollOut(['ok' => false, 'error' => 'Не удалось учесть голос'], 500); }
+    pollOut(pollSnapshot($pdo, $pollId, $userId));
+}
+
+if ($action === 'close' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    $pollId = (int)($body['poll_id'] ?? 0);
+    if ($pollId <= 0) pollOut(['ok' => false, 'error' => 'Некорректный опрос'], 400);
+    try {
+        $st = $pdo->prepare("SELECT creator_id FROM polls WHERE id = ? LIMIT 1");
+        $st->execute([$pollId]);
+        $cr = $st->fetchColumn();
+        if ($cr === false) pollOut(['ok' => false, 'error' => 'Опрос не найден'], 404);
+        if ((string)$cr !== (string)$userId) pollOut(['ok' => false, 'error' => 'Закрыть опрос может только автор'], 403);
+        $pdo->prepare("UPDATE polls SET closed = 1 WHERE id = ?")->execute([$pollId]);
+    } catch (Exception $e) { pollOut(['ok' => false, 'error' => 'Не удалось закрыть'], 500); }
     pollOut(pollSnapshot($pdo, $pollId, $userId));
 }
 
