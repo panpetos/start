@@ -235,17 +235,17 @@
             /* Плотнее по всему кабинету: контейнер, шапка, карточки, заголовки, кнопки —
                чтобы на телефоне помещалось больше и меньше приходилось листать. */
             .container { padding: 0.55rem !important; }
-            .header { flex-direction: column; align-items: flex-start; gap: 0.3rem;
-                      padding: 0.7rem 0.85rem !important; margin-bottom: 0.7rem; border-radius: 0.8rem; }
-            .header-left h1 { font-size: 1.05rem !important; margin-bottom: 0.1rem; }
-            .header-left p { font-size: 0.8rem; }
-            .user-avatar { width: 38px; height: 38px; font-size: 1rem; }
-            .cards { grid-template-columns: 1fr !important; gap: 0.6rem; }
-            .card { padding: 0.85rem 0.85rem; border-radius: 0.8rem; }
-            .card h2 { font-size: 1rem; margin-bottom: 0.55rem; }
-            .card p { line-height: 1.45; font-size: 0.9rem; }
-            .btn { padding: 0.5rem 1rem; font-size: 0.9rem; }
-            .appointment-item { flex-direction: column; align-items: flex-start; gap: 0.4rem; padding: 0.7rem !important; }
+            .header { flex-direction: column !important; align-items: flex-start !important; gap: 0.3rem !important;
+                      padding: 0.7rem 0.85rem !important; margin-bottom: 0.7rem !important; border-radius: 0.8rem !important; }
+            .header-left h1 { font-size: 1.05rem !important; margin-bottom: 0.1rem !important; }
+            .header-left p { font-size: 0.8rem !important; }
+            .user-avatar { width: 38px !important; height: 38px !important; font-size: 1rem !important; }
+            .cards { grid-template-columns: 1fr !important; gap: 0.6rem !important; }
+            .card { padding: 0.85rem !important; border-radius: 0.8rem !important; }
+            .card h2 { font-size: 1rem !important; margin-bottom: 0.55rem !important; }
+            .card p { line-height: 1.45 !important; font-size: 0.9rem !important; }
+            .btn { padding: 0.5rem 1rem !important; font-size: 0.9rem !important; }
+            .appointment-item { flex-direction: column !important; align-items: flex-start !important; gap: 0.4rem !important; padding: 0.7rem !important; }
             /* На телефоне — в столбик. Две колонки давали 94–129px на кнопку, а
                «Записаться ещё» требует ~127px вместе со значком: текст упирался
                в края, а на узких экранах и вовсе вылезал за них. В столбик
