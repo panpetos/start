@@ -21,14 +21,26 @@ if (!function_exists('status_ensure_table')) {
             auto_reply_on TINYINT NOT NULL DEFAULT 0,
             updated_at DATETIME NOT NULL
         ) DEFAULT CHARSET=utf8mb4");
+        // Две свои фразы для кнопок быстрого ответа в уведомлении.
+        try { $pdo->exec("ALTER TABLE user_status ADD COLUMN quick1 VARCHAR(60) NULL"); } catch (Exception $e) {}
+        try { $pdo->exec("ALTER TABLE user_status ADD COLUMN quick2 VARCHAR(60) NULL"); } catch (Exception $e) {}
     }
     /** Строка статуса для внутреннего использования (напр. автоответ в push poke). */
     function status_get_row(PDO $pdo, $id) {
         try {
-            $st = $pdo->prepare("SELECT status_text, auto_reply, auto_reply_on FROM user_status WHERE user_id = ? LIMIT 1");
+            $st = $pdo->prepare("SELECT * FROM user_status WHERE user_id = ? LIMIT 1");
             $st->execute([$id]);
             return $st->fetch(PDO::FETCH_ASSOC) ?: null;
         } catch (Exception $e) { return null; }
+    }
+    /** Пара быстрых ответов пользователя для пуша (с запасными значениями). */
+    function status_quick_replies(PDO $pdo, $id) {
+        $row = status_get_row($pdo, $id);
+        $q1 = $row ? trim((string)($row['quick1'] ?? '')) : '';
+        $q2 = $row ? trim((string)($row['quick2'] ?? '')) : '';
+        if ($q1 === '') $q1 = '👍 Ок';
+        if ($q2 === '') $q2 = 'Отвечу позже 🙏';
+        return [$q1, $q2];
     }
 }
 
@@ -68,7 +80,8 @@ if (isset($_SERVER['SCRIPT_FILENAME']) && realpath($_SERVER['SCRIPT_FILENAME']) 
         if (!$row) $stOut(['ok' => true, 'status_text' => '', 'auto_reply' => '', 'auto_reply_on' => 0]);
         if ($self) {
             $stOut(['ok' => true, 'status_text' => (string)($row['status_text'] ?? ''),
-                    'auto_reply' => (string)($row['auto_reply'] ?? ''), 'auto_reply_on' => (int)($row['auto_reply_on'] ?? 0)]);
+                    'auto_reply' => (string)($row['auto_reply'] ?? ''), 'auto_reply_on' => (int)($row['auto_reply_on'] ?? 0),
+                    'quick1' => (string)($row['quick1'] ?? ''), 'quick2' => (string)($row['quick2'] ?? '')]);
         }
         $stOut(['ok' => true, 'status_text' => (string)($row['status_text'] ?? '')]);   // чужим — только текст
     }
@@ -79,12 +92,16 @@ if (isset($_SERVER['SCRIPT_FILENAME']) && realpath($_SERVER['SCRIPT_FILENAME']) 
         $statusText = mb_substr(trim((string)($body['status_text'] ?? '')), 0, 120);
         $autoReply = mb_substr(trim((string)($body['auto_reply'] ?? '')), 0, 500);
         $autoOn = !empty($body['auto_reply_on']) ? 1 : 0;
+        $quick1 = mb_substr(trim((string)($body['quick1'] ?? '')), 0, 60);
+        $quick2 = mb_substr(trim((string)($body['quick2'] ?? '')), 0, 60);
         try {
-            $pdo->prepare("INSERT INTO user_status (user_id, status_text, auto_reply, auto_reply_on, updated_at)
-                           VALUES (?, ?, ?, ?, NOW())
+            $pdo->prepare("INSERT INTO user_status (user_id, status_text, auto_reply, auto_reply_on, quick1, quick2, updated_at)
+                           VALUES (?, ?, ?, ?, ?, ?, NOW())
                            ON DUPLICATE KEY UPDATE status_text = VALUES(status_text), auto_reply = VALUES(auto_reply),
-                                                   auto_reply_on = VALUES(auto_reply_on), updated_at = NOW()")
-                ->execute([$userId, $statusText !== '' ? $statusText : null, $autoReply !== '' ? $autoReply : null, $autoOn]);
+                                                   auto_reply_on = VALUES(auto_reply_on), quick1 = VALUES(quick1),
+                                                   quick2 = VALUES(quick2), updated_at = NOW()")
+                ->execute([$userId, $statusText !== '' ? $statusText : null, $autoReply !== '' ? $autoReply : null, $autoOn,
+                           $quick1 !== '' ? $quick1 : null, $quick2 !== '' ? $quick2 : null]);
             $stOut(['ok' => true]);
         } catch (Exception $e) { $stOut(['ok' => false, 'error' => 'Не удалось сохранить'], 500); }
     }

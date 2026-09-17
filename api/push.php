@@ -579,9 +579,19 @@ if ($action === 'pending') {
 
     // quick_replies — только для одиночного диалога: в общем «+N» непонятно, кому слать.
     $quick = ($canReply && $total === 1) ? true : false;
+    $qr = [];
+    if ($quick) {
+        $pair = ['👍 Ок', 'Отвечу позже 🙏'];
+        if (@file_exists(__DIR__ . '/status.php')) {
+            try { require_once __DIR__ . '/status.php'; if (function_exists('status_quick_replies')) $pair = status_quick_replies($pdo, $userId); }
+            catch (\Throwable $e) {}
+        }
+        $qr = [['id' => 'qr0', 'title' => $pair[0], 'text' => $pair[0]],
+               ['id' => 'qr1', 'title' => $pair[1], 'text' => $pair[1]]];
+    }
     pushOut(['ok' => true, 'count' => $total, 'title' => $title, 'body' => $bodyTxt,
              'url' => $url, 'can_reply' => $canReply, 'reply_url' => $canReply ? ($url . '&reply=1') : null,
-             'peer' => $peer, 'kind' => $kind, 'quick' => $quick]);
+             'peer' => $peer, 'kind' => $kind, 'quick' => $quick, 'quick_replies' => $qr]);
 }
 
 /**

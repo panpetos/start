@@ -13,7 +13,7 @@
  * переписка — это ещё и чужие данные на общем устройстве.
  */
 
-const VERSION = 'psy-v10';  // быстрые ответы-кнопки в уведомлении (отправляют фразу без открытия)
+const VERSION = 'psy-v11';  // быстрые ответы: свои фразы пользователя из payload
 const SHELL = VERSION + '-shell';
 
 // Оболочка: то, без чего окно не нарисуется. Страницы сюда не входят намеренно —
@@ -200,6 +200,11 @@ self.addEventListener('push', (e) => {
         // воркер сам сделает запрос с кукой сессии. Показываем только для одиночного
         // диалога (когда точно известно, кому слать).
         const quick = !!(d && d.quick && d.peer);
+        // Кнопки быстрого ответа: берём фразы пользователя (из payload), иначе — запасные.
+        const qrList = (quick && Array.isArray(d.quick_replies) && d.quick_replies.length)
+            ? d.quick_replies.slice(0, 2)
+            : (quick ? [{ id: 'qr0', title: '👍 Ок', text: '👍 Ок' }, { id: 'qr1', title: 'Позже отвечу', text: 'Отвечу чуть позже 🙏' }] : []);
+        const qrMap = {}; qrList.forEach(q => { qrMap[q.id] = q.text; });
         // Звонок ведёт себя иначе, чем сообщение: не гаснет сам, вибрирует «очередью»
         // и не сворачивается в общую ленту уведомлений — иначе вызов легко пропустить
         // при выключенном экране.
@@ -217,8 +222,8 @@ self.addEventListener('push', (e) => {
             // Звонок → «Ответить»; одиночное сообщение → две кнопки быстрого ответа,
             // которые отправляют готовую фразу без открытия приложения.
             actions: isCall ? [{ action: 'answer', title: 'Ответить' }]
-                   : (quick ? [{ action: 'qr_ok', title: '👍 Ок' }, { action: 'qr_later', title: 'Позже отвечу' }] : undefined),
-            data: { url: openUrl, peer: (d && d.peer) || '', kind: (d && d.kind) || 'msg' },
+                   : (qrList.length ? qrList.map(q => ({ action: q.id, title: (q.title || '').slice(0, 24) || 'Ответ' })) : undefined),
+            data: { url: openUrl, peer: (d && d.peer) || '', kind: (d && d.kind) || 'msg', qr: qrMap },
         });
         // Число на иконке приложения, где это поддерживается
         try {
@@ -258,8 +263,8 @@ self.addEventListener('notificationclick', (e) => {
     try { if (self.navigator && self.navigator.clearAppBadge) self.navigator.clearAppBadge(); } catch (err) {}
 
     // Быстрый ответ готовой фразой — приложение НЕ открываем.
-    if (action.indexOf('qr_') === 0) {
-        const text = QUICK_REPLIES[action] || 'Ок';
+    if (action.indexOf('qr') === 0) {
+        const text = (data.qr && data.qr[action]) || QUICK_REPLIES[action] || '👍 Ок';
         e.waitUntil((async () => {
             const ok = await swSendQuickReply(data, text);
             if (ok) {

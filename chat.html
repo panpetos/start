@@ -14173,6 +14173,14 @@
                         <textarea id="stAuto" rows="2" maxlength="500" placeholder="Например: Спасибо за сообщение! Я на сессии, отвечу после 18:00."
                                   style="width:100%;margin-top:0.5rem;resize:vertical;padding:0.6rem 0.7rem;border:1.5px solid ${dark ? '#444' : '#e0e0e0'};border-radius:0.6rem;font-family:inherit;font-size:0.9rem;background:${dark ? '#2A2A2A' : '#fff'};color:inherit;">${escapeHtml(cur.auto_reply || '')}</textarea>
                         <div style="font-size:0.76rem;color:#9CA3AF;margin-top:0.3rem;">Автоответ уходит не чаще раза в 4 часа одному человеку.</div>
+                        <div style="font-size:0.85rem;color:#6B7280;margin:1rem 0 0.35rem;">Быстрые ответы в уведомлении (2 кнопки)</div>
+                        <div style="display:flex;gap:0.5rem;">
+                            <input id="stQuick1" maxlength="60" value="${escapeHtml(cur.quick1 || '')}" placeholder="👍 Ок"
+                                   style="flex:1;padding:0.5rem 0.65rem;border:1.5px solid ${dark ? '#444' : '#e0e0e0'};border-radius:0.6rem;font-family:inherit;font-size:0.9rem;background:${dark ? '#2A2A2A' : '#fff'};color:inherit;">
+                            <input id="stQuick2" maxlength="60" value="${escapeHtml(cur.quick2 || '')}" placeholder="Отвечу позже 🙏"
+                                   style="flex:1;padding:0.5rem 0.65rem;border:1.5px solid ${dark ? '#444' : '#e0e0e0'};border-radius:0.6rem;font-family:inherit;font-size:0.9rem;background:${dark ? '#2A2A2A' : '#fff'};color:inherit;">
+                        </div>
+                        <div style="font-size:0.76rem;color:#9CA3AF;margin-top:0.3rem;">Появятся кнопками в пуш-уведомлении — ответят одной фразой без открытия приложения.</div>
                         <div style="display:flex;justify-content:flex-end;gap:0.5rem;margin-top:0.9rem;">
                             <button onclick="statusSave(this)" style="padding:0.55rem 1rem;background:linear-gradient(135deg,#047857,#059669);color:#fff;border:none;border-radius:0.6rem;font-weight:700;cursor:pointer;font-family:inherit;">Сохранить</button>
                         </div>
@@ -14183,11 +14191,13 @@
         window.openStatusEditor = openStatusEditor;
         async function statusSave(btn) {
             const st = document.getElementById('stText'), au = document.getElementById('stAuto'), on = document.getElementById('stAutoOn');
+            const q1 = document.getElementById('stQuick1'), q2 = document.getElementById('stQuick2');
             if (btn) btn.disabled = true;
             try {
                 const r = await (await fetch('/api/status.php?action=set', {
                     method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
-                    body: JSON.stringify({ status_text: st ? st.value : '', auto_reply: au ? au.value : '', auto_reply_on: on && on.checked ? 1 : 0 })
+                    body: JSON.stringify({ status_text: st ? st.value : '', auto_reply: au ? au.value : '', auto_reply_on: on && on.checked ? 1 : 0,
+                                           quick1: q1 ? q1.value : '', quick2: q2 ? q2.value : '' })
                 })).json();
                 if (r && r.ok) { const m = document.getElementById('psyStatusModal'); if (m) m.remove(); if (typeof toast === 'function') toast('Статус сохранён'); }
                 else { if (btn) btn.disabled = false; if (typeof toast === 'function') toast(r && r.error ? r.error : 'Не удалось'); }
