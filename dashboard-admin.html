@@ -278,11 +278,14 @@
             .panel { border-radius: 0.8rem; }
             .panel-head { padding: 0.6rem 0.75rem; gap: 0.4rem; }
             .panel-head h2 { font-size: 0.98rem; }
-            .stats-grid { gap: 0.55rem; margin-bottom: 0.8rem;
-                          grid-template-columns: repeat(auto-fit, minmax(min(132px, 46%), 1fr)); }
-            .stat { padding: 0.7rem 0.8rem; border-radius: 0.8rem; }
-            .stat .v { font-size: 1.35rem; }
-            .stat .l { font-size: 0.72rem; }
+            /* По три плитки в ряд: на дашборде их 13, при двух в ряд экран всё равно
+               приходилось долго листать. min(100px,30%) гарантирует три колонки даже
+               на узких телефонах, а не срыв в две. */
+            .stats-grid { gap: 0.45rem; margin-bottom: 0.8rem;
+                          grid-template-columns: repeat(auto-fit, minmax(min(100px, 30%), 1fr)); }
+            .stat { padding: 0.6rem 0.5rem; border-radius: 0.75rem; }
+            .stat .v { font-size: 1.15rem; }
+            .stat .l { font-size: 0.66rem; line-height: 1.2; }
             th, td { padding: 0.5rem 0.6rem; }
             table { font-size: 0.82rem; }
             .btn-sm { padding: 0.32rem 0.6rem !important; font-size: 0.78rem !important; }
