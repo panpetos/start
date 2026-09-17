@@ -311,7 +311,7 @@
             if (stickerM) {
                 closeList();
                 html += '<div class="psy-sticker" style="font-size:4.2rem;line-height:1.1;margin:0.15rem 0;">'
-                     + esc(stickerM[1]) + '</div>';
+                     + escapeHtml(stickerM[1]) + '</div>';
                 prevWasBlock = true;
                 return;
             }
