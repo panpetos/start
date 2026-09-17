@@ -14162,6 +14162,13 @@
         }
         window.pollBuilderAddOption = pollBuilderAddOption;
         function openPollBuilder() {
+            // Опрос уместен в личных чатах, группах и «Избранном»; у ассистента и ботов — нет.
+            if ((typeof isAiMode === 'function' && isAiMode()) ||
+                (typeof selectedUserId === 'string' && selectedUserId.indexOf(BOT_PREFIX) === 0)) {
+                if (typeof toast === 'function') toast('Опрос доступен в личных чатах и группах');
+                return;
+            }
+            if (!selectedUserId) { if (typeof toast === 'function') toast('Откройте чат, куда отправить опрос'); return; }
             const dark = document.body.classList.contains('dark');
             let m = document.getElementById('psyPollModal'); if (m) m.remove();
             m = document.createElement('div'); m.id = 'psyPollModal';
@@ -14205,12 +14212,35 @@
                 })).json();
                 if (r && r.ok && r.marker) {
                     const m = document.getElementById('psyPollModal'); if (m) m.remove();
-                    const input = document.getElementById('messageInput');
-                    if (input) { input.value = r.marker; if (typeof sendMessage === 'function') sendMessage(); }
+                    await pollSendMarker(r.marker);
                 } else { if (btn) btn.disabled = false; if (typeof toast === 'function') toast(r && r.error ? r.error : 'Не удалось'); }
             } catch (e) { if (btn) btn.disabled = false; if (typeof toast === 'function') toast('Ошибка сети'); }
         }
         window.pollCreate = pollCreate;
+
+        /** Отправить сообщение-маркер опроса прямо в нужный чат — без поля ввода,
+         *  чтобы не мелькал текст [[poll:ID]] и не всплывали проверки отправки. */
+        async function pollSendMarker(marker) {
+            const key = selectedUserId;
+            try {
+                if (typeof key === 'string' && key.indexOf(GROUP_PREFIX) === 0) {
+                    const d = await groupApi('send', { group_id: key.slice(GROUP_PREFIX.length), content: marker });
+                    if (d && d.ok) { await loadMessages(); await loadMyGroups(); refreshConversationList(); }
+                } else if (key === FAVORITES_ID) {
+                    await fetch('/api/favorites.php?action=add', { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ content: marker }) });
+                    await loadFavoritesMessages();
+                } else if (typeof isSupportMode === 'function' && isSupportMode()) {
+                    await fetch('/api/support.php?action=reply', { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ thread_id: supportThreadIdOf(), message: marker }) });
+                    await loadMessages();
+                } else {
+                    await fetch('/api/messages.php?action=send', { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ receiver_id: key, content: marker }) });
+                    try { if (typeof pokePush === 'function') pokePush(key); } catch (e) {}
+                    await loadMessages();
+                }
+                const box = document.getElementById('messagesContainer'); if (box) box.scrollTop = box.scrollHeight;
+            } catch (e) { if (typeof toast === 'function') toast('Опрос создан, но не отправился — попробуйте ещё раз'); }
+        }
+        window.pollSendMarker = pollSendMarker;
 
         function pollRenderWidget(el, snap) {
             const dark = document.body.classList.contains('dark');
