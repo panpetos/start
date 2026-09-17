@@ -298,6 +298,14 @@
             }
             if (DIA_RE.test(line)) { diaBuf = []; return; }
             if (CL_ALL_RE.test(line)) { clBuf = []; return; }
+            // Маркер опроса [[poll:ID]] — виджет подтянет чат отдельно (голоса живые).
+            const pollM = /^\s*\[\[poll:(\d+)\]\]\s*$/.exec(line);
+            if (pollM) {
+                closeList();
+                html += '<div class="psy-poll" data-poll="' + pollM[1] + '" style="margin:0.4rem 0;">📊 Опрос…</div>';
+                prevWasBlock = true;
+                return;
+            }
             const h = /^\s*(#{2,3})\s+(.+)$/.exec(line);
             const q = /^\s*>\s?(.*)$/.exec(line);
             const cl = /^\s*[-*]\s+\[([ xXvV✓])\]\s*(.*)$/.exec(line);   // чеклист: - [ ] / - [x]

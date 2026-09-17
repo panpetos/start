@@ -4868,7 +4868,7 @@
     <script src="/js/api.js?v=20260821"></script>
     <script src="/js/auth.js?v=20260821"></script>
     <script src="/js/lightbox.js?v=7"></script>
-    <script src="/js/post-format.js?v=20260915b"></script>
+    <script src="/js/post-format.js?v=20260917"></script>
     <!-- Редакционные статьи блога (window.PSY_ARTICLES). Их же показывает /blog.html
          рядом со статьями психологов из БД — без этого файла раздел «Блог» в чате
          показывал бы «статей нет», пока в базе пусто. -->
@@ -14147,6 +14147,125 @@
         }
         window.statusSave = statusSave;
 
+        // ── Опросы / голосования ─────────────────────────────────────────────────
+        function pollBuilderAddOption() {
+            const box = document.getElementById('pollOpts');
+            if (!box) return;
+            if (box.querySelectorAll('input').length >= 10) { if (typeof toast === 'function') toast('Максимум 10 вариантов'); return; }
+            const dark = document.body.classList.contains('dark');
+            const inp = document.createElement('input');
+            inp.className = 'poll-opt';
+            inp.maxLength = 150;
+            inp.placeholder = 'Вариант';
+            inp.style.cssText = 'width:100%;margin:0.25rem 0;padding:0.5rem 0.7rem;border:1.5px solid ' + (dark ? '#444' : '#e0e0e0') + ';border-radius:0.55rem;font-family:inherit;font-size:0.92rem;background:' + (dark ? '#2A2A2A' : '#fff') + ';color:inherit;';
+            box.appendChild(inp);
+        }
+        window.pollBuilderAddOption = pollBuilderAddOption;
+        function openPollBuilder() {
+            const dark = document.body.classList.contains('dark');
+            let m = document.getElementById('psyPollModal'); if (m) m.remove();
+            m = document.createElement('div'); m.id = 'psyPollModal';
+            m.style.cssText = 'position:fixed;inset:0;background:rgba(18,42,34,0.6);z-index:1360;display:flex;align-items:center;justify-content:center;padding:1rem;';
+            m.onclick = (e) => { if (e.target === m) m.remove(); };
+            const fld = (dark ? '#2A2A2A' : '#fff'), brd = (dark ? '#444' : '#e0e0e0');
+            m.innerHTML = `
+                <div style="background:${dark ? '#1E1E1E' : '#fff'};color:${dark ? '#E6E6E6' : '#1A1A1A'};border-radius:1rem;width:min(460px,96vw);max-height:88vh;overflow:auto;box-shadow:0 12px 40px rgba(0,0,0,0.3);">
+                    <div style="display:flex;align-items:center;justify-content:space-between;padding:0.9rem 1.1rem;border-bottom:1px solid ${dark ? '#333' : '#eee'};">
+                        <div style="font-weight:700;">📊 Новый опрос</div>
+                        <button onclick="document.getElementById('psyPollModal').remove()" style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:inherit;line-height:1;">✕</button>
+                    </div>
+                    <div style="padding:1rem 1.1rem;">
+                        <input id="pollQuestion" maxlength="300" placeholder="Вопрос" style="width:100%;padding:0.6rem 0.7rem;border:1.5px solid ${brd};border-radius:0.6rem;font-family:inherit;font-size:0.95rem;background:${fld};color:inherit;">
+                        <div style="font-size:0.82rem;color:#6B7280;margin:0.7rem 0 0.15rem;">Варианты</div>
+                        <div id="pollOpts"></div>
+                        <button type="button" onclick="pollBuilderAddOption()" style="margin-top:0.3rem;padding:0.4rem 0.7rem;border:1px dashed ${dark ? '#1F6B4F' : '#A7F3D0'};border-radius:0.6rem;background:none;color:#047857;cursor:pointer;font-family:inherit;font-size:0.85rem;">＋ Вариант</button>
+                        <label style="display:flex;align-items:center;gap:0.5rem;margin-top:0.9rem;cursor:pointer;font-size:0.9rem;">
+                            <input type="checkbox" id="pollMulti" style="width:18px;height:18px;accent-color:#047857;"> Можно выбрать несколько
+                        </label>
+                        <div style="display:flex;justify-content:flex-end;margin-top:1rem;">
+                            <button onclick="pollCreate(this)" style="padding:0.55rem 1rem;background:linear-gradient(135deg,#047857,#059669);color:#fff;border:none;border-radius:0.6rem;font-weight:700;cursor:pointer;font-family:inherit;">Создать и отправить</button>
+                        </div>
+                    </div>
+                </div>`;
+            document.body.appendChild(m);
+            pollBuilderAddOption(); pollBuilderAddOption();   // два поля по умолчанию
+        }
+        window.openPollBuilder = openPollBuilder;
+        async function pollCreate(btn) {
+            const q = document.getElementById('pollQuestion');
+            const opts = Array.from(document.querySelectorAll('#pollOpts .poll-opt')).map(i => i.value.trim()).filter(Boolean);
+            const multi = document.getElementById('pollMulti');
+            if (!q || !q.value.trim()) { if (typeof toast === 'function') toast('Введите вопрос'); return; }
+            if (opts.length < 2) { if (typeof toast === 'function') toast('Нужно минимум 2 варианта'); return; }
+            if (btn) btn.disabled = true;
+            try {
+                const r = await (await fetch('/api/polls.php?action=create', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+                    body: JSON.stringify({ chat_key: selectedUserId, question: q.value.trim(), options: opts, multi: multi && multi.checked ? 1 : 0 })
+                })).json();
+                if (r && r.ok && r.marker) {
+                    const m = document.getElementById('psyPollModal'); if (m) m.remove();
+                    const input = document.getElementById('messageInput');
+                    if (input) { input.value = r.marker; if (typeof sendMessage === 'function') sendMessage(); }
+                } else { if (btn) btn.disabled = false; if (typeof toast === 'function') toast(r && r.error ? r.error : 'Не удалось'); }
+            } catch (e) { if (btn) btn.disabled = false; if (typeof toast === 'function') toast('Ошибка сети'); }
+        }
+        window.pollCreate = pollCreate;
+
+        function pollRenderWidget(el, snap) {
+            const dark = document.body.classList.contains('dark');
+            const voters = Math.max(0, snap.voters || 0);
+            const opts = snap.options || [], counts = snap.counts || [], mine = snap.my_votes || [];
+            let rows = '';
+            for (let i = 0; i < opts.length; i++) {
+                const n = counts[i] || 0;
+                const pct = voters > 0 ? Math.round(n / voters * 100) : 0;
+                const voted = mine.indexOf(i) >= 0;
+                rows += `<button type="button" onclick="pollVote(${snap.id}, ${i}, this)" style="display:block;width:100%;text-align:left;position:relative;overflow:hidden;margin:0.25rem 0;padding:0.5rem 0.6rem;border:1.5px solid ${voted ? '#047857' : (dark ? '#3a3a3a' : '#e5e7eb')};border-radius:0.6rem;background:${dark ? '#242424' : '#fafafa'};color:inherit;cursor:pointer;font-family:inherit;font-size:0.9rem;">
+                    <span style="position:absolute;inset:0 auto 0 0;width:${pct}%;background:rgba(4,120,87,0.14);"></span>
+                    <span style="position:relative;display:flex;justify-content:space-between;gap:0.5rem;">
+                        <span>${voted ? '✓ ' : ''}${escapeHtml(opts[i])}</span>
+                        <span style="opacity:0.7;flex-shrink:0;">${pct}% · ${n}</span>
+                    </span></button>`;
+            }
+            el.innerHTML = `<div style="border:1px solid ${dark ? '#333' : 'rgba(127,127,127,0.25)'};border-radius:0.8rem;padding:0.7rem 0.8rem;max-width:340px;">
+                <div style="font-weight:700;margin-bottom:0.5rem;">📊 ${escapeHtml(snap.question || '')}</div>
+                ${rows}
+                <div style="font-size:0.76rem;color:#9CA3AF;margin-top:0.4rem;">Проголосовало: ${voters}${snap.multi ? ' · можно несколько' : ''}</div>
+            </div>`;
+        }
+        async function pollLoad(el) {
+            const id = el.getAttribute('data-poll');
+            if (!id) return;
+            try {
+                const r = await (await fetch('/api/polls.php?action=get&poll_id=' + encodeURIComponent(id), { credentials: 'include' })).json();
+                if (r && r.ok) pollRenderWidget(el, r);
+                else el.textContent = '📊 Опрос недоступен';
+            } catch (e) { el.textContent = '📊 Опрос недоступен'; }
+        }
+        async function pollVote(pollId, idx, btn) {
+            const el = btn && btn.closest('.psy-poll');
+            try {
+                const r = await (await fetch('/api/polls.php?action=vote', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+                    body: JSON.stringify({ poll_id: pollId, option_idx: idx })
+                })).json();
+                if (r && r.ok && el) pollRenderWidget(el, r);
+                else if (typeof toast === 'function') toast(r && r.error ? r.error : 'Не удалось');
+            } catch (e) { if (typeof toast === 'function') toast('Ошибка сети'); }
+        }
+        window.pollVote = pollVote;
+        function pollHydrate(scope) {
+            const root = scope || document.getElementById('messagesContainer');
+            if (!root) return;
+            root.querySelectorAll('.psy-poll[data-poll]').forEach(el => {
+                if (el._pollLoaded) return;
+                el._pollLoaded = true;
+                pollLoad(el);
+            });
+        }
+        window.pollHydrate = pollHydrate;
+
         /** Прервать ответ: длинные ответы иногда не нужны целиком. */
         let aiAbort = null;
         function aiStop() {
@@ -15170,10 +15289,11 @@
                     if (t && t.classList && t.classList.contains('psy-cl-box')) psyChecklistToggle(t);
                 });
                 try {
-                    new MutationObserver(() => psyEnableEditableChecks(box))
+                    new MutationObserver(() => { psyEnableEditableChecks(box); if (typeof pollHydrate === 'function') pollHydrate(box); })
                         .observe(box, { childList: true, subtree: true });
                 } catch (e) {}
                 psyEnableEditableChecks(box);
+                if (typeof pollHydrate === 'function') pollHydrate(box);
             };
             if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bind);
             else bind();
@@ -16985,6 +17105,7 @@
             // пунктом, а не только кнопкой внутри окна форматирования.
             items.push({ ico: '⤵', label: 'Блок-схема', run: () => openDiagramBuilder('input') });
             items.push({ ico: '☑', label: 'Список задач', run: () => openChecklistBuilder('input') });
+            items.push({ ico: '📊', label: 'Опрос', run: () => openPollBuilder() });
             items.push({ ico: '⚡', label: 'Быстрые ответы', run: () => openQuickReplies() });
             items.push({ ico: '🆘', label: 'Мне плохо сейчас', run: () => openSosPanel() });
             items.push({ ico: '🫁', label: 'Дыхание (успокоиться)', run: () => openBreathing() });

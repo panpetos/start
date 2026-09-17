@@ -161,6 +161,7 @@ jobs:
             put api/reminders.php -o api/reminders.php;
             put api/sos.php -o api/sos.php;
             put api/status.php -o api/status.php;
+            put api/polls.php -o api/polls.php;
             put api/scheduled.php -o api/scheduled.php;
             put api/calls.php -o api/calls.php;
             put api/rtc_calls.php -o api/rtc_calls.php;
