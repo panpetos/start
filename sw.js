@@ -13,7 +13,7 @@
  * переписка — это ещё и чужие данные на общем устройстве.
  */
 
-const VERSION = 'psy-v8';   // поднято: текст сообщения в пуше + кнопка «Ответить»
+const VERSION = 'psy-v9';   // тап по уведомлению открывает чат на поле ввода; ложную «Ответить» убрали
 const SHELL = VERSION + '-shell';
 
 // Оболочка: то, без чего окно не нарисуется. Страницы сюда не входят намеренно —
@@ -189,10 +189,12 @@ self.addEventListener('push', (e) => {
         const count = d && typeof d.count === 'number' ? d.count : 0;
         const isCall = !!(d && d.call);
         const canReply = !!(d && d.can_reply);
-        // Куда вести кнопку «Ответить»: прямо в нужный чат с раскрытым полём ввода.
-        // (Веб-уведомления не умеют ввод текста прямо в шторке — это только у нативных
-        //  приложений; поэтому «ответить» открывает чат сразу на поле ответа.)
-        const replyUrl = (d && d.reply_url) || (url + (url.indexOf('?') >= 0 ? '&' : '?') + 'reply=1');
+        // ВАЖНО про «ответить прямо в уведомлении». Веб-уведомления (PWA) НЕ умеют
+        // поле ввода в шторке — это возможно только в нативном приложении. Поэтому
+        // отдельной кнопки «Ответить» больше нет (она вводила в заблуждение — работала
+        // как «Открыть»). Вместо этого сам тап по уведомлению открывает нужный чат
+        // сразу с курсором в поле ввода (reply=1) — это лучшее, что доступно в вебе.
+        const openUrl = canReply ? (d.reply_url || (url + (url.indexOf('?') >= 0 ? '&' : '?') + 'reply=1')) : url;
         // Звонок ведёт себя иначе, чем сообщение: не гаснет сам, вибрирует «очередью»
         // и не сворачивается в общую ленту уведомлений — иначе вызов легко пропустить
         // при выключенном экране.
@@ -207,11 +209,10 @@ self.addEventListener('push', (e) => {
             // кармане должен дать понять, что это вызов, а не сообщение.
             vibrate: isCall ? [500, 250, 500, 250, 500, 250, 500] : undefined,
             silent: false,
-            // Кнопки прямо в уведомлении. Для звонка — «Ответить»; для сообщения —
-            // «Ответить» (откроет чат на поле ввода) и «Открыть».
-            actions: isCall ? [{ action: 'answer', title: 'Ответить' }]
-                   : (canReply ? [{ action: 'reply', title: '✍️ Ответить' }, { action: 'open', title: 'Открыть' }] : undefined),
-            data: { url, reply_url: replyUrl },
+            // Кнопка только у звонка («Ответить» = принять вызов). У сообщения кнопок
+            // нет: тап по самому уведомлению уже открывает чат готовым к ответу.
+            actions: isCall ? [{ action: 'answer', title: 'Ответить' }] : undefined,
+            data: { url: openUrl },
         });
         // Число на иконке приложения, где это поддерживается
         try {
@@ -226,8 +227,9 @@ self.addEventListener('notificationclick', (e) => {
     e.notification.close();
     try { if (self.navigator && self.navigator.clearAppBadge) self.navigator.clearAppBadge(); } catch (err) {}
     const data = e.notification.data || {};
-    // «Ответить» ведёт сразу к полю ввода нужного чата; остальное — просто открыть чат.
-    const target = (e.action === 'reply' && data.reply_url) ? data.reply_url : (data.url || '/chat.html');
+    // Тап по уведомлению (или «Ответить» у звонка) открывает нужный чат; для сообщений
+    // data.url уже ведёт на чат с полем ввода в фокусе.
+    const target = data.url || '/chat.html';
     e.waitUntil((async () => {
         const all = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
         for (const c of all) {
