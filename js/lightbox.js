@@ -62,15 +62,17 @@
             '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
             'stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></button>' +
             '<div class="plb-count"></div>' +
-            '<div class="plb-stage"><img class="plb-img" alt=""></div>' +
+            '<div class="plb-stage"><img class="plb-img" alt="" draggable="false"></div>' +
             '<div class="plb-hint">Двойное касание или щипок — увеличить</div>';
         const css = document.createElement('style');
         css.textContent =
             '#psyLightbox{position:fixed;inset:0;z-index:5000;display:none;align-items:center;' +
             'justify-content:center;background:rgba(12,12,18,0.92);padding:2.5rem 1rem 3.5rem;}' +
             '#psyLightbox.open{display:flex;}' +
+            // -webkit-user-drag:none — иначе на компьютере перетаскивание фото мышью
+            // запускало браузерный «drag&drop картинки», а не наш свайп к соседнему кадру.
             '#psyLightbox .plb-img{max-width:100%;max-height:100%;object-fit:contain;border-radius:0.5rem;' +
-            'box-shadow:0 12px 50px rgba(0,0,0,0.5);user-select:none;}' +
+            'box-shadow:0 12px 50px rgba(0,0,0,0.5);user-select:none;-webkit-user-drag:none;user-drag:none;}' +
             '#psyLightbox .plb-close{position:absolute;top:0.75rem;right:0.9rem;width:40px;height:40px;' +
             'border:none;border-radius:50%;background:rgba(255,255,255,0.14);color:#fff;font-size:1.1rem;' +
             'cursor:pointer;line-height:1;z-index:1;}' +
@@ -183,6 +185,9 @@
 
     function bindZoom(el) {
         const stage = el.querySelector('.plb-stage');
+        // Гасим браузерный drag картинки: без этого мышью на компьютере вместо свайпа
+        // к соседнему фото начинался системный перенос изображения.
+        stage.addEventListener('dragstart', function (e) { e.preventDefault(); });
         let pts = new Map();          // активные касания
         let startDist = 0, startZoom = 1, startPan = null, startMid = null;
         let downAt = 0, downX = 0, downY = 0, lastTap = 0, moved = false;

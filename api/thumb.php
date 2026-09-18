@@ -74,9 +74,37 @@ if (max($sw, $sh) <= $w) thumbFallback($path);
 
 $cacheDir = __DIR__ . '/../uploads/.thumbs';
 if (!is_dir($cacheDir)) @mkdir($cacheDir, 0755, true);
-// Имя кэша учитывает и время правки файла: заменят картинку — копия обновится сама
-$key = sha1($path . '|' . $w . '|' . (string)@filemtime($src));
+// Имя кэша учитывает и время правки файла: заменят картинку — копия обновится сама.
+// Суффикс |o2 — версия логики: подняли его, когда научились учитывать EXIF-поворот,
+// чтобы уже сделанные (перевёрнутые) копии пересоздались, а не отдавались из кэша.
+$key = sha1($path . '|' . $w . '|' . (string)@filemtime($src) . '|o2');
 $cache = $cacheDir . '/' . $key . '.jpg';
+
+/**
+ * Развернуть картинку по EXIF-ориентации (снимки с телефона часто «лежат на боку»:
+ * в файле пиксели повёрнуты, а правильный поворот записан в EXIF). GD при
+ * imagecreatefromjpeg EXIF не применяет — поэтому уменьшенная копия выходила
+ * повёрнутой, хотя оригинал браузер показывал верно. Возвращаем, возможно, новый
+ * ресурс (imagerotate создаёт новый), поэтому результат обязательно присваивать.
+ */
+function thumbApplyExif($img, $src, $type) {
+    if ($type !== IMAGETYPE_JPEG || !function_exists('exif_read_data') || !function_exists('imagerotate')) return $img;
+    $ori = 0;
+    try { $ex = @exif_read_data($src); if ($ex && !empty($ex['Orientation'])) $ori = (int)$ex['Orientation']; }
+    catch (Throwable $e) { $ori = 0; }
+    if ($ori <= 1) return $img;
+    // imagerotate в GD крутит ПРОТИВ часовой; углы подобраны под стандарт EXIF 1..8.
+    switch ($ori) {
+        case 2: if (function_exists('imageflip')) imageflip($img, IMG_FLIP_HORIZONTAL); break;
+        case 3: $img = imagerotate($img, 180, 0); break;
+        case 4: if (function_exists('imageflip')) imageflip($img, IMG_FLIP_VERTICAL); break;
+        case 5: $img = imagerotate($img, -90, 0); if (function_exists('imageflip')) imageflip($img, IMG_FLIP_HORIZONTAL); break;
+        case 6: $img = imagerotate($img, -90, 0); break;
+        case 7: $img = imagerotate($img, 90, 0); if (function_exists('imageflip')) imageflip($img, IMG_FLIP_HORIZONTAL); break;
+        case 8: $img = imagerotate($img, 90, 0); break;
+    }
+    return $img;
+}
 
 /** Отдать готовый файл с длинным кэшем и поддержкой 304. */
 function thumbSend($file) {
@@ -103,6 +131,11 @@ try {
     elseif ($type === IMAGETYPE_WEBP && function_exists('imagecreatefromwebp')) $srcImg = @imagecreatefromwebp($src);
 } catch (Throwable $e) { $srcImg = null; }
 if (!$srcImg) thumbFallback($path);
+
+// Учитываем EXIF-поворот ДО уменьшения. После поворота на 90/270° стороны
+// меняются местами — берём размеры уже из повёрнутого изображения.
+$srcImg = thumbApplyExif($srcImg, $src, $type);
+$sw = imagesx($srcImg); $sh = imagesy($srcImg);
 
 $scale = $w / max($sw, $sh);
 $dw = max(1, (int)round($sw * $scale));
