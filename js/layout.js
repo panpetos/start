@@ -103,10 +103,26 @@ window.psyGuardPoll = window.psyGuardPoll || function (fn) { return fn; };
       '</a>' +
     '</li>';
 
+  // Пункты только для вошедших — чтобы меню на сайте (шторка на телефоне) совпадало
+  // с меню личного кабинета: Уведомления, Настройки, установка приложения, выход.
+  // Скрыты по умолчанию, показываются на телефоне, когда известно, что человек вошёл
+  // (body.psy-is-authed). На ПК их не показываем — там компактная шапка с кружками.
+  var authedLinks = [
+    { href: '/notify-settings.html', text: 'Уведомления' },
+    { href: '/edit-profile.html', text: 'Настройки' },
+    { href: '/install.html', text: 'Установить приложение' }
+  ];
+  var authedItems = authedLinks.map(function (l) {
+    var st = active(l.href) ? 'color:#34C759;font-weight:600;' : '';
+    return '<li class="psy-authed-only" style="' + liReset + '"><a href="' + l.href + '" class="nav-link" style="' + st + '">' + l.text + '</a></li>';
+  }).join('') +
+    '<li class="psy-authed-only" style="' + liReset + '"><a href="#" class="nav-link" ' +
+    'onclick="if(window.psyLogout){window.psyLogout();}return false;" style="color:#DC2626;">Выйти</a></li>';
+
   var menu = accountItem + links.map(function (l) {
     var st = active(l.href) ? 'color:#34C759;font-weight:600;' : '';
     return '<li style="' + liReset + '"><a href="' + l.href + '" class="nav-link" style="' + st + '">' + l.text + '</a></li>';
-  }).join('') + actionsItem;
+  }).join('') + authedItems + actionsItem;
 
   // ВАЖНО: не используем класс .container внутри шапки — многие страницы
   // переопределяют .container (свой max-width/padding), из-за чего меню «плясало».
@@ -460,6 +476,10 @@ window.psyGuardPoll = window.psyGuardPoll || function (fn) { return fn; };
     '@media (max-width: 768px){' +
     '.dash-sidebar-toggle{top:calc(var(--psy-nav-h,74px) + 10px)!important;left:auto!important;right:0.75rem!important}' +
     '}' +
+    // Пункты «только для вошедших» в шапке сайта: по умолчанию скрыты (и на ПК тоже —
+    // там компактная шапка), на телефоне показываются, когда человек вошёл.
+    '.psy-authed-only{display:none!important}' +
+    '@media (max-width: 768px){body.psy-is-authed #navMenu .psy-authed-only{display:flex!important}}' +
     // Единая стилизация полос прокрутки на всех страницах — чтобы не было стандартных
     // «квадратных белых». Тонкие, полупрозрачные, в фирменном фиолетовом; свои,
     // более специфичные правила (например зелёные в чате) остаются в силе.
@@ -552,6 +572,19 @@ window.psyGuardPoll = window.psyGuardPoll || function (fn) { return fn; };
     return '/client-dashboard.html';
   }
 
+  // Выход из кабинета прямо из шапки сайта. В кабинетах свой psyLogout объявляется
+  // позже и перекрывает этот — поведение одинаковое, так что конфликта нет.
+  if (!window.psyLogout) {
+    window.psyLogout = function () {
+      try { sessionStorage.removeItem('psy_user'); } catch (e) {}
+      try {
+        if (window.Auth && window.Auth.logout) { Promise.resolve(window.Auth.logout()); }
+        else { fetch('/api/auth.php?action=logout', { method: 'POST', credentials: 'include' }); }
+      } catch (e) {}
+      setTimeout(function () { window.location.href = '/'; }, 120);
+    };
+  }
+
   // Строка ЛК в мобильной шторке: имя вместо «Войти», фото вместо человечка.
   function applyAccountRow(user) {
     var link = document.getElementById('psyAccountLink');
@@ -563,8 +596,10 @@ window.psyGuardPoll = window.psyGuardPoll || function (fn) { return fn; };
       link.href = '/login.html';
       if (title) title.textContent = 'Личный кабинет';
       if (sub) sub.textContent = 'Войти или зарегистрироваться';
+      try { document.body.classList.remove('psy-is-authed'); } catch (e) {}
       return;
     }
+    try { document.body.classList.add('psy-is-authed'); } catch (e) {}
     link.href = dashUrlFor(user);
     var name = [user.first_name, user.last_name].filter(Boolean).join(' ').trim();
     if (title) title.textContent = name || 'Личный кабинет';

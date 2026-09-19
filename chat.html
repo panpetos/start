@@ -5304,20 +5304,25 @@
             const isMine = m.sender_id === currentUser.id;
             const name = `${m.first_name || ''} ${m.last_name || ''}`.trim() || 'Участник';
             const time = formatTime(m.created_at);
+            // Служебную метку альбома [ALB#…] в группах не сворачиваем в сетку, но и
+            // показывать её текстом нельзя: раньше в пузыре висели «[ALB#…]» и «[Фото]».
+            // Снимаем метку до всего остального — тогда чистый «[Фото]» распознаётся как
+            // подпись-заглушка и не выводится, а над снимком не остаётся мусора.
+            const cleanBody = stripAlbum(m.content || '');
             groupMsgCache[m.id] = {
                 content: m.content, attachment_url: m.attachment_url,
                 attachment_type: m.attachment_type, attachment_name: m.attachment_name,
             };
             msgCaps[m.id] = {
-                kind: 'group', author: isMine ? 'Вы' : name, text: splitReply(m.content).body,
+                kind: 'group', author: isMine ? 'Вы' : name, text: splitReply(cleanBody).body,
                 // Править можно только текст: у вложения править нечего, а кнопка сбивала с толку
                 canForward: true, canPin: true, canEdit: isMine && !m.attachment_url,
                 canDelete: (isMine || groupIsOwner),
                 voiceUrl: (m.attachment_type === 'voice' || isVideoNote(m)) ? (m.attachment_url || '') : '',
-                placeholder: attachPlaceholderKind({ content: splitReply(m.content).body }),
+                placeholder: attachPlaceholderKind({ content: splitReply(cleanBody).body }),
             };
             const editedTag = m.edited_at ? ` <span style="opacity:0.65;font-style:italic;" title="Отредактировано ${escapeHtml(formatTime(m.edited_at))}">(ред.)</span>` : '';
-            const grp = splitReply(m.content);
+            const grp = splitReply(cleanBody);
             // Своё сообщение можно править и удалять; владелец группы может удалить любое (модерация).
             const canDelete = isMine || groupIsOwner;
 
@@ -5330,7 +5335,7 @@
             // фото — превью, голосовое — плеер, кружок — видеокружок.
             const attachmentHtml = attachmentHtmlFor(m, 'grp-' + m.id);
             // Упоминания подсвечиваем уже в готовом (экранированном) тексте — сырой HTML не собираем
-            const textHtml = (m.content && !isAttachmentPlaceholder(m))
+            const textHtml = (grp.body && !attachPlaceholderKind({ content: grp.body }))
                 ? `<div>${highlightMentions(msgText(grp.body))}</div>` : '';
             const bubble = `
                 <div class="message ${isMine ? 'mine' : 'theirs'}${(isVideoNote(m) && !textHtml) ? ' vn-only' : ''}${imgOnlyClass(m, textHtml)}" data-msg-id="${m.id}">

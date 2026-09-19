@@ -185,7 +185,7 @@ header('Content-Type: text/html; charset=utf-8');
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
 <link rel="stylesheet" href="/css/styles.css?v=20260823d">
 <script src="/js/netguard.js?v=20260821c"></script>
-<script src="/js/layout.js?v=20260823d"></script>
+<script src="/js/layout.js?v=20260919a"></script>
 <script src="/js/lightbox.js?v=8"></script>
 <style>
     *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
