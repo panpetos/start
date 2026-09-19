@@ -21,10 +21,10 @@ window.psyGuardPoll = window.psyGuardPoll || function (fn) { return fn; };
   }
 
   var links = [
-    { href: '/search.html', text: 'Найти психолога' },
-    { href: '/offers.html', text: 'Пакеты и цены' },
-    { href: '/feed.html', text: 'Лента' },
-    { href: '/blog.html', text: 'Блог' }
+    { href: '/search.html', text: 'Найти психолога', icon: '🔍' },
+    { href: '/offers.html', text: 'Пакеты и цены', icon: '💳' },
+    { href: '/feed.html', text: 'Лента', icon: '📰' },
+    { href: '/blog.html', text: 'Блог', icon: '📖' }
   ];
 
   var personSvg =
@@ -108,20 +108,21 @@ window.psyGuardPoll = window.psyGuardPoll || function (fn) { return fn; };
   // Скрыты по умолчанию, показываются на телефоне, когда известно, что человек вошёл
   // (body.psy-is-authed). На ПК их не показываем — там компактная шапка с кружками.
   var authedLinks = [
-    { href: '/notify-settings.html', text: 'Уведомления' },
-    { href: '/edit-profile.html', text: 'Настройки' },
-    { href: '/install.html', text: 'Установить приложение' }
+    { href: '/notify-settings.html', text: 'Уведомления', icon: '🔔' },
+    { href: '/edit-profile.html', text: 'Настройки', icon: '⚙️' },
+    { href: '/install.html', text: 'Установить приложение', icon: '📲' }
   ];
+  var ico = function (e) { return '<span class="nav-ico" aria-hidden="true">' + e + '</span>'; };
   var authedItems = authedLinks.map(function (l) {
     var st = active(l.href) ? 'color:#34C759;font-weight:600;' : '';
-    return '<li class="psy-authed-only" style="' + liReset + '"><a href="' + l.href + '" class="nav-link" style="' + st + '">' + l.text + '</a></li>';
+    return '<li class="psy-authed-only" style="' + liReset + '"><a href="' + l.href + '" class="nav-link" style="' + st + '">' + ico(l.icon) + l.text + '</a></li>';
   }).join('') +
     '<li class="psy-authed-only" style="' + liReset + '"><a href="#" class="nav-link" ' +
-    'onclick="if(window.psyLogout){window.psyLogout();}return false;" style="color:#DC2626;">Выйти</a></li>';
+    'onclick="if(window.psyLogout){window.psyLogout();}return false;" style="color:#DC2626;">' + ico('🚪') + 'Выйти</a></li>';
 
   var menu = accountItem + links.map(function (l) {
     var st = active(l.href) ? 'color:#34C759;font-weight:600;' : '';
-    return '<li style="' + liReset + '"><a href="' + l.href + '" class="nav-link" style="' + st + '">' + l.text + '</a></li>';
+    return '<li style="' + liReset + '"><a href="' + l.href + '" class="nav-link" style="' + st + '">' + ico(l.icon) + l.text + '</a></li>';
   }).join('') + authedItems + actionsItem;
 
   // ВАЖНО: не используем класс .container внутри шапки — многие страницы
@@ -294,11 +295,17 @@ window.psyGuardPoll = window.psyGuardPoll || function (fn) { return fn; };
   }
 
   var slimMenu = actionsItem;
+  // В кабинете меню теперь открывается из шапки той же кнопкой-бургером, что и на
+  // сайте (а не отдельной зелёной кнопкой). Бургер по умолчанию скрыт; JS покажет
+  // его на телефоне и привяжет к боковому меню кабинета, если оно есть на странице.
   var slimHeaderHtml =
     '<nav class="nav" style="background:#fff;border-bottom:1px solid #F0F0F0;">' +
       '<div style="max-width:1200px;margin:0 auto;padding:0 1.5rem;width:100%;"><div class="nav-container">' +
         brandHtml +
-        '<ul class="nav-menu nav-menu-slim" id="navMenu">' + slimMenu + '</ul>' +
+        '<div style="display:flex;align-items:center;gap:0.55rem;">' +
+          '<ul class="nav-menu nav-menu-slim" id="navMenu">' + slimMenu + '</ul>' +
+          '<button class="burger-menu psy-dash-burger" id="psyDashBurger" aria-label="Меню кабинета" style="display:none;"><span></span><span></span><span></span></button>' +
+        '</div>' +
       '</div></div>' +
     '</nav>';
 
@@ -480,6 +487,23 @@ window.psyGuardPoll = window.psyGuardPoll || function (fn) { return fn; };
     // там компактная шапка), на телефоне показываются, когда человек вошёл.
     '.psy-authed-only{display:none!important}' +
     '@media (max-width: 768px){body.psy-is-authed #navMenu .psy-authed-only{display:flex!important}}' +
+    // Иконки у пунктов меню — только в выезжающей шторке на телефоне (на ПК шапка
+    // горизонтальная, там иконки лишние). Единый вид с меню кабинета.
+    '.nav-ico{display:none}' +
+    '@media (max-width: 768px){.nav-menu .nav-ico{display:inline-flex;width:1.6rem;flex:0 0 auto;' +
+      'justify-content:center;margin-right:0.15rem;font-size:1.05rem;line-height:1}}' +
+    // Крестик из бургера — ровный по центру (было криво: translate уводил палочки вбок).
+    '.burger-menu.active span:nth-child(1){transform:translateY(7.5px) rotate(45deg)!important}' +
+    '.burger-menu.active span:nth-child(2){opacity:0!important}' +
+    '.burger-menu.active span:nth-child(3){transform:translateY(-7.5px) rotate(-45deg)!important}' +
+    // Бургер меню кабинета в тонкой шапке: показываем на телефоне, когда JS убедился,
+    // что боковое меню на странице есть (класс ready). Тогда же прячем прежнюю зелёную
+    // кнопку — вход в меню один и тот же, из шапки.
+    // Скрыт всегда (перебиваем общее правило .burger-menu{display:flex} на телефоне),
+    // показывается только с классом ready — когда JS нашёл боковое меню.
+    '.psy-dash-burger{display:none!important}' +
+    '@media (max-width: 768px){.psy-dash-burger.ready{display:flex!important}' +
+      'body.psy-dash-in-header .dash-sidebar-toggle{display:none!important}}' +
     // Единая стилизация полос прокрутки на всех страницах — чтобы не было стандартных
     // «квадратных белых». Тонкие, полупрозрачные, в фирменном фиолетовом; свои,
     // более специфичные правила (например зелёные в чате) остаются в силе.
@@ -535,6 +559,35 @@ window.psyGuardPoll = window.psyGuardPoll || function (fn) { return fn; };
     });
     navMenu.querySelectorAll('a').forEach(function (a) {
       a.addEventListener('click', function () { setOpen(false); });
+    });
+  }
+
+  // Бургер кабинета в шапке: открывает боковое меню (.dash-sidebar) той же кнопкой,
+  // что и на сайте. Показываем его только если меню на странице действительно есть —
+  // иначе оставляем прежний способ, чтобы вход в меню не пропал.
+  function wireDashBurger() {
+    var burger = document.getElementById('psyDashBurger');
+    var sidebar = document.querySelector('.dash-sidebar');
+    if (!burger || !sidebar) return;
+    var overlay = document.querySelector('.dash-sidebar-overlay');
+    burger.classList.add('ready');
+    document.body.classList.add('psy-dash-in-header');   // прячет прежнюю зелёную кнопку
+    function setOpen(open) {
+      sidebar.classList.toggle('open', open);
+      if (overlay) overlay.classList.toggle('open', open);
+      burger.classList.toggle('active', open);
+    }
+    burger.addEventListener('click', function (e) {
+      e.stopPropagation();
+      setOpen(!sidebar.classList.contains('open'));
+    });
+    if (overlay) overlay.addEventListener('click', function () { setOpen(false); });
+    // Клик по пункту меню закрывает шторку и снимает «крестик».
+    sidebar.querySelectorAll('a,button').forEach(function (el) {
+      el.addEventListener('click', function () { setTimeout(function () { setOpen(false); }, 0); });
+    });
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && sidebar.classList.contains('open')) setOpen(false);
     });
   }
 
@@ -1165,6 +1218,7 @@ window.psyGuardPoll = window.psyGuardPoll || function (fn) { return fn; };
     fillPlaceholders();
     fillDynamicPrices();
     wireBurger();
+    wireDashBurger();
     wireThemeToggle();
     // showDevNotice(); — отключено: оверлей «сайт в разработке» мешает проверке эквайринга
     showConsentBanner();
