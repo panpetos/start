@@ -19178,6 +19178,7 @@
         // Список берём из самой ленты, в том порядке, в каком кружки идут в переписке.
         let vnvList = [];
         let vnvIndex = -1;
+        let vnvDuration = 0;      // реальная длительность текущего кружка (см. фикс Infinity ниже)
 
         function openVnViewer(box) {
             const first = box ? box.querySelector('video') : null;
@@ -19208,11 +19209,13 @@
             if (!url) { closeVnViewer(); return; }
             vnvCloseMenu();
             wrap.classList.remove('paused');
+            vnvDuration = 0;                       // у нового кружка длительность выясним заново
             v.src = url;
             try { v.playbackRate = voiceSpeed; } catch (e) {}   // скорость общая с голосовыми
             v.play().catch(() => {});
             const bar = document.getElementById('vnvBar');
             if (bar) bar.style.width = '0';
+            const d = document.getElementById('vnvDur'); if (d) d.textContent = '0:00';
             vnvPaintMeta();
         }
 
@@ -19249,11 +19252,13 @@
         function vnvSeek(evt) {
             const v = document.getElementById('vnvVideo');
             const track = document.getElementById('vnvTrack');
-            if (!v || !track || !v.duration || !isFinite(v.duration)) return;
+            // Берём выясненную длительность (файлы кружков часто отдают Infinity — см. фикс).
+            const dur = (isFinite(v && v.duration) && v.duration > 0) ? v.duration : vnvDuration;
+            if (!v || !track || !dur || !isFinite(dur)) return;
             const r = track.getBoundingClientRect();
             const x = (evt.touches && evt.touches[0] ? evt.touches[0].clientX : evt.clientX) - r.left;
             const p = Math.max(0, Math.min(1, r.width ? x / r.width : 0));
-            try { v.currentTime = p * v.duration; } catch (e) {}
+            try { v.currentTime = p * dur; } catch (e) {}
             const bar = document.getElementById('vnvBar');
             if (bar) bar.style.width = (p * 100) + '%';
         }
@@ -19350,19 +19355,42 @@
         (function wireVnViewer() {
             const v = document.getElementById('vnvVideo');
             if (!v) return;
+            // Кружки пишутся MediaRecorder'ом, и у таких файлов duration часто = Infinity,
+            // пока не перемотаешь в конец. Из-за этого полоса стояла на нуле, а перемотка
+            // не работала. Один раз «дёргаем» позицию в конец — браузер вычисляет реальную
+            // длительность, после чего возвращаемся в начало и всё работает как надо.
+            let vnvFixing = false;
+            const showDur = () => {
+                if (isFinite(v.duration) && v.duration > 0) {
+                    vnvDuration = v.duration;
+                    const d = document.getElementById('vnvDur');
+                    if (d) d.textContent = formatDuration(Math.floor(vnvDuration));
+                    return true;
+                }
+                return false;
+            };
+            v.addEventListener('loadedmetadata', () => {
+                if (!showDur()) { vnvFixing = true; try { v.currentTime = 1e101; } catch (e) {} }
+            });
+            v.addEventListener('durationchange', () => { if (!vnvFixing) showDur(); });
+            v.addEventListener('seeked', () => {
+                if (vnvFixing) {
+                    vnvFixing = false; showDur();
+                    try { v.currentTime = 0; } catch (e) {}
+                    // Продолжаем воспроизведение, если пользователь не ставил на паузу
+                    const wrap = document.getElementById('vnViewer');
+                    if (wrap && !wrap.classList.contains('paused')) v.play().catch(() => {});
+                }
+            });
             v.addEventListener('timeupdate', () => {
+                if (vnvFixing) return;               // пока выясняем длительность — полосу не трогаем
+                const dur = (isFinite(v.duration) && v.duration > 0) ? v.duration : vnvDuration;
                 const bar = document.getElementById('vnvBar');
-                if (bar && v.duration) bar.style.width = Math.min(100, (v.currentTime / v.duration) * 100) + '%';
+                if (bar && dur > 0) bar.style.width = Math.min(100, (v.currentTime / dur) * 100) + '%';
                 const t = document.getElementById('vnvTime');
                 if (t) t.textContent = formatDuration(Math.floor(v.currentTime || 0));
             });
-            const showDur = () => {
-                const d = document.getElementById('vnvDur');
-                if (d && v.duration && isFinite(v.duration)) d.textContent = formatDuration(Math.floor(v.duration));
-            };
-            v.addEventListener('loadedmetadata', showDur);
-            v.addEventListener('durationchange', showDur);
-            v.addEventListener('ended', () => vnvStep(1));
+            v.addEventListener('ended', () => { if (!vnvFixing) vnvStep(1); });
             document.addEventListener('keydown', (e) => {
                 if (!document.body.classList.contains('vnv-open')) return;
                 if (e.key === 'Escape') closeVnViewer();
