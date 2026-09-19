@@ -22595,14 +22595,19 @@
                 if (document.visibilityState === 'visible') rtcPollSoon(300);
             });
         }
-        // Уходим со страницы во время разговора — предупредим собеседника
-        window.addEventListener('pagehide', () => {
+        // Уходим со страницы во время разговора — предупредим собеседника.
+        // ВАЖНО: только при НАСТОЯЩЕМ закрытии страницы (e.persisted === false).
+        // На телефоне переключение на другое приложение уводит страницу в bfcache и
+        // тоже стреляет pagehide, но с persisted === true — раньше мы на этом обрывали
+        // звонок, и собеседник переставал слышать, стоило свернуть приложение.
+        window.addEventListener('pagehide', (e) => {
+            if (e && e.persisted) return;     // ушли в фон/bfcache — звонок не завершаем
             if (rtcCallId) {
                 try {
                     const blob = new Blob([JSON.stringify({ call_id: rtcCallId, reason: 'left' })],
                                           { type: 'application/json' });
                     navigator.sendBeacon('/api/rtc_calls.php?action=end', blob);
-                } catch (e) {}
+                } catch (e2) {}
             }
         });
 
