@@ -9482,8 +9482,10 @@
             if (!key) { renderPinnedBar(); return; }
             try {
                 const d = await pinsApi('state&chat_key=' + encodeURIComponent(key));
-                // Старый сервер отдаёт только pinned_message — понимаем оба ответа
-                pinnedMessages = d.pinned_messages || (d.pinned_message ? [d.pinned_message] : []);
+                // Старый сервер отдаёт только pinned_message — понимаем оба ответа.
+                // Сервер присылает от старого к новому (pinned_at ASC); показываем наоборот —
+                // сначала самый свежий закреп, дальше по тапу к более старым (просьба).
+                pinnedMessages = (d.pinned_messages || (d.pinned_message ? [d.pinned_message] : [])).slice().reverse();
             } catch (e) { pinnedMessages = []; }
             syncPinnedCurrent();
             renderPinnedBar();
@@ -9515,7 +9517,8 @@
             if (!key || !id) return;
             try {
                 const d = await pinsApi('pin-message', { chat_key: key, message_id: id, preview: preview || '' });
-                pinnedMessages = d.pinned_messages || [{ message_id: d.message_id, preview: d.preview }];
+                // Свежие — первыми (сервер отдаёт от старых к новым).
+                pinnedMessages = (d.pinned_messages || [{ message_id: d.message_id, preview: d.preview }]).slice().reverse();
                 syncPinnedCurrent(id);          // показываем то, что только что закрепили
                 renderPinnedBar();
                 refreshOpenChatMessages();
@@ -9534,7 +9537,7 @@
                 const body = { chat_key: key };
                 if (!all && id) body.message_id = String(id);
                 const d = await pinsApi('unpin-message', body);
-                pinnedMessages = d.pinned_messages || [];
+                pinnedMessages = (d.pinned_messages || []).slice().reverse();   // свежие — первыми
                 if (pinnedIdx >= pinnedMessages.length) pinnedIdx = pinnedMessages.length - 1;
                 syncPinnedCurrent();
                 renderPinnedBar();
