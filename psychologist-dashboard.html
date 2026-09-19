@@ -76,7 +76,13 @@
            на телефоне там пусто (меню сайта и его бургер в кабинете скрыты), и рука
            тянется в правый верхний угол. Прежнее место — слева под шапкой — висело
            поверх содержимого и закрывало первую строку страницы. */
-        .dash-sidebar-toggle { display: none; position: fixed; top: 13px; right: 0.9rem; left: auto; z-index: 1001; width: 38px; height: 38px; border-radius: 0.5rem; border: 1px solid var(--d-border); background: var(--d-panel); color: var(--d-text); font-size: 1.2rem; cursor: pointer; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+        /* Кнопка меню кабинета — единственный вход ко всей навигации на телефоне
+           (Чаты, Найти психолога, Настройки, Выход…). Раньше маленький серый ☰ без
+           подписи не замечали. Делаем зелёной кнопкой «Меню» с лёгкой пульсацией. */
+        .dash-sidebar-toggle { display: none; position: fixed; top: 13px; right: 0.9rem; left: auto; z-index: 1001; height: 40px; padding: 0 0.95rem; gap: 0.4rem; border-radius: 0.6rem; border: none; background: linear-gradient(135deg,#047857,#059669); color: #fff; font-size: 1.15rem; font-weight: 600; font-family: inherit; cursor: pointer; align-items: center; justify-content: center; box-shadow: 0 4px 16px rgba(4,120,87,0.5); }
+        .dash-sidebar-toggle .dst-label { font-size: 0.92rem; }
+        @keyframes dstPulse { 0%,100% { box-shadow: 0 4px 16px rgba(4,120,87,0.5); transform: scale(1); } 50% { box-shadow: 0 7px 26px rgba(4,120,87,0.95); transform: scale(1.06); } }
+        @media (max-width: 768px) and (prefers-reduced-motion: no-preference) { .dash-sidebar-toggle { animation: dstPulse 1.3s ease-in-out 4; } }
         .dash-sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.35); z-index: 999; }
         .dash-sidebar-overlay.open { display: block; }
         @media (max-width: 768px) {
@@ -199,7 +205,7 @@
 <body>
     <script>(function(){ var t = localStorage.getItem('psy-theme'); if (t === 'dark' || (!t && window.matchMedia('(prefers-color-scheme:dark)').matches)) document.body.classList.add('dark'); })();</script>
     <script>psyWriteHeader();</script>
-    <button class="dash-sidebar-toggle" onclick="document.querySelector('.dash-sidebar').classList.toggle('open');document.querySelector('.dash-sidebar-overlay').classList.toggle('open')">☰</button>
+    <button class="dash-sidebar-toggle" aria-label="Открыть меню кабинета" onclick="this.style.animation='none';document.querySelector('.dash-sidebar').classList.toggle('open');document.querySelector('.dash-sidebar-overlay').classList.toggle('open')"><span aria-hidden="true">☰</span><span class="dst-label">Меню</span></button>
     <div class="dash-sidebar-overlay" onclick="document.querySelector('.dash-sidebar').classList.remove('open');this.classList.remove('open')"></div>
     <div class="dash-layout">
         <aside class="dash-sidebar">
