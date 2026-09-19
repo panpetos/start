@@ -416,6 +416,26 @@
             z-index: 3;                     /* поверх кадра, иначе кнопка уходит под видео */
         }
         .vnv-close:hover { background: rgba(255,255,255,0.26); }
+        /* Кнопка «⋮» и её меню — как у фото: переслать, скачать, поделиться, к сообщению. */
+        .vnv-more {
+            position: absolute; top: max(0.8rem, env(safe-area-inset-top)); right: 3.6rem;
+            width: 42px; height: 42px; border-radius: 50%; border: none; cursor: pointer;
+            background: rgba(255,255,255,0.14); color: #fff; font-size: 1.4rem; line-height: 1;
+            display: flex; align-items: center; justify-content: center; z-index: 3;
+        }
+        .vnv-more:hover { background: rgba(255,255,255,0.26); }
+        .vnv-menu {
+            position: absolute; top: 3.7rem; right: 0.9rem; z-index: 4; display: none;
+            min-width: 220px; max-width: calc(100vw - 1.8rem); background: #2B2F36;
+            border-radius: 0.9rem; box-shadow: 0 16px 44px rgba(0,0,0,0.55); overflow: hidden; padding: 0.3rem;
+        }
+        .vnv-menu.open { display: block; }
+        .vnv-menu button {
+            display: flex; align-items: center; gap: 0.7rem; width: 100%; padding: 0.7rem 0.8rem;
+            border: none; background: none; color: #fff; cursor: pointer; font-family: inherit;
+            font-size: 0.95rem; text-align: left; border-radius: 0.6rem;
+        }
+        .vnv-menu button:hover { background: rgba(255,255,255,0.10); }
         .vnv-nav {
             position: absolute; top: 50%; transform: translateY(-50%);
             width: 46px; height: 46px; border-radius: 50%; border: none; cursor: pointer;
@@ -4755,6 +4775,8 @@
          Кружки идут подряд — закончился, сам включается следующий; кончились — закрываемся. -->
     <div id="vnViewer" class="vn-viewer" onclick="closeVnViewer(event)">
         <button type="button" class="vnv-close" onclick="event.stopPropagation();closeVnViewer()" aria-label="Закрыть">✕</button>
+        <button type="button" class="vnv-more" id="vnvMore" onclick="event.stopPropagation();vnvToggleMenu()" aria-label="Действия с записью" aria-haspopup="true">⋮</button>
+        <div class="vnv-menu" id="vnvMenu" role="menu"></div>
         <button type="button" class="vnv-nav vnv-prev" id="vnvPrev" onclick="event.stopPropagation();vnvStep(-1)" aria-label="Предыдущий">‹</button>
         <button type="button" class="vnv-nav vnv-next" id="vnvNext" onclick="event.stopPropagation();vnvStep(1)" aria-label="Следующий">›</button>
         <div class="vnv-frame" id="vnvFrame" onclick="event.stopPropagation();vnvTogglePlay()">
@@ -18514,11 +18536,74 @@
                 // Превью беззвучное, поэтому в него кладём только видео.
                 try { prev.srcObject = new MediaStream(videoNoteStream.getVideoTracks()); }
                 catch (e) { prev.srcObject = videoNoteStream; }
+                prev.style.transform = '';
                 try { await prev.play(); } catch (e) {}
+                vnZoom = 1; vnApplyZoom();   // у новой камеры свой зум — начинаем с 1x
             }
             paintVnMirrorBtn();
             vnFlipping = false;
             if (btn) btn.disabled = false;
+        }
+
+        // ── Зум при записи кружка ────────────────────────────────────────────────
+        // Щипок двумя пальцами приближает картинку. Где камера умеет аппаратный зум
+        // (многие Android) — двигаем сам объектив: и превью, и запись приближаются без
+        // потери чёткости. Где не умеет — приближаем кадром (кроп по центру в холсте,
+        // из которого пишется кружок) и синхронно масштабируем превью.
+        let vnZoom = 1, vnZoomMax = 3, vnNativeZoom = false;
+        let vnPinchBase = 0, vnPinchZoom0 = 1;
+
+        function vnApplyZoom() {
+            vnZoom = Math.max(1, Math.min(vnZoomMax, vnZoom));
+            const track = (videoNoteStream && videoNoteStream.getVideoTracks) ? videoNoteStream.getVideoTracks()[0] : null;
+            let native = false;
+            if (track && track.getCapabilities) {
+                let caps = null; try { caps = track.getCapabilities(); } catch (e) {}
+                if (caps && caps.zoom && (caps.zoom.max || 0) > (caps.zoom.min || 1)) {
+                    const min = caps.zoom.min || 1, max = caps.zoom.max || 1;
+                    // vnZoom (1..vnZoomMax) → диапазон камеры (min..max)
+                    const z = min + (vnZoom - 1) / (vnZoomMax - 1) * (max - min);
+                    try { track.applyConstraints({ advanced: [{ zoom: z }] }); native = true; } catch (e) {}
+                }
+            }
+            vnNativeZoom = native;
+            const prev = vnEl('vnPreview');
+            if (prev) {
+                // При аппаратном зуме превью приближает сама камера — CSS не трогаем
+                // (оставляем только зеркало через класс). Иначе масштабируем кадром.
+                if (native) prev.style.transform = '';
+                else prev.style.transform = (vnMirror ? 'scaleX(-1) ' : '') + 'scale(' + vnZoom + ')';
+            }
+        }
+
+        function vnWireZoom() {
+            const ring = document.querySelector('#videoNoteModal .vn-ring');
+            if (!ring || ring._zoomWired) return;
+            ring._zoomWired = true;
+            ring.style.touchAction = 'none';
+            ring.addEventListener('touchstart', function (e) {
+                if (e.touches.length === 2) {
+                    vnPinchBase = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+                    vnPinchZoom0 = vnZoom;
+                }
+            }, { passive: true });
+            ring.addEventListener('touchmove', function (e) {
+                if (e.touches.length === 2 && vnPinchBase) {
+                    const d = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+                    vnZoom = vnPinchZoom0 * (d / vnPinchBase);
+                    vnApplyZoom();
+                    e.preventDefault();
+                }
+            }, { passive: false });
+            ring.addEventListener('touchend', function (e) { if (e.touches.length < 2) vnPinchBase = 0; }, { passive: true });
+            // Двойной тап — сброс зума к 1x.
+            let lastTap = 0;
+            ring.addEventListener('touchend', function (e) {
+                if (e.touches.length) return;
+                const now = Date.now();
+                if (now - lastTap < 300) { vnZoom = 1; vnApplyZoom(); }
+                lastTap = now;
+            }, { passive: true });
         }
 
         /** Рисовать квадратный (и при желании зеркальный) кадр, пока идёт запись. */
@@ -18535,7 +18620,9 @@
                 if (!vnDrawing) return;
                 const vw = src.videoWidth, vh = src.videoHeight;
                 if (vw && vh) {
-                    const side = Math.min(vw, vh);          // квадрат из центра кадра
+                    // Кроп-зум только когда камера не умеет аппаратный (иначе двойное приближение)
+                    const z = vnNativeZoom ? 1 : (vnZoom || 1);
+                    const side = Math.min(vw, vh) / z;      // квадрат из центра кадра, с учётом зума
                     const sx = (vw - side) / 2, sy = (vh - side) / 2;
                     vnCanvasCtx.save();
                     if (vnMirror) { vnCanvasCtx.translate(VN_SIZE, 0); vnCanvasCtx.scale(-1, 1); }
@@ -18580,6 +18667,7 @@
             // Каждая запись начинается с фронтальной: кружок почти всегда снимают о себе
             vnFacing = 'user';
             vnMirror = true;
+            vnZoom = 1; vnNativeZoom = false;   // зум сбрасываем на каждую новую запись
             const myGen = micGen;      // если за время ожидания разрешения тапом отменят — не залипнем
             let stream;
             try {
@@ -18600,9 +18688,12 @@
             const prev = vnEl('vnPreview');
             prev.srcObject = videoNoteStream;
             prev.muted = true;              // без этого своё же аудио идёт в колонки эхом
+            prev.style.transform = '';      // сброс возможного масштаба от прошлой записи
             try { await prev.play(); } catch (e) {}
+            vnWireZoom();                   // щипок двумя пальцами — приблизить
+            vnApplyZoom();                  // определить, есть ли аппаратный зум у камеры
             vnEl('vnTime').textContent = '00:00';
-            vnEl('vnHint').textContent = 'Нажмите «Записать» — кружок пишется до 60 секунд';
+            vnEl('vnHint').textContent = 'Нажмите «Записать» — кружок пишется до 60 сек · щипок — зум';
             vnEl('vnRecBtn').textContent = '● Записать';
             vnEl('vnRecBtn').classList.remove('stop');
             vnEl('vnRecBtn').style.display = '';
@@ -19018,21 +19109,26 @@
             pauseAnyVideoNote();
             if (currentPlayingVoiceId) stopVoicePlayer(currentPlayingVoiceId, false);
             playQueueOn = false;          // очередь ленты тут не при делах
-            vnvList = [...document.querySelectorAll('.video-note video')]
-                .map(v => v.getAttribute('src')).filter(Boolean);
-            vnvIndex = Math.max(0, vnvList.indexOf(url));
+            // Храним и сам узел кружка — по нему меню находит сообщение (переслать/перейти).
+            vnvList = [...document.querySelectorAll('.video-note')]
+                .map(b => { const vv = b.querySelector('video'); return vv ? { url: vv.getAttribute('src'), node: b } : null; })
+                .filter(x => x && x.url);
+            vnvIndex = Math.max(0, vnvList.findIndex(x => x.url === url));
             const wrap = document.getElementById('vnViewer');
             if (wrap) wrap.classList.add('open');
             document.body.classList.add('vnv-open');
+            vnvCloseMenu();
             vnvPlay();
         }
 
         function vnvPlay() {
             const v = document.getElementById('vnvVideo');
             const wrap = document.getElementById('vnViewer');
-            const url = vnvList[vnvIndex];
+            const item = vnvList[vnvIndex];
+            const url = item && item.url;
             if (!v || !wrap) return;
             if (!url) { closeVnViewer(); return; }
+            vnvCloseMenu();
             wrap.classList.remove('paused');
             v.src = url;
             try { v.playbackRate = voiceSpeed; } catch (e) {}   // скорость общая с голосовыми
@@ -19096,9 +19192,82 @@
             }
             if (wrap) wrap.classList.remove('open', 'paused');
             document.body.classList.remove('vnv-open');
+            vnvCloseMenu();
             vnvList = [];
             vnvIndex = -1;
         }
+
+        // ── Меню «⋮» в просмотрщике кружка: переслать / скачать / поделиться / к сообщению ──
+        function vnvCurrent() { return vnvList[vnvIndex] || null; }
+        function vnvCloseMenu() { const m = document.getElementById('vnvMenu'); if (m) m.classList.remove('open'); }
+        function vnvToggleMenu() {
+            const m = document.getElementById('vnvMenu'); if (!m) return;
+            if (m.classList.contains('open')) { m.classList.remove('open'); return; }
+            vnvBuildMenu(); m.classList.add('open');
+        }
+        function vnvMsgId() {
+            const it = vnvCurrent(); const node = it && it.node;
+            const msg = node && node.closest ? node.closest('[data-msg-id], [data-fav-id]') : null;
+            return msg ? (msg.getAttribute('data-msg-id') || msg.getAttribute('data-fav-id')) : '';
+        }
+        function vnvBuildMenu() {
+            const m = document.getElementById('vnvMenu'); if (!m) return;
+            const id = vnvMsgId();
+            const canFwd = id && msgCaps[id] && msgCaps[id].canForward;
+            let html = '';
+            if (canFwd) html += '<button type="button" role="menuitem" onclick="event.stopPropagation();vnvForward()">↪ Переслать</button>';
+            html += '<button type="button" role="menuitem" onclick="event.stopPropagation();vnvDownload()">⬇ Скачать</button>';
+            html += '<button type="button" role="menuitem" onclick="event.stopPropagation();vnvShare()">↗ Поделиться</button>';
+            if (id) html += '<button type="button" role="menuitem" onclick="event.stopPropagation();vnvGoto()">➜ Перейти к сообщению</button>';
+            m.innerHTML = html;
+        }
+        async function vnvDownload() {
+            const it = vnvCurrent(); if (!it) return; vnvCloseMenu();
+            const name = 'psytalk-video-' + Date.now() + '.mp4';
+            try {
+                const r = await fetch(it.url, { credentials: 'include' });
+                const url = URL.createObjectURL(await r.blob());
+                const a = document.createElement('a'); a.href = url; a.download = name;
+                document.body.appendChild(a); a.click(); a.remove();
+                setTimeout(() => URL.revokeObjectURL(url), 4000);
+                if (typeof toast === 'function') toast('Видео сохраняется');
+            } catch (e) {
+                const a = document.createElement('a'); a.href = it.url; a.download = name; a.target = '_blank';
+                document.body.appendChild(a); a.click(); a.remove();
+            }
+        }
+        async function vnvShare() {
+            const it = vnvCurrent(); if (!it) return; vnvCloseMenu();
+            const abs = new URL(it.url, location.href).href;
+            try {
+                if (navigator.canShare && navigator.share) {
+                    try {
+                        const r = await fetch(it.url, { credentials: 'include' });
+                        const b = await r.blob();
+                        const f = new File([b], 'video.mp4', { type: b.type || 'video/mp4' });
+                        if (navigator.canShare({ files: [f] })) { await navigator.share({ files: [f] }); return; }
+                    } catch (e) {}
+                }
+                if (navigator.share) { await navigator.share({ url: abs }); return; }
+                await navigator.clipboard.writeText(abs);
+                if (typeof toast === 'function') toast('Ссылка скопирована');
+            } catch (e) {}
+        }
+        function vnvForward() {
+            const id = vnvMsgId(); vnvCloseMenu();
+            if (!id || typeof openForwardMenu !== 'function') return;
+            closeVnViewer(); openForwardMenu(null, (msgCaps[id] || {}).kind, id);
+        }
+        function vnvGoto() {
+            const id = vnvMsgId(); vnvCloseMenu(); closeVnViewer();
+            if (!id) return;
+            const el = document.querySelector('[data-msg-id="' + id + '"]') || document.querySelector('[data-fav-id="' + id + '"]');
+            if (!el) { if (typeof toast === 'function') toast('Запись выше — прокрутите вверх'); return; }
+            try { el.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (e) {}
+            if (typeof flashMessage === 'function') flashMessage(el, id);
+        }
+        window.vnvToggleMenu = vnvToggleMenu; window.vnvForward = vnvForward;
+        window.vnvDownload = vnvDownload; window.vnvShare = vnvShare; window.vnvGoto = vnvGoto;
 
         (function wireVnViewer() {
             const v = document.getElementById('vnvVideo');
