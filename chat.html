@@ -2527,6 +2527,9 @@
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             object-fit: cover; background: #04170F; display: block;
         }
+        /* Демонстрация экрана у собеседника: показываем кадр ЦЕЛИКОМ (contain), а не
+           обрезаем/приближаем (cover) — иначе не видно, что показывают. */
+        .rtc-screen.remote-screen .rtc-remote { object-fit: contain; background: #000; }
         .rtc-screen.audio-only .rtc-remote,
         .rtc-screen:not(.has-video) .rtc-remote { display: none; }
 
@@ -21009,7 +21012,7 @@
 
         function rtcCloseScreen() {
             const s = document.getElementById('rtcScreen');
-            if (s) { s.classList.remove('open', 'has-video', 'audio-only', 'min', 'swapped'); }
+            if (s) { s.classList.remove('open', 'has-video', 'audio-only', 'min', 'swapped', 'remote-screen'); }
             document.body.classList.remove('rtc-min');
             rtcRingback(false);
             const inc = document.getElementById('rtcIncoming');
@@ -22162,8 +22165,12 @@
                 rtcKind = 'video';
                 document.getElementById('rtcScreen').classList.remove('audio-only');
                 const l = document.getElementById('rtcLocal');
-                if (l) { l.srcObject = new MediaStream([track]); l.style.transform = 'none'; l.style.display = 'block'; }
+                // Свой экран в маленьком превью тоже показываем целиком, а не обрезанным.
+                if (l) { l.srcObject = new MediaStream([track]); l.style.transform = 'none'; l.style.objectFit = 'contain'; l.style.display = 'block'; }
                 await rtcTuneSenders();
+                // Сообщаем собеседнику, что это демонстрация экрана — чтобы он показал кадр
+                // целиком (contain), а не обрезал по размеру окна (cover).
+                try { await callsApi('signal', { call_id: rtcCallId, kind: 'screen', payload: JSON.stringify({ on: true }) }); } catch (e) {}
                 // Человек нажал «Стоп» в системной панели браузера, а не на нашей кнопке
                 track.onended = () => rtcStopScreenShare();
                 if (btn) btn.classList.add('off');
@@ -22191,7 +22198,9 @@
             if (camTrack) camTrack.enabled = true;
 
             const l = document.getElementById('rtcLocal');
-            if (l) l.srcObject = rtcLocalStream;
+            if (l) { l.srcObject = rtcLocalStream; l.style.objectFit = ''; }
+            // Сообщаем, что показ экрана закончился — вернуть обычный режим кадра.
+            try { await callsApi('signal', { call_id: rtcCallId, kind: 'screen', payload: JSON.stringify({ on: false }) }); } catch (e) {}
             rtcPaintFlip();
             const btn = document.getElementById('rtcScreenBtn');
             if (btn) btn.classList.remove('off');
@@ -22349,6 +22358,11 @@
                         }
                     } else if (s.kind === 'game') {
                         rtcGameApplyRemote(data);
+                    } else if (s.kind === 'screen') {
+                        // Собеседник включил/выключил демонстрацию экрана — показываем кадр
+                        // целиком (contain) вместо обрезки (cover).
+                        const sc = document.getElementById('rtcScreen');
+                        if (sc) sc.classList.toggle('remote-screen', !!(data && data.on));
                     }
                 } catch (e) {}
             }
