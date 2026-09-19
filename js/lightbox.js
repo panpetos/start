@@ -433,8 +433,14 @@
         const item = gallery[galleryIdx];
         if (!item) return;
         const el = build();
-        el.querySelector('.plb-img').src = item.src;
-        el.querySelector('.plb-img').alt = item.alt || '';
+        const im = el.querySelector('.plb-img');
+        // Если полноразмерный кадр не загрузился (файл удалён/битая ссылка) — показываем
+        // уменьшенную копию, а не «застываем» на предыдущем снимке при листании.
+        im.onerror = function () {
+            if (item.thumb && im.getAttribute('src') !== item.thumb) { im.onerror = null; im.src = item.thumb; }
+        };
+        im.src = item.src;
+        im.alt = item.alt || '';
         resetZoom();                       // новое фото открываем в обычном масштабе
         el.querySelector('.plb-menu').classList.remove('open');
         paintMenu(item);
@@ -519,11 +525,16 @@
         nodes.forEach(function (node) {
             const href = fullSrcOf(node) ||
                 (node.tagName === 'A' ? node.getAttribute('href') : (node.currentSrc || node.src));
-            if (!href || !isImageUrl(href)) return;
+            // data-group ставится только у настоящих картинок галереи, поэтому проверку
+            // расширения тут не делаем: адреса вложений бывают без .jpg на конце (или с
+            // ?query), и такие кадры раньше молча выпадали — счётчик рос, а фото «зависало».
+            if (!href) return;
             if (href === clickedHref) idx = items.length;
             const img = node.tagName === 'IMG' ? node : node.querySelector('img');
+            // thumb — уменьшенная копия из плитки: подстрахует, если оригинал не загрузится.
+            const thumb = img ? (img.currentSrc || img.getAttribute('src') || '') : '';
             // node нужен пунктам меню из чата: по нему находят сообщение, из которого фото
-            items.push({ src: href, alt: img ? img.alt : '', node: node });
+            items.push({ src: href, alt: img ? img.alt : '', node: node, thumb: thumb });
         });
         return { items, idx };
     }
