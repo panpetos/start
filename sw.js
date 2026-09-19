@@ -13,7 +13,7 @@
  * переписка — это ещё и чужие данные на общем устройстве.
  */
 
-const VERSION = 'psy-v11';  // быстрые ответы: свои фразы пользователя из payload
+const VERSION = 'psy-v12';  // быстрый ответ: привязка кнопка→фраза по индексу (фикс «всегда Отвечу позже»)
 const SHELL = VERSION + '-shell';
 
 // Оболочка: то, без чего окно не нарисуется. Страницы сюда не входят намеренно —
@@ -201,10 +201,20 @@ self.addEventListener('push', (e) => {
         // диалога (когда точно известно, кому слать).
         const quick = !!(d && d.quick && d.peer);
         // Кнопки быстрого ответа: берём фразы пользователя (из payload), иначе — запасные.
-        const qrList = (quick && Array.isArray(d.quick_replies) && d.quick_replies.length)
-            ? d.quick_replies.slice(0, 2)
-            : (quick ? [{ id: 'qr0', title: '👍 Ок', text: '👍 Ок' }, { id: 'qr1', title: 'Позже отвечу', text: 'Отвечу чуть позже 🙏' }] : []);
-        const qrMap = {}; qrList.forEach(q => { qrMap[q.id] = q.text; });
+        // ВАЖНО: и кнопку, и её текст привязываем к ПОРЯДКОВОМУ номеру (qr0/qr1), а не к
+        // id из ответа сервера. Раньше и то и другое шло через q.id — если id совпадали
+        // или приходили строкой, обе кнопки указывали на одну фразу, и «Ок» отправлял
+        // «Отвечу позже». Индекс — единственный источник правды, привязка не собьётся.
+        const qrTexts = [], qrTitles = [];
+        if (quick) {
+            let raw = (Array.isArray(d.quick_replies) && d.quick_replies.length) ? d.quick_replies.slice(0, 2) : null;
+            if (!raw) raw = [{ title: '👍 Ок', text: '👍 Ок' }, { title: 'Отвечу позже 🙏', text: 'Отвечу позже 🙏' }];
+            raw.forEach(q => {
+                if (typeof q === 'string') { qrTexts.push(q); qrTitles.push(q); }
+                else { qrTexts.push(q.text || q.title || ''); qrTitles.push(q.title || q.text || ''); }
+            });
+        }
+        const qrMap = {}; qrTexts.forEach((t, i) => { qrMap['qr' + i] = t; });
         // Звонок ведёт себя иначе, чем сообщение: не гаснет сам, вибрирует «очередью»
         // и не сворачивается в общую ленту уведомлений — иначе вызов легко пропустить
         // при выключенном экране.
@@ -222,7 +232,7 @@ self.addEventListener('push', (e) => {
             // Звонок → «Ответить»; одиночное сообщение → две кнопки быстрого ответа,
             // которые отправляют готовую фразу без открытия приложения.
             actions: isCall ? [{ action: 'answer', title: 'Ответить' }]
-                   : (qrList.length ? qrList.map(q => ({ action: q.id, title: (q.title || '').slice(0, 24) || 'Ответ' })) : undefined),
+                   : (qrTexts.length ? qrTexts.map((t, i) => ({ action: 'qr' + i, title: (qrTitles[i] || 'Ответ').slice(0, 24) })) : undefined),
             data: { url: openUrl, peer: (d && d.peer) || '', kind: (d && d.kind) || 'msg', qr: qrMap },
         });
         // Число на иконке приложения, где это поддерживается
@@ -234,7 +244,7 @@ self.addEventListener('push', (e) => {
 });
 
 // Готовые фразы для кнопок быстрого ответа.
-const QUICK_REPLIES = { qr_ok: '👍 Ок', qr_later: 'Отвечу чуть позже 🙏' };
+const QUICK_REPLIES = { qr0: '👍 Ок', qr1: 'Отвечу позже 🙏' };
 
 /** Отправить готовую фразу нужному собеседнику — прямо из воркера, без открытия окна. */
 async function swSendQuickReply(data, text) {
