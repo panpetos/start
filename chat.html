@@ -4878,7 +4878,7 @@
 
     <script src="/js/api.js?v=20260821"></script>
     <script src="/js/auth.js?v=20260821"></script>
-    <script src="/js/lightbox.js?v=8"></script>
+    <script src="/js/lightbox.js?v=9"></script>
     <script src="/js/post-format.js?v=20260917c"></script>
     <!-- Редакционные статьи блога (window.PSY_ARTICLES). Их же показывает /blog.html
          рядом со статьями психологов из БД — без этого файла раздел «Блог» в чате
@@ -5333,7 +5333,10 @@
                 : '';
             // Вложения в группе рисуем тем же кодом, что и в личной переписке:
             // фото — превью, голосовое — плеер, кружок — видеокружок.
-            const attachmentHtml = attachmentHtmlFor(m, 'grp-' + m.id);
+            // Альбомы в группах не сворачиваем, но помечаем фото общим data-group по
+            // номеру альбома — тогда в просмотрщике они листаются свайпом/стрелками.
+            const grpAlbum = albumIdOf(m.content);
+            const attachmentHtml = attachmentHtmlFor(m, 'grp-' + m.id, grpAlbum ? ('alb-' + grpAlbum) : '');
             // Упоминания подсвечиваем уже в готовом (экранированном) тексте — сырой HTML не собираем
             const textHtml = (grp.body && !attachPlaceholderKind({ content: grp.body }))
                 ? `<div>${highlightMentions(msgText(grp.body))}</div>` : '';
@@ -15027,7 +15030,7 @@
             return (m && isImageAttachment(m) && !textHtml) ? ' img-only' : '';
         }
 
-        function attachmentHtmlFor(m, voiceKey) {
+        function attachmentHtmlFor(m, voiceKey, groupId) {
             if (!m) return '';
             if (!m.attachment_url) {
                 const kind = attachPlaceholderKind(m);
@@ -15042,7 +15045,9 @@
             if (isImageAttachment(m)) {
                 // Без <a target="_blank">: раньше клик по фото открывал и лайтбокс, и оригинал
                 // отдельной вкладкой одновременно (та же причина, что и в постах канала/ленты).
-                return `<div class="message-attachment">${chatImgHtml(m.attachment_url, m.attachment_name)}</div>`;
+                // groupId — чтобы фото одного альбома листались свайпом в просмотрщике.
+                const grpAttr = groupId ? ` data-group="${escapeHtml(groupId)}"` : '';
+                return `<div class="message-attachment">${chatImgHtml(m.attachment_url, m.attachment_name, grpAttr)}</div>`;
             }
             if (isVideoAttachment(m)) return videoAttachHtml(m.attachment_url, m.attachment_name);
             return `<div class="message-attachment"><a href="${m.attachment_url}" target="_blank" download="${escapeHtml(m.attachment_name || 'file')}">📄 ${escapeHtml(m.attachment_name || 'Скачать файл')}</a></div>`;

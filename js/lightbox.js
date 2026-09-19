@@ -272,8 +272,9 @@
                 }, 330);
                 return;
             }
-            // Свайп в сторону — соседнее фото (только когда не увеличено)
-            if (zoom <= 1.02 && Math.abs(dx) > 45 && Math.abs(dx) > Math.abs(dy)) step(dx < 0 ? 1 : -1);
+            // Свайп мышью на компьютере — соседнее фото. Палец обрабатываем отдельно
+            // (touch-события ниже), иначе шаг срабатывал бы дважды и картинка проскакивала.
+            if (e.pointerType === 'mouse' && zoom <= 1.02 && Math.abs(dx) > 45 && Math.abs(dx) > Math.abs(dy)) step(dx < 0 ? 1 : -1);
         };
         // Слушаем на окне, а не на сцене: палец во время жеста легко уходит за край
         // картинки, и «отпускание» до сцены уже не доходило — увеличение и листание
@@ -284,23 +285,41 @@
         // доводим его до конца сами, чтобы листание не пропадало.
         window.addEventListener('pointercancel', up);
 
-        // Запасной путь для листания — на «пальцевых» событиях. Указатели браузер
-        // при движении иногда отменяет (принимает жест за прокрутку), и свайп терялся;
-        // здесь же событие приходит всегда. Работает, только пока фото не увеличено —
-        // увеличенное таскают, а не листают.
-        let tX = null, tY = null;
+        // Листание пальцем — на «пальцевых» событиях (надёжнее указателей: их браузер
+        // при движении иногда отменяет, приняв жест за прокрутку). Пока тянем — картинка
+        // едет за пальцем; отпустили за порог — соседний кадр, иначе возвращается на место.
+        // Работает, только пока фото не увеличено (увеличенное таскают, а не листают).
+        let tX = null, tY = null, tActive = false, tDx = 0, tHoriz = false;
+        const imgEl = function () { return box && box.querySelector('.plb-img'); };
         stage.addEventListener('touchstart', function (e) {
-            if (e.touches.length !== 1) { tX = null; return; }
+            if (e.touches.length !== 1 || zoom > 1.02) { tActive = false; tX = null; return; }
             tX = e.touches[0].clientX; tY = e.touches[0].clientY;
+            tActive = true; tDx = 0; tHoriz = false;
         }, { passive: true });
-        stage.addEventListener('touchend', function (e) {
-            if (tX == null || zoom > 1.02) { tX = null; return; }
-            const t = e.changedTouches[0];
+        stage.addEventListener('touchmove', function (e) {
+            if (!tActive || tX == null || zoom > 1.02 || e.touches.length !== 1) return;
+            const t = e.touches[0];
             const dx = t.clientX - tX, dy = t.clientY - tY;
-            tX = null;
-            if (Math.abs(dx) < 45 || Math.abs(dx) < Math.abs(dy)) return;
-            step(dx < 0 ? 1 : -1);
+            if (!tHoriz && Math.abs(dx) > 8 && Math.abs(dx) > Math.abs(dy)) tHoriz = true;
+            if (tHoriz) {
+                tDx = dx;
+                const im = imgEl();
+                if (im) im.style.transform = 'translateX(' + dx + 'px)';
+            }
         }, { passive: true });
+        const touchEnd = function () {
+            if (!tActive) return;
+            tActive = false;
+            const im = imgEl();
+            if (gallery.length > 1 && Math.abs(tDx) > 45) {
+                step(tDx < 0 ? 1 : -1);      // paint() перерисует и сбросит смещение
+            } else if (im) {
+                im.style.transform = ''; applyZoom();   // не дотянули — вернуть на место
+            }
+            tX = null; tY = null; tDx = 0; tHoriz = false;
+        };
+        stage.addEventListener('touchend', touchEnd, { passive: true });
+        stage.addEventListener('touchcancel', touchEnd, { passive: true });
 
         // Колесо мыши на компьютере
         stage.addEventListener('wheel', function (e) {
