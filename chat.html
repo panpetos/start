@@ -398,11 +398,16 @@
         /* Полоса перемотки: сама линия тонкая, но нажимать можно по всей высоте
            обёртки — в тонкую полоску пальцем не попасть. */
         .vnv-track {
-            width: min(96vw, 900px); padding: 10px 0; cursor: pointer;
+            width: min(96vw, 640px); padding: 12px 8px; cursor: pointer;
             flex-shrink: 0; touch-action: none;
         }
-        .vnv-track u { display: block; height: 4px; border-radius: 4px; background: rgba(255,255,255,0.24); overflow: hidden; }
-        .vnv-track i { display: block; height: 100%; width: 0; background: #fff; border-radius: 4px; }
+        .vnv-track u { display: block; position: relative; height: 6px; border-radius: 6px; background: rgba(255,255,255,0.26); }
+        .vnv-track i { display: block; position: relative; height: 100%; width: 0; background: #fff; border-radius: 6px; }
+        /* Ползунок на конце заполнения — за него удобно тянуть, и сразу видно, что это перемотка. */
+        .vnv-track i::after {
+            content: ''; position: absolute; right: -7px; top: 50%; transform: translateY(-50%);
+            width: 15px; height: 15px; border-radius: 50%; background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,0.5);
+        }
         .vnv-meta {
             display: flex; align-items: center; gap: 0.8rem;
             color: rgba(255,255,255,0.8); font-size: 0.85rem;
@@ -2027,13 +2032,20 @@
         .emoji-empty { grid-column: 1 / -1; font-size: 0.82rem; color: #6B7280; padding: 0.75rem; text-align: center; }
 
         .emoji-grid span {
-            font-size: 1.5rem;
-            padding: 5px;
+            font-size: 1.4rem;
+            padding: 4px;
             cursor: pointer;
             border-radius: 6px;
             text-align: center;
             transition: background 0.2s;
         }
+        /* Заголовок раздела стикеров — во всю ширину сетки. */
+        .emoji-grid .emoji-sec {
+            grid-column: 1 / -1; font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 0.04em; color: #9CA3AF; padding: 6px 4px 2px; user-select: none;
+        }
+        .emoji-grid.sticker-mode { grid-template-columns: repeat(auto-fill, minmax(44px, 1fr)); }
+        .emoji-grid .stk { font-size: 1.9rem; padding: 4px; }
 
         .emoji-grid span:hover {
             background: #f0f0f0;
@@ -4785,7 +4797,7 @@
         </div>
         <div class="vnv-track" id="vnvTrack" onclick="event.stopPropagation();vnvSeek(event)"><u><i id="vnvBar"></i></u></div>
         <div class="vnv-meta">
-            <span id="vnvTime">0:00</span>
+            <span id="vnvTime">0:00</span> / <span id="vnvDur">0:00</span>
             <span id="vnvCount"></span>
         </div>
     </div>
@@ -14066,6 +14078,31 @@
             } catch (e) { if (btn) { btn.disabled = false; btn.textContent = 'Не вышло, повторить'; } }
         }
         window.sosAlert = sosAlert;
+
+        // «Спокойствие» — один пункт меню, из которого доступны и SOS, и дыхание.
+        function openCalmPanel() {
+            const dark = document.body.classList.contains('dark');
+            const ov = document.createElement('div');
+            ov.style.cssText = 'position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;padding:1rem;';
+            ov.innerHTML = '<div style="width:100%;max-width:340px;background:' + (dark ? '#1e1e1e' : '#fff') + ';color:inherit;border-radius:1rem;padding:1rem 1.1rem 1.2rem;box-shadow:0 20px 60px rgba(0,0,0,0.35);">'
+                + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.7rem;"><b>Спокойствие</b>'
+                + '<button type="button" data-close="1" style="border:none;background:none;font-size:1.4rem;cursor:pointer;color:inherit;">×</button></div>'
+                + '<button type="button" data-act="sos" style="display:flex;align-items:center;gap:0.6rem;width:100%;padding:0.75rem 0.85rem;margin-bottom:0.5rem;border:1px solid ' + (dark ? '#3a3a3a' : '#e5e7eb') + ';border-radius:0.7rem;background:none;color:inherit;cursor:pointer;font-family:inherit;font-size:0.95rem;text-align:left;"><span style="font-size:1.3rem;">🆘</span> Мне плохо сейчас</button>'
+                + '<button type="button" data-act="breath" style="display:flex;align-items:center;gap:0.6rem;width:100%;padding:0.75rem 0.85rem;border:1px solid ' + (dark ? '#3a3a3a' : '#e5e7eb') + ';border-radius:0.7rem;background:none;color:inherit;cursor:pointer;font-family:inherit;font-size:0.95rem;text-align:left;"><span style="font-size:1.3rem;">🫁</span> Дыхание (успокоиться)</button>'
+                + '</div>';
+            document.body.appendChild(ov);
+            const close = () => { try { document.body.removeChild(ov); } catch (e) {} };
+            ov.addEventListener('click', (ev) => {
+                if (ev.target === ov || ev.target.getAttribute('data-close')) { close(); return; }
+                const b = ev.target.closest('[data-act]');
+                if (!b) return;
+                const act = b.getAttribute('data-act');
+                close();
+                if (act === 'sos') openSosPanel(); else if (act === 'breath') openBreathing();
+            });
+        }
+        window.openCalmPanel = openCalmPanel;
+
         function openSosPanel() {
             const dark = document.body.classList.contains('dark');
             let m = document.getElementById('psySosModal'); if (m) m.remove();
@@ -14387,34 +14424,20 @@
         // Набор эмодзи-стикеров, тёплый под тему платформы. Тап — сразу отправляет
         // сообщение-маркер [[sticker:X]], который post-format.js рисует крупно.
         const PSY_STICKERS = [
-            { title: 'Поддержка', items: ['🤗', '🫂', '💜', '🙏', '💪', '🌟', '✨', '👏', '🤝', '❤️‍🩹'] },
-            { title: 'Спокойствие', items: ['🌿', '🍃', '🕊️', '🧘', '🌾', '☁️', '🌙', '🫧', '🐢', '🍵'] },
-            { title: 'Радость', items: ['☀️', '🌈', '🌸', '🌻', '💐', '⭐', '🎉', '😊', '🥰', '🦋'] }
+            { title: 'Поддержка', items: ['🤗', '🫂', '💜', '🙏', '💪', '🌟', '✨', '👏', '🤝', '❤️‍🩹', '🫶', '🙌', '🧡', '💚', '🤍', '🌈'] },
+            { title: 'Спокойствие', items: ['🌿', '🍃', '🕊️', '🧘', '🌾', '☁️', '🌙', '🫧', '🐢', '🍵', '🛁', '🕯️', '🌊', '🍂', '💆', '☕'] },
+            { title: 'Радость', items: ['☀️', '🌈', '🌸', '🌻', '💐', '⭐', '🎉', '😊', '🥰', '🦋', '🎈', '🌼', '🌺', '🥳', '😍', '💫'] },
+            { title: 'Эмоции', items: ['😀', '😂', '🤣', '🙂', '😉', '😌', '😔', '😢', '😭', '😮', '😴', '🥺', '😳', '🤔', '😅', '🫠'] },
+            { title: 'Жесты', items: ['👍', '👎', '👌', '✌️', '🤞', '🤙', '👋', '🙏', '💪', '🤝', '👏', '🤟', '✊', '🫰', '🤌', '🖖'] },
+            { title: 'Сердца', items: ['❤️', '🧡', '💛', '💚', '💙', '💜', '🖤', '🤍', '🤎', '💕', '💞', '💗', '💖', '💘', '💝', '❤️‍🔥'] }
         ];
+        // Стикеры теперь живут в общем пикере смайлов — открываем его на вкладке стикеров.
         function openStickerPanel() {
-            const dark = document.body.classList.contains('dark');
-            const ov = document.createElement('div');
-            ov.style.cssText = 'position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,0.45);display:flex;align-items:flex-end;justify-content:center;';
-            let groups = '';
-            PSY_STICKERS.forEach(g => {
-                let cells = '';
-                g.items.forEach(e => {
-                    cells += '<button type="button" data-st="' + e + '" style="font-size:2rem;line-height:1;padding:0.35rem;border:none;background:none;cursor:pointer;border-radius:0.6rem;">' + e + '</button>';
-                });
-                groups += '<div style="margin-bottom:0.6rem;"><div style="font-size:0.78rem;color:#9CA3AF;margin:0.2rem 0 0.3rem;">' + g.title + '</div>'
-                        + '<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:0.2rem;">' + cells + '</div></div>';
-            });
-            ov.innerHTML = '<div style="width:100%;max-width:460px;background:' + (dark ? '#1e1e1e' : '#fff') + ';color:inherit;border-radius:1rem 1rem 0 0;padding:0.9rem 1rem 1.2rem;max-height:70vh;overflow:auto;">'
-                + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem;"><b>Стикеры</b>'
-                + '<button type="button" data-close="1" style="border:none;background:none;font-size:1.4rem;cursor:pointer;color:inherit;">×</button></div>'
-                + groups + '</div>';
-            document.body.appendChild(ov);
-            const close = () => { try { document.body.removeChild(ov); } catch (e) {} };
-            ov.addEventListener('click', (ev) => {
-                if (ev.target === ov || ev.target.getAttribute('data-close')) { close(); return; }
-                const btn = ev.target.closest('[data-st]');
-                if (btn) { close(); pollSendMarker('[[sticker:' + btn.getAttribute('data-st') + ']]', 'Не удалось отправить стикер'); }
-            });
+            emojiTab = 'stk';
+            const picker = document.getElementById('emojiPicker');
+            if (!picker) return;
+            renderEmojiPicker();
+            picker.style.display = 'flex';
         }
         window.openStickerPanel = openStickerPanel;
 
@@ -17343,8 +17366,11 @@
         function cinMenuItems() {
             const ai = document.body.classList.contains('ai-chat');
             const mob = window.matchMedia('(max-width: 768px)').matches;
+            // Компактно: смайлы и стикеры — одним пунктом (общий пикер); список задач,
+            // блок-схема и оформление — внутри «Форматирования»; «Мне плохо» и «Дыхание» —
+            // одним пунктом «Спокойствие». Функции все на месте, пунктов меньше.
             const items = [
-                { ico: '🙂', label: 'Смайлы', run: () => toggleEmojiPicker() },
+                { ico: '🙂', label: 'Смайлы и стикеры', run: () => toggleEmojiPicker() },
                 { ico: '📎', label: 'Прикрепить файл', run: () => {
                     const f = document.getElementById('fileInput');
                     if (f) f.click();
@@ -17356,19 +17382,12 @@
             }
             if (ai) items.push({ ico: '🎤', label: 'Продиктовать голосом', run: () => toggleDictation() });
             if (ai) items.push({ ico: '🎨', label: 'Нарисовать картинку', run: () => aiDrawImage() });
-            // Форматирование — и на телефоне тоже здесь, в меню ввода снизу: в шапке
-            // (три точки) на телефоне его убрали, чтобы кнопка была одна и под рукой.
-            items.push({ ico: 'A', label: 'Форматирование текста', run: () => openComposer() });
-            // Схему часто рисуют без остального оформления — пусть будет отдельным
-            // пунктом, а не только кнопкой внутри окна форматирования.
-            items.push({ ico: '⤵', label: 'Блок-схема', run: () => openDiagramBuilder('input') });
-            items.push({ ico: '☑', label: 'Список задач', run: () => openChecklistBuilder('input') });
+            // Форматирование содержит и оформление, и «Список задач», и «Блок-схему».
+            items.push({ ico: 'A', label: 'Форматирование, списки, схемы', run: () => openComposer() });
             items.push({ ico: '📊', label: 'Опрос', run: () => openPollBuilder() });
-            if (!ai) items.push({ ico: '🤗', label: 'Стикеры', run: () => openStickerPanel() });
             items.push({ ico: '⚡', label: 'Быстрые ответы', run: () => openQuickReplies() });
             if (!ai) items.push({ ico: '✨', label: 'Подсказать ответ (ИИ)', run: () => suggestReplies() });
-            items.push({ ico: '🆘', label: 'Мне плохо сейчас', run: () => openSosPanel() });
-            items.push({ ico: '🫁', label: 'Дыхание (успокоиться)', run: () => openBreathing() });
+            if (!ai) items.push({ ico: '🫂', label: 'Спокойствие (SOS · дыхание)', run: () => openCalmPanel() });
             // Отложенная отправка — везде, кроме ассистента: ему пишут ради ответа сейчас
             if (typeof schedAvailable === 'function' && schedAvailable()) {
                 items.push({ ico: '🕒', label: 'Отправить позже', run: () => scheduleCurrentInput() });
@@ -18295,22 +18314,33 @@
         const EMOJI_SETS = [
             { t: '🕘', name: 'Недавние', list: [] },
             { t: '😀', name: 'Смайлы и люди', list: (
-                '😀 😃 😄 😁 😆 😅 🤣 😂 🙂 🙃 😉 😊 😇 🥰 😍 🤩 😘 😗 😚 😙 😋 😛 😜 🤪 😝 🤑 🤗 🤭 🤫 🤔 '
-                + '🤐 🤨 😐 😑 😶 😏 😒 🙄 😬 🤥 😌 😔 😪 🤤 😴 😷 🤒 🤕 🤢 🤮 🤧 🥵 🥶 🥴 😵 🤯 🤠 🥳 😎 🤓 '
-                + '🧐 😕 😟 🙁 ☹️ 😮 😯 😲 😳 🥺 😦 😧 😨 😰 😥 😢 😭 😱 😖 😣 😞 😓 😩 😫 🥱 😤 😡 😠 🤬 😈 '
-                + '👿 💀 💩 🤡 👹 👺 👻 👽 🤖 😺 😸 😹 😻 😼 😽 🙀 😿 😾 🙈 🙉 🙊').split(' ') },
-            { t: '👋', name: 'Жесты', list: (
-                '👋 🤚 🖐 ✋ 🖖 👌 🤌 🤏 ✌️ 🤞 🤟 🤘 🤙 👈 👉 👆 🖕 👇 ☝️ 👍 👎 ✊ 👊 🤛 🤜 👏 🙌 👐 🤲 🤝 '
-                + '🙏 ✍️ 💅 🤳 💪 🦾 🦵 🦶 👂 👃 🧠 🦷 👀 👁 👅 👄 💋 🩸').split(' ') },
+                '😀 😃 😄 😁 😆 😅 🤣 😂 🙂 🙃 🫠 😉 😊 😇 🥰 😍 🤩 😘 😗 😚 😙 🥲 😋 😛 😜 🤪 😝 🤑 🤗 🤭 🫢 🫣 '
+                + '🤫 🤔 🫡 🤐 🤨 😐 😑 😶 🫥 😏 😒 🙄 😬 🤥 😌 😔 😪 🤤 😴 😷 🤒 🤕 🤢 🤮 🤧 🥵 🥶 🥴 😵 😵‍💫 🤯 '
+                + '🤠 🥳 🥸 😎 🤓 🧐 😕 🫤 😟 🙁 ☹️ 😮 😯 😲 😳 🥺 🥹 😦 😧 😨 😰 😥 😢 😭 😱 😖 😣 😞 😓 😩 😫 🥱 '
+                + '😤 😡 😠 🤬 😈 👿 💀 ☠️ 💩 🤡 👹 👺 👻 👽 👾 🤖 😺 😸 😹 😻 😼 😽 🙀 😿 😾 🙈 🙉 🙊 '
+                + '👶 🧒 👦 👧 🧑 👨 👩 🧔 👴 👵 🙍 🙎 🙅 🙆 💁 🙋 🧏 🤦 🤷 👮 🕵️ 💂 👷 🤴 👸 🤵 👰 🤰 🤱 👼 🎅 🤶 '
+                + '🦸 🦹 🧙 🧚 🧛 🧜 🧝 🧞 🧟 💆 💇 🚶 🧍 🧎 🏃 💃 🕺 👯 🧖 🧗 🤺 🏇 ⛷️ 🏂 🏌️ 🏄 🚣 🏊 ⛹️ 🏋️ 🚴 🤸 🤼 🤽 🤾 🤹 🧘').split(/\s+/).filter(Boolean) },
+            { t: '👋', name: 'Жесты и части тела', list: (
+                '👋 🤚 🖐 ✋ 🖖 🫱 🫲 🫳 🫴 👌 🤌 🤏 ✌️ 🤞 🫰 🤟 🤘 🤙 👈 👉 👆 🖕 👇 ☝️ 👍 👎 ✊ 👊 🤛 🤜 👏 🙌 🫶 '
+                + '👐 🤲 🤝 🙏 ✍️ 💅 🤳 💪 🦾 🦿 🦵 🦶 👂 🦻 👃 🧠 🫀 🫁 🦷 🦴 👀 👁 👅 👄 🫦 💋 🩸 🧑‍🦰 🧑‍🦱 🧑‍🦳 🧑‍🦲').split(/\s+/).filter(Boolean) },
             { t: '❤️', name: 'Сердца и знаки', list: (
-                '❤️ 🧡 💛 💚 💙 💜 🖤 🤍 🤎 💔 ❣️ 💕 💞 💓 💗 💖 💘 💝 💟 ✨ ⭐ 🌟 💫 ⚡ 🔥 💥 💯 ✅ ❌ ❗ '
-                + '❓ ⚠️ 🚫 ➕ ➖ ✔️ 🔔 🔕 💤 💬 💭 🗯 🕐 ⏰ ⌛ ⏳').split(' ') },
+                '❤️ 🩷 🧡 💛 💚 💙 🩵 💜 🖤 🩶 🤍 🤎 💔 ❤️‍🔥 ❤️‍🩹 ❣️ 💕 💞 💓 💗 💖 💘 💝 💟 ☮️ ✝️ ☪️ 🕉️ ☸️ ✡️ 🔯 🕎 ☯️ '
+                + '✨ ⭐ 🌟 💫 ⚡ 🔥 💥 💦 💧 💯 ✅ ☑️ ✔️ ❌ ❎ ❗ ❕ ❓ ❔ ⚠️ 🚫 ⛔ 🔞 ☢️ ☣️ ♻️ ➕ ➖ ✖️ ➗ 〽️ '
+                + '🔔 🔕 💤 💬 🗨️ 💭 🗯 🔴 🟠 🟡 🟢 🔵 🟣 🟤 ⚫ ⚪ 🟥 🟧 🟨 🟩 🟦 🟪 ⬛ ⬜ 🔺 🔻 🔸 🔹 💠 🔘 🏁 🚩 🎌 🏳️ 🏴 🏳️‍🌈').split(/\s+/).filter(Boolean) },
             { t: '🎉', name: 'Праздник и вещи', list: (
-                '🎉 🎊 🎈 🎁 🎀 🎂 🍰 🧁 🍫 🍬 🍭 ☕ 🍵 🥤 🍺 🍻 🥂 🍾 🍕 🍔 🍟 🌭 🍿 🥗 🍎 🍌 🍓 🍒 🍑 🥑 '
-                + '📱 💻 ⌨️ 🖥 🖨 📷 🎥 🎧 🎤 📚 📖 📝 ✏️ 📌 📎 🔒 🔑 💡 🔍 💰 💳 🏆 🥇 🎯 🎮 ⚽ 🏀 🎾 🚗 ✈️').split(' ') },
-            { t: '🌿', name: 'Природа', list: (
-                '🌱 🌿 🍀 🍃 🌳 🌲 🌴 🌵 🌸 🌼 🌻 🌹 🌺 🏵 💐 🍁 🍂 🌾 🌍 🌙 ☀️ ⛅ ☁️ 🌧 ⛈ 🌈 ❄️ ⛄ 🌊 🔆 '
-                + '🐶 🐱 🐭 🐹 🐰 🦊 🐻 🐼 🐨 🐯 🦁 🐮 🐷 🐸 🐵 🐔 🐧 🐦 🦆 🦉 🐝 🦋 🐌 🐢 🐠 🐬 🐳 🦄').split(' ') },
+                '🎉 🎊 🎈 🎁 🎀 🪄 🎗️ 🎂 🍰 🧁 🥧 🍫 🍬 🍭 🍩 🍪 ☕ 🫖 🍵 🥤 🧋 🧃 🍺 🍻 🥂 🍷 🥃 🍾 🍶 🍸 🍹 '
+                + '🍕 🍔 🍟 🌭 🥪 🌮 🌯 🥙 🧆 🥚 🍳 🥘 🍲 🍜 🍝 🍣 🍱 🍛 🍚 🍙 🥟 🦪 🍤 🍿 🧂 🥗 🥦 🥕 🌽 🥔 '
+                + '🍎 🍏 🍐 🍊 🍋 🍌 🍉 🍇 🍓 🫐 🍒 🍑 🥭 🍍 🥥 🥝 🍅 🥑 🍆 🥜 🌰 '
+                + '📱 💻 ⌨️ 🖥 🖨 🖱️ 💾 💿 📷 📸 🎥 📹 📽️ 📺 📻 🎙️ 🎧 🎤 🎼 🎹 🥁 🎸 🎺 🎻 🪕 📚 📖 📓 📝 ✏️ 🖊️ 🖌️ '
+                + '📌 📍 📎 🔗 ✂️ 🔒 🔓 🔑 🗝️ 💡 🔦 🔍 🔎 💰 💵 💳 🧾 🏆 🥇 🥈 🥉 🏅 🎯 🎲 🎮 🕹️ 🧩 ♟️ 🎰 🎳 ⚽ 🏀 🏈 ⚾ 🎾 🏐 🏓 🏸 🥊').split(/\s+/).filter(Boolean) },
+            { t: '🌿', name: 'Природа и животные', list: (
+                '🌱 🌿 ☘️ 🍀 🍃 🍂 🍁 🌾 🌳 🌲 🌴 🌵 🎋 🎍 🌷 🌹 🥀 🌺 🌸 🌼 🌻 💐 🏵 🪴 🍄 🌰 🐚 🪨 '
+                + '🌍 🌎 🌏 🌕 🌖 🌗 🌘 🌑 🌒 🌓 🌔 🌙 🌚 🌝 ⭐ 🌟 ☀️ 🌤️ ⛅ 🌥️ ☁️ 🌦️ 🌧 ⛈ 🌩️ 🌨️ ❄️ ☃️ ⛄ 🌬️ 💨 🌪️ 🌫️ 🌈 ☔ 💧 🌊 🔥 '
+                + '🐶 🐱 🐭 🐹 🐰 🦊 🐻 🐻‍❄️ 🐼 🐨 🐯 🦁 🐮 🐷 🐽 🐸 🐵 🙊 🐒 🐔 🐧 🐦 🐤 🦆 🦅 🦉 🦇 🐺 🐗 🐴 🦄 🐝 🪲 🐛 🦋 🐌 🐞 🐜 🪰 '
+                + '🐢 🐍 🦎 🦖 🐙 🦑 🦐 🦀 🐡 🐠 🐟 🐬 🐳 🐋 🦈 🐊 🐅 🐆 🦓 🦍 🐘 🦛 🦏 🐪 🐫 🦒 🦘 🐃 🐄 🐎 🐖 🐏 🐑 🐐 🦌 🐕 🐩 🐈 🐓 🦃 🕊️ 🐇 🦝 🦡 🐾').split(/\s+/).filter(Boolean) },
+            { t: '🚗', name: 'Путешествия', list: (
+                '🚗 🚕 🚙 🚌 🚎 🏎️ 🚓 🚑 🚒 🚐 🛻 🚚 🚛 🚜 🛵 🏍️ 🛺 🚲 🛴 🛹 🚨 🚔 🚍 🚘 🚖 🚡 🚠 🚟 🚃 🚋 🚞 🚝 🚄 🚅 🚈 🚂 🚆 🚇 🚊 🚉 '
+                + '✈️ 🛫 🛬 🛩️ 💺 🚁 🚀 🛸 🛶 ⛵ 🚤 🛥️ 🛳️ ⛴️ 🚢 ⚓ ⛽ 🚧 🚦 🚥 🗺️ 🗿 🗽 🗼 🏰 🏯 🏟️ 🎡 🎢 🎠 ⛲ ⛱️ 🏖️ 🏝️ 🏜️ 🌋 ⛰️ 🏔️ 🗻 🏕️ 🏠 🏡 🏢 🏬 🏦 🏨 🏪 🏫 🏩 💒 🏛️ ⛪ 🕌 🛕 🕍 🌆 🌃 🌉 🌌').split(/\s+/).filter(Boolean) },
         ];
         let emojiTab = null;   // выберем при первом открытии: «недавние», если они есть
 
@@ -18322,21 +18352,51 @@
             try { localStorage.setItem('psy-emoji-recent', JSON.stringify(list)); } catch (err) {}
         }
 
+        function recentStickers() {
+            try { return JSON.parse(localStorage.getItem('psy-sticker-recent') || '[]'); } catch (e) { return []; }
+        }
+        function rememberSticker(e) {
+            const list = [e, ...recentStickers().filter(x => x !== e)].slice(0, 16);
+            try { localStorage.setItem('psy-sticker-recent', JSON.stringify(list)); } catch (err) {}
+        }
+        function sendStickerFromPicker(e) {
+            rememberSticker(e);
+            const picker = document.getElementById('emojiPicker');
+            if (picker) picker.style.display = 'none';   // стикер — целое сообщение, панель закрываем
+            pollSendMarker('[[sticker:' + e + ']]', 'Не удалось отправить стикер');
+        }
+        window.sendStickerFromPicker = sendStickerFromPicker;
+
         function renderEmojiPicker() {
             const tabs = document.getElementById('emojiTabs');
             const grid = document.getElementById('emojiGrid');
             if (!tabs || !grid) return;
             EMOJI_SETS[0].list = recentEmoji();
-            // Пустые «недавние» показываем как есть — с пояснением внутри. Раньше вкладка
-            // молча переключалась на другую, и казалось, что она не нажимается.
+            // Пустые «недавние» показываем как есть — с пояснением внутри.
             if (emojiTab == null) emojiTab = EMOJI_SETS[0].list.length ? 0 : 1;
-            tabs.innerHTML = EMOJI_SETS.map((s, i) =>
+            // Вкладки: наборы эмодзи + отдельная вкладка стикеров (единый пикер).
+            let html = EMOJI_SETS.map((s, i) =>
                 `<button type="button" class="emoji-tab${i === emojiTab ? ' active' : ''}"
                          title="${escapeHtml(s.name)}" onclick="setEmojiTab(event, ${i})">${s.t}</button>`).join('');
-            const list = EMOJI_SETS[emojiTab].list;
-            grid.innerHTML = list.length
-                ? list.map(e => `<span onclick="insertEmoji('${e}')">${e}</span>`).join('')
-                : '<div class="emoji-empty">Здесь появятся смайлики, которыми вы пользуетесь чаще всего.</div>';
+            html += `<button type="button" class="emoji-tab${emojiTab === 'stk' ? ' active' : ''}"
+                         title="Стикеры" onclick="setEmojiTab(event, 'stk')">🤗</button>`;
+            tabs.innerHTML = html;
+            if (emojiTab === 'stk') {
+                grid.classList.add('sticker-mode');
+                let out = '';
+                const rec = recentStickers();
+                if (rec.length) out += '<div class="emoji-sec">Недавние</div>'
+                    + rec.map(e => `<span class="stk" onclick="sendStickerFromPicker('${e}')">${e}</span>`).join('');
+                out += PSY_STICKERS.map(g => '<div class="emoji-sec">' + escapeHtml(g.title) + '</div>'
+                    + g.items.map(e => `<span class="stk" onclick="sendStickerFromPicker('${e}')">${e}</span>`).join('')).join('');
+                grid.innerHTML = out;
+            } else {
+                grid.classList.remove('sticker-mode');
+                const list = EMOJI_SETS[emojiTab].list;
+                grid.innerHTML = list.length
+                    ? list.map(e => `<span onclick="insertEmoji('${e}')">${e}</span>`).join('')
+                    : '<div class="emoji-empty">Здесь появятся смайлики, которыми вы пользуетесь чаще всего.</div>';
+            }
         }
         function setEmojiTab(evt, i) {
             // Клик по вкладке ОБЯЗАН не всплывать до обработчика «клик вне панели»:
@@ -19281,6 +19341,12 @@
                 const t = document.getElementById('vnvTime');
                 if (t) t.textContent = formatDuration(Math.floor(v.currentTime || 0));
             });
+            const showDur = () => {
+                const d = document.getElementById('vnvDur');
+                if (d && v.duration && isFinite(v.duration)) d.textContent = formatDuration(Math.floor(v.duration));
+            };
+            v.addEventListener('loadedmetadata', showDur);
+            v.addEventListener('durationchange', showDur);
             v.addEventListener('ended', () => vnvStep(1));
             document.addEventListener('keydown', (e) => {
                 if (!document.body.classList.contains('vnv-open')) return;
