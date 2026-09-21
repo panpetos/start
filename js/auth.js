@@ -135,13 +135,12 @@ window.Auth = {
 
         const role = user.role;
 
-        if (role === 'psychologist') {
-            window.location.href = '/dashboard-psychologist.html';
-        } else if (role === 'admin') {
-            window.location.href = '/admin.html';
+        // Клиент и психолог — сразу в чаты (кабинет доступен там разделом «Кабинет»).
+        // Админ — в панель управления. Прежние адреса dashboard-*.html не существовали.
+        if (role === 'admin') {
+            window.location.href = '/dashboard-admin.html';
         } else {
-            // client или любая другая роль
-            window.location.href = '/dashboard-client.html';
+            window.location.href = '/chat.html';
         }
     },
 

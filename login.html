@@ -11,7 +11,7 @@
     <script src="/js/netguard.js?v=20260821c"></script>
     <script src="/js/layout.js?v=20260921b"></script>
     <script src="/js/api.js?v=20260821"></script>
-    <script src="/js/auth.js?v=20260821"></script>
+    <script src="/js/auth.js?v=20260921"></script>
     <link rel="preconnect" href="https://unpkg.com">
     <script defer src="https://unpkg.com/lucide@1.41.0/dist/umd/lucide.min.js"></script>
     <script src="/js/qr.js?v=20260821"></script>
@@ -348,9 +348,10 @@
             const redirect = new URLSearchParams(window.location.search).get('redirect');
             if (redirect) { window.location.href = redirect; return; }
             const role = user.role || user.user_role || '';
+            // Клиент и психолог заходят сразу в чаты — кабинет доступен там же разделом
+            // «🏠 Кабинет». Админ по-прежнему попадает в свою панель управления.
             if (role === 'admin') window.location.href = '/dashboard-admin.html';
-            else if (role === 'psychologist') window.location.href = '/psychologist-dashboard.html';
-            else window.location.href = '/client-dashboard.html';
+            else window.location.href = '/chat.html';
         }
 
         // ── Вход по QR-коду ──
