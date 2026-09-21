@@ -869,6 +869,10 @@
         /* То же для самой ленты сообщений и всего, что лежит в шапке чата */
         #chatContent { min-width: 0; }
         #messagesContainer { min-width: 0; }
+        /* Встроенный кабинет — край в край, без отступов и «обоев» переписки, на всю высоту.
+           :has() убирает падинги только когда внутри именно iframe кабинета. */
+        #messagesContainer:has(> .cabinet-frame) { padding: 0 !important; overflow: hidden; }
+        .cabinet-frame { width: 100%; height: 100%; min-height: 78vh; border: 0; display: block; background: transparent; }
         .chat-header { min-width: 0; }
         .chat-header > div { min-width: 0; }
 
