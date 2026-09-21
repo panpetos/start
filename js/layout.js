@@ -113,10 +113,16 @@ window.psyGuardPoll = window.psyGuardPoll || function (fn) { return fn; };
     { href: '/install.html', text: 'Установить приложение', icon: '📲' }
   ];
   var ico = function (e) { return '<span class="nav-ico" aria-hidden="true">' + e + '</span>'; };
-  var authedItems = authedLinks.map(function (l) {
-    var st = active(l.href) ? 'color:#34C759;font-weight:600;' : '';
-    return '<li class="psy-authed-only" style="' + liReset + '"><a href="' + l.href + '" class="nav-link" style="' + st + '">' + ico(l.icon) + l.text + '</a></li>';
-  }).join('') +
+  // «Главная» (кабинет) и «Чаты» — те же ведущие пункты, что и в меню кабинета,
+  // чтобы у вошедшего меню на сайте и в кабинете читалось одинаково. Адрес «Главной»
+  // зависит от роли — проставим его при входе (applyAccountRow → dashUrlFor).
+  var authedItems =
+    '<li class="psy-authed-only" style="' + liReset + '"><a id="psyNavDash" href="/client-dashboard.html" class="nav-link">' + ico('🏠') + 'Главная</a></li>' +
+    '<li class="psy-authed-only" style="' + liReset + '"><a href="/chat.html" class="nav-link"' + (active('/chat.html') ? ' style="color:#34C759;font-weight:600;"' : '') + '>' + ico('💬') + 'Чаты</a></li>' +
+    authedLinks.map(function (l) {
+      var st = active(l.href) ? 'color:#34C759;font-weight:600;' : '';
+      return '<li class="psy-authed-only" style="' + liReset + '"><a href="' + l.href + '" class="nav-link" style="' + st + '">' + ico(l.icon) + l.text + '</a></li>';
+    }).join('') +
     '<li class="psy-authed-only" style="' + liReset + '"><a href="#" class="nav-link" ' +
     'onclick="if(window.psyLogout){window.psyLogout();}return false;" style="color:#DC2626;">' + ico('🚪') + 'Выйти</a></li>';
 
@@ -654,6 +660,8 @@ window.psyGuardPoll = window.psyGuardPoll || function (fn) { return fn; };
     }
     try { document.body.classList.add('psy-is-authed'); } catch (e) {}
     link.href = dashUrlFor(user);
+    // «Главная» в шторке ведёт в кабинет нужной роли.
+    try { var dl = document.getElementById('psyNavDash'); if (dl) dl.href = dashUrlFor(user); } catch (e) {}
     var name = [user.first_name, user.last_name].filter(Boolean).join(' ').trim();
     if (title) title.textContent = name || 'Личный кабинет';
     if (sub) sub.textContent = name ? 'Личный кабинет' : 'Перейти в кабинет';
