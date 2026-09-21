@@ -9215,6 +9215,27 @@
         let showHidden = false;      // показывать ли удалённые (режим «корзина»)
         let showArchive = false;     // показывать ли архив
 
+        // Запоминаем имя/аватар/превью удалённого диалога в момент удаления. Иначе в
+        // «Недавно удалённых» было пусто: чат без новых сообщений выпадает из недавнего
+        // списка, и клиенту нечего показать. Теперь корзина рисуется из этого кэша.
+        const DELETED_INFO_KEY = 'psy-deleted-info';
+        function loadDeletedInfo() { try { return JSON.parse(localStorage.getItem(DELETED_INFO_KEY) || '{}') || {}; } catch (e) { return {}; } }
+        function saveDeletedInfo(m) { try { localStorage.setItem(DELETED_INFO_KEY, JSON.stringify(m)); } catch (e) {} }
+        function rememberDeletedInfo(chatKey, title) {
+            try {
+                const row = convCache.find(c => String(c.user_id) === String(chatKey));
+                const name = title || (row ? `${row.first_name || ''} ${row.last_name || ''}`.trim() : '') || 'Диалог';
+                const info = loadDeletedInfo();
+                info[String(chatKey)] = {
+                    name: name,
+                    avatar: row ? (row.avatar || '') : '',
+                    preview: row ? previewText((row.last_message || '')).slice(0, 60) : '',
+                    at: Date.now()
+                };
+                saveDeletedInfo(info);
+            } catch (e) {}
+        }
+
         async function hiddenApi(action, payload) {
             const url = '/api/chat_hidden.php?action=' + action;
             const res = payload
@@ -9327,6 +9348,7 @@
             if (!confirm(`Удалить ${name} из своего списка?\n\nПереписка исчезнет только у вас — у собеседника она останется. ` +
                          `Если придёт новое сообщение, диалог вернётся. Свои сообщения можно удалить по отдельности.`)) return;
             try {
+                rememberDeletedInfo(chatKey, title);   // запомним, как выглядел диалог — для корзины
                 const d = await hiddenApi('hide', { chat_key: chatKey });
                 hiddenChats[chatKey] = d.hidden_at || new Date().toISOString().slice(0, 19).replace('T', ' ');
                 if (String(selectedUserId) === chatKey) closeCurrentChat();
@@ -9341,11 +9363,40 @@
             try {
                 await hiddenApi('unhide', { chat_key: chatKey });
                 delete hiddenChats[chatKey];
+                try { const m = loadDeletedInfo(); delete m[String(chatKey)]; saveDeletedInfo(m); } catch (e) {}
                 if (showHidden && !Object.keys(hiddenChats).length) showHidden = false;
                 refreshConversationList();
             } catch (e) {
                 alert('Не удалось вернуть диалог: ' + e.message);
             }
+        }
+        window.restoreConversation = restoreConversation;
+
+        /** Корзина: дорисовать удалённые диалоги, которых уже нет в недавнем списке. */
+        function appendMissingHiddenRows(chatRows) {
+            const present = new Set(chatRows.map(r => String(r.key)));
+            const info = loadDeletedInfo();
+            Object.keys(hiddenChats).forEach(key => {
+                const k = String(key);
+                if (present.has(k)) return;                 // уже нарисован из недавнего списка
+                if (archivedChats[k]) return;               // архив — отдельный режим
+                if (!folderAllows('personal', k)) return;   // уважаем активную папку
+                const d = info[k] || {};
+                const name = d.name || 'Удалённый диалог';
+                const initial = (name.charAt(0) || '?').toUpperCase();
+                chatRows.push({ key: k, at: hiddenChats[k] || '', html: `
+                    <div class="conversation-item" data-user-id="${escapeHtml(k)}" onclick="openChat('${escapeHtml(k)}')" title="${escapeHtml(name)}">
+                        <div class="conversation-avatar">${d.avatar ? `<img src="${escapeHtml(d.avatar)}" alt="">` : escapeHtml(initial)}</div>
+                        <div class="conversation-info">
+                            <div class="conversation-name"><span class="cn-text">${escapeHtml(name)}</span></div>
+                            <div class="conversation-preview">${escapeHtml(d.preview || 'Удалённый диалог')}</div>
+                        </div>
+                        <div class="conversation-meta">
+                            <button type="button" onclick="event.stopPropagation();restoreConversation('${escapeHtml(k)}')" title="Вернуть в список" style="border:1px solid #047857;background:none;color:#047857;border-radius:0.5rem;padding:0.25rem 0.6rem;font-family:inherit;font-size:0.78rem;cursor:pointer;white-space:nowrap;">↩ Вернуть</button>
+                        </div>
+                    </div>
+                ` });
+            });
         }
 
         // ── Жалоба на собеседника ──
@@ -12700,6 +12751,7 @@
                     </div>
                 ` });
             });
+            if (showHidden) appendMissingHiddenRows(chatRows);   // корзина: дорисовать выпавшие из недавних
             container.innerHTML = headHtml + sortPinnedFirst(rows.concat(byRecent(chatRows))).map(r => r.html).join('') + hiddenFooterHtml();
             // Папка может не содержать ни одного чата — иначе список выглядел бы «сломанным»
             if (container.querySelectorAll('.conversation-item').length === 0) {
