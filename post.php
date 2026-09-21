@@ -186,7 +186,7 @@ header('Content-Type: text/html; charset=utf-8');
 <link rel="stylesheet" href="/css/styles.css?v=20260823d">
 <script src="/js/netguard.js?v=20260821c"></script>
 <script src="/js/layout.js?v=20260919b"></script>
-<script src="/js/lightbox.js?v=10"></script>
+<script src="/js/lightbox.js?v=11"></script>
 <style>
     *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
     :root { --pg-bg:#FAFAFA; --pg-text:#1A1A1A; --pg-sec:#6B7280; --pg-card:#fff; --pg-border:#EFF7F3; --pg-accent:#047857; }

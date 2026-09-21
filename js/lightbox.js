@@ -468,6 +468,10 @@
         } catch (e) {}
     }
 
+    // Открытый просмотр добавляем в историю браузера: тогда системный «назад» (в т.ч.
+    // свайп от края на телефоне) закрывает фото, а не уводит со страницы вместе с ним.
+    let lbHistoryOpen = false;
+
     function open(src, alt, gal, idx, node) {
         dropForeignBoxes();
         if (!src) return;
@@ -477,9 +481,11 @@
         paint();
         box.classList.add('open');
         document.body.style.overflow = 'hidden';
+        if (!lbHistoryOpen) { lbHistoryOpen = true; try { history.pushState({ psyLb: 1 }, ''); } catch (e) {} }
     }
 
-    function close() {
+    // Только визуальное закрытие — без работы с историей (её уже «съел» переход назад).
+    function closeVisual() {
         if (!box) return;
         box.classList.remove('open', 'zoomed');
         box.querySelector('.plb-menu').classList.remove('open');
@@ -487,6 +493,18 @@
         resetZoom();
         document.body.style.overflow = '';
     }
+
+    function close() {
+        if (!box || !box.classList.contains('open')) { closeVisual(); return; }
+        closeVisual();
+        // Снимаем добавленную запись истории (это не уведёт со страницы — она наша).
+        if (lbHistoryOpen) { lbHistoryOpen = false; try { history.back(); } catch (e) {} }
+    }
+
+    window.addEventListener('popstate', function () {
+        // Нажали «назад»/свайпнули назад при открытом фото — закрываем именно фото.
+        if (lbHistoryOpen) { lbHistoryOpen = false; if (box && box.classList.contains('open')) closeVisual(); }
+    });
 
     document.addEventListener('keydown', function (e) {
         if (!box || !box.classList.contains('open')) return;
