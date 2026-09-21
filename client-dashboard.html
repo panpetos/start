@@ -235,8 +235,9 @@
         @media (max-width: 768px) {
             /* Отступ под шапку не нужен — шторка её накрывает; 100dvh и прокрутка нужны,
                чтобы нижние пункты меню («Выйти») не оказывались за пределами экрана. */
-            .dash-sidebar { position: fixed; top: 0; left: -260px; bottom: 0; z-index: 1000; width: 240px; transition: left 0.25s ease; padding-top: 0.5rem; height: 100vh; height: 100dvh; max-height: 100dvh; overflow-y: auto; overscroll-behavior: contain; }
-            .dash-sidebar.open { left: 0; }
+            /* Шторка выезжает СПРАВА — как меню на сайте и как бургер в правом верхнем углу. */
+            .dash-sidebar { position: fixed; top: 0; right: -280px; left: auto; bottom: 0; z-index: 1000; width: 260px; transition: right 0.25s ease; padding-top: 0.5rem; height: 100vh; height: 100dvh; max-height: 100dvh; overflow-y: auto; overscroll-behavior: contain; }
+            .dash-sidebar.open { right: 0; }
             .dash-sidebar-toggle { display: flex; }
             .dash-layout { display: block; }
             /* Плотнее по всему кабинету: контейнер, шапка, карточки, заголовки, кнопки —
