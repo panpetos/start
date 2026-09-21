@@ -13,6 +13,10 @@ window.psyGuardPoll = window.psyGuardPoll || function (fn) { return fn; };
 
 (function () {
   var path = location.pathname;
+  // Безрамочный режим: страница открыта внутри чата (вкладка «Кабинет»). Прячем
+  // шапку сайта, боковое меню и плавающие виджеты — остаётся только содержимое.
+  var PSY_EMBED = false;
+  try { PSY_EMBED = /(^|[?&])embed=1(&|$)/.test(location.search); if (PSY_EMBED) document.documentElement.classList.add('psy-embed'); } catch (e) {}
   function active(href) {
     var h = href.replace(/\/index\.html$/, '/');
     var p = path.replace(/\/index\.html$/, '/');
@@ -505,6 +509,13 @@ window.psyGuardPoll = window.psyGuardPoll || function (fn) { return fn; };
     // Бургер меню кабинета в тонкой шапке: показываем на телефоне, когда JS убедился,
     // что боковое меню на странице есть (класс ready). Тогда же прячем прежнюю зелёную
     // кнопку — вход в меню один и тот же, из шапки.
+    // Безрамочный режим (страница внутри чата): убираем всю «обвязку», оставляем контент.
+    'html.psy-embed body{padding-top:0!important}' +
+    'html.psy-embed .nav{display:none!important}' +
+    'html.psy-embed .dash-sidebar,html.psy-embed .dash-sidebar-toggle,html.psy-embed .sidebar,html.psy-embed .sidebar-toggle{display:none!important}' +
+    'html.psy-embed .dash-layout,html.psy-embed .admin-layout{display:block!important}' +
+    'html.psy-embed .main-content{padding-top:0.6rem!important}' +
+    'html.psy-embed #psySupBubble,html.psy-embed #psySupPanel,html.psy-embed #psySupToast,html.psy-embed #psyCookieBar{display:none!important}' +
     // Скрыт всегда (перебиваем общее правило .burger-menu{display:flex} на телефоне),
     // показывается только с классом ready — когда JS нашёл боковое меню.
     '.psy-dash-burger{display:none!important}' +

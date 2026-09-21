@@ -4957,6 +4957,7 @@
         //  именно по этим ссылкам приходят новые люди.
         // ══════════════════════════════════════════════════════════════════════════
         const PSY_ID = '__psy__';       // раздел «Психологи» — каталог и запись
+        const CABINET_ID = '__cabinet__'; // раздел «Кабинет» — личный кабинет прямо внутри чатов
         // Потолок вложения. Было 5, потом 10 — и в 10 МБ не влезала ни съёмка с
         // телефона, ни сколько-нибудь длинное видео. Теперь гигабайт: файлы больше
         // порога уходят частями через api/upload_chunk.php, потому что одним
@@ -7706,6 +7707,7 @@
             if (k === FEED_ID) { openFeedSection(); return; }
             if (k === PSY_ID) { openPsyCatalog(); return; }
             if (k === BLOG_ID) { openBlogSection(); return; }
+            if (k === CABINET_ID) { openCabinetSection(); return; }
             if (k === SUPPORT_ID) { openMySupportChat(); return; }
             if (k.indexOf(CHANNEL_PREFIX) === 0) { openChannel(k.slice(CHANNEL_PREFIX.length)); return; }
             if (k.indexOf(SUPPORT_PREFIX) === 0) { openSupportThread(k.slice(SUPPORT_PREFIX.length)); return; }
@@ -7839,6 +7841,7 @@
             if (k === FEED_ID) return false;
             if (k === PSY_ID) return false;
             if (k === BLOG_ID) return false;
+            if (k === CABINET_ID) return false;
             if (k === SUPPORT_ID) return false;
             if (k.indexOf(CHANNEL_PREFIX) === 0) return false;
             if (k.indexOf('blog:') === 0) return false;
@@ -8563,7 +8566,7 @@
                 const container = document.getElementById('conversationsList');
 
                 if (!conversations || conversations.length === 0) {
-                    const rows = sortPinnedFirst(favoritesRows().concat(aiRows(), supportRows(), psyRows(),
+                    const rows = sortPinnedFirst(cabinetRows().concat(favoritesRows(), aiRows(), supportRows(), psyRows(),
                                                                         feedRows(), blogRows())
                                                  .concat(byRecent(channelsRows().concat(groupsRows()))));
                     container.innerHTML = channelsErrHtml() + groupsErrHtml() + rows.map(r => r.html).join('') + `
@@ -12212,6 +12215,21 @@
                 </div>` }];
         }
 
+        /** Строка «Кабинет» — личный кабинет прямо внутри чатов, первым в списке. */
+        function cabinetRows() {
+            if (!currentUser) return [];
+            if (!chatVisible('section', CABINET_ID, null)) return [];
+            return [{ key: CABINET_ID, name: 'Кабинет', html: `
+                <div class="conversation-item ${selectedUserId === CABINET_ID ? 'active' : ''}" onclick="openCabinetSection()" title="Кабинет">
+                    <div class="conversation-avatar" style="background:linear-gradient(135deg,#047857,#059669);"><span class="ava-ico">🏠</span></div>
+                    <div class="conversation-info">
+                        <div class="conversation-name"><span class="cn-text">Кабинет</span>${pinMarkHtml(CABINET_ID)}</div>
+                        <div class="conversation-preview">Записи, профиль, доход и настройки</div>
+                    </div>
+                    ${folderPickHtml(CABINET_ID, 'section', null, 'Кабинет')}
+                </div>` }];
+        }
+
         /** Строка «Блог» — задача №81: раздел числился в списке разделов, но не рисовался нигде. */
         function blogRows() {
             if (!chatVisible('section', BLOG_ID, null)) return [];
@@ -12231,6 +12249,51 @@
          * /blog.html, и человек терял чат целиком. Теперь и список статей, и чтение самой
          * статьи происходят здесь же, тем же карточным видом, что и посты канала.
          */
+        // ── Раздел «Кабинет» прямо внутри чатов ──────────────────────────────────
+        // Показываем существующий личный кабинет во встроенном (безрамочном) виде —
+        // без переписывания дашбордов. Так весь функционал кабинета (записи, профиль,
+        // доход, каналы) живёт в одной экосистеме с чатами.
+        function cabinetUrl() {
+            const r = currentUser && currentUser.role;
+            if (r === 'psychologist') return '/psychologist-dashboard.html';
+            if (r === 'admin') return '/dashboard-admin.html';
+            return '/client-dashboard.html';
+        }
+        function renderCabinetHeader() {
+            document.getElementById('chatHeader').innerHTML = `
+                <button class="chat-back-btn" onclick="goBackToList()" title="Назад к диалогам">←</button>
+                <div class="avatar" style="background:linear-gradient(135deg,#047857,#059669);"><span class="ava-ico">🏠</span></div>
+                <div style="flex:1;min-width:0;">
+                    <div class="name">Кабинет</div>
+                    <div class="role">Записи, профиль и настройки</div>
+                </div>
+                ${headerActionsHtml([
+                    { icon: '↗', label: 'Открыть во весь экран', run: () => { try { window.open(cabinetUrl(), '_blank'); } catch (e) {} } },
+                    { icon: '🔄', label: 'Обновить', run: () => openCabinetSection() },
+                ])}`;
+        }
+        async function openCabinetSection() {
+            clearPinnedBar();
+            selectedUserId = CABINET_ID;
+            syncChatUrl(selectedUserId);
+            leaveAiMode();
+            cancelEditMessage();
+            headerRenderedFor = CABINET_ID;
+            document.getElementById('emptyState').style.display = 'none';
+            document.getElementById('chatContent').style.display = 'flex';
+            document.querySelector('.chat-container').classList.add('mobile-chat-open');
+            setComposerMode('none');                          // в кабинет не пишут — им пользуются
+            if (pollInterval) { clearInterval(pollInterval); pollInterval = null; }
+            renderCabinetHeader();
+            const box = document.getElementById('messagesContainer');
+            if (box) {
+                box.innerHTML = '<iframe class="cabinet-frame" src="' + cabinetUrl() + '?embed=1" title="Кабинет" '
+                    + 'style="width:100%;height:100%;min-height:78vh;border:0;display:block;background:transparent;"></iframe>';
+            }
+            refreshConversationList();
+        }
+        window.openCabinetSection = openCabinetSection;
+
         async function openBlogSection() {
             clearPinnedBar();
             selectedUserId = BLOG_ID;
@@ -12690,6 +12753,7 @@
             const rows = [];        // служебные строки: «Избранное», бот, поддержка, лента, блог
             const chatRows = [];    // настоящие переписки: каналы, группы, личные
             const err = channelsErrHtml() + groupsErrHtml();   // сообщения об ошибках всегда сверху
+            cabinetRows().filter(bySpecialQuery).forEach(r => rows.push(r));
             favoritesRows().filter(bySpecialQuery).forEach(r => rows.push(r));
             aiRows().filter(bySpecialQuery).forEach(r => rows.push(r));
             botRows().filter(bySpecialQuery).forEach(r => rows.push(r));
