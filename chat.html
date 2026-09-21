@@ -9241,8 +9241,25 @@
         //  и правильно: важное не должно теряться. Архив — про другое: переписка
         //  закончена, глаза мозолить не должна, и возвращаться сама тоже не должна.
         //  Поэтому лежит там же, но с другой пометкой.
+        // Чат под защитой от удаления/архива: техподдержка и всё, что лежит в папке
+        // «Важное» (просьба — такие диалоги не должны теряться никогда).
+        function isProtectedChat(chatKey) {
+            if (!chatKey) return false;
+            const k = String(chatKey);
+            if (k === SUPPORT_ID || (typeof SUPPORT_PREFIX === 'string' && k.indexOf(SUPPORT_PREFIX) === 0)) return true;
+            try {
+                const row = convCache.find(c => String(c.user_id) === k);
+                if (row && currentUser && currentUser.role !== 'admin' && row.role === 'admin') return true;   // диалог с поддержкой
+            } catch (e) {}
+            const imp = myFolders.find(f => (f.name || '').trim().toLowerCase() === 'важное');
+            if (imp && (imp.keys || []).map(String).indexOf(k) >= 0) return true;
+            return false;
+        }
+        window.isProtectedChat = isProtectedChat;
+
         async function archiveConversation(chatKey) {
             closeFolderPicker();
+            if (isProtectedChat(chatKey)) { toast('Этот чат защищён: важное и поддержка не удаляются'); return; }
             try {
                 await hiddenApi('hide', { chat_key: chatKey, kind: 'archived' });
                 archivedChats[chatKey] = new Date().toISOString().slice(0, 19).replace('T', ' ');
@@ -9305,6 +9322,7 @@
 
         async function deleteConversation(chatKey, title) {
             closeFolderPicker();
+            if (isProtectedChat(chatKey)) { toast('Этот чат защищён: важное и поддержка не удаляются'); return; }
             const name = title ? `«${title}»` : 'этот диалог';
             if (!confirm(`Удалить ${name} из своего списка?\n\nПереписка исчезнет только у вас — у собеседника она останется. ` +
                          `Если придёт новое сообщение, диалог вернётся. Свои сообщения можно удалить по отдельности.`)) return;
