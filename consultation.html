@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
+  <title>Консультация — psytalk.pro</title>
+  <style>
+    body { font-family: 'Inter', -apple-system, sans-serif; background: #ECFDF5; min-height: 100vh; display: flex; align-items: center; justify-content: center; margin: 0; }
+    .box { text-align: center; color: #6B7280; }
+    .spin { width: 40px; height: 40px; border: 3px solid #D1FAE5; border-top-color: #047857; border-radius: 50%; animation: r 0.8s linear infinite; margin: 0 auto 1rem; }
+    @keyframes r { to { transform: rotate(360deg); } }
+  </style>
+<script src="/js/netguard.js?v=20260821c"></script>
+</head>
+<body>
+  <div class="box">
+    <div class="spin"></div>
+    <p>Открываем чат и видеосвязь...</p>
+  </div>
+  <script>
+    // Реальные видеозвонки и чат живут на /chat.html. Перенаправляем туда.
+    var p = new URLSearchParams(location.search);
+    var user = p.get('user');
+    location.replace(user ? ('/chat.html?user=' + encodeURIComponent(user)) : '/chat.html');
+  </script>
+</body>
+</html>
