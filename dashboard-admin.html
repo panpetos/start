@@ -1866,32 +1866,20 @@
               <div class="panel" style="margin-bottom:1.25rem;">
                 <div class="panel-head"><h2>Эквайринг</h2></div>
                 <div style="padding:1.1rem 1.25rem;">
-                  <div style="display:flex;gap:0.9rem;flex-wrap:wrap;align-items:flex-end;">
-                    <label style="font-size:0.82rem;color:var(--a-text-sec);font-weight:600;">Чем принимаем оплату<br>
-                      <select id="payment_provider"
-                              style="width:210px;margin-top:0.3rem;padding:0.55rem 0.7rem;border:1.5px solid var(--a-input-border);border-radius:0.6rem;font-family:inherit;font-size:0.95rem;font-weight:700;background:var(--a-input-bg);color:var(--a-text);">
-                        <option value="sber" style="color:#9CA3AF;" ${(sGet('payment_provider','sber') !== 'robokassa') ? 'selected' : ''}>🏦 Сбербанк — пока не используем</option>
-                        <option value="robokassa" ${(sGet('payment_provider','sber') === 'robokassa') ? 'selected' : ''}>💳 Robokassa (агентская схема)</option>
-                      </select></label>
-                    <label style="font-size:0.82rem;color:var(--a-text-sec);font-weight:600;">Тестовая сумма, ₽<br>
-                      <input id="sber_test_amount" type="number" min="0" step="1"
-                             value="${esc(sGet('sber_test_amount','0'))}"
-                             style="width:150px;margin-top:0.3rem;padding:0.55rem 0.7rem;border:1.5px solid var(--a-input-border);border-radius:0.6rem;font-family:inherit;font-size:0.95rem;background:var(--a-input-bg);color:var(--a-text);"></label>
-                    <button class="btn-sm btn-outline" onclick="checkBank(this)">🏦 Проверить связь с банком</button>
-                    <span style="color:var(--a-text-muted);font-size:0.8rem;">0 — брать настоящую цену</span>
+                  <input type="hidden" id="payment_provider" value="robokassa">
+                  <div style="display:flex;gap:0.9rem;flex-wrap:wrap;align-items:center;">
+                    <div style="font-size:0.95rem;font-weight:700;color:var(--a-text);display:flex;align-items:center;gap:0.5rem;">
+                      💳 Приём оплаты: Robokassa
+                      <span style="font-weight:600;color:var(--a-text-sec);font-size:0.84rem;">(агентская схема, Робочеки)</span>
+                    </div>
+                    <button class="btn-sm btn-outline" onclick="checkRobokassaLink(this)">🔌 Проверить связь с Robokassa</button>
+                    <button class="btn-sm btn-outline" onclick="renderRobokassa()">⚙ Ключи и режим Робокассы</button>
                   </div>
                   <div class="note" style="margin-top:0.9rem;">
-                    <b>Тестовая сумма</b> подменяет цену заказа на маленькую. Банк выдаёт боевые ключи
-                    сразу, значит первые проверки пойдут <b>реальными деньгами</b> — поставьте 10 ₽,
-                    прогоните весь путь, потом верните 0. Подмена происходит на сервере, из браузера
-                    занизить цену нельзя. В выписке такой платёж подписан «Проверка оплаты».
-                  </div>
-                  <div class="note" style="margin-top:0.6rem;">
-                    <b>Чем принимаем оплату</b> переключает провайдера для страницы оплаты. Переключайте на
-                    <b>Robokassa</b> только после того, как касса подключена и пароли вписаны на сервере, иначе
-                    клиент увидит «приём платежей ещё не настроен». Пароли в админку <b>не вводятся</b> — они лежат
-                    в файлах на сервере (в git не попадают): Сбербанк — <code>api/sber_acquiring_config.php</code>,
-                    Robokassa — <code>api/robokassa_config.php</code>.
+                    Оплата принимается через <b>Robokassa</b> (Робочеки). Ключи и режим (тест/боевой) задаются
+                    в разделе <b>«Робокасса»</b> и хранятся в файле <code>api/robokassa_config.php</code> на сервере
+                    (в git не попадают, как текст в админку не вводятся). Пока в Робокассе не вписаны пароли и не
+                    включён боевой режим, клиент увидит «приём платежей ещё не настроен».
                   </div>
                 </div>
               </div>
@@ -2115,11 +2103,8 @@
             if (fpf) payload.free_promo_fail_limit = String(parseInt(fpf.value, 10) || 0);
             const fpe = document.getElementById('free_promo_expires');
             if (fpe) payload.free_promo_expires = fpe.value.trim().replace('T', ' ');
-            // Провайдер выбирается в «Эквайринг → Чем принимаем оплату»: 'sber' | 'robokassa'.
-            const pp = document.getElementById('payment_provider');
-            if (pp) payload.payment_provider = (pp.value === 'robokassa') ? 'robokassa' : 'sber';
-            const sta = document.getElementById('sber_test_amount');
-            if (sta) payload.sber_test_amount = String(parseInt(sta.value, 10) || 0);
+            // Провайдер приёма оплаты — только Robokassa (решение зафиксировано).
+            payload.payment_provider = 'robokassa';
             const msg = document.getElementById('saveMsg');
             btn.disabled = true; if(msg){ msg.textContent='Сохраняем...'; msg.style.color='var(--a-text-sec)'; }
             const res = await apiPost('save-settings', { settings: payload });
@@ -3634,8 +3619,10 @@
             } else alert(r.error || 'Ошибка');
         }
 
-        // ── Связь со Сбербанком ─────────────────────────────────────────────
-        async function checkBank(btn){
+        // ── Связь с Robokassa ───────────────────────────────────────────────
+        // Проверяем готовность приёма платежей по диагностике robokassa.php: есть ли
+        // конфиг, заданы ли пароли активного контура, какой режим и состояние чека.
+        async function checkRobokassaLink(btn){
             var box = document.getElementById('bankCheckMsg');
             if (!box) {
                 box = document.createElement('div');
@@ -3644,29 +3631,32 @@
                 btn.parentNode.appendChild(box);
             }
             box.style.color = 'var(--a-text-sec)';
-            box.textContent = 'Спрашиваю банк...';
+            box.textContent = 'Проверяю Robokassa…';
             if (btn) btn.disabled = true;
             try {
-                const r = await fetch('/api/sber_acquiring.php?action=bankcheck', { credentials:'include' });
-                const d = await r.json();
-                if (!d || !d['вывод']) {
+                const d = await (await fetch('/api/robokassa.php?action=diag', { credentials:'include' })).json();
+                if (!d || !d.ok) {
                     box.style.color = '#DC2626';
                     box.textContent = '✕ ' + ((d && d.error) || 'Не удалось проверить');
                     return;
                 }
-                // Показываем оба контура: по одному «Access denied» не понять, дело в
-                // ключах или в том, что выбран не тот контур.
-                var lines = Object.keys(d['проверено'] || {}).map(function(name){
-                    var c = d['проверено'][name];
-                    var mark = c['принят'] === true ? '✅' : (c['принят'] === null ? '•' : '✕');
-                    return mark + ' ' + name + ' контур' + (c['логин'] ? ' (логин ' + esc(c['логин']) + ')' : '') +
-                           ' — ' + esc(c['ответ']);
-                });
-                box.style.color = d['связь'] === 'есть' ? '#16A34A' : '#DC2626';
+                const ok = !!d.active_configured;
+                const useTest = !!d.is_test;
+                const credsSet = useTest ? (d.test_password1_set && d.test_password2_set)
+                                         : (d.prod_password1_set && d.prod_password2_set);
+                const lines = [
+                    (d.config_file_present ? '✅' : '✕') + ' Файл robokassa_config.php ' + (d.config_file_present ? 'на месте' : 'не найден'),
+                    'Режим: ' + (useTest ? 'ТЕСТОВЫЙ' : 'БОЕВОЙ') + ' (используются ' + (useTest ? 'тестовые' : 'боевые') + ' пароли)',
+                    (credsSet ? '✅' : '✕') + ' Пароли ' + (credsSet ? 'заданы' : 'НЕ заданы'),
+                    'Чек (фискализация): ' + (d.receipt_enabled ? 'включён' : 'выключен')
+                ];
+                box.style.color = ok ? '#16A34A' : '#DC2626';
                 box.innerHTML = '<div style="font-weight:600;margin-bottom:0.35rem;">' +
-                    (d['связь'] === 'есть' ? '✅ ' : '✕ ') + esc(d['вывод']) + '</div>' +
-                    '<div style="color:var(--a-text-sec);font-size:0.83rem;">' +
-                    'Сейчас выбран: ' + esc(d['сейчас_выбран']) + '<br>' + lines.join('<br>') + '</div>';
+                    (ok ? '✅ Robokassa готова принимать платежи' : '✕ Robokassa ещё не готова') + '</div>' +
+                    '<div style="color:var(--a-text-sec);font-size:0.83rem;">' + lines.map(esc).join('<br>') + '</div>';
+                if (d.receipt_agent_enabled) {
+                    box.innerHTML += '<div style="color:#b45309;font-size:0.8rem;margin-top:0.4rem;">⚠️ Включены агентские поля чека. При Робочеках их нужно выключить (раздел «Робокасса»), иначе касса отклонит чек.</div>';
+                }
             } catch(e) {
                 box.style.color = '#DC2626';
                 box.textContent = '✕ Не удалось выполнить проверку';
