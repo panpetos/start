@@ -87,6 +87,23 @@ function safeCount(PDO $pdo, string $sql, array $args = []): int {
     catch (Exception $e) { return 0; }
 }
 
+/**
+ * Захэшировать пароль в ТОМ ЖЕ формате, что уже лежит в базе, чтобы сброшенный
+ * пароль подошёл при входе (сам auth.php серверный, схему не видно). Определяем по
+ * образцу существующего хэша: bcrypt/argon/crypt → password_hash; 32/40/64 hex →
+ * md5/sha1/sha256. Неизвестный/пустой → bcrypt (password_verify его проверит).
+ */
+function adminHashLike(string $pw, string $sample): array {
+    $s = trim($sample);
+    if ($s !== '' && (preg_match('/^\$2[aby]\$/', $s) || strpos($s, '$argon2') === 0 || preg_match('/^\$(1|5|6)\$/', $s))) {
+        return [password_hash($pw, PASSWORD_DEFAULT), 'bcrypt/password_hash'];
+    }
+    if (preg_match('/^[a-f0-9]{32}$/i', $s)) return [md5($pw), 'md5'];
+    if (preg_match('/^[a-f0-9]{40}$/i', $s)) return [sha1($pw), 'sha1'];
+    if (preg_match('/^[a-f0-9]{64}$/i', $s)) return [hash('sha256', $pw), 'sha256'];
+    return [password_hash($pw, PASSWORD_DEFAULT), 'bcrypt (по умолчанию)'];
+}
+
 /** Первое существующее поле из списка кандидатов. */
 function pick(array $row, array $keys, $default = null) {
     foreach ($keys as $k) { if (isset($row[$k]) && $row[$k] !== '') return $row[$k]; }
@@ -480,6 +497,41 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             echo json_encode(['ok' => true]);
         } catch (Exception $e) {
             http_response_code(500); echo json_encode(['error' => 'Не удалось обновить роль (проверьте поле role)']);
+        }
+        exit;
+    }
+
+    if ($action === 'reset-user-password') {
+        $uid = $body['user_id'] ?? null;
+        $pw = (string)($body['new_password'] ?? '');
+        if (!$uid) { http_response_code(400); echo json_encode(['error' => 'user_id обязателен']); exit; }
+        if (mb_strlen($pw) < 6) { http_response_code(400); echo json_encode(['error' => 'Пароль должен быть не короче 6 символов']); exit; }
+
+        // Какая колонка хранит пароль
+        $cols = [];
+        try { $cols = $pdo->query("SHOW COLUMNS FROM users")->fetchAll(PDO::FETCH_COLUMN); } catch (Exception $e) {}
+        $pwCol = null;
+        foreach (['password_hash', 'pass_hash', 'password'] as $c) { if (in_array($c, $cols, true)) { $pwCol = $c; break; } }
+        if (!$pwCol) { http_response_code(500); echo json_encode(['error' => 'В таблице users не найдена колонка пароля']); exit; }
+
+        // Образец текущего формата хэша (у этого пользователя, иначе у любого)
+        $sample = '';
+        try { $st = $pdo->prepare("SELECT `$pwCol` FROM users WHERE id = ? LIMIT 1"); $st->execute([$uid]); $sample = (string)$st->fetchColumn(); } catch (Exception $e) {}
+        if ($sample === '') { try { $sample = (string)$pdo->query("SELECT `$pwCol` FROM users WHERE `$pwCol` IS NOT NULL AND `$pwCol` <> '' LIMIT 1")->fetchColumn(); } catch (Exception $e) {} }
+
+        list($hash, $scheme) = adminHashLike($pw, $sample);
+        try {
+            $st = $pdo->prepare("UPDATE users SET `$pwCol` = ? WHERE id = ?");
+            $st->execute([$hash, $uid]);
+            if ($st->rowCount() < 1) {
+                // строка могла не измениться, но пользователь существует — проверим
+                $chk = $pdo->prepare("SELECT 1 FROM users WHERE id = ? LIMIT 1"); $chk->execute([$uid]);
+                if (!$chk->fetchColumn()) { http_response_code(404); echo json_encode(['error' => 'Пользователь не найден']); exit; }
+            }
+            echo json_encode(['ok' => true, 'схема' => $scheme, 'колонка' => $pwCol,
+                'note' => 'Если вход не сработает — значит auth.php использует нестандартную схему (например, md5 с солью); сообщите, подстроим.']);
+        } catch (Exception $e) {
+            http_response_code(500); echo json_encode(['error' => 'Не удалось обновить пароль']);
         }
         exit;
     }

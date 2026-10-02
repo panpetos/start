@@ -852,7 +852,8 @@
                         ? `<button class="btn-sm btn-outline" onclick="toggleFrozen('${esc(u.id)}',0)">Разморозить</button>`
                         : `<button class="btn-sm btn-red" onclick="toggleFrozen('${esc(u.id)}',1)">Заморозить</button>`;
                     const del = `<button class="btn-sm btn-red" style="margin-left:0.3rem;" onclick="deleteUser('${esc(u.id)}','${esc(u.email||'')}')" title="Полностью удалить аккаунт">🗑 Удалить</button>`;
-                    return `<tr><td>${esc(name)}</td><td>${esc(u.email||'—')}</td><td>${roleSel}</td><td>${status}</td><td class="muted">${fmtDateTime(u.created_at)}</td><td style="white-space:nowrap;">${u.role!=='admin'?(btn+del):''}</td></tr>`;
+                    const pwBtn = `<button class="btn-sm btn-outline" style="margin-left:0.3rem;" onclick="resetUserPassword('${esc(u.id)}','${esc(u.email||'')}')" title="Задать новый пароль">🔑 Пароль</button>`;
+                    return `<tr><td>${esc(name)}</td><td>${esc(u.email||'—')}</td><td>${roleSel}</td><td>${status}</td><td class="muted">${fmtDateTime(u.created_at)}</td><td style="white-space:nowrap;">${u.role!=='admin'?(btn+del+pwBtn):pwBtn}</td></tr>`;
                 }).join('') + '</tbody></table>';
             document.getElementById('content').innerHTML = panel('Пользователи ('+rows.length+')','sUsers',body);
         }
@@ -868,6 +869,14 @@
             const res = await apiPost('set-frozen', { user_id:id, frozen });
             if (res.error) return alert(res.error);
             renderUsers();
+        }
+        async function resetUserPassword(id, email){
+            const pw = prompt('Новый пароль для ' + (email||id) + ' (минимум 6 символов):');
+            if (pw === null) return;
+            if (pw.length < 6) { alert('Пароль должен быть не короче 6 символов'); return; }
+            const res = await apiPost('reset-user-password', { user_id:id, new_password:pw });
+            if (res.error) return alert('Не удалось: ' + res.error);
+            alert('Пароль обновлён для ' + (email||id) + (res['схема'] ? ' (схема: ' + res['схема'] + ')' : '') + '.\n\n' + (res.note || '') + '\n\nСообщите новый пароль пользователю лично.');
         }
         async function deleteUser(id, email){
             if (!confirm('Полностью удалить аккаунт '+(email||id)+'?\n\nБудут удалены сам пользователь, его профиль психолога (если есть), записи и оплаты. Действие необратимо — email освободится для повторной регистрации.')) return;
