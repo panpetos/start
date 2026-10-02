@@ -238,8 +238,19 @@ function poNpdLabel(string $status): string {
     }
 }
 
+/** Есть ли колонка в таблице (для мягкой работы до ALTER). */
+function poHasCol(PDO $pdo, string $table, string $col): bool {
+    try { return (bool)$pdo->query("SHOW COLUMNS FROM `$table` LIKE " . $pdo->quote($col))->fetch(); }
+    catch (Exception $e) { return false; }
+}
+
 /**
- * Сверка: создать начисления по успешно оплаченным записям, которых ещё нет.
+ * Сверка: создать начисления по ЗАВЕРШЁННЫМ и ПОДТВЕРЖДЁННЫМ оплаченным сессиям.
+ *
+ * Деньги психологу начисляются только когда сессия проведена (appointments.status
+ * = 'completed') и подтверждена анти-фродом (verified=1) — нельзя получить выплату
+ * без реально проведённой сессии. Пока колонки verified нет (до ALTER из sessions.php),
+ * опираемся только на статус 'completed'.
  *
  * Комиссия берётся на момент сверки и сохраняется в самой строке — если позже
  * поменять процент в настройках, уже сделанные начисления не «поедут задним числом».
@@ -247,14 +258,17 @@ function poNpdLabel(string $status): string {
 function poSync(PDO $pdo) {
     $pct = poCommissionPct($pdo);
     $rows = [];
+    // Начисляем только за проведённые сессии; verified=1 если колонка уже есть.
+    $cond = "a.status = 'completed'";
+    if (poHasCol($pdo, 'appointments', 'verified')) $cond .= " AND a.verified = 1";
     try {
-        // Берём оплаченные записи, для которых начисления ещё нет
+        // Берём завершённые+подтверждённые оплаченные записи, для которых начисления ещё нет
         $st = $pdo->query("SELECT a.id AS appt, a.psychologist_id, a.price,
                                   COALESCE(SUM(p.amount), 0) AS paid
                              FROM appointments a
                              JOIN payments p ON p.appointment_id = a.id AND p.status = 'success'
                         LEFT JOIN psy_payouts po ON po.appointment_id = a.id
-                            WHERE po.id IS NULL
+                            WHERE po.id IS NULL AND $cond
                          GROUP BY a.id, a.psychologist_id, a.price
                             LIMIT 500");
         $rows = $st->fetchAll(PDO::FETCH_ASSOC);

@@ -338,6 +338,18 @@
                 </div>
             </div>
 
+            <!-- Сессии: оплаченные заказы, которые психолог принимает, проводит и завершает.
+                 Вознаграждение идёт в баланс только после завершённой и подтверждённой сессии. -->
+            <div class="card">
+                <h2>
+                    <i data-lucide="calendar-check" style="width: 24px; height: 24px;"></i>
+                    Мои сессии
+                </h2>
+                <div id="sessionsBox">
+                    <div class="loading">Загрузка...</div>
+                </div>
+            </div>
+
             <!-- Начисления. Раньше психолог видел только «доход за месяц» и должен был
                  верить на слово; здесь он видит те же строки, что и админ в разделе
                  выплат: с какой оплаченной сессии сколько начислено и что уже выплачено. -->
@@ -469,6 +481,7 @@
                     await loadCommission();
                     await loadAppointments();
                     await initChannel();
+                    loadMySessions();
                     loadMyPayouts();   // не await: начисления не должны задерживать кабинет
                     loadMyRequisites();
 
@@ -542,6 +555,95 @@
                 } catch (e) {}
                 if (d && d.ok) { alert('Реквизиты сохранены'); loadMyRequisites(); }
                 else { alert((d && d.error) || 'Не удалось сохранить реквизиты'); }
+            }
+
+            // ── Мои сессии (жизненный цикл оплаченной сессии) ─────────────────
+            const SESS_STATUS = {
+                scheduled:   { t: 'Ожидает принятия', c: '#b45309' },
+                confirmed:   { t: 'Принята',          c: '#047857' },
+                in_progress: { t: 'Идёт сейчас',      c: '#1D4ED8' },
+                completed:   { t: 'Проведена',        c: '#047857' },
+                cancelled:   { t: 'Отменена',         c: '#b91c1c' },
+            };
+            const SESS_FMT = { video: '📹 Видео', audio: '🎧 Аудио', chat: '💬 Чат' };
+            function sessWhen(dt) {
+                if (!dt) return '—';
+                const d = new Date(String(dt).replace(' ', 'T'));
+                if (isNaN(d)) return String(dt);
+                return d.toLocaleString('ru', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+            }
+            async function loadMySessions() {
+                const box = document.getElementById('sessionsBox');
+                if (!box) return;
+                let d = null;
+                try { d = await (await fetch('/api/sessions.php?action=list', { credentials: 'include' })).json(); } catch (e) {}
+                if (!d || !d.ok) { box.innerHTML = '<p style="color:var(--d-text-sec);font-size:0.86rem;">Не удалось загрузить сессии.</p>'; return; }
+                const rows = d.data || [];
+                if (!rows.length) { box.innerHTML = '<p style="color:var(--d-text-sec);font-size:0.86rem;">Пока нет оплаченных сессий.</p>'; return; }
+                box.innerHTML = rows.map(r => {
+                    const st = SESS_STATUS[r.status] || { t: r.status, c: 'var(--d-text-sec)' };
+                    let actions = '';
+                    if (r.status === 'scheduled') {
+                        actions = `<button class="btn" onclick="sessAction('${r.id}','accept')">Принять</button>
+                                   <button class="btn btn-outline" onclick="sessAction('${r.id}','decline')">Отказаться</button>`;
+                    } else if (r.status === 'confirmed') {
+                        actions = `<button class="btn" onclick="sessAction('${r.id}','start')">Начать сессию</button>
+                                   <button class="btn btn-outline" onclick="sessAction('${r.id}','decline')">Отказаться</button>`;
+                    } else if (r.status === 'in_progress') {
+                        actions = `<button class="btn" onclick="sessAction('${r.id}','end')">Завершить сессию</button>`;
+                    }
+                    const vstate = (r.status === 'completed')
+                        ? `<span style="font-size:0.76rem;color:${r.verified ? '#047857' : '#b45309'};">${r.verified ? '✓ подтверждена' : '⏳ на проверке'}</span>`
+                        : '';
+                    return `<div style="border:1px solid var(--d-border,#e5e7eb);border-radius:0.6rem;padding:0.7rem 0.85rem;margin-bottom:0.6rem;">
+                        <div style="display:flex;justify-content:space-between;gap:0.5rem;flex-wrap:wrap;align-items:center;">
+                            <div>
+                                <div style="font-weight:600;">${escapeChannelHtml(r.client)} · <span style="font-weight:400;color:var(--d-text-sec);">${escapeChannelHtml(SESS_FMT[r.format] || r.format || '')}</span></div>
+                                <div style="font-size:0.82rem;color:var(--d-text-sec);">${sessWhen(r.date_time)} · ${payMoney(r.price)}</div>
+                            </div>
+                            <div style="text-align:right;">
+                                <div style="font-weight:700;color:${st.c};font-size:0.85rem;">${st.t}</div>
+                                ${vstate}
+                            </div>
+                        </div>
+                        <div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-top:${actions ? '0.6rem' : '0'};">
+                            ${actions}
+                            <button class="btn btn-outline" style="font-size:0.8rem;" onclick="sessJournal('${r.id}')">🧾 Журнал</button>
+                        </div>
+                    </div>`;
+                }).join('');
+            }
+            async function sessAction(id, action) {
+                const labels = { accept: 'Принять этот заказ?', decline: 'Отказаться от заказа? Клиенту будет оформлен возврат.', start: 'Начать сессию? Отметьте, когда реально начинаете.', end: 'Завершить сессию? Будет проверено, что сессия реально состоялась.' };
+                if (!confirm(labels[action] || 'Продолжить?')) return;
+                let body = {};
+                if (action === 'decline') { const reason = prompt('Причина отказа (необязательно):') || ''; body.reason = reason; }
+                body.appointment_id = id;
+                let d = null;
+                try {
+                    d = await (await fetch('/api/sessions.php?action=' + action, {
+                        method: 'POST', credentials: 'include',
+                        headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+                    })).json();
+                } catch (e) {}
+                if (d && d.ok) {
+                    if (d.note) alert(d.note);
+                    loadMySessions(); loadMyPayouts();
+                } else {
+                    alert((d && d.error) || 'Не удалось выполнить действие');
+                }
+            }
+            async function sessJournal(id) {
+                let d = null;
+                try { d = await (await fetch('/api/sessions.php?action=log', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ appointment_id: id }) })).json(); } catch (e) {}
+                if (!d || !d.ok) { alert((d && d.error) || 'Не удалось загрузить журнал'); return; }
+                const z = d['запись'] || {};
+                const evMap = { accepted: 'Принял заказ', started: 'Начал сессию', ended: 'Завершил сессию', auto_completed: 'Авто-завершение', declined: 'Отказ', auto_cancelled: 'Авто-отмена', verified: 'Подтверждено админом', rejected: 'Отклонено админом' };
+                const lines = [];
+                if (z['оплата']) lines.push('💳 Оплата: ' + sessWhen(z['оплата'].время) + ' · ' + payMoney(z['оплата'].сумма));
+                (d['события'] || []).forEach(e => lines.push('• ' + (evMap[e.event] || e.event) + ': ' + sessWhen(e.created_at) + (e.meta ? ' — ' + e.meta : '')));
+                if (z['проверка']) lines.push('\nПроверка: ' + z['проверка']);
+                alert('Журнал сессии\n\n' + (lines.join('\n') || 'Событий пока нет'));
             }
 
             async function requestPayout(btn) {

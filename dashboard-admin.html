@@ -2839,11 +2839,93 @@
                     <button class="btn-sm btn-outline" onclick="renderPayouts()">↻ Обновить</button>
                     <span class="muted" style="font-size:0.8rem;">Начисления досоздаются сами при открытии раздела.</span>
                  </div>` +
+                panel('🔍 Сессии на проверке (анти-фрод)', 'sReview', '<div id="sessionReviewBox"><p class="muted" style="font-size:0.85rem;">Загрузка…</p></div>') +
+                panel('↩️ Возвраты клиентам', 'sRefunds', '<div id="refundsBox"><p class="muted" style="font-size:0.85rem;">Загрузка…</p></div>') +
                 panel('💸 Заявки на вывод', 'sPayoutRequests', '<div id="payoutRequestsBox"><p class="muted" style="font-size:0.85rem;">Загрузка…</p></div>') +
                 panel('🧾 Отчёт агента (для налоговой ИП)', 'sAgentReport', agentReportPanelHtml()) +
                 panel('По психологам', 'sPayouts', table);
             setTimeout(agentReportDefaults, 0);
             loadPayoutRequests();
+            loadSessionReview();
+            loadRefunds();
+        }
+
+        const SESSIONS_API = '/api/sessions.php';
+        const SESS_FMT_ADM = { video:'📹', audio:'🎧', chat:'💬' };
+        function admWhen(dt){ if(!dt) return '—'; const d=new Date(String(dt).replace(' ','T')); return isNaN(d)?String(dt):d.toLocaleString('ru',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}); }
+
+        // Сессии на проверке: завершены, но анти-фрод не подтвердил реальность (нет звонка
+        // нужной длины / слишком короткие). Деньги психологу НЕ начисляются, пока админ не одобрит.
+        async function loadSessionReview(){
+            const box = document.getElementById('sessionReviewBox');
+            if (!box) return;
+            let d = null;
+            try { d = await (await fetch(SESSIONS_API + '?action=review-list', { credentials:'include' })).json(); } catch(e){}
+            if (!d || !d.ok) { box.innerHTML = '<p class="muted">Не удалось загрузить.</p>'; return; }
+            const rows = d.data || [];
+            if (!rows.length) { box.innerHTML = '<p class="muted" style="font-size:0.85rem;">Нет сессий, ожидающих проверки. 👍</p>'; return; }
+            box.innerHTML = `<div class="note" style="margin-bottom:0.7rem;">Эти сессии завершены, но система не подтвердила, что они реально состоялись. Проверьте (журнал, звонки) и одобрите — тогда вознаграждение пойдёт в баланс психолога; либо отклоните — будет оформлен возврат клиенту.</div>
+                <table id="dataTable"><thead><tr><th>Клиент</th><th>Психолог</th><th>Формат</th><th>Время</th><th>Сумма</th><th>Причина проверки</th><th>Действия</th></tr></thead><tbody>` +
+                rows.map(r => `<tr>
+                    <td>${esc(r['клиент'])}</td>
+                    <td>${esc(r['психолог'])}</td>
+                    <td>${SESS_FMT_ADM[r.format]||''}</td>
+                    <td class="muted" style="font-size:0.8rem;">${esc(admWhen(r.date_time))}</td>
+                    <td>${fmtMoney(r.price)} ₽</td>
+                    <td class="muted" style="font-size:0.8rem;">${esc(r['проверка']||'')}</td>
+                    <td>
+                        <button class="btn-sm btn-outline" onclick="admSessionJournal('${esc(r.id)}')">🧾</button>
+                        <button class="btn-sm btn-purple" style="margin-left:.3rem;" onclick="sessionVerify('${esc(r.id)}',true)">Одобрить</button>
+                        <button class="btn-sm btn-outline" style="margin-left:.3rem;" onclick="sessionVerify('${esc(r.id)}',false)">Отклонить</button>
+                    </td></tr>`).join('') + '</tbody></table>';
+        }
+        async function sessionVerify(id, approve){
+            const msg = approve ? 'Одобрить сессию? Вознаграждение психолога пойдёт в баланс к выплате.'
+                                : 'Отклонить сессию? Она будет отменена, клиенту оформлен возврат.';
+            if (!confirm(msg)) return;
+            const note = prompt('Комментарий (необязательно):') || '';
+            const r = await apiPostTo(SESSIONS_API, 'verify', { appointment_id: id, approve, note });
+            if (r && r.ok) { loadSessionReview(); renderPayouts(); }
+            else alert((r && r.error) || 'Не удалось');
+        }
+        async function admSessionJournal(id){
+            let d = null;
+            try { d = await (await fetch(SESSIONS_API + '?action=log', { method:'POST', credentials:'include', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ appointment_id: id }) })).json(); } catch(e){}
+            if (!d || !d.ok) { alert((d && d.error) || 'Не удалось'); return; }
+            const z = d['запись']||{};
+            const evMap = { accepted:'Принял заказ', started:'Начал сессию', ended:'Завершил сессию', auto_completed:'Авто-завершение', declined:'Отказ', auto_cancelled:'Авто-отмена', verified:'Подтверждено админом', rejected:'Отклонено админом' };
+            const lines = [];
+            if (z['оплата']) lines.push('💳 Оплата: ' + admWhen(z['оплата'].время) + ' · ' + fmtMoney(z['оплата'].сумма) + ' ₽');
+            (d['события']||[]).forEach(e => lines.push('• ' + (evMap[e.event]||e.event) + ': ' + admWhen(e.created_at) + (e.meta ? ' — ' + e.meta : '')));
+            if (z['проверка']) lines.push('\nПроверка: ' + z['проверка']);
+            alert('Журнал сессии ' + id + '\n\n' + (lines.join('\n') || 'Событий нет'));
+        }
+        async function loadRefunds(){
+            const box = document.getElementById('refundsBox');
+            if (!box) return;
+            let d = null;
+            try { d = await (await fetch(SESSIONS_API + '?action=refunds&status=pending', { credentials:'include' })).json(); } catch(e){}
+            if (!d || !d.ok) { box.innerHTML = '<p class="muted">Не удалось загрузить.</p>'; return; }
+            const rows = d.data || [];
+            if (!rows.length) { box.innerHTML = '<p class="muted" style="font-size:0.85rem;">Открытых возвратов нет.</p>'; return; }
+            box.innerHTML = `<div class="note" style="margin-bottom:0.7rem;">Отменённые оплаченные сессии — нужно вернуть деньги клиенту через личный кабинет Robokassa, затем отметить здесь «Возвращено».</div>
+                <table id="dataTable"><thead><tr><th>Клиент</th><th>Сумма</th><th>Причина</th><th>Создано</th><th>Действия</th></tr></thead><tbody>` +
+                rows.map(r => `<tr>
+                    <td>${esc(r['клиент'])}</td>
+                    <td><b>${fmtMoney(r['сумма'])} ₽</b></td>
+                    <td class="muted" style="font-size:0.8rem;">${esc(r['причина']||'')}</td>
+                    <td class="muted" style="font-size:0.8rem;">${esc(admWhen(r['создано']))}</td>
+                    <td>
+                        <button class="btn-sm btn-purple" onclick="refundResolve(${r.id},true)">Возвращено</button>
+                        <button class="btn-sm btn-outline" style="margin-left:.3rem;" onclick="refundResolve(${r.id},false)">Отклонить</button>
+                    </td></tr>`).join('') + '</tbody></table>';
+        }
+        async function refundResolve(id, done){
+            if (!confirm(done ? 'Отметить, что деньги клиенту возвращены?' : 'Отклонить возврат?')) return;
+            const note = done ? (prompt('Номер/комментарий возврата (необязательно):') || '') : (prompt('Причина отклонения:') || '');
+            const r = await apiPostTo(SESSIONS_API, 'refund-resolve', { id, done, note });
+            if (r && r.ok) loadRefunds();
+            else alert((r && r.error) || 'Не удалось');
         }
 
         // ── Заявки психологов на вывод ────────────────────────────────────────
