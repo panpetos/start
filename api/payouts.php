@@ -56,7 +56,7 @@ try {
 $isAdmin = ($role === 'admin');
 
 // ── Схема ────────────────────────────────────────────────────────────────────
-psy_schema_once('psy_payouts_schema_v2', 3600, function () use ($pdo) {
+psy_schema_once('psy_payouts_schema_v3', 3600, function () use ($pdo) {
     $pdo->exec("CREATE TABLE IF NOT EXISTS psy_npd_checks (
         psychologist_id VARCHAR(64) NOT NULL PRIMARY KEY,
         inn VARCHAR(16) NULL,
@@ -78,7 +78,66 @@ psy_schema_once('psy_payouts_schema_v2', 3600, function () use ($pdo) {
         UNIQUE KEY uniq_appt (appointment_id),
         INDEX idx_psy (psychologist_id, status)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+    // Запросы психологов на вывод накопленного баланса (раз в N дней, по умолчанию 14).
+    $pdo->exec("CREATE TABLE IF NOT EXISTS psy_payout_requests (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        psychologist_id VARCHAR(64) NOT NULL,
+        amount DECIMAL(10,2) NOT NULL DEFAULT 0,       -- баланс на момент запроса
+        status VARCHAR(16) NOT NULL DEFAULT 'pending', -- pending | paid | rejected
+        note VARCHAR(255) NULL,
+        created_at DATETIME NOT NULL,
+        resolved_at DATETIME NULL,
+        INDEX idx_psy (psychologist_id, status),
+        INDEX idx_status (status)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 });
+
+/** Минимальный интервал между запросами на вывод, дней (настройка payout_min_days, по умолчанию 14). */
+function poMinDays(PDO $pdo) {
+    $v = (int)psySetting($pdo, 'payout_min_days', '14');
+    return $v < 0 ? 0 : $v;
+}
+
+/** Накопленный баланс психолога к выплате (сумма amount_to_psy по статусу accrued). */
+function poAccruedBalance(PDO $pdo, string $pid): float {
+    try {
+        $st = $pdo->prepare("SELECT COALESCE(SUM(amount_to_psy),0) FROM psy_payouts WHERE psychologist_id = ? AND status = 'accrued'");
+        $st->execute([$pid]);
+        return round((float)$st->fetchColumn(), 2);
+    } catch (Exception $e) { return 0.0; }
+}
+
+/** Текущий (pending) запрос на вывод, если есть. */
+function poPendingRequest(PDO $pdo, string $pid) {
+    try {
+        $st = $pdo->prepare("SELECT * FROM psy_payout_requests WHERE psychologist_id = ? AND status = 'pending' ORDER BY id DESC LIMIT 1");
+        $st->execute([$pid]);
+        return $st->fetch(PDO::FETCH_ASSOC) ?: null;
+    } catch (Exception $e) { return null; }
+}
+
+/** Дата последнего запроса на вывод (любого статуса) — для контроля интервала. */
+function poLastRequestAt(PDO $pdo, string $pid) {
+    try {
+        $st = $pdo->prepare("SELECT MAX(created_at) FROM psy_payout_requests WHERE psychologist_id = ?");
+        $st->execute([$pid]);
+        return $st->fetchColumn() ?: null;
+    } catch (Exception $e) { return null; }
+}
+
+/**
+ * Закрыть ожидающие заявки на вывод как оплаченные. Побочная работа: свой try/catch,
+ * молчит при любой ошибке — выплата уже отмечена, человек не должен пострадать от сбоя тут.
+ */
+function poCloseRequests(PDO $pdo, array $pids, string $note): void {
+    foreach (array_unique(array_filter($pids)) as $pid) {
+        try {
+            $st = $pdo->prepare("UPDATE psy_payout_requests SET status='paid', resolved_at=NOW(), note=?
+                                  WHERE psychologist_id=? AND status='pending'");
+            $st->execute([mb_substr($note, 0, 255), (string)$pid]);
+        } catch (Exception $e) {}
+    }
+}
 
 /** Комиссия платформы в процентах (настройка platform_commission). */
 function poCommissionPct(PDO $pdo) {
@@ -247,15 +306,115 @@ if ($action === 'mine') {
         }
     } catch (Exception $e) {}
     $npd = poNpdCached($pdo, $pid);
+    // Статус заявки на вывод + можно ли подать новую (интервал + наличие баланса).
+    $pending = poPendingRequest($pdo, $pid);
+    $minDays = poMinDays($pdo);
+    $lastAt = poLastRequestAt($pdo, $pid);
+    $tooSoon = false; $nextAt = null;
+    if ($minDays > 0 && $lastAt) {
+        $next = strtotime($lastAt) + $minDays * 86400;
+        if ($next > time()) { $tooSoon = true; $nextAt = date('Y-m-d', $next); }
+    }
+    $canRequest = !$pending && !$tooSoon && round($acc, 2) > 0;
     poOut(['ok' => true, 'итого' => ['начислено' => round($acc + $paid, 2),
            'выплачено' => round($paid, 2), 'к_выплате' => round($acc, 2)],
            'налоговый_статус' => ['код' => $npd['статус'], 'текст' => poNpdLabel($npd['статус']),
                                   'проверено' => $npd['проверено']],
+           'вывод' => [
+               'баланс' => round($acc, 2),
+               'заявка' => $pending ? ['сумма' => (float)$pending['amount'], 'создана' => $pending['created_at']] : null,
+               'можно_запросить' => $canRequest,
+               'мин_интервал_дней' => $minDays,
+               'следующий_запрос_с' => $nextAt,
+           ],
            'data' => $data]);
+}
+
+// ── Психолог: запросить вывод накопленного баланса ───────────────────────────
+if ($action === 'request' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    $pid = '';
+    try {
+        $st = $pdo->prepare("SELECT id FROM psychologists WHERE user_id = ? LIMIT 1");
+        $st->execute([$userId]);
+        $pid = (string)$st->fetchColumn();
+    } catch (Exception $e) {}
+    if ($pid === '') poOut(['error' => 'Профиль психолога не найден'], 403);
+
+    if (poPendingRequest($pdo, $pid)) poOut(['error' => 'Заявка на вывод уже подана и ожидает обработки.'], 409);
+
+    $minDays = poMinDays($pdo);
+    $lastAt = poLastRequestAt($pdo, $pid);
+    if ($minDays > 0 && $lastAt) {
+        $next = strtotime($lastAt) + $minDays * 86400;
+        if ($next > time()) {
+            poOut(['error' => 'Вывод можно запрашивать раз в ' . $minDays . ' дней. Следующий запрос — с ' . date('d.m.Y', $next) . '.'], 429);
+        }
+    }
+
+    poSync($pdo); // свежие начисления перед расчётом баланса
+    $bal = poAccruedBalance($pdo, $pid);
+    if ($bal <= 0) poOut(['error' => 'Нет средств к выводу.'], 400);
+
+    // Напомним психологу про реквизиты — без них выплату не отправить (но заявку примем).
+    $reqNote = '';
+    try {
+        $st = $pdo->prepare("SELECT (enc_blob IS NOT NULL AND enc_blob <> '') FROM psy_payout_requisites WHERE psychologist_id = ? LIMIT 1");
+        $st->execute([$pid]);
+        if (!$st->fetchColumn()) $reqNote = 'Укажите реквизиты для выплаты в личном кабинете, иначе перевод не отправить.';
+    } catch (Exception $e) {}
+
+    try {
+        $st = $pdo->prepare("INSERT INTO psy_payout_requests (psychologist_id, amount, status, created_at) VALUES (?, ?, 'pending', NOW())");
+        $st->execute([$pid, $bal]);
+    } catch (Exception $e) { poOut(['error' => 'Не удалось создать заявку'], 500); }
+    poOut(['ok' => true, 'запрошено' => $bal, 'note' => $reqNote]);
 }
 
 // ── Дальше только администратор ──────────────────────────────────────────────
 if (!$isAdmin) poOut(['error' => 'Доступ только для администратора'], 403);
+
+// ── Админ: список заявок на вывод ─────────────────────────────────────────────
+if ($action === 'requests') {
+    $status = (string)($_GET['status'] ?? 'pending');
+    $out = [];
+    try {
+        $sql = "SELECT * FROM psy_payout_requests" . ($status !== 'all' ? " WHERE status = ?" : "") . " ORDER BY id DESC LIMIT 300";
+        $st = $pdo->prepare($sql);
+        $st->execute($status !== 'all' ? [$status] : []);
+        $reqs = $st->fetchAll(PDO::FETCH_ASSOC);
+    } catch (Exception $e) { $reqs = []; }
+    // Имена и актуальный баланс/НПД/реквизиты — чтобы админ решал по полной картине.
+    $names = [];
+    try {
+        foreach ($pdo->query("SELECT p.id, u.first_name, u.last_name FROM psychologists p LEFT JOIN users u ON u.id = p.user_id") as $p) {
+            $n = trim(($p['first_name'] ?? '') . ' ' . ($p['last_name'] ?? ''));
+            $names[(string)$p['id']] = $n !== '' ? $n : 'Психолог';
+        }
+    } catch (Exception $e) {}
+    foreach ($reqs as $r) {
+        $pid = (string)$r['psychologist_id'];
+        $hasReq = false;
+        try {
+            $st = $pdo->prepare("SELECT (enc_blob IS NOT NULL AND enc_blob <> '') FROM psy_payout_requisites WHERE psychologist_id = ? LIMIT 1");
+            $st->execute([$pid]); $hasReq = (bool)$st->fetchColumn();
+        } catch (Exception $e) {}
+        $npd = poNpdCached($pdo, $pid);
+        $out[] = [
+            'id' => (int)$r['id'],
+            'psychologist_id' => $pid,
+            'имя' => $names[$pid] ?? 'Психолог',
+            'сумма_заявки' => (float)$r['amount'],
+            'баланс_сейчас' => poAccruedBalance($pdo, $pid),
+            'статус' => $r['status'],
+            'создана' => $r['created_at'],
+            'обработана' => $r['resolved_at'],
+            'реквизиты_есть' => $hasReq,
+            'нпд' => $npd['статус'],
+            'нпд_текст' => poNpdLabel($npd['статус']),
+        ];
+    }
+    poOut(['ok' => true, 'data' => $out]);
+}
 
 if ($action === 'sync') {
     poOut(poSync($pdo));
@@ -322,6 +481,17 @@ if ($action === 'list') {
     } catch (Exception $e) { poOut(['ok' => true, 'data' => []]); }
 }
 
+if ($action === 'request-reject' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    $id = (int)($body['id'] ?? 0);
+    $note = mb_substr(trim((string)($body['note'] ?? '')), 0, 255);
+    if ($id <= 0) poOut(['error' => 'Не указана заявка'], 400);
+    try {
+        $st = $pdo->prepare("UPDATE psy_payout_requests SET status='rejected', resolved_at=NOW(), note=? WHERE id=? AND status='pending'");
+        $st->execute([$note, $id]);
+        poOut(['ok' => true, 'отклонено' => $st->rowCount()]);
+    } catch (Exception $e) { poOut(['error' => 'Не удалось отклонить'], 500); }
+}
+
 if ($action === 'npd-recheck' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $psy = (string)($body['psychologist_id'] ?? '');
     if ($psy === '') poOut(['error' => 'Не указан психолог'], 400);
@@ -374,7 +544,9 @@ if ($action === 'mark-paid' && $_SERVER['REQUEST_METHOD'] === 'POST') {
             $st = $pdo->prepare("UPDATE psy_payouts SET status = 'paid', paid_at = NOW(), note = ?
                                   WHERE psychologist_id = ? AND status = 'accrued'");
             $st->execute([$note, $psy]);
-            poOut(['ok' => true, 'отмечено' => $st->rowCount()]);
+            $cnt = $st->rowCount();
+            poCloseRequests($pdo, [$psy], $note);
+            poOut(['ok' => true, 'отмечено' => $cnt]);
         }
         if (!is_array($ids) || !$ids) poOut(['error' => 'Нечего отмечать'], 400);
         $ids = array_slice(array_map('intval', $ids), 0, 500);
@@ -382,7 +554,9 @@ if ($action === 'mark-paid' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         $st = $pdo->prepare("UPDATE psy_payouts SET status = 'paid', paid_at = NOW(), note = ?
                               WHERE id IN ($in) AND status = 'accrued'");
         $st->execute(array_merge([$note], $ids));
-        poOut(['ok' => true, 'отмечено' => $st->rowCount()]);
+        $cnt = $st->rowCount();
+        poCloseRequests($pdo, $toCheck, $note);
+        poOut(['ok' => true, 'отмечено' => $cnt]);
     } catch (Exception $e) { poOut(['error' => 'Не удалось отметить'], 500); }
 }
 

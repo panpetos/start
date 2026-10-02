@@ -544,6 +544,22 @@
                 else { alert((d && d.error) || 'Не удалось сохранить реквизиты'); }
             }
 
+            async function requestPayout(btn) {
+                if (!confirm('Запросить вывод накопленного вознаграждения? Платформа переведёт его на указанные реквизиты.')) return;
+                if (btn) btn.disabled = true;
+                let d = null;
+                try {
+                    d = await (await fetch('/api/payouts.php?action=request', { method: 'POST', credentials: 'include' })).json();
+                } catch (e) {}
+                if (btn) btn.disabled = false;
+                if (d && d.ok) {
+                    alert('Заявка на вывод отправлена' + (d.note ? '\n\n⚠️ ' + d.note : '') + '\n\nДеньги поступят после ручной обработки администратором.');
+                    loadMyPayouts();
+                } else {
+                    alert((d && d.error) || 'Не удалось отправить заявку');
+                }
+            }
+
             async function loadMyPayouts() {
                 const box = document.getElementById('payoutsBox');
                 if (!box) return;
@@ -575,6 +591,22 @@
                     </div>`;
                 }).join('') : '<p style="color:var(--d-text-sec);font-size:0.86rem;">Пока нет оплаченных сессий.</p>';
 
+                // Блок запроса на вывод: кнопка активна, если есть баланс, нет открытой
+                // заявки и прошёл минимальный интервал. Иначе — понятная подсказка почему.
+                const wd = d['вывод'] || {};
+                let wdHtml = '';
+                if (wd['заявка']) {
+                    wdHtml = `<div style="margin:0.2rem 0 0.7rem;padding:0.6rem 0.8rem;border-radius:0.6rem;background:#FFF8EC;border:1px solid #F0D9A8;font-size:0.85rem;color:#92600A;">
+                        ⏳ Заявка на вывод <b>${payMoney(wd['заявка'].сумма)}</b> подана и ожидает выплаты.</div>`;
+                } else if (wd['можно_запросить']) {
+                    wdHtml = `<div style="margin:0.2rem 0 0.7rem;display:flex;gap:0.6rem;align-items:center;flex-wrap:wrap;">
+                        <button class="btn" onclick="requestPayout(this)">Запросить вывод ${payMoney(wd['баланс'])}</button>
+                        <span style="font-size:0.76rem;color:var(--d-text-sec);">Вывод обрабатывается вручную${wd['мин_интервал_дней'] ? ', раз в ' + wd['мин_интервал_дней'] + ' дн.' : ''}</span>
+                     </div>`;
+                } else if (Number(wd['баланс']) > 0 && wd['следующий_запрос_с']) {
+                    wdHtml = `<div style="margin:0.2rem 0 0.7rem;font-size:0.82rem;color:var(--d-text-sec);">Следующий запрос на вывод — с ${escapeChannelHtml(wd['следующий_запрос_с'])}.</div>`;
+                }
+
                 box.innerHTML =
                     `<div style="display:flex;gap:0.6rem;flex-wrap:wrap;margin-bottom:0.7rem;">
                         <div style="flex:1;min-width:110px;background:var(--d-panel-alt);border-radius:0.6rem;padding:0.5rem 0.7rem;">
@@ -589,7 +621,7 @@
                             <div style="font-weight:700;">${payMoney(t['начислено'])}</div>
                             <div style="font-size:0.75rem;color:var(--d-text-sec);">Всего начислено</div>
                         </div>
-                     </div>` + npdLine + list +
+                     </div>` + wdHtml + npdLine + list +
                     `<p style="font-size:0.75rem;color:var(--d-text-sec);margin-top:0.6rem;">Суммы указаны после вычета комиссии платформы. Налог со своего дохода вы платите сами через «Мой налог».</p>` +
                     `<details style="margin-top:0.7rem;border:1px solid var(--d-border,#e5e7eb);border-radius:0.6rem;padding:0.55rem 0.75rem;background:var(--d-panel-alt);">
                         <summary style="cursor:pointer;font-weight:600;font-size:0.85rem;color:var(--d-text);list-style:none;">🧾 Как пробить чек в «Мой налог» после выплаты</summary>

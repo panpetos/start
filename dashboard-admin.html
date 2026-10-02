@@ -2839,9 +2839,45 @@
                     <button class="btn-sm btn-outline" onclick="renderPayouts()">↻ Обновить</button>
                     <span class="muted" style="font-size:0.8rem;">Начисления досоздаются сами при открытии раздела.</span>
                  </div>` +
+                panel('💸 Заявки на вывод', 'sPayoutRequests', '<div id="payoutRequestsBox"><p class="muted" style="font-size:0.85rem;">Загрузка…</p></div>') +
                 panel('🧾 Отчёт агента (для налоговой ИП)', 'sAgentReport', agentReportPanelHtml()) +
                 panel('По психологам', 'sPayouts', table);
             setTimeout(agentReportDefaults, 0);
+            loadPayoutRequests();
+        }
+
+        // ── Заявки психологов на вывод ────────────────────────────────────────
+        async function loadPayoutRequests(){
+            const box = document.getElementById('payoutRequestsBox');
+            if (!box) return;
+            let d = null;
+            try { d = await (await fetch(PAYOUTS_API + '?action=requests&status=pending', { credentials:'include' })).json(); } catch(e){}
+            if (!d || !d.ok) { box.innerHTML = '<p class="muted">Не удалось загрузить заявки.</p>'; return; }
+            const reqs = d.data || [];
+            if (!reqs.length) { box.innerHTML = '<p class="muted" style="font-size:0.85rem;">Открытых заявок на вывод нет.</p>'; return; }
+            const npdTxt = { yes:'✅ НПД', no:'⛔ не НПД', none:'⚠️ нет ИНН', unknown:'❔ не проверен' };
+            box.innerHTML = `<table id="dataTable"><thead><tr>
+                    <th>Психолог</th><th>Запрошено</th><th>Баланс сейчас</th><th>Реквизиты</th><th>Налог. статус</th><th>Подана</th><th>Действия</th>
+                 </tr></thead><tbody>` +
+                reqs.map(r => `<tr>
+                    <td>${esc(r['имя'])}</td>
+                    <td><b style="color:#047857;">${fmtMoney(r['сумма_заявки'])} ₽</b></td>
+                    <td class="muted">${fmtMoney(r['баланс_сейчас'])} ₽</td>
+                    <td>${r['реквизиты_есть'] ? '<button class="btn-sm btn-outline" onclick="payoutShowRequisites(\''+esc(r.psychologist_id)+'\',\''+esc(r['имя'])+'\')">🏦 Показать</button>' : '<span style="color:#b91c1c;font-size:0.82rem;">не указаны</span>'}</td>
+                    <td title="${esc(r['нпд_текст']||'')}">${npdTxt[r['нпд']]||'❔'}</td>
+                    <td class="muted" style="font-size:0.8rem;">${esc((r['создана']||'').slice(0,16))}</td>
+                    <td>${Number(r['баланс_сейчас']) > 0
+                        ? `<button class="btn-sm btn-purple" onclick="payoutMarkPaid('${esc(r.psychologist_id)}','${esc(r['имя'])}',${r['баланс_сейчас']})">Выплатить и закрыть</button>`
+                        : '<span class="muted">нет баланса</span>'}
+                        <button class="btn-sm btn-outline" style="margin-left:.35rem;" onclick="rejectPayoutRequest(${r.id})">Отклонить</button></td>
+                 </tr>`).join('') + '</tbody></table>' +
+                '<p class="muted" style="font-size:0.78rem;margin-top:0.6rem;">«Выплатить и закрыть» отмечает все начисления психолога выплаченными и закрывает заявку. Деньги переводите отдельно с расчётного счёта на показанные реквизиты.</p>';
+        }
+        async function rejectPayoutRequest(id){
+            const note = prompt('Причина отклонения заявки (необязательно):') || '';
+            const r = await apiPostTo(PAYOUTS_API, 'request-reject', { id, note });
+            if (r && r.ok) { loadPayoutRequests(); }
+            else alert((r && r.error) || 'Не удалось отклонить');
         }
 
         // ── Отчёт агента ───────────────────────────────────────────────────────
