@@ -2924,7 +2924,9 @@
                     <td class="muted">${fmtMoney(r['комиссия_платформы'])} ₽</td>
                     <td class="muted">${fmtMoney(r['выплачено'])} ₽</td>
                     <td><b style="color:#047857;">${fmtMoney(r['к_выплате'])} ₽</b></td>
-                    <td>${Number(r['к_выплате']) > 0
+                    <td>
+                        <button class="btn-sm btn-outline" style="margin-right:.35rem;" onclick="payoutShowRequisites('${esc(r.psychologist_id)}','${esc(r['имя'])}')" title="Куда переводить деньги">🏦 Реквизиты</button>
+                        ${Number(r['к_выплате']) > 0
                         ? `<button class="btn-sm btn-purple" onclick="payoutMarkPaid('${esc(r.psychologist_id)}','${esc(r['имя'])}',${r['к_выплате']})">Отметить выплаченным</button>`
                         : '<span class="muted">—</span>'}</td>
                 </tr>`).join('') + '</tbody></table>'
@@ -2945,6 +2947,28 @@
                     <span class="muted" style="font-size:0.8rem;">Начисления досоздаются сами при открытии раздела.</span>
                  </div>` +
                 panel('По психологам', 'sPayouts', table);
+        }
+
+        // Реквизиты психолога для выплаты. Полный номer отдаётся только админу и только
+        // по этому запросу (хранится зашифрованным). Показываем в alert, чтобы было легко
+        // скопировать при ручном переводе с расчётного счёта.
+        async function payoutShowRequisites(psyId, name){
+            let d = null;
+            try { d = await (await fetch('/api/payout_requisites.php?action=get&psychologist_id=' + encodeURIComponent(psyId), { credentials:'include' })).json(); } catch(e){}
+            if (!d || !d.ok) { alert((d && d.error) || 'Не удалось загрузить реквизиты'); return; }
+            if (!d.set) { alert('«' + name + '» ещё не указал(а) реквизиты для выплат.\nПопросите заполнить их в личном кабинете.'); return; }
+            const labels = { card:'Банковская карта', account:'Расчётный счёт', sbp:'СБП (по телефону)' };
+            const lines = [
+                'Реквизиты для выплаты — ' + name,
+                '',
+                'Способ: ' + (labels[d.method] || d.method),
+                'Номер: ' + (d.value || ('•••• ' + (d.last4 || ''))),
+                d.holder ? 'Получатель: ' + d.holder : '',
+                d.bank ? 'Банк: ' + d.bank : '',
+                d.updated_at ? 'Обновлено: ' + d.updated_at : '',
+                d.note ? '\n⚠️ ' + d.note : ''
+            ].filter(Boolean);
+            alert(lines.join('\n'));
         }
 
         async function payoutNpdRecheck(psyId){

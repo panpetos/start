@@ -68,6 +68,8 @@ jobs:
             put maintenance.html;
             put offer.html;
             put agent-offer.html;
+            put oferta-client.html;
+            put oferta-psychologist.html;
             put privacy.html;
             put refund.html;
             put qr.html;
@@ -109,6 +111,8 @@ jobs:
             put api/notifications_config.sample.php -o api/notifications_config.sample.php;
             put api/orders.php -o api/orders.php;
             put api/payouts.php -o api/payouts.php;
+            put api/payout_requisites.php -o api/payout_requisites.php;
+            put api/payouts_config.sample.php -o api/payouts_config.sample.php;
             put api/npd_lib.php -o api/npd_lib.php;
             put api/replace.php -o api/replace.php;
             put api/packages.php -o api/packages.php;

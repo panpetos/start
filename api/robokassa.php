@@ -45,6 +45,25 @@ function genUUID(): string {
 }
 
 /**
+ * Лог движения платежа — файл vt-robokassa.log (префикс vt- как у остального учёта).
+ * Пишем ТОЛЬКО несекретное: событие, InvId, сумму, итог проверки подписи, IP.
+ * Пароли/подписи в лог не попадают. Отдельная функция со своим подавлением ошибок:
+ * это побочная работа, она НИКОГДА не должна ломать приём денег или ответ Робокассе.
+ */
+function vtLog(string $event, array $fields = []): void {
+    try {
+        $line = date('Y-m-d H:i:s') . "\t" . $event;
+        $ip = $_SERVER['REMOTE_ADDR'] ?? '';
+        if ($ip !== '') $fields['ip'] = $ip;
+        foreach ($fields as $k => $v) {
+            $v = is_scalar($v) ? (string)$v : json_encode($v, JSON_UNESCAPED_UNICODE);
+            $line .= "\t" . $k . '=' . str_replace(["\t", "\n", "\r"], ' ', (string)$v);
+        }
+        @file_put_contents(__DIR__ . '/vt-robokassa.log', $line . "\n", FILE_APPEND | LOCK_EX);
+    } catch (\Throwable $e) {}
+}
+
+/**
  * Данные поставщика-психолога для чека по агентской схеме (54-ФЗ): ИНН, имя, телефон.
  * ИНН лежит в psychologist_credentials (type='inn', в поле name) — туда его кладёт
  * регистрация; колонки psychologists.inn на проде нет. Если ИНН не найден, вернём
@@ -293,6 +312,7 @@ if ($action === 'init' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     $paymentUrl = $base . '?' . implode('&', $qs);
 
+    vtLog('init', ['inv' => $invId, 'sum' => $outSum, 'appt' => $appointmentId, 'psy' => $psychologistId, 'test' => $isTest]);
     jsonOut(['ok' => true, 'paymentUrl' => $paymentUrl, 'invId' => $invId, 'isTest' => $isTest]);
 }
 
@@ -307,7 +327,7 @@ if ($action === 'result') {
     if ($outSum === '' || $invId === '' || $sigIn === '') { echo 'bad request'; exit; }
 
     $calc = strtoupper(md5("$outSum:$invId:$password2"));
-    if ($calc !== strtoupper($sigIn)) { echo 'bad sign'; exit; }
+    if ($calc !== strtoupper($sigIn)) { vtLog('result.bad_sign', ['inv' => $invId, 'sum' => $outSum]); echo 'bad sign'; exit; }
 
     try {
         $st = $pdo->prepare("SELECT * FROM robokassa_invoices WHERE id = ? LIMIT 1");
@@ -333,7 +353,10 @@ if ($action === 'result') {
                         ->execute([$pid, $inv['appointment_id'], $inv['out_sum']]);
                 } catch (Exception $e) {}
             }
-        } catch (Exception $e) { echo 'db error'; exit; }
+        } catch (Exception $e) { vtLog('result.db_error', ['inv' => $invId, 'err' => $e->getMessage()]); echo 'db error'; exit; }
+        vtLog('result.paid', ['inv' => $invId, 'sum' => $outSum, 'appt' => $inv['appointment_id'] ?? '']);
+    } else {
+        vtLog('result.duplicate', ['inv' => $invId, 'sum' => $outSum]);
     }
 
     echo 'OK' . $invId;
@@ -360,6 +383,7 @@ if ($action === 'fail') {
     try {
         if ($invId !== '') $pdo->prepare("UPDATE robokassa_invoices SET status='failed' WHERE id=? AND status='pending'")->execute([$invId]);
     } catch (Exception $e) {}
+    vtLog('fail', ['inv' => $invId]);
     header('Location: /client-dashboard.html?payment=fail');
     exit;
 }

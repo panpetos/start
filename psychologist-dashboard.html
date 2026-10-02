@@ -351,6 +351,19 @@
                 </div>
             </div>
 
+            <!-- Реквизиты для выплат. Платформа переводит вознаграждение вручную с р/с,
+                 поэтому нужен счёт/карта/СБП. Номер хранится зашифрованно, админу он виден
+                 только при выплате; психолог здесь видит лишь последние 4 цифры. -->
+            <div class="card">
+                <h2>
+                    <i data-lucide="landmark" style="width: 24px; height: 24px;"></i>
+                    Реквизиты для выплат
+                </h2>
+                <div id="requisitesBox">
+                    <div class="loading">Загрузка...</div>
+                </div>
+            </div>
+
             <div class="card">
                 <h2>
                     <i data-lucide="graduation-cap" style="width: 24px; height: 24px;"></i>
@@ -457,6 +470,7 @@
                     await loadAppointments();
                     await initChannel();
                     loadMyPayouts();   // не await: начисления не должны задерживать кабинет
+                    loadMyRequisites();
 
                     if (typeof lucide !== 'undefined') {
                         lucide.createIcons();
@@ -473,6 +487,61 @@
             function payMoney(n) {
                 return (Math.round((Number(n) || 0) * 100) / 100)
                     .toLocaleString('ru-RU', { minimumFractionDigits: 0, maximumFractionDigits: 2 }) + ' ₽';
+            }
+
+            // ── Реквизиты для выплат ──────────────────────────────────────────
+            const REQ_LABELS = { card: 'Банковская карта', account: 'Расчётный счёт', sbp: 'СБП (по телефону)' };
+            function reqPlaceholder(m) {
+                return m === 'account' ? '20 цифр расчётного счёта'
+                     : m === 'sbp' ? '+7 999 123-45-67 (телефон для СБП)'
+                     : '0000 0000 0000 0000';
+            }
+            async function loadMyRequisites() {
+                const box = document.getElementById('requisitesBox');
+                if (!box) return;
+                let d = null;
+                try { d = await (await fetch('/api/payout_requisites.php?action=mine', { credentials: 'include' })).json(); } catch (e) {}
+                if (!d || !d.ok) { box.innerHTML = '<p style="color:var(--d-text-sec);font-size:0.86rem;">Не удалось загрузить реквизиты.</p>'; return; }
+                const m = d.method || 'card';
+                const saved = d.set ? `<div style="font-size:0.85rem;color:#047857;margin-bottom:0.6rem;">✓ Сохранено: ${escapeChannelHtml(REQ_LABELS[m] || m)} ${escapeChannelHtml(d.masked || '')}${d.holder ? ' · ' + escapeChannelHtml(d.holder) : ''}</div>`
+                    : `<div style="font-size:0.85rem;color:#b45309;margin-bottom:0.6rem;">Реквизиты не указаны — без них платформа не сможет перечислить вам вознаграждение.</div>`;
+                box.innerHTML = saved +
+                    `<div style="display:flex;flex-direction:column;gap:0.5rem;max-width:420px;">
+                        <select id="reqMethod" onchange="reqOnMethodChange()" style="padding:0.5rem 0.6rem;border:1px solid var(--d-border,#e5e7eb);border-radius:0.5rem;background:var(--d-panel,#fff);color:var(--d-text);">
+                            <option value="card"${m==='card'?' selected':''}>Банковская карта</option>
+                            <option value="account"${m==='account'?' selected':''}>Расчётный счёт</option>
+                            <option value="sbp"${m==='sbp'?' selected':''}>СБП (по номеру телефона)</option>
+                        </select>
+                        <input id="reqValue" type="text" inputmode="numeric" autocomplete="off" placeholder="${reqPlaceholder(m)}" style="padding:0.5rem 0.6rem;border:1px solid var(--d-border,#e5e7eb);border-radius:0.5rem;background:var(--d-panel,#fff);color:var(--d-text);">
+                        <input id="reqHolder" type="text" autocomplete="off" placeholder="ФИО получателя" value="${escapeChannelHtml(d.holder || '')}" style="padding:0.5rem 0.6rem;border:1px solid var(--d-border,#e5e7eb);border-radius:0.5rem;background:var(--d-panel,#fff);color:var(--d-text);">
+                        <input id="reqBank" type="text" autocomplete="off" placeholder="Банк (для СБП/счёта)" value="${escapeChannelHtml(d.bank || '')}" style="padding:0.5rem 0.6rem;border:1px solid var(--d-border,#e5e7eb);border-radius:0.5rem;background:var(--d-panel,#fff);color:var(--d-text);">
+                        <div style="display:flex;gap:0.5rem;">
+                            <button class="btn" onclick="saveMyRequisites()" style="flex:1;">Сохранить реквизиты</button>
+                        </div>
+                        <p style="font-size:0.74rem;color:var(--d-text-sec);">Номер хранится в зашифрованном виде. Администратор видит его только при переводе вам денег.</p>
+                     </div>`;
+            }
+            function reqOnMethodChange() {
+                const sel = document.getElementById('reqMethod');
+                const val = document.getElementById('reqValue');
+                if (sel && val) val.placeholder = reqPlaceholder(sel.value);
+            }
+            async function saveMyRequisites() {
+                const method = (document.getElementById('reqMethod') || {}).value || 'card';
+                const value = ((document.getElementById('reqValue') || {}).value || '').trim();
+                const holder = ((document.getElementById('reqHolder') || {}).value || '').trim();
+                const bank = ((document.getElementById('reqBank') || {}).value || '').trim();
+                if (!value) { alert('Введите номер карты / счёта / телефон для СБП'); return; }
+                let d = null;
+                try {
+                    d = await (await fetch('/api/payout_requisites.php?action=save', {
+                        method: 'POST', credentials: 'include',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ method, value, holder, bank })
+                    })).json();
+                } catch (e) {}
+                if (d && d.ok) { alert('Реквизиты сохранены'); loadMyRequisites(); }
+                else { alert((d && d.error) || 'Не удалось сохранить реквизиты'); }
             }
 
             async function loadMyPayouts() {
