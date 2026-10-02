@@ -73,8 +73,12 @@ try {
         bank   VARCHAR(255) NULL,                      -- банк (для СБП/счёта)
         last4  VARCHAR(8) NULL,                         -- последние цифры (для показа маской)
         enc_blob TEXT NULL,                            -- зашифрованный полный номер
+        tax_mode VARCHAR(8) NOT NULL DEFAULT 'npd',    -- npd (самозанятый) | ip
         updated_at DATETIME NULL
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+    // На случай, если таблица уже была создана без tax_mode — добавить колонку.
+    $has = $pdo->query("SHOW COLUMNS FROM psy_payout_requisites LIKE 'tax_mode'")->fetch();
+    if (!$has) $pdo->exec("ALTER TABLE psy_payout_requisites ADD COLUMN tax_mode VARCHAR(8) NOT NULL DEFAULT 'npd'");
 } catch (Exception $e) {}
 
 if (session_status() === PHP_SESSION_NONE) session_start();
@@ -106,17 +110,33 @@ if ($action === 'mine') {
     $pid = prMyPsyId($pdo, $userId);
     if ($pid === '') prOut(['ok' => true, 'set' => false, 'note' => 'Профиль психолога не найден']);
     try {
-        $st = $pdo->prepare("SELECT method, holder, bank, last4, updated_at,
+        $st = $pdo->prepare("SELECT method, holder, bank, last4, tax_mode, updated_at,
                                     (enc_blob IS NOT NULL AND enc_blob <> '') AS has_value
                                FROM psy_payout_requisites WHERE psychologist_id = ? LIMIT 1");
         $st->execute([$pid]);
         $r = $st->fetch(PDO::FETCH_ASSOC);
     } catch (Exception $e) { $r = null; }
-    if (!$r || !$r['has_value']) prOut(['ok' => true, 'set' => false]);
+    $taxMode = ($r && !empty($r['tax_mode'])) ? $r['tax_mode'] : 'npd';
+    if (!$r || !$r['has_value']) prOut(['ok' => true, 'set' => false, 'tax_mode' => $taxMode]);
     prOut(['ok' => true, 'set' => true,
            'method' => $r['method'], 'holder' => $r['holder'], 'bank' => $r['bank'],
            'last4' => $r['last4'], 'masked' => $r['last4'] ? ('•••• ' . $r['last4']) : '••••',
-           'updated_at' => $r['updated_at']]);
+           'tax_mode' => $taxMode, 'updated_at' => $r['updated_at']]);
+}
+
+// ── Психолог: сменить налоговый статус (самозанятый/ИП) без ввода реквизитов ──────
+if ($action === 'set-tax' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    $pid = prMyPsyId($pdo, $userId);
+    if ($pid === '' && $isAdmin) $pid = (string)($body['psychologist_id'] ?? '');
+    if ($pid === '') prOut(['error' => 'Только для психолога'], 403);
+    $tax = in_array(($body['tax_mode'] ?? 'npd'), ['npd', 'ip'], true) ? $body['tax_mode'] : 'npd';
+    try {
+        $st = $pdo->prepare("INSERT INTO psy_payout_requisites (psychologist_id, tax_mode, updated_at)
+                             VALUES (?, ?, NOW())
+                             ON DUPLICATE KEY UPDATE tax_mode = VALUES(tax_mode), updated_at = NOW()");
+        $st->execute([$pid, $tax]);
+    } catch (Exception $e) { prOut(['error' => 'Не удалось сохранить статус'], 500); }
+    prOut(['ok' => true, 'tax_mode' => $tax]);
 }
 
 // ── Психолог: сохранить свои реквизиты ───────────────────────────────────────────
@@ -134,6 +154,7 @@ if ($action === 'save' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $value  = preg_replace('/\s+/', '', (string)($body['value'] ?? ''));
     $holder = mb_substr(trim((string)($body['holder'] ?? '')), 0, 255);
     $bank   = mb_substr(trim((string)($body['bank'] ?? '')), 0, 255);
+    $tax    = in_array(($body['tax_mode'] ?? 'npd'), ['npd', 'ip'], true) ? $body['tax_mode'] : 'npd';
 
     // Простейшая валидация по типу (без привязки к конкретному банку).
     if ($method === 'card') {
@@ -155,14 +176,14 @@ if ($action === 'save' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($blob === '') prOut(['error' => 'Не удалось зашифровать реквизиты (проверьте расширение openssl на сервере).'], 500);
 
     try {
-        $st = $pdo->prepare("INSERT INTO psy_payout_requisites (psychologist_id, method, holder, bank, last4, enc_blob, updated_at)
-                             VALUES (?, ?, ?, ?, ?, ?, NOW())
+        $st = $pdo->prepare("INSERT INTO psy_payout_requisites (psychologist_id, method, holder, bank, last4, enc_blob, tax_mode, updated_at)
+                             VALUES (?, ?, ?, ?, ?, ?, ?, NOW())
                              ON DUPLICATE KEY UPDATE method=VALUES(method), holder=VALUES(holder),
                                                      bank=VALUES(bank), last4=VALUES(last4),
-                                                     enc_blob=VALUES(enc_blob), updated_at=NOW()");
-        $st->execute([$pid, $method, $holder, $bank, $last4, $blob]);
+                                                     enc_blob=VALUES(enc_blob), tax_mode=VALUES(tax_mode), updated_at=NOW()");
+        $st->execute([$pid, $method, $holder, $bank, $last4, $blob, $tax]);
     } catch (Exception $e) { prOut(['error' => 'Не удалось сохранить реквизиты'], 500); }
-    prOut(['ok' => true, 'saved' => true, 'masked' => '•••• ' . $last4]);
+    prOut(['ok' => true, 'saved' => true, 'masked' => '•••• ' . $last4, 'tax_mode' => $tax]);
 }
 
 // ── Психолог: удалить свои реквизиты ──────────────────────────────────────────────
@@ -182,7 +203,7 @@ if ($action === 'get') {
     if ($pid === '') prOut(['error' => 'Не указан психолог'], 400);
     $key = prEncKey();
     try {
-        $st = $pdo->prepare("SELECT method, holder, bank, last4, enc_blob, updated_at
+        $st = $pdo->prepare("SELECT method, holder, bank, last4, enc_blob, tax_mode, updated_at
                                FROM psy_payout_requisites WHERE psychologist_id = ? LIMIT 1");
         $st->execute([$pid]);
         $r = $st->fetch(PDO::FETCH_ASSOC);
@@ -191,7 +212,7 @@ if ($action === 'get') {
     $full = ($key !== '' && !empty($r['enc_blob'])) ? prDecrypt($r['enc_blob'], $key) : '';
     prOut(['ok' => true, 'set' => true, 'method' => $r['method'], 'holder' => $r['holder'],
            'bank' => $r['bank'], 'last4' => $r['last4'], 'value' => $full,
-           'updated_at' => $r['updated_at'],
+           'tax_mode' => $r['tax_mode'] ?? 'npd', 'updated_at' => $r['updated_at'],
            'note' => $full === '' ? 'Не удалось расшифровать (проверьте enc_key в payouts_config.php)' : null]);
 }
 

@@ -516,9 +516,18 @@
                 try { d = await (await fetch('/api/payout_requisites.php?action=mine', { credentials: 'include' })).json(); } catch (e) {}
                 if (!d || !d.ok) { box.innerHTML = '<p style="color:var(--d-text-sec);font-size:0.86rem;">Не удалось загрузить реквизиты.</p>'; return; }
                 const m = d.method || 'card';
+                const tax = d.tax_mode || 'npd';
                 const saved = d.set ? `<div style="font-size:0.85rem;color:#047857;margin-bottom:0.6rem;">✓ Сохранено: ${escapeChannelHtml(REQ_LABELS[m] || m)} ${escapeChannelHtml(d.masked || '')}${d.holder ? ' · ' + escapeChannelHtml(d.holder) : ''}</div>`
                     : `<div style="font-size:0.85rem;color:#b45309;margin-bottom:0.6rem;">Реквизиты не указаны — без них платформа не сможет перечислить вам вознаграждение.</div>`;
                 box.innerHTML = saved +
+                    `<label style="display:block;max-width:420px;margin-bottom:0.6rem;">
+                        <span style="display:block;font-size:0.8rem;color:var(--d-text-sec);margin-bottom:0.25rem;font-weight:600;">Ваш налоговый статус</span>
+                        <select id="reqTax" onchange="saveMyTax()" style="width:100%;padding:0.5rem 0.6rem;border:1px solid var(--d-border,#e5e7eb);border-radius:0.5rem;background:var(--d-panel,#fff);color:var(--d-text);">
+                            <option value="npd"${tax==='npd'?' selected':''}>Самозанятый (НПД)</option>
+                            <option value="ip"${tax==='ip'?' selected':''}>Индивидуальный предприниматель (ИП)</option>
+                        </select>
+                        <span style="font-size:0.74rem;color:var(--d-text-sec);">Самозанятый — чек в «Мой налог». ИП — счёт/акт и налоги как ИП. Для самозанятых мы проверяем статус в ФНС перед выплатой.</span>
+                     </label>` +
                     `<div style="display:flex;flex-direction:column;gap:0.5rem;max-width:420px;">
                         <select id="reqMethod" onchange="reqOnMethodChange()" style="padding:0.5rem 0.6rem;border:1px solid var(--d-border,#e5e7eb);border-radius:0.5rem;background:var(--d-panel,#fff);color:var(--d-text);">
                             <option value="card"${m==='card'?' selected':''}>Банковская карта</option>
@@ -538,6 +547,16 @@
                 const sel = document.getElementById('reqMethod');
                 const val = document.getElementById('reqValue');
                 if (sel && val) val.placeholder = reqPlaceholder(sel.value);
+            }
+            async function saveMyTax() {
+                const tax = (document.getElementById('reqTax') || {}).value || 'npd';
+                try {
+                    await fetch('/api/payout_requisites.php?action=set-tax', {
+                        method: 'POST', credentials: 'include',
+                        headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tax_mode: tax })
+                    });
+                } catch (e) {}
+                loadMyPayouts(); // обновить подсказки про НПД/ИП в начислениях
             }
             async function saveMyRequisites() {
                 const method = (document.getElementById('reqMethod') || {}).value || 'card';
@@ -675,12 +694,15 @@
                 const rows = (d.data || []).slice(0, 8);
                 const npd = d['налоговый_статус'] || {};
                 const npdColor = { yes: '#047857', no: '#b91c1c', none: '#b45309' }[npd['код']] || 'var(--d-text-sec)';
-                // Статус НПД показываем только когда он о чём-то говорит: «не проверен»
-                // — это про нашу проверку, а не про человека, и пугать им незачем.
-                const npdLine = (npd['код'] && npd['код'] !== 'unknown')
-                    ? `<div style="font-size:0.8rem;color:${npdColor};margin-bottom:0.6rem;">Налоговый статус: ${escapeChannelHtml(npd['текст'] || '')}${
-                        npd['код'] === 'none' ? ' — <a href="/edit-profile.html" style="color:#047857;font-weight:600;">укажите ИНН</a>, без него выплату отправить нельзя' : ''}</div>`
-                    : '';
+                // Для ИП проверка НПД не нужна — показываем просто «ИП». Для самозанятого —
+                // статус НПД, но «не проверен» не показываем (это про нашу проверку, не про человека).
+                let npdLine = '';
+                if (d['налоговый_режим'] === 'ip') {
+                    npdLine = `<div style="font-size:0.8rem;color:#047857;margin-bottom:0.6rem;">Налоговый статус: Индивидуальный предприниматель (ИП)</div>`;
+                } else if (npd['код'] && npd['код'] !== 'unknown') {
+                    npdLine = `<div style="font-size:0.8rem;color:${npdColor};margin-bottom:0.6rem;">Налоговый статус: ${escapeChannelHtml(npd['текст'] || '')}${
+                        npd['код'] === 'none' ? ' — <a href="/edit-profile.html" style="color:#047857;font-weight:600;">укажите ИНН</a>, без него выплату отправить нельзя' : ''}</div>`;
+                }
 
                 const list = rows.length ? rows.map(r => {
                     const dt = r.date_time ? new Date(r.date_time.replace(' ', 'T')) : null;

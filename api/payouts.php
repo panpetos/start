@@ -169,6 +169,19 @@ function poPsyInn(PDO $pdo, string $pid): string {
     return '';
 }
 
+/**
+ * Налоговый режим психолога: 'npd' (самозанятый) или 'ip'. Хранится в реквизитах
+ * выплат (psy_payout_requisites.tax_mode). Для ИП проверка статуса самозанятого в
+ * ФНС не нужна — ИП сам выставляет счёт/акт и платит налоги как ИП.
+ */
+function poPsyTaxMode(PDO $pdo, string $pid): string {
+    try {
+        $st = $pdo->prepare("SELECT tax_mode FROM psy_payout_requisites WHERE psychologist_id = ? LIMIT 1");
+        $st->execute([$pid]);
+        return ((string)$st->fetchColumn() === 'ip') ? 'ip' : 'npd';
+    } catch (Exception $e) { return 'npd'; }
+}
+
 /** Сохранённый статус НПД. Только чтение кэша, без похода в ФНС. */
 function poNpdCached(PDO $pdo, string $pid): array {
     try {
@@ -320,6 +333,7 @@ if ($action === 'mine') {
         }
     } catch (Exception $e) {}
     $npd = poNpdCached($pdo, $pid);
+    $taxMode = poPsyTaxMode($pdo, $pid);
     // Статус заявки на вывод + можно ли подать новую (интервал + наличие баланса).
     $pending = poPendingRequest($pdo, $pid);
     $minDays = poMinDays($pdo);
@@ -332,6 +346,7 @@ if ($action === 'mine') {
     $canRequest = !$pending && !$tooSoon && round($acc, 2) > 0;
     poOut(['ok' => true, 'итого' => ['начислено' => round($acc + $paid, 2),
            'выплачено' => round($paid, 2), 'к_выплате' => round($acc, 2)],
+           'налоговый_режим' => $taxMode,
            'налоговый_статус' => ['код' => $npd['статус'], 'текст' => poNpdLabel($npd['статус']),
                                   'проверено' => $npd['проверено']],
            'вывод' => [
@@ -469,6 +484,7 @@ if ($action === 'summary') {
                 'выплачено' => round((float)$r['paid'], 2),
                 'комиссия_платформы' => round((float)$r['commission'], 2),
                 'сессий' => (int)$r['cnt'],
+                'налог_режим' => poPsyTaxMode($pdo, $pid),
                 'нпд' => $npd['статус'],
                 'нпд_текст' => poNpdLabel($npd['статус']),
                 'нпд_проверено' => $npd['проверено'],
@@ -539,6 +555,8 @@ if ($action === 'mark-paid' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     // предупредить об этом надо. Отметка «всё равно выплатил» остаётся за админом.
     foreach ($toCheck as $checkPsy) {
         if ($force) break;
+        // ИП не проверяем на НПД — он платит налоги как ИП (счёт/акт от себя).
+        if (poPsyTaxMode($pdo, $checkPsy) === 'ip') continue;
         $npd = poNpdCheck($pdo, $checkPsy);
         if ($npd['статус'] === 'no' || $npd['статус'] === 'none') {
             poOut(['error' => 'npd', 'нпд' => $npd['статус'], 'сообщение' => poNpdLabel($npd['статус'])

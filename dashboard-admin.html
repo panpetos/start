@@ -2799,6 +2799,7 @@
             // если ФНС статус не подтверждает, деньги отправлять нельзя, и видно это
             // должно быть до нажатия кнопки, а не в тексте ошибки после.
             const npdBadge = (r) => {
+                if (r['налог_режим'] === 'ip') return `<span style="color:#047857;font-size:0.82rem;" title="Индивидуальный предприниматель — проверка НПД не требуется">🏢 ИП</span>`;
                 const s = r['нпд'] || 'unknown';
                 const c = { yes:'#047857', no:'#b91c1c', none:'#b45309', unknown:'#6b7280' }[s] || '#6b7280';
                 const t = { yes:'✅ НПД', no:'⛔ не НПД', none:'⚠️ нет ИНН', unknown:'❔ не проверен' }[s] || '❔';
@@ -2839,10 +2840,10 @@
                     <button class="btn-sm btn-outline" onclick="renderPayouts()">↻ Обновить</button>
                     <span class="muted" style="font-size:0.8rem;">Начисления досоздаются сами при открытии раздела.</span>
                  </div>` +
-                panel('🔍 Сессии на проверке (анти-фрод)', 'sReview', '<div id="sessionReviewBox"><p class="muted" style="font-size:0.85rem;">Загрузка…</p></div>') +
-                panel('↩️ Возвраты клиентам', 'sRefunds', '<div id="refundsBox"><p class="muted" style="font-size:0.85rem;">Загрузка…</p></div>') +
-                panel('💸 Заявки на вывод', 'sPayoutRequests', '<div id="payoutRequestsBox"><p class="muted" style="font-size:0.85rem;">Загрузка…</p></div>') +
-                panel('🧾 Отчёт агента (для налоговой ИП)', 'sAgentReport', agentReportPanelHtml()) +
+                panel('🔍 Сессии на проверке (анти-фрод)', 'sReview', '<div style="padding:1.1rem 1.25rem;"><div id="sessionReviewBox"><p class="muted" style="font-size:0.85rem;">Загрузка…</p></div></div>') +
+                panel('↩️ Возвраты клиентам', 'sRefunds', '<div style="padding:1.1rem 1.25rem;"><div id="refundsBox"><p class="muted" style="font-size:0.85rem;">Загрузка…</p></div></div>') +
+                panel('💸 Заявки на вывод', 'sPayoutRequests', '<div style="padding:1.1rem 1.25rem;"><div id="payoutRequestsBox"><p class="muted" style="font-size:0.85rem;">Загрузка…</p></div></div>') +
+                panel('🧾 Отчёт агента (для налоговой ИП)', 'sAgentReport', '<div style="padding:1.1rem 1.25rem;">' + agentReportPanelHtml() + '</div>') +
                 panel('По психологам', 'sPayouts', table);
             setTimeout(agentReportDefaults, 0);
             loadPayoutRequests();
