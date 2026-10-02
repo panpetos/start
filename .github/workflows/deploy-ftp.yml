@@ -113,6 +113,7 @@ jobs:
             put api/payouts.php -o api/payouts.php;
             put api/payout_requisites.php -o api/payout_requisites.php;
             put api/payouts_config.sample.php -o api/payouts_config.sample.php;
+            put api/agent_reports.php -o api/agent_reports.php;
             put api/npd_lib.php -o api/npd_lib.php;
             put api/replace.php -o api/replace.php;
             put api/packages.php -o api/packages.php;

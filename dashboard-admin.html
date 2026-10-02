@@ -2946,7 +2946,127 @@
                     <button class="btn-sm btn-outline" onclick="renderPayouts()">↻ Обновить</button>
                     <span class="muted" style="font-size:0.8rem;">Начисления досоздаются сами при открытии раздела.</span>
                  </div>` +
+                panel('🧾 Отчёт агента (для налоговой ИП)', 'sAgentReport', agentReportPanelHtml()) +
                 panel('По психологам', 'sPayouts', table);
+            setTimeout(agentReportDefaults, 0);
+        }
+
+        // ── Отчёт агента ───────────────────────────────────────────────────────
+        // Документ-обоснование для ФНС: за период видно, сколько собрано с клиентов,
+        // сколько удержано комиссии (это и есть доход ИП по ст. 251 НК РФ) и сколько
+        // перечислено принципалам. Данные те же, что в начислениях, — просто сведены.
+        function agentReportPanelHtml(){
+            return `<div class="note" style="margin-bottom:0.8rem;">
+                    Доход, облагаемый у ИП, — это <b>только агентское вознаграждение (комиссия)</b>.
+                    Собранные с клиентов деньги и суммы к перечислению психологам — транзит и доходом
+                    агента по <b>ст. 251 НК РФ</b> не являются. Этот отчёт показывает разделение за период
+                    и выгружается реестром для бухгалтера.</div>
+                <div style="display:flex;gap:0.5rem;align-items:flex-end;flex-wrap:wrap;margin-bottom:0.9rem;">
+                    <label style="font-size:0.8rem;">С даты<br><input type="date" id="arFrom" style="padding:.35rem .5rem;"></label>
+                    <label style="font-size:0.8rem;">По дату<br><input type="date" id="arTo" style="padding:.35rem .5rem;"></label>
+                    <button class="btn-sm btn-purple" onclick="agentReportLoad()">Сформировать</button>
+                    <button class="btn-sm btn-outline" onclick="agentReportCsv()">⬇ Реестр CSV</button>
+                    <button class="btn-sm btn-outline" onclick="agentReportPrint()">🖨 Печать отчёта</button>
+                    <span style="display:flex;gap:.3rem;">
+                        <button class="btn-sm btn-outline" onclick="agentReportQuick('month')">Этот месяц</button>
+                        <button class="btn-sm btn-outline" onclick="agentReportQuick('prev')">Прошлый месяц</button>
+                        <button class="btn-sm btn-outline" onclick="agentReportQuick('year')">Год</button>
+                    </span>
+                 </div>
+                 <div id="arResult"><p class="muted" style="font-size:0.85rem;">Выберите период и нажмите «Сформировать».</p></div>`;
+        }
+        let agentReportData = null;
+        function agentReportDefaults(){
+            const f = document.getElementById('arFrom'), t = document.getElementById('arTo');
+            if (!f || !t || f.value || t.value) return;
+            const now = new Date();
+            f.value = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0,10);
+            t.value = now.toISOString().slice(0,10);
+        }
+        function agentReportQuick(kind){
+            const now = new Date(); let from, to;
+            if (kind === 'month') { from = new Date(now.getFullYear(), now.getMonth(), 1); to = now; }
+            else if (kind === 'prev') { from = new Date(now.getFullYear(), now.getMonth()-1, 1); to = new Date(now.getFullYear(), now.getMonth(), 0); }
+            else { from = new Date(now.getFullYear(), 0, 1); to = now; }
+            document.getElementById('arFrom').value = from.toISOString().slice(0,10);
+            document.getElementById('arTo').value = to.toISOString().slice(0,10);
+            agentReportLoad();
+        }
+        function arRange(){
+            return { from: (document.getElementById('arFrom')||{}).value || '', to: (document.getElementById('arTo')||{}).value || '' };
+        }
+        async function agentReportLoad(){
+            const { from, to } = arRange();
+            const box = document.getElementById('arResult');
+            box.innerHTML = '<p class="muted" style="font-size:0.85rem;">Загрузка…</p>';
+            let d = null;
+            try { d = await (await fetch('/api/agent_reports.php?action=report&from='+encodeURIComponent(from)+'&to='+encodeURIComponent(to), { credentials:'include' })).json(); } catch(e){}
+            if (!d || !d.ok) { box.innerHTML = '<p class="muted">'+((d&&d.error)||'Не удалось сформировать отчёт')+'</p>'; return; }
+            agentReportData = d;
+            const t = d['итого'] || {};
+            const npdTxt = { yes:'✅', no:'⛔', none:'⚠️', unknown:'❔' };
+            const rowsHtml = (d.data||[]).map(r => `<tr>
+                    <td>${esc(r['имя'])}</td>
+                    <td class="muted">${esc(r['инн']||'—')}</td>
+                    <td title="статус НПД">${npdTxt[r['нпд']]||'❔'}</td>
+                    <td>${r['договор'] ? esc((r['договор'].date||'').slice(0,10)) : '<span style="color:#b91c1c;">нет</span>'}</td>
+                    <td>${r['сессий']}</td>
+                    <td class="muted">${fmtMoney(r['собрано'])} ₽</td>
+                    <td><b style="color:#047857;">${fmtMoney(r['комиссия'])} ₽</b></td>
+                    <td>${fmtMoney(r['к_перечислению'])} ₽</td>
+                    <td>${fmtMoney(r['выплачено_в_период'])} ₽</td>
+                </tr>`).join('') || '<tr><td colspan="9" class="muted">За период данных нет.</td></tr>';
+            box.innerHTML =
+                `<div class="stats-grid" style="margin-bottom:1rem;">
+                    <div class="stat"><div class="v" style="color:#047857;">${fmtMoney(t['комиссия'])} ₽</div><div class="l">Доход агента (налог ИП)</div></div>
+                    <div class="stat"><div class="v">${fmtMoney(t['собрано'])} ₽</div><div class="l">Собрано с клиентов</div></div>
+                    <div class="stat"><div class="v">${fmtMoney(t['к_перечислению'])} ₽</div><div class="l">Транзит принципалам</div></div>
+                    <div class="stat"><div class="v">${fmtMoney(t['выплачено_в_период'])} ₽</div><div class="l">Выплачено в периоде</div></div>
+                 </div>
+                 <table id="dataTable"><thead><tr>
+                    <th>Психолог</th><th>ИНН</th><th>НПД</th><th>Договор принят</th><th>Сессий</th>
+                    <th>Собрано</th><th>Комиссия (доход ИП)</th><th>К перечислению</th><th>Выплачено</th>
+                 </tr></thead><tbody>${rowsHtml}</tbody></table>
+                 <p class="muted" style="font-size:0.78rem;margin-top:0.6rem;">${esc(d['пояснение']||'')}</p>`;
+        }
+        function agentReportCsv(){
+            const { from, to } = arRange();
+            window.location.href = '/api/agent_reports.php?action=csv&from='+encodeURIComponent(from)+'&to='+encodeURIComponent(to);
+        }
+        function agentReportPrint(){
+            if (!agentReportData) { alert('Сначала сформируйте отчёт'); return; }
+            const d = agentReportData, t = d['итого']||{}, p = d['период']||{};
+            const npdTxt = { yes:'подтверждён', no:'не подтверждён', none:'ИНН не указан', unknown:'не проверен' };
+            const rows = (d.data||[]).map(r => `<tr>
+                    <td>${esc(r['имя'])}</td><td>${esc(r['инн']||'—')}</td><td>${npdTxt[r['нпд']]||'—'}</td>
+                    <td>${r['договор'] ? esc((r['договор'].date||'')) + (r['договор'].version?(' (ред. '+esc(r['договор'].version)+')'):'') : 'не зафиксировано'}</td>
+                    <td style="text-align:center;">${r['сессий']}</td>
+                    <td style="text-align:right;">${fmtMoney(r['собрано'])}</td>
+                    <td style="text-align:right;"><b>${fmtMoney(r['комиссия'])}</b></td>
+                    <td style="text-align:right;">${fmtMoney(r['к_перечислению'])}</td>
+                    <td style="text-align:right;">${fmtMoney(r['выплачено_в_период'])}</td>
+                </tr>`).join('');
+            const html = `<!doctype html><html lang="ru"><head><meta charset="utf-8"><title>Отчёт агента</title>
+                <style>body{font-family:Arial,sans-serif;color:#111;padding:28px;font-size:13px;}
+                h1{font-size:19px;margin:0 0 4px;} .sub{color:#555;margin-bottom:16px;}
+                table{width:100%;border-collapse:collapse;margin:14px 0;} th,td{border:1px solid #bbb;padding:6px 8px;font-size:12px;}
+                th{background:#f0f0f0;text-align:left;} tfoot td{font-weight:bold;background:#fafafa;}
+                .legal{margin-top:16px;font-size:12px;color:#333;line-height:1.5;} .big{font-size:15px;}</style></head><body>
+                <h1>Отчёт агента</h1>
+                <div class="sub">psytalk.pro · период: ${esc(p['с']||'с начала')} — ${esc(p['по']||'по настоящее время')} · комиссия платформы ${esc(String(d['комиссия_%']||''))}%</div>
+                <table><thead><tr><th>Принципал (психолог)</th><th>ИНН</th><th>НПД</th><th>Договор-оферта принят</th><th>Сессий</th><th>Собрано с клиентов, ₽</th><th>Вознаграждение агента, ₽</th><th>К перечислению, ₽</th><th>Выплачено, ₽</th></tr></thead>
+                <tbody>${rows||'<tr><td colspan="9">За период данных нет.</td></tr>'}</tbody>
+                <tfoot><tr><td colspan="4">ИТОГО</td><td style="text-align:center;">${t['сессий']||0}</td>
+                    <td style="text-align:right;">${fmtMoney(t['собрано'])}</td><td style="text-align:right;">${fmtMoney(t['комиссия'])}</td>
+                    <td style="text-align:right;">${fmtMoney(t['к_перечислению'])}</td><td style="text-align:right;">${fmtMoney(t['выплачено_в_период'])}</td></tr></tfoot></table>
+                <p class="legal big">Доход Агента, подлежащий налогообложению у ИП (агентское вознаграждение): <b>${fmtMoney(t['комиссия'])} ₽</b>.</p>
+                <p class="legal">Денежные средства, полученные Агентом для Принципалов (собрано с клиентов) и подлежащие перечислению Принципалам, являются транзитными и в соответствии со ст. 251 НК РФ в доход Агента не включаются. Принципалы — плательщики НПД — самостоятельно формируют чеки в сервисе «Мой налог» и уплачивают налог со своего вознаграждения. Основание — агентский договор-оферта (agent-offer.html), принятый специалистами в указанные даты.</p>
+                <p class="legal">Составлено автоматически из учётных данных платформы. Дата формирования: ${new Date().toLocaleString('ru-RU')}.</p>
+                </body></html>`;
+            const w = window.open('', '_blank');
+            if (!w) { alert('Разрешите всплывающие окна для печати'); return; }
+            w.document.write(html); w.document.close(); w.focus();
+            setTimeout(() => { try { w.print(); } catch(e){} }, 300);
         }
 
         // Реквизиты психолога для выплаты. Полный номer отдаётся только админу и только
