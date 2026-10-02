@@ -275,15 +275,13 @@ $body = json_decode(file_get_contents('php://input'), true) ?: [];
  * включена» — его полезно показать человеку перед оплатой.
  */
 if ($action === 'provider') {
-    // Какой платёжный сервис принимает оплату, решает настройка payment_provider
-    // (её сохраняет админка). Допустимы 'sber' и 'robokassa'; по умолчанию — 'sber',
-    // чтобы приём оплат не сломался, пока Робокассу не настроили. Секретов не отдаём:
-    // только имя провайдера и признак «включена тестовая сумма».
-    $prov = strtolower(trim((string)psySetting($pdo, 'payment_provider', 'sber')));
-    if ($prov !== 'robokassa') $prov = 'sber';
-    $testRub = (float)psySetting($pdo, 'sber_test_amount', '0');
-    echo json_encode(['ok' => true, 'provider' => $prov,
-                      'test_amount' => $testRub > 0 ? $testRub : 0], JSON_UNESCAPED_UNICODE);
+    // Приём оплаты — только Robokassa (Сбер выведен из схемы). По умолчанию и для
+    // старого сохранённого значения 'sber' отдаём 'robokassa', чтобы оплата не уходила
+    // в неподключённый Сбер (иначе чек требует ИНН психолога и платёж срывается).
+    // Секретов не отдаём — только имя провайдера.
+    $prov = strtolower(trim((string)psySetting($pdo, 'payment_provider', 'robokassa')));
+    if ($prov !== 'robokassa') $prov = 'robokassa';
+    echo json_encode(['ok' => true, 'provider' => $prov, 'test_amount' => 0], JSON_UNESCAPED_UNICODE);
     exit;
 }
 
