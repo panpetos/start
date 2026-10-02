@@ -149,7 +149,9 @@
                 el.classList.toggle('on', state[el.dataset.d].has(el.dataset.t));
             });
         }
-        function toObj() { const o = {}; DAYS.forEach(d => o[d[0]] = Array.from(state[d[0]]).sort()); return o; }
+        // 00:00 = конец дня: сортируем как 24:00, чтобы шёл после 23:00.
+        const timeCmp = (a, b) => (a === '00:00' ? '24:00' : a).localeCompare(b === '00:00' ? '24:00' : b);
+        function toObj() { const o = {}; DAYS.forEach(d => o[d[0]] = Array.from(state[d[0]]).sort(timeCmp)); return o; }
 
         async function saveSchedule() {
             try {
