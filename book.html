@@ -191,10 +191,7 @@
       if (psychSchedule) {
         var d = new Date(dateStr + 'T12:00:00');
         var key = WEEKDAY_KEYS[d.getDay()];
-        // 00:00 — это конец дня (полночь), поэтому сортируем как 24:00 (после 23:00).
-        var times = (psychSchedule[key] || []).slice().sort(function (a, b) {
-          return (a === '00:00' ? '24:00' : a).localeCompare(b === '00:00' ? '24:00' : b);
-        });
+        var times = (psychSchedule[key] || []).slice().sort();
         return times.map(function(t) { return { time: t, busy: false }; });
       }
       return [];

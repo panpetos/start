@@ -122,7 +122,7 @@
     </div>
     <script>
         const DAYS = [['mon','Пн'],['tue','Вт'],['wed','Ср'],['thu','Чт'],['fri','Пт'],['sat','Сб'],['sun','Вс']];
-        const TIMES = ['09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00','20:00','21:00','22:00','23:00','00:00'];
+        const TIMES = ['00:00','09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00','20:00','21:00','22:00','23:00'];
         let state = {}; DAYS.forEach(d => state[d[0]] = new Set());
 
         function buildGrid() {
@@ -149,9 +149,7 @@
                 el.classList.toggle('on', state[el.dataset.d].has(el.dataset.t));
             });
         }
-        // 00:00 = конец дня: сортируем как 24:00, чтобы шёл после 23:00.
-        const timeCmp = (a, b) => (a === '00:00' ? '24:00' : a).localeCompare(b === '00:00' ? '24:00' : b);
-        function toObj() { const o = {}; DAYS.forEach(d => o[d[0]] = Array.from(state[d[0]]).sort(timeCmp)); return o; }
+        function toObj() { const o = {}; DAYS.forEach(d => o[d[0]] = Array.from(state[d[0]]).sort()); return o; }
 
         async function saveSchedule() {
             try {
