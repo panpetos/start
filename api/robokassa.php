@@ -20,6 +20,7 @@ if (!function_exists('getDB') && !function_exists('getDbConnection') && !functio
 $pdo = function_exists('getDB') ? getDB()
      : (function_exists('getDbConnection') ? getDbConnection()
      : (function_exists('getPDO') ? getPDO() : null));
+@include_once __DIR__ . '/rtc_lib.php'; // rtcSendDm — уведомить психолога об оплаченной записи
 
 $action = $_GET['action'] ?? '';
 
@@ -355,6 +356,22 @@ if ($action === 'result') {
             }
         } catch (Exception $e) { vtLog('result.db_error', ['inv' => $invId, 'err' => $e->getMessage()]); echo 'db error'; exit; }
         vtLog('result.paid', ['inv' => $invId, 'sum' => $outSum, 'appt' => $inv['appointment_id'] ?? '']);
+        // Уведомить психолога о новой оплаченной записи (системным сообщением в чат →
+        // оно же шлёт пуш). Побочная работа: свой try/catch, не влияет на ответ Робокассе.
+        try {
+            if (function_exists('rtcSendDm') && !empty($inv['psychologist_id']) && !empty($inv['client_user_id'])) {
+                $psyUser = '';
+                try { $q = $pdo->prepare("SELECT user_id FROM psychologists WHERE id = ? LIMIT 1"); $q->execute([$inv['psychologist_id']]); $psyUser = (string)$q->fetchColumn(); } catch (Exception $e) {}
+                $when = '';
+                try { $q = $pdo->prepare("SELECT date_time FROM appointments WHERE id = ? LIMIT 1"); $q->execute([$inv['appointment_id']]); $when = (string)$q->fetchColumn(); } catch (Exception $e) {}
+                $whenTxt = '';
+                if ($when && ($ts = strtotime($when))) { $mm = ['', 'янв','фев','мар','апр','мая','июн','июл','авг','сен','окт','ноя','дек']; $whenTxt = ' на ' . (int)date('j', $ts) . ' ' . ($mm[(int)date('n', $ts)] ?? '') . ' в ' . date('H:i', $ts); }
+                if ($psyUser !== '' && $psyUser !== (string)$inv['client_user_id']) {
+                    rtcSendDm($pdo, (string)$inv['client_user_id'], $psyUser,
+                        '🗓 Новая оплаченная запись' . $whenTxt . '. Примите заказ в разделе «Мои сессии».', false);
+                }
+            }
+        } catch (\Throwable $e) {}
     } else {
         vtLog('result.duplicate', ['inv' => $invId, 'sum' => $outSum]);
     }

@@ -37,6 +37,7 @@ if (!function_exists('getDB') && !function_exists('getDbConnection') && !functio
 }
 require_once __DIR__ . '/settings_lib.php';
 if (!function_exists('psy_schema_once')) require_once __DIR__ . '/schema_util.php';
+@include_once __DIR__ . '/rtc_lib.php'; // rtcSendDm — уведомления участникам в чат (шлёт пуш)
 
 $pdo = function_exists('getDB') ? getDB()
      : (function_exists('getDbConnection') ? getDbConnection()
@@ -124,6 +125,8 @@ function sessionsAutoTick(PDO $pdo): void {
                 $pdo->prepare("UPDATE appointments SET status='cancelled' WHERE id=? AND status='scheduled'")->execute([$r['id']]);
                 seQueueRefund($pdo, $r['id'], $r['client_id'] ?? null, $r['psychologist_id'] ?? null, (float)($r['price'] ?? 0), 'Психолог не принял заказ вовремя');
                 seLog($pdo, $r['id'], 'auto_cancelled', 'system', 'Не принят вовремя, возврат в очередь');
+                seNotify($pdo, sePsyUserId($pdo, $r['psychologist_id'] ?? ''), $r['client_id'] ?? '',
+                         '❌ Запись отменена: специалист не подтвердил её вовремя. Оформляется возврат оплаты.');
             } catch (Exception $e) {}
         }
     } catch (Exception $e) {}
@@ -175,6 +178,26 @@ function seLog(PDO $pdo, $apptId, string $event, $actor, string $meta = ''): voi
 function sePsyUserId(PDO $pdo, $psyId): string {
     try { $st = $pdo->prepare("SELECT user_id FROM psychologists WHERE id = ? LIMIT 1"); $st->execute([$psyId]); return (string)$st->fetchColumn(); }
     catch (Exception $e) { return ''; }
+}
+
+/** Человеческая дата/время записи: «3 окт в 14:00». */
+function seDateRu($dt): string {
+    $ts = strtotime((string)$dt);
+    if (!$ts) return (string)$dt;
+    $m = ['', 'янв', 'фев', 'мар', 'апр', 'мая', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
+    return (int)date('j', $ts) . ' ' . ($m[(int)date('n', $ts)] ?? '') . ' в ' . date('H:i', $ts);
+}
+
+/**
+ * Уведомление участнику — системным сообщением в чат (оно же триггерит пуш).
+ * Побочная работа: свой try/catch и function_exists, молчит при любой ошибке и
+ * никогда не ломает основной ответ.
+ */
+function seNotify(PDO $pdo, $from, $to, string $text): void {
+    if (!function_exists('rtcSendDm')) return;
+    $from = (string)$from; $to = (string)$to;
+    if ($from === '' || $to === '' || $from === $to) return;
+    try { rtcSendDm($pdo, $from, $to, $text, false); } catch (\Throwable $e) {}
 }
 
 /**
@@ -389,6 +412,8 @@ if ($action === 'accept' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     try { $pdo->prepare("UPDATE appointments SET status='confirmed'$set WHERE id=? AND status='scheduled'")->execute([$apptId]); }
     catch (Exception $e) { seOut(['error' => 'Не удалось принять'], 500); }
     seLog($pdo, $apptId, 'accepted', $userId, '');
+    seNotify($pdo, sePsyUserId($pdo, $appt['psychologist_id'] ?? ''), $appt['client_id'] ?? '',
+             '✅ Специалист принял вашу запись на ' . seDateRu($appt['date_time'] ?? '') . '. До встречи!');
     seOut(['ok' => true, 'status' => 'confirmed']);
 }
 
@@ -400,6 +425,8 @@ if ($action === 'decline' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     // Возврат клиенту — в очередь (деньги возвращаются вручную через Робокассу).
     seQueueRefund($pdo, $apptId, $appt['client_id'] ?? null, $appt['psychologist_id'] ?? null, (float)($appt['price'] ?? 0), $reason);
     seLog($pdo, $apptId, 'declined', $userId, $reason);
+    seNotify($pdo, sePsyUserId($pdo, $appt['psychologist_id'] ?? ''), $appt['client_id'] ?? '',
+             '❌ К сожалению, запись на ' . seDateRu($appt['date_time'] ?? '') . ' отменена специалистом. Оформляется возврат оплаты.');
     seOut(['ok' => true, 'status' => 'cancelled', 'refund' => 'queued']);
 }
 
@@ -429,6 +456,8 @@ if ($action === 'end' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     try { $pdo->prepare("UPDATE appointments SET $sets WHERE id=?")->execute($params); }
     catch (Exception $e) { seOut(['error' => 'Не удалось завершить'], 500); }
     seLog($pdo, $apptId, 'ended', $userId, ($verified ? 'подтверждено' : 'на проверку') . ': ' . $vnote);
+    seNotify($pdo, sePsyUserId($pdo, $appt['psychologist_id'] ?? ''), $appt['client_id'] ?? '',
+             'Сессия завершена. Спасибо, что были на связи 🙏');
     // Начисление создаст payouts.php по completed+verified. Неподтверждённые ждут проверки админом.
     seOut(['ok' => true, 'status' => 'completed', 'verified' => (int)$verified, 'verify_note' => $vnote,
            'note' => $verified ? 'Сессия завершена и подтверждена — пойдёт в баланс к выплате.'
