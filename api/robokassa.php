@@ -93,6 +93,54 @@ function robokassaSupplier(PDO $pdo, $psychologistId): array {
     return $out;
 }
 
+/**
+ * Собрать ссылку оплаты Робокассы (подпись + Receipt) — единая точка и для init,
+ * и для повторной оплаты существующей записи. $ctx = login/password1/isTest/receiptCfg/base.
+ */
+function robokassaBuildPaymentUrl(PDO $pdo, array $ctx, $invId, string $outSum, string $description, $psychologistId): string {
+    $login = $ctx['login']; $password1 = $ctx['password1']; $isTest = (int)$ctx['isTest'];
+    $receiptCfg = $ctx['receiptCfg']; $base = $ctx['base'];
+    $params = [
+        'MerchantLogin' => $login,
+        'OutSum' => $outSum,
+        'InvId' => $invId,
+        'Description' => $description,
+        'Culture' => 'ru',
+    ];
+    if (!empty($receiptCfg['enabled'])) {
+        $item = [
+            'name' => $description,
+            'quantity' => 1,
+            'sum' => (float)$outSum,
+            'payment_method' => $receiptCfg['payment_method'] ?? 'full_payment',
+            'payment_object' => $receiptCfg['payment_object'] ?? 'service',
+            'tax' => $receiptCfg['tax'] ?? 'none',
+        ];
+        if (!empty($receiptCfg['agent_enabled'])) {
+            $sup = robokassaSupplier($pdo, $psychologistId);
+            if ($sup['inn'] !== '') {
+                $item['payment_agent_type'] = $receiptCfg['agent_type'] ?? 'agent';
+                $item['agent_info'] = ['type' => $receiptCfg['agent_type'] ?? 'agent'];
+                $item['supplier_info'] = ['name' => mb_substr($sup['name'], 0, 239), 'inn' => $sup['inn']];
+                if ($sup['phone'] !== '') $item['supplier_info']['phones'] = [$sup['phone']];
+            }
+        }
+        $receipt = ['sno' => $receiptCfg['sno'] ?? 'usn_income', 'items' => [$item]];
+        $receiptEnc = urlencode(json_encode($receipt, JSON_UNESCAPED_UNICODE));
+        $sig = md5("$login:$outSum:$invId:$receiptEnc:$password1");
+        $params['Receipt'] = $receiptEnc;
+    } else {
+        $sig = md5("$login:$outSum:$invId:$password1");
+    }
+    $params['SignatureValue'] = $sig;
+    if ($isTest) $params['IsTest'] = 1;
+    $qs = [];
+    foreach ($params as $k => $v) {
+        $qs[] = ($k === 'Receipt') ? "$k=$v" : "$k=" . rawurlencode((string)$v);
+    }
+    return $base . '?' . implode('&', $qs);
+}
+
 // ── Схема: таблица инвойсов + задел под сплит (Shop ID психолога) ───────────────
 function ensureSchema(PDO $pdo): void {
     try {
@@ -260,60 +308,62 @@ if ($action === 'init' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         jsonOut(['error' => 'Не удалось создать платёж'], 500);
     }
 
-    // Receipt (фискализация) — опционально
-    $params = [
-        'MerchantLogin' => $login,
-        'OutSum' => $outSum,
-        'InvId' => $invId,
-        'Description' => $description,
-        'Culture' => 'ru',
-    ];
-    if (!empty($receiptCfg['enabled'])) {
-        $item = [
-            'name' => $description,
-            'quantity' => 1,
-            'sum' => (float)$outSum,
-            'payment_method' => $receiptCfg['payment_method'] ?? 'full_payment',
-            'payment_object' => $receiptCfg['payment_object'] ?? 'service',
-            'tax' => $receiptCfg['tax'] ?? 'none',
-        ];
-        // Агентская схема (Robokassa Онлайн): в чеке — признак агента и данные
-        // поставщика-психолога (принципала). Включается флагом agent_enabled в
-        // настройках. Если у психолога не заполнен ИНН, агентские поля не добавляем —
-        // иначе касса отклонит чек; оплата при этом всё равно проходит обычным чеком.
-        if (!empty($receiptCfg['agent_enabled'])) {
-            $sup = robokassaSupplier($pdo, $psychologistId);
-            if ($sup['inn'] !== '') {
-                $item['payment_agent_type'] = $receiptCfg['agent_type'] ?? 'agent';
-                $item['agent_info'] = ['type' => $receiptCfg['agent_type'] ?? 'agent'];
-                $item['supplier_info'] = [
-                    'name' => mb_substr($sup['name'], 0, 239),
-                    'inn'  => $sup['inn'],
-                ];
-                if ($sup['phone'] !== '') $item['supplier_info']['phones'] = [$sup['phone']];
-            }
-        }
-        $receipt = [
-            'sno' => $receiptCfg['sno'] ?? 'usn_income',
-            'items' => [$item],
-        ];
-        $receiptEnc = urlencode(json_encode($receipt, JSON_UNESCAPED_UNICODE));
-        $sig = md5("$login:$outSum:$invId:$receiptEnc:$password1");
-        $params['Receipt'] = $receiptEnc;
-    } else {
-        $sig = md5("$login:$outSum:$invId:$password1");
-    }
-    $params['SignatureValue'] = $sig;
-    if ($isTest) $params['IsTest'] = 1;
-
-    // Собираем URL (Receipt уже url-encoded — не кодируем повторно)
-    $qs = [];
-    foreach ($params as $k => $v) {
-        $qs[] = ($k === 'Receipt') ? "$k=$v" : "$k=" . rawurlencode((string)$v);
-    }
-    $paymentUrl = $base . '?' . implode('&', $qs);
+    $ctx = ['login' => $login, 'password1' => $password1, 'isTest' => $isTest, 'receiptCfg' => $receiptCfg, 'base' => $base];
+    $paymentUrl = robokassaBuildPaymentUrl($pdo, $ctx, $invId, $outSum, $description, $psychologistId);
 
     vtLog('init', ['inv' => $invId, 'sum' => $outSum, 'appt' => $appointmentId, 'psy' => $psychologistId, 'test' => $isTest]);
+    jsonOut(['ok' => true, 'paymentUrl' => $paymentUrl, 'invId' => $invId, 'isTest' => $isTest]);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PAY-EXISTING — повторная оплата уже созданной (неоплаченной) записи. Кнопка
+// «Оплатить» в кабинете клиента. Новую запись не создаёт — оплачивает имеющуюся.
+// ─────────────────────────────────────────────────────────────────────────────
+if ($action === 'pay-existing' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (session_status() === PHP_SESSION_NONE) session_start();
+    $userId = $_SESSION['user_id'] ?? null;
+    if (!$userId) jsonOut(['error' => 'Требуется авторизация'], 401);
+    if (!robokassaConfigured($password1, $password2)) jsonOut(['error' => 'Приём платежей ещё не настроен.'], 503);
+
+    $data = json_decode(file_get_contents('php://input'), true) ?: [];
+    $apptId = (string)($data['appointment_id'] ?? '');
+    if ($apptId === '') jsonOut(['error' => 'Не указана запись'], 400);
+
+    try {
+        $st = $pdo->prepare("SELECT * FROM appointments WHERE id = ? LIMIT 1");
+        $st->execute([$apptId]);
+        $appt = $st->fetch(PDO::FETCH_ASSOC);
+    } catch (Exception $e) { $appt = null; }
+    if (!$appt) jsonOut(['error' => 'Запись не найдена'], 404);
+    if ((string)$appt['client_id'] !== (string)$userId) jsonOut(['error' => 'Это не ваша запись'], 403);
+    if (!in_array((string)$appt['status'], ['pending_payment', 'pending'], true)) {
+        jsonOut(['error' => 'Эта запись не ожидает оплаты (статус: ' . $appt['status'] . ')'], 409);
+    }
+
+    $psychologistId = $appt['psychologist_id'];
+    $outSum = number_format((float)$appt['price'], 2, '.', '');
+    if ((float)$outSum <= 0) jsonOut(['error' => 'Некорректная сумма записи'], 400);
+    $description = 'Консультация психолога psytalk.pro';
+
+    // Переиспользуем ожидающий инвойс этой записи или создаём новый.
+    $invId = 0;
+    try {
+        $st = $pdo->prepare("SELECT id, out_sum FROM robokassa_invoices WHERE appointment_id = ? AND status = 'pending' ORDER BY id DESC LIMIT 1");
+        $st->execute([$apptId]);
+        if ($row = $st->fetch(PDO::FETCH_ASSOC)) { $invId = (int)$row['id']; $outSum = number_format((float)$row['out_sum'], 2, '.', ''); }
+    } catch (Exception $e) {}
+    if (!$invId) {
+        try {
+            $st = $pdo->prepare("INSERT INTO robokassa_invoices (appointment_id, client_user_id, psychologist_id, out_sum, description, status, is_test)
+                                 VALUES (?, ?, ?, ?, ?, 'pending', ?)");
+            $st->execute([$apptId, $userId, $psychologistId, $outSum, $description, $isTest]);
+            $invId = (int)$pdo->lastInsertId();
+        } catch (Exception $e) { jsonOut(['error' => 'Не удалось создать платёж'], 500); }
+    }
+
+    $ctx = ['login' => $login, 'password1' => $password1, 'isTest' => $isTest, 'receiptCfg' => $receiptCfg, 'base' => $base];
+    $paymentUrl = robokassaBuildPaymentUrl($pdo, $ctx, $invId, $outSum, $description, $psychologistId);
+    vtLog('pay-existing', ['inv' => $invId, 'sum' => $outSum, 'appt' => $apptId]);
     jsonOut(['ok' => true, 'paymentUrl' => $paymentUrl, 'invId' => $invId, 'isTest' => $isTest]);
 }
 

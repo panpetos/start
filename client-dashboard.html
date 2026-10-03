@@ -637,6 +637,21 @@
 
             function psychEsc(s){ const d=document.createElement('div'); d.textContent=(s==null?'':String(s)); return d.innerHTML; }
 
+            async function payAppointment(apptId, btn) {
+                if (btn) { btn.disabled = true; btn.textContent = 'Открываю оплату…'; }
+                let d = null;
+                try {
+                    d = await (await fetch('/api/robokassa.php?action=pay-existing', {
+                        method: 'POST', credentials: 'include',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ appointment_id: apptId })
+                    })).json();
+                } catch (e) {}
+                if (d && d.ok && d.paymentUrl) { window.location.href = d.paymentUrl; return; }
+                if (btn) { btn.disabled = false; btn.textContent = '💳 Оплатить'; }
+                alert((d && d.error) || 'Не удалось открыть оплату');
+            }
+
             async function loadAppointments() {
                 const container = document.getElementById('appointments');
 
@@ -725,6 +740,7 @@
                         const lateCancel = hoursUntil < 24;
                         const canReview = past && st !== 'cancelled';
                         const canChat   = st !== 'cancelled';
+                        const canPay    = !past && (st === 'pending_payment' || st === 'pending');
 
                         return `
                         <div class="appointment-item">
@@ -734,6 +750,7 @@
                             </div>
                             <span class="appointment-status ${statusClass}">${statusText}</span>
                             <div class="appointment-actions">
+                                ${canPay ? `<button class="btn btn-small btn-success" onclick="payAppointment('${a.id}', this)" title="Оплатить эту запись">💳 Оплатить</button>` : ''}
                                 ${canChat ? `<a href="/chat.html?user=${a.psychologist_user_id || a.psychologist_id}${a.psychologist_id ? '&pid=' + a.psychologist_id : ''}" class="btn btn-small appt-chat" title="Написать психологу">${ICO.chat} Начать диалог</a>` : ''}
                                 ${a.psychologist_id ? `<a href="/book.html?id=${a.psychologist_id}" class="btn btn-small btn-outline" title="Записаться к этому психологу ещё раз">${ICO.calendar} Записаться ещё</a>` : ''}
                                 ${canChat ? `<button class="btn btn-small btn-outline" onclick="openReplace('${a.psychologist_id}', '${psychName.replace(/'/g, "\\'")}')" title="Не подошёл — подберём другого бесплатно">${ICO.swap} Заменить</button>` : ''}
