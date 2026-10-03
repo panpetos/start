@@ -946,7 +946,9 @@
                         // «Запланировано», а ни отменить, ни отметить проведённой было
                         // нельзя, потому что проверки требовали строгого 'scheduled'.
                         const st = a.status || 'scheduled';
-                        const active = (st === 'scheduled' || st === 'pending_payment' || st === 'pending');
+                        // Неоплаченные (pending_payment) НЕ считаем активной бронью: деньги не
+                        // пришли, завершать/начислять нечего. Видно это должно быть сразу.
+                        const active = (st === 'scheduled' || st === 'confirmed' || st === 'in_progress');
 
                         let statusClass = 'status-scheduled';
                         let statusText = 'Запланировано';
@@ -957,7 +959,12 @@
                             statusClass = 'status-cancelled';
                             statusText = 'Отменено';
                         } else if (st === 'pending_payment' || st === 'pending') {
-                            statusText = 'Ждёт оплаты';
+                            statusClass = 'status-cancelled';
+                            statusText = '⏳ Не оплачено';
+                        } else if (st === 'confirmed') {
+                            statusText = 'Принято';
+                        } else if (st === 'in_progress') {
+                            statusText = 'Идёт';
                         }
 
                         const isPast = date < now;

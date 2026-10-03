@@ -110,6 +110,24 @@ function seDuration(array $a): int {
 function sessionsAutoTick(PDO $pdo): void {
     $graceStart = (int)psySetting($pdo, 'session_cancel_grace_min', '20');   // мин после начала без принятия → отмена
     $graceEnd   = (int)psySetting($pdo, 'session_autocomplete_hours', '3');  // ч после планового конца → авто-завершение
+    $holdMin    = (int)psySetting($pdo, 'payment_hold_min', '30');            // мин «висения» неоплаченной записи → отмена
+
+    // 0) НЕОПЛАЧЕННЫЕ висяки (оплата не дошла / клиент бросил) → отмена, чтобы они не
+    //    выглядели как бронь и не занимали слот. Это НЕ деньги: записи ещё не оплачены.
+    //    По возрасту (created_at), если колонка есть; плюс любые прошедшие по времени.
+    try {
+        $hasCreated = seHasCol($pdo, 'created_at');
+        if ($hasCreated) {
+            $st = $pdo->prepare("UPDATE appointments SET status='cancelled'
+                                  WHERE status IN ('pending_payment','pending')
+                                    AND created_at < (NOW() - INTERVAL ? MINUTE)");
+            $st->execute([$holdMin]);
+        }
+        // Прошедшие по времени неоплаченные — в любом случае отменяем.
+        $pdo->prepare("UPDATE appointments SET status='cancelled'
+                        WHERE status IN ('pending_payment','pending')
+                          AND date_time < (NOW() - INTERVAL 15 MINUTE)")->execute();
+    } catch (Exception $e) {}
 
     // 1) Не принятые вовремя (оплачено, но психолог не подтвердил) → отмена + возврат.
     try {
@@ -279,6 +297,13 @@ function seLoadOwn(PDO $pdo, string $pid, string $apptId) {
     if (!$a) return [null, 'Запись не найдена'];
     if ((string)$a['psychologist_id'] !== $pid) return [null, 'Это не ваша запись'];
     return [$a, null];
+}
+
+// ── Служебный тик: авто-очистка висяков/просрочек (любой авторизованный) ──────
+// Клиентский кабинет дёргает его при загрузке, чтобы неоплаченные записи не висели.
+if ($action === 'tick') {
+    sessionsAutoTick($pdo);
+    seOut(['ok' => true]);
 }
 
 // ── Список сессий психолога ──────────────────────────────────────────────────

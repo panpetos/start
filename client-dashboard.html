@@ -640,6 +640,10 @@
             async function loadAppointments() {
                 const container = document.getElementById('appointments');
 
+                // Авто-очистка неоплаченных «висяков» (оплата не дошла/бросили) перед показом,
+                // чтобы они не выглядели как бронь. Не блокируем загрузку, если не удалось.
+                try { await fetch('/api/sessions.php?action=tick', { method: 'POST', credentials: 'include' }); } catch (e) {}
+
                 try {
                     const response = await fetch('/api/appointments.php?action=my', {
                         credentials: 'include'
@@ -704,8 +708,8 @@
                             statusClass = 'status-cancelled';
                             statusText = 'Отменено';
                         } else if (st === 'pending_payment' || st === 'pending') {
-                            statusClass = 'status-scheduled';
-                            statusText = 'Ждёт оплаты';
+                            statusClass = 'status-cancelled';
+                            statusText = '⏳ Ждёт оплаты';
                         }
 
                         const past = apptIsPast(a);
