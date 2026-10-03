@@ -1,0 +1,37 @@
+# crontab.sample — плановые задачи psytalk.pro для ВДС.
+#
+# На shared-хостинге reg.ru эти задачи «подхватываются» обычными заходами
+# посетителей (piggyback): при открытии ленты/сторис вызываются storage-cleanup
+# и рассылка напоминаний, ALTER-ы идут через psy_schema_once раз в час и т.д.
+# Это работает, пока есть трафик. На ВДС надёжнее завести настоящий cron, чтобы
+# задачи шли независимо от посещаемости.
+#
+# Установка:   crontab -e   (от пользователя, под которым крутится PHP-FPM/сайт)
+# Проверка:    grep CRON /var/log/syslog
+# TOKEN ниже — из api/notify_dispatch_config.php (см. *_config.sample.php).
+
+# Напоминания «вернуться к сообщению»: помечает наступившие и шлёт пуши.
+# Публичный tick (без токена) — как scheduled: любой заход и так его двигает.
+*/2 * * * * curl -fsS "https://psytalk.pro/api/reminders.php?action=tick" >/dev/null 2>&1
+
+# Отложенные сообщения («отправить позже»): tick требует сессию пользователя
+# (api/scheduled.php проверяет $userId), поэтому голым curl из cron не сработает —
+# он и так двигается заходами авторизованных пользователей. Если нужен гарантированный
+# прогон независимо от трафика — добавь на ВДС token-путь в scheduled.php и раскомментируй:
+# */2 * * * * curl -fsS "https://psytalk.pro/api/scheduled.php?action=tick&token=REPLACE" >/dev/null 2>&1
+
+# Рассылка накопившихся уведомлений (почта Resend/SMTP). Защищено токеном.
+*/5 * * * * curl -fsS "https://psytalk.pro/api/notify_dispatch.php?action=run&token=REPLACE_WITH_NOTIFY_TOKEN" >/dev/null 2>&1
+
+# Чистка хранилища (ретеншн файлов, истёкшие сторис). Эндпоинт требует сессию
+# админа, поэтому из cron его дёргать нельзя — на ВДС добавь CLI/token-путь
+# ИЛИ оставь как есть: cleanup продолжит идти piggyback на заходах в ленту/сторис.
+# Как временный вариант — «прогреть» ленту, чтобы сработал piggyback-tick:
+# 0 4 * * * curl -fsS "https://psytalk.pro/api/stories.php?action=feed" >/dev/null 2>&1
+
+# Обновление сетей Cloudflare для real_ip (если стоит CF) — раз в неделю.
+# 0 3 * * 1 /usr/local/bin/update-cloudflare-ips.sh && nginx -s reload
+
+# Резервные копии БД — ежедневно (пример; настрой креды в ~/.my.cnf).
+# 0 2 * * * mysqldump --single-transaction psytalk | gzip > /var/backups/psytalk-$(date +\%F).sql.gz
+# 0 2 * * * find /var/backups -name 'psytalk-*.sql.gz' -mtime +14 -delete
