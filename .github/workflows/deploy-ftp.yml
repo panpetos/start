@@ -98,6 +98,7 @@ jobs:
             put api/robokassa.php -o api/robokassa.php;
             put api/robokassa-success.php -o api/robokassa-success.php;
             put api/robokassa-fail.php -o api/robokassa-fail.php;
+            put api/robokassa-result.php -o api/robokassa-result.php;
             put api/robokassa_config.sample.php -o api/robokassa_config.sample.php;
             put api/sber_acquiring.php -o api/sber_acquiring.php;
             put api/sber_return.php -o api/sber_return.php;
