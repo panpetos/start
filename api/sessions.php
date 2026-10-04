@@ -102,6 +102,17 @@ function seDuration(array $a): int {
     return $d > 0 ? $d : 50;
 }
 
+/** Комиссия платформы, % (настройка platform_commission). */
+function seCommissionPct(PDO $pdo): float {
+    $v = (float)psySetting($pdo, 'platform_commission', '0');
+    if ($v < 0) $v = 0; if ($v > 100) $v = 100;
+    return $v;
+}
+/** Сумма к получению психологом — всегда ЗА ВЫЧЕТОМ комиссии платформы. */
+function seNetToPsy(float $gross, float $pct): float {
+    return round($gross * (1 - $pct / 100), 2);
+}
+
 /**
  * Авто-подстраховка. Побочная работа — свой try/catch, молчит при любой ошибке.
  * Ставит в очередь возврата оплаченные, но не принятые вовремя записи, и
@@ -373,15 +384,17 @@ if ($action === 'list') {
                            ORDER BY a.date_time DESC
                               LIMIT 100");
         $st->execute([$pid]);
+        $pct = seCommissionPct($pdo);
         foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $r) {
             $name = trim(($r['first_name'] ?? '') . ' ' . ($r['last_name'] ?? ''));
+            // Психологу показываем ТОЛЬКО сумму к получению (за вычетом комиссии платформы).
             $data[] = [
                 'id' => $r['id'],
                 'client' => $name !== '' ? $name : 'Клиент',
                 'date_time' => $r['date_time'],
                 'duration' => (int)($r['duration'] ?: 50),
                 'format' => $r['format'] ?? '',
-                'price' => (float)$r['price'],
+                'amount_to_psy' => seNetToPsy((float)$r['price'], $pct),
                 'status' => $r['status'],
                 'accepted_at' => $r['accepted_at'] ?? null,
                 'started_at' => $r['started_at'] ?? null,
@@ -550,10 +563,12 @@ if ($action === 'log') {
         $st->execute([$apptId]);
         if ($p = $st->fetch(PDO::FETCH_ASSOC)) { $paidAt = $p['paid_at']; $paidAmount = (float)$p['amount']; }
     } catch (Exception $e) {}
+    $netToPsy = $paidAmount !== null ? seNetToPsy((float)$paidAmount, seCommissionPct($pdo)) : null;
     seOut(['ok' => true, 'запись' => [
         'id' => $appt['id'],
         'статус' => $appt['status'],
-        'оплата' => $paidAt ? ['время' => $paidAt, 'сумма' => $paidAmount] : null,
+        // «сумма» — сколько оплатил клиент (видит админ); «сумма_психологу» — за вычетом комиссии.
+        'оплата' => $paidAt ? ['время' => $paidAt, 'сумма' => $paidAmount, 'сумма_психологу' => $netToPsy] : null,
         'принято' => $appt['accepted_at'] ?? null,
         'начато' => $appt['started_at'] ?? null,
         'завершено' => $appt['ended_at'] ?? null,
