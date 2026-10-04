@@ -192,7 +192,20 @@
         var d = new Date(dateStr + 'T12:00:00');
         var key = WEEKDAY_KEYS[d.getDay()];
         var times = (psychSchedule[key] || []).slice().sort();
-        return times.map(function(t) { return { time: t, busy: false }; });
+        // Прошедшие часы сегодня — делаем неактивными (нельзя записаться в прошлое).
+        var now = new Date();
+        var pad = function (n) { return (n < 10 ? '0' : '') + n; };
+        var todayStr = now.getFullYear() + '-' + pad(now.getMonth() + 1) + '-' + pad(now.getDate());
+        var isToday = dateStr === todayStr;
+        return times.map(function(t) {
+          var past = false;
+          if (isToday) {
+            var hm = t.split(':');
+            var slot = new Date(now.getFullYear(), now.getMonth(), now.getDate(), parseInt(hm[0], 10), parseInt(hm[1], 10), 0);
+            past = slot.getTime() <= now.getTime();
+          }
+          return { time: t, busy: false, past: past };
+        });
       }
       return [];
     }
@@ -376,8 +389,9 @@
         return;
       }
       var html = slots.map(function(s) {
-        var cls = 'slot-btn' + (s.busy ? ' busy' : '') + (s.time === selectedTime ? ' selected' : '');
-        return '<button class="' + cls + '" data-time="' + s.time + '"' + (s.busy ? ' disabled' : '') + '>' + s.time + '</button>';
+        var off = s.busy || s.past;   // прошедшие часы — тоже неактивны
+        var cls = 'slot-btn' + (off ? ' busy' : '') + (s.time === selectedTime ? ' selected' : '');
+        return '<button class="' + cls + '" data-time="' + s.time + '"' + (off ? ' disabled' : '') + '>' + s.time + '</button>';
       }).join('');
 
       grid.innerHTML = html;
@@ -398,11 +412,18 @@
       var btn = document.getElementById('confirmBtn');
       if (selectedDate && selectedTime) {
         summary.innerHTML = '<span>' + formatDate(selectedDate) + ', ' + selectedTime + '</span>';
-        summary.style.color = '#1A1A1A';
+        summary.style.color = 'var(--bk-text)';
         btn.disabled = false;
+        // Сбрасываем возможные inline-стили (серый текст/фон), которые могли остаться
+        // от проверок «нельзя записаться к себе»/«нет расписания» — иначе на зелёной
+        // кнопке оставался серый текст и сливался в тёмной теме.
+        btn.textContent = 'Перейти к оплате →';
+        btn.style.background = '';
+        btn.style.color = '';
+        btn.style.boxShadow = '';
       } else {
         summary.textContent = 'Выберите дату и время';
-        summary.style.color = '#9CA3AF';
+        summary.style.color = 'var(--bk-text-sec)';
         btn.disabled = true;
       }
     }
