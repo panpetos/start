@@ -383,10 +383,13 @@
             </label>
           </div>
 
+          <!-- Антиспам: Яндекс SmartCaptcha (рендерится, если настроена) -->
+          <div id="regCaptcha" style="margin-bottom:1rem;"></div>
+
           <!-- Submit Button -->
-          <button 
-            type="submit" 
-            class="btn w-full btn-lg" 
+          <button
+            type="submit"
+            class="btn w-full btn-lg"
             id="submit-btn"
             style="background: #34C759; color: white; border: none; transition: all 0.2s ease;"
             onmouseover="this.style.background='#28A745'"
@@ -565,6 +568,13 @@
       }
       data.acceptedTerms = termsOk;
       data.acceptedConsent = consentOk;
+
+      // Антиспам: если капча настроена — требуем токен
+      if (regSiteKey && !regCaptchaToken) {
+        showRegError('Подтвердите, что вы не робот.');
+        return;
+      }
+      data.captcha_token = regCaptchaToken || '';
 
       // Psychologist professional fields
       if (role === 'psychologist') {
@@ -771,6 +781,31 @@
       // (кто/когда/версия/IP), это и есть наш «договор» с исполнителем.
       if (role === 'psychologist') { try { await rec('agent_offer'); } catch (e) {} }
     }
+
+    // ——— Антиспам: Яндекс SmartCaptcha на регистрации ———
+    let regSiteKey = null;      // '' = не настроена
+    let regCaptchaToken = '';
+    (async function initRegCaptcha() {
+      try {
+        const d = await (await fetch('/api/subscribe.php?action=captcha-sitekey')).json();
+        regSiteKey = (d && d.site_key) ? d.site_key : '';
+      } catch (e) { regSiteKey = ''; }
+      if (!regSiteKey) return; // капча не настроена — регистрация работает как раньше
+      await new Promise((resolve) => {
+        if (window.smartCaptcha) return resolve();
+        const s = document.createElement('script');
+        s.src = 'https://smartcaptcha.yandexcloud.net/captcha.js';
+        s.defer = true; s.onload = () => resolve(); s.onerror = () => resolve();
+        document.head.appendChild(s);
+      });
+      if (!window.smartCaptcha) { regSiteKey = ''; return; } // не загрузилось — не блокируем
+      try {
+        window.smartCaptcha.render('regCaptcha', {
+          sitekey: regSiteKey,
+          callback: (t) => { regCaptchaToken = t; },
+        });
+      } catch (e) { regSiteKey = ''; }
+    })();
 
     // Доля/комиссия — из единого источника (настройки платформы), не хардкодим в тексте
     (async function loadAgencySplit() {

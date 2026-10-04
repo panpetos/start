@@ -18,6 +18,7 @@ header('Access-Control-Allow-Headers: Content-Type');
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') { http_response_code(204); exit; }
 
 require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/captcha_lib.php';
 if (!function_exists('getDB') && !function_exists('getDbConnection') && !function_exists('getPDO')) {
     require_once __DIR__ . '/db.php';
 }
@@ -27,6 +28,13 @@ $pdo = function_exists('getDB') ? getDB()
 if (!$pdo) { http_response_code(500); echo json_encode(['error' => 'Нет подключения к БД']); exit; }
 
 $action = $_GET['action'] ?? '';
+
+// Публичный ключ капчи для виджета на странице (GET, без тела). '' если капча не настроена.
+if ($action === 'captcha-sitekey') {
+    echo json_encode(['site_key' => captchaSiteKey()]);
+    exit;
+}
+
 $body = json_decode(file_get_contents('php://input'), true) ?: [];
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -38,14 +46,36 @@ if ($action === 'newsletter') {
     if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
         http_response_code(400); echo json_encode(['error' => 'Некорректный email']); exit;
     }
+    // 38-ФЗ (реклама) + 152-ФЗ (ПДн): рассылка только с явного согласия.
+    if (empty($body['consent'])) {
+        http_response_code(400); echo json_encode(['error' => 'Нужно согласие на обработку данных и получение рассылки']); exit;
+    }
+    // Антиспам: Яндекс SmartCaptcha (если настроена).
+    if (!captchaVerify($body['captcha_token'] ?? '')) {
+        http_response_code(400); echo json_encode(['error' => 'Проверка «я не робот» не пройдена. Обновите страницу и попробуйте снова.']); exit;
+    }
     try {
         $pdo->exec("CREATE TABLE IF NOT EXISTS newsletter_subscribers (
             id INT AUTO_INCREMENT PRIMARY KEY,
             email VARCHAR(255) NOT NULL UNIQUE,
+            consent_at DATETIME NULL,
+            consent_ip VARCHAR(64) NULL,
+            consent_ua VARCHAR(512) NULL,
             created_at DATETIME NOT NULL
         ) DEFAULT CHARSET=utf8mb4");
-        $st = $pdo->prepare("INSERT IGNORE INTO newsletter_subscribers (email, created_at) VALUES (?, NOW())");
-        $st->execute([$email]);
+        // На случай, если таблица уже была без колонок согласия — добавить (след согласия
+        // нужен как доказательство по 38-ФЗ/152-ФЗ).
+        foreach (['consent_at DATETIME NULL', 'consent_ip VARCHAR(64) NULL', 'consent_ua VARCHAR(512) NULL'] as $def) {
+            $col = strtok($def, ' ');
+            try { if (!$pdo->query("SHOW COLUMNS FROM newsletter_subscribers LIKE " . $pdo->quote($col))->fetch())
+                $pdo->exec("ALTER TABLE newsletter_subscribers ADD COLUMN $def"); } catch (Exception $e) {}
+        }
+        $ip = $_SERVER['REMOTE_ADDR'] ?? '';
+        $ua = mb_substr((string)($_SERVER['HTTP_USER_AGENT'] ?? ''), 0, 500);
+        $st = $pdo->prepare("INSERT INTO newsletter_subscribers (email, consent_at, consent_ip, consent_ua, created_at)
+                             VALUES (?, NOW(), ?, ?, NOW())
+                             ON DUPLICATE KEY UPDATE consent_at=NOW(), consent_ip=VALUES(consent_ip), consent_ua=VALUES(consent_ua)");
+        $st->execute([$email, $ip, $ua]);
         echo json_encode(['ok' => true]);
     } catch (Exception $e) {
         http_response_code(500); echo json_encode(['error' => 'Не удалось сохранить подписку']);

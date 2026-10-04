@@ -84,6 +84,32 @@
         body.dark .read-link { color: #6EE7B7; }
         body.dark .soon-banner { background: linear-gradient(135deg, #0B3B2E, #10402F); }
         body.dark .soon-banner p { color: #999; }
+
+        /* Модалка подписки */
+        .sub-backdrop { display: none; position: fixed; inset: 0; background: rgba(15,23,42,0.55);
+            z-index: 1000; align-items: center; justify-content: center; padding: 1rem; }
+        .sub-backdrop.open { display: flex; }
+        .sub-modal { background: #fff; border-radius: 1.25rem; padding: 1.75rem 1.75rem 1.5rem;
+            width: 100%; max-width: 420px; position: relative; box-shadow: 0 20px 60px rgba(0,0,0,0.25); }
+        .sub-modal h3 { font-size: 1.25rem; font-weight: 700; color: #1A1A1A; margin: 0 0 0.35rem; }
+        .sub-sub { font-size: 0.875rem; color: #6B7280; margin: 0 0 1rem; line-height: 1.5; }
+        .sub-input { width: 100%; padding: 0.75rem 0.9rem; border: 1px solid #E5E7EB; border-radius: 0.75rem;
+            font-size: 0.95rem; font-family: inherit; margin-bottom: 0.85rem; box-sizing: border-box; }
+        .sub-input:focus { outline: none; border-color: #047857; box-shadow: 0 0 0 3px rgba(4,120,87,0.12); }
+        .sub-consent { display: flex; gap: 0.55rem; align-items: flex-start; font-size: 0.8125rem;
+            color: #6B7280; line-height: 1.45; margin-bottom: 0.85rem; cursor: pointer; }
+        .sub-consent input { margin-top: 0.15rem; flex-shrink: 0; width: 1rem; height: 1rem; accent-color: #047857; }
+        .sub-consent a { color: #047857; }
+        .sub-captcha { margin-bottom: 0.85rem; min-height: 0; }
+        .sub-close { position: absolute; top: 0.75rem; right: 1rem; background: none; border: none;
+            font-size: 1.6rem; line-height: 1; color: #9CA3AF; cursor: pointer; }
+        .sub-msg { font-size: 0.85rem; margin-top: 0.75rem; text-align: center; min-height: 1.1em; }
+        .sub-msg.err { color: #DC2626; }
+        .sub-msg.ok { color: #047857; }
+        body.dark .sub-modal { background: #252525; }
+        body.dark .sub-modal h3 { color: #E6E6E6; }
+        body.dark .sub-input { background: #1b1b1b; border-color: #3a3a3a; color: #E6E6E6; }
+        body.dark .sub-consent, body.dark .sub-sub { color: #A8A8A8; }
     </style>
 </head>
 <body>
@@ -100,12 +126,29 @@
             <div class="soon-banner">
                 <h2>✍️ Новые статьи каждую неделю</h2>
                 <p>Подпишитесь, чтобы получать полезные материалы о психологии и ментальном здоровье прямо на почту.</p>
-                <button class="btn-subscribe" onclick="subscribeEmail()">
+                <button class="btn-subscribe" onclick="openSubscribe()">
                     Подписаться на рассылку
                 </button>
             </div>
         </div>
     </main>
+
+    <!-- Модалка подписки: email + согласие (152-ФЗ/38-ФЗ) + Яндекс SmartCaptcha -->
+    <div id="subBackdrop" class="sub-backdrop" onclick="if(event.target===this)closeSubscribe()">
+        <div class="sub-modal" role="dialog" aria-modal="true" aria-labelledby="subTitle">
+            <button class="sub-close" onclick="closeSubscribe()" aria-label="Закрыть">×</button>
+            <h3 id="subTitle">Подписка на рассылку</h3>
+            <p class="sub-sub">Будем присылать новые статьи о психологии. Отписаться можно в любой момент.</p>
+            <input type="email" id="subEmail" class="sub-input" placeholder="Ваш email" autocomplete="email">
+            <label class="sub-consent">
+                <input type="checkbox" id="subConsent">
+                <span>Я соглашаюсь на <a href="/privacy.html" target="_blank" rel="noopener">обработку персональных данных</a> и получение рекламно-информационной рассылки.</span>
+            </label>
+            <div id="subCaptcha" class="sub-captcha"></div>
+            <button class="btn-subscribe" id="subSubmit" onclick="submitSubscribe()" style="width:100%;justify-content:center;margin-top:0.25rem;">Подписаться</button>
+            <div id="subMsg" class="sub-msg"></div>
+        </div>
+    </div>
     <script>psyWriteFooter();</script>
     <script src="/js/articles.js?v=20260821"></script>
     <script>
@@ -164,19 +207,84 @@
                 apiRows.map(apiCardHtml).join('') + staticRows.map(staticCardHtml).join('');
         })();
 
-        async function subscribeEmail() {
-            const email = prompt('Введите ваш email для подписки на рассылку:');
-            if (email === null) return;
-            if (!email.includes('@')) { alert('Введите корректный email.'); return; }
+        // ——— Подписка на рассылку: модалка + согласие + Яндекс SmartCaptcha ———
+        let subSiteKey = null;        // '' = капча не настроена; null = ещё не загружали
+        let subCaptchaId = null;      // id виджета SmartCaptcha
+        let subCaptchaToken = '';     // токен от капчи
+
+        function subSetMsg(text, cls) {
+            const el = document.getElementById('subMsg');
+            el.textContent = text || ''; el.className = 'sub-msg' + (cls ? ' ' + cls : '');
+        }
+
+        async function fetchSiteKey() {
+            if (subSiteKey !== null) return subSiteKey;
+            try {
+                const d = await (await fetch('/api/subscribe.php?action=captcha-sitekey')).json();
+                subSiteKey = (d && d.site_key) ? d.site_key : '';
+            } catch(e) { subSiteKey = ''; }
+            return subSiteKey;
+        }
+
+        function loadSmartCaptchaScript() {
+            return new Promise((resolve) => {
+                if (window.smartCaptcha) return resolve();
+                const s = document.createElement('script');
+                s.src = 'https://smartcaptcha.yandexcloud.net/captcha.js';
+                s.defer = true; s.onload = () => resolve(); s.onerror = () => resolve();
+                document.head.appendChild(s);
+            });
+        }
+
+        async function renderCaptcha() {
+            const key = await fetchSiteKey();
+            const box = document.getElementById('subCaptcha');
+            if (!key) { box.innerHTML = ''; subCaptchaToken = 'nocaptcha'; return; } // капча не настроена — пропускаем
+            await loadSmartCaptchaScript();
+            if (!window.smartCaptcha) { subCaptchaToken = 'nocaptcha'; return; } // скрипт не загрузился — не блокируем
+            box.innerHTML = '';
+            subCaptchaToken = '';
+            subCaptchaId = window.smartCaptcha.render(box, {
+                sitekey: key,
+                callback: (t) => { subCaptchaToken = t; },
+            });
+        }
+
+        async function openSubscribe() {
+            document.getElementById('subBackdrop').classList.add('open');
+            subSetMsg('');
+            document.getElementById('subConsent').checked = false;
+            document.getElementById('subEmail').focus();
+            await renderCaptcha();
+        }
+        function closeSubscribe() {
+            document.getElementById('subBackdrop').classList.remove('open');
+        }
+
+        async function submitSubscribe() {
+            const email = document.getElementById('subEmail').value.trim();
+            const consent = document.getElementById('subConsent').checked;
+            if (!email.includes('@')) { subSetMsg('Введите корректный email.', 'err'); return; }
+            if (!consent) { subSetMsg('Нужно согласие на обработку данных и рассылку.', 'err'); return; }
+            if (subSiteKey && !subCaptchaToken) { subSetMsg('Подтвердите, что вы не робот.', 'err'); return; }
+            const btn = document.getElementById('subSubmit');
+            btn.disabled = true; subSetMsg('Отправляем…');
             try {
                 const r = await fetch('/api/subscribe.php?action=newsletter', {
                     method: 'POST', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email: email.trim() })
+                    body: JSON.stringify({ email, consent: true, captcha_token: subCaptchaToken })
                 });
                 const d = await r.json();
-                if (d.ok) alert('Спасибо! Вы подписаны на рассылку.');
-                else alert(d.error || 'Не удалось подписаться, попробуйте позже.');
-            } catch(e) { alert('Ошибка соединения. Попробуйте позже.'); }
+                if (d.ok) {
+                    subSetMsg('Спасибо! Вы подписаны на рассылку.', 'ok');
+                    setTimeout(closeSubscribe, 1500);
+                } else {
+                    subSetMsg(d.error || 'Не удалось подписаться, попробуйте позже.', 'err');
+                    if (subCaptchaId !== null && window.smartCaptcha) window.smartCaptcha.reset(subCaptchaId);
+                    subCaptchaToken = '';
+                }
+            } catch(e) { subSetMsg('Ошибка соединения. Попробуйте позже.', 'err'); }
+            btn.disabled = false;
         }
         try { if (window.lucide) lucide.createIcons(); } catch(e) {}
     </script>

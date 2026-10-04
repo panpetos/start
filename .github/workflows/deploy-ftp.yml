@@ -90,6 +90,8 @@ jobs:
             put js/app.js -o js/app.js;
             put api/admin_ext.php -o api/admin_ext.php;
             put api/subscribe.php -o api/subscribe.php;
+            put api/captcha_lib.php -o api/captcha_lib.php;
+            put api/captcha_config.sample.php -o api/captcha_config.sample.php;
             put api/my_profile.php -o api/my_profile.php;
             put api/notes.php -o api/notes.php;
             put api/schedule.php -o api/schedule.php;

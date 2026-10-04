@@ -24,5 +24,8 @@ api/sber_acquiring_config.php
 # Ключ шифрования реквизитов выплат — только на сервере (см. payouts_config.sample.php)
 api/payouts_config.php
 
+# Ключи Яндекс SmartCaptcha — только на сервере (см. captcha_config.sample.php)
+api/captcha_config.php
+
 # Лог колбэков Робокассы (vt-префикс) — не коммитить
 api/vt-robokassa.log
