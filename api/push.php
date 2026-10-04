@@ -1,0 +1,679 @@
+<?php
+/**
+ * push.php — настоящие push-уведомления (Web Push + VAPID).
+ *
+ * Зачем: до этого уведомление показывалось только пока открыта страница — она
+ * опрашивала сервер каждые несколько секунд. На телефоне это и давало «приходят
+ * через раз»: браузер усыпляет таймеры в фоне, а на iPhone — почти сразу. Push
+ * доставляет сообщение через службу браузера, поэтому оно приходит и при
+ * закрытом приложении.
+ *
+ * GET  ?action=key                    → публичный ключ VAPID для подписки
+ * POST ?action=subscribe {endpoint, keys:{p256dh, auth}}
+ * POST ?action=unsubscribe {endpoint}
+ * GET  ?action=pending                → что показать (спрашивает сервис-воркер)
+ * GET  ?action=status                 → готовность (для админки и проверок)
+ * POST ?action=test                   → прислать себе проверочное уведомление
+ *
+ * Как устроена отправка. Пуш уходит БЕЗ содержимого: сервис-воркер, получив
+ * пустой пуш, сам спрашивает ?action=pending и рисует уведомление. Так сделано
+ * намеренно — содержимое пуша пришлось бы шифровать (ECDH + HKDF + AES-GCM), а
+ * это много кода на ровном месте и лишний риск ошибиться в криптографии. Плюс
+ * текст сообщения не проходит через чужую службу доставки: для переписки с
+ * психологом это важнее удобства.
+ *
+ * Ключи VAPID создаются сами при первом обращении и живут в таблице settings —
+ * в репозиторий не попадают.
+ */
+
+// Файл работает в двух режимах: как обычный эндпоинт и как библиотека — его
+// подключает notify_dispatch.php ради push_send_to_user(). В режиме библиотеки
+// нельзя ни отдавать заголовки, ни отвечать, иначе рассылка сломает свой же JSON.
+$PUSH_LIB_ONLY = !empty($GLOBALS['__PUSH_LIB_ONLY']);
+if (!$PUSH_LIB_ONLY) {
+header('Content-Type: application/json; charset=utf-8');
+header('Access-Control-Allow-Origin: ' . ($_SERVER['HTTP_ORIGIN'] ?? '*'));
+header('Access-Control-Allow-Credentials: true');
+header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
+header('Access-Control-Allow-Headers: Content-Type');
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') { http_response_code(204); exit; }
+}
+
+require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/schema_util.php';
+if (!function_exists('getDB') && !function_exists('getDbConnection') && !function_exists('getPDO')) {
+    require_once __DIR__ . '/db.php';
+}
+$pdo = function_exists('getDB') ? getDB()
+     : (function_exists('getDbConnection') ? getDbConnection()
+     : (function_exists('getPDO') ? getPDO() : null));
+// В режиме библиотеки нас подключили в середине чужого ответа — печатать свою
+// ошибку туда нельзя, она испортит уже отданный JSON. Просто ничего не делаем.
+if (!$pdo) {
+    if ($PUSH_LIB_ONLY) return;
+    http_response_code(500); echo json_encode(['error' => 'Нет подключения к БД']); exit;
+}
+
+if (session_status() === PHP_SESSION_NONE) session_start();
+$userId = $_SESSION['user_id'] ?? null;
+// Снимаем блокировку файла сессии сразу после чтения: этот эндпоинт в сессию
+// больше не пишет, а параллельные опросы одного клиента иначе выстраивались бы в
+// очередь на блокировке сессии и тормозили друг друга (важно под нагрузкой).
+if (session_status() === PHP_SESSION_ACTIVE) session_write_close();
+
+function pushOut($d, $code = 200) { http_response_code($code); echo json_encode($d, JSON_UNESCAPED_UNICODE); exit; }
+
+// ── base64url ────────────────────────────────────────────────────────────────
+function b64u($bin) { return rtrim(strtr(base64_encode($bin), '+/', '-_'), '='); }
+function b64uDec($s) {
+    $s = strtr($s, '-_', '+/');
+    return base64_decode($s . str_repeat('=', (4 - strlen($s) % 4) % 4));
+}
+
+// ── Таблицы ──────────────────────────────────────────────────────────────────
+$pushErr = '';
+try {
+    $pdo->exec("CREATE TABLE IF NOT EXISTS push_subs (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        user_id VARCHAR(64) NOT NULL,
+        endpoint VARCHAR(500) NOT NULL,
+        p256dh VARCHAR(200) NULL,
+        auth VARCHAR(100) NULL,
+        ua VARCHAR(255) NULL,
+        created_at DATETIME NOT NULL,
+        last_ok DATETIME NULL,
+        fails INT NOT NULL DEFAULT 0,
+        UNIQUE KEY uniq_endpoint (endpoint),
+        INDEX idx_user (user_id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+    psy_align_collation($pdo, ['push_subs']);
+} catch (Exception $e) { $pushErr = $e->getMessage(); }
+
+/**
+ * Своё хранилище для ключей VAPID — отдельная таблица, а не общая `settings`.
+ *
+ * Сначала ключи лежали в `settings` с определением колонок «на угад» (key_name/value
+ * либо setting_key/setting_value). Если угадать не удавалось, запись молча не
+ * сохранялась — и пара ключей создавалась заново на каждый запрос. Для push это
+ * не мелочь, а полная поломка: подписка привязана к ключу, с которым она сделана,
+ * и служба доставки начинает отвечать 403 на всё. Своя таблица такого не допускает.
+ */
+function pushSet(PDO $pdo, $key, $val = null) {
+    static $ready = null;
+    if ($ready === null) {
+        try {
+            $pdo->exec("CREATE TABLE IF NOT EXISTS push_config (
+                key_name VARCHAR(64) NOT NULL PRIMARY KEY,
+                value TEXT NULL
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+            $ready = true;
+        } catch (Exception $e) { $ready = false; }
+    }
+    if (!$ready) return null;
+    if ($val === null) {
+        try {
+            $st = $pdo->prepare("SELECT value FROM push_config WHERE key_name = ? LIMIT 1");
+            $st->execute([$key]);
+            $r = $st->fetchColumn();
+            return ($r === false || $r === null || $r === '') ? null : (string)$r;
+        } catch (Exception $e) { return null; }
+    }
+    try {
+        $st = $pdo->prepare("SELECT 1 FROM push_config WHERE key_name = ? LIMIT 1");
+        $st->execute([$key]);
+        if ($st->fetchColumn()) {
+            $pdo->prepare("UPDATE push_config SET value = ? WHERE key_name = ?")->execute([$val, $key]);
+        } else {
+            $pdo->prepare("INSERT INTO push_config (key_name, value) VALUES (?, ?)")->execute([$key, $val]);
+        }
+        // Проверяем, что запись действительно легла: без этого «ключи не сохраняются»
+        // выглядело бы как «уведомления иногда не приходят».
+        $st = $pdo->prepare("SELECT value FROM push_config WHERE key_name = ? LIMIT 1");
+        $st->execute([$key]);
+        if ((string)$st->fetchColumn() !== (string)$val) return null;
+    } catch (Exception $e) { return null; }
+    return $val;
+}
+
+/**
+ * Пара ключей VAPID. Создаётся один раз сама — просить админа завести ключи
+ * вручную значило бы, что уведомления не заработают, пока он этого не сделает.
+ * Возвращает ['public' => base64url точки, 'private' => PEM] либо null.
+ */
+function vapidKeys(PDO $pdo) {
+    $pub = pushSet($pdo, 'vapid_public');
+    $priv = pushSet($pdo, 'vapid_private');
+    if ($pub && $priv) return ['public' => $pub, 'private' => $priv];
+    if (!function_exists('openssl_pkey_new')) return null;
+
+    $res = openssl_pkey_new(['private_key_type' => OPENSSL_KEYTYPE_EC, 'curve_name' => 'prime256v1']);
+    if (!$res) return null;
+    $details = openssl_pkey_get_details($res);
+    if (empty($details['ec']['x']) || empty($details['ec']['y'])) return null;
+    // Публичный ключ для VAPID — несжатая точка: 0x04 || X(32) || Y(32)
+    $point = "\x04" . str_pad($details['ec']['x'], 32, "\x00", STR_PAD_LEFT)
+                    . str_pad($details['ec']['y'], 32, "\x00", STR_PAD_LEFT);
+    $pem = '';
+    if (!openssl_pkey_export($res, $pem)) return null;
+    $pub = b64u($point);
+    // Не сохранились — значит на следующем запросе появится другая пара, а все
+    // подписки, сделанные с этой, станут недействительными. Лучше честно сказать
+    // «не готово», чем раздавать ключ-однодневку.
+    if (pushSet($pdo, 'vapid_public', $pub) === null) return null;
+    if (pushSet($pdo, 'vapid_private', $pem) === null) return null;
+    return ['public' => $pub, 'private' => $pem];
+}
+
+/** Подпись ES256: openssl отдаёт DER, а JWT ждёт R||S по 32 байта. */
+function es256(string $data, string $pem) {
+    $key = openssl_pkey_get_private($pem);
+    if (!$key) return null;
+    $der = '';
+    if (!openssl_sign($data, $der, $key, OPENSSL_ALGO_SHA256)) return null;
+    // DER: 30 len 02 lenR R 02 lenS S
+    $off = 0;
+    if (($der[$off++] ?? '') !== "\x30") return null;
+    $l = ord($der[$off++]);
+    if ($l > 0x80) $off += $l - 0x80;
+    $read = function () use ($der, &$off) {
+        if (($der[$off++] ?? '') !== "\x02") return null;
+        $n = ord($der[$off++]);
+        $v = substr($der, $off, $n);
+        $off += $n;
+        return ltrim($v, "\x00");
+    };
+    $r = $read(); $s = $read();
+    if ($r === null || $s === null) return null;
+    return str_pad($r, 32, "\x00", STR_PAD_LEFT) . str_pad($s, 32, "\x00", STR_PAD_LEFT);
+}
+
+/** JWT для конкретной службы доставки: aud — её origin. */
+function vapidJwt($endpoint, array $keys) {
+    $u = parse_url($endpoint);
+    if (empty($u['host'])) return null;
+    $aud = ($u['scheme'] ?? 'https') . '://' . $u['host'];
+    $head = b64u(json_encode(['typ' => 'JWT', 'alg' => 'ES256']));
+    $body = b64u(json_encode([
+        'aud' => $aud,
+        'exp' => time() + 12 * 3600,
+        'sub' => 'mailto:support@psytalk.pro',
+    ], JSON_UNESCAPED_SLASHES));
+    $sig = es256($head . '.' . $body, $keys['private']);
+    if ($sig === null) return null;
+    return $head . '.' . $body . '.' . b64u($sig);
+}
+
+/**
+ * Отправить пустой пуш по одной подписке.
+ * Возвращает ['ok'=>bool, 'code'=>int, 'gone'=>bool] — gone означает «подписка
+ * мертва, её надо удалить» (браузер снесён, разрешение отозвано).
+ */
+function pushSendOne(PDO $pdo, string $endpoint, array $keys) {
+    $jwt = vapidJwt($endpoint, $keys);
+    if (!$jwt) return ['ok' => false, 'code' => 0, 'gone' => false, 'error' => 'не удалось подписать запрос'];
+    if (!function_exists('curl_init')) {
+        return ['ok' => false, 'code' => 0, 'gone' => false, 'error' => 'на сервере нет расширения curl'];
+    }
+    $ch = curl_init($endpoint);
+    curl_setopt_array($ch, [
+        CURLOPT_POST => true,
+        CURLOPT_POSTFIELDS => '',
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_HTTPHEADER => [
+            'Authorization: vapid t=' . $jwt . ', k=' . $keys['public'],
+            'TTL: 3600',
+            'Urgency: high',
+            'Content-Length: 0',
+        ],
+        CURLOPT_TIMEOUT => 15,
+        CURLOPT_CONNECTTIMEOUT => 8,
+    ]);
+    $resp = curl_exec($ch);
+    $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $err = curl_error($ch);
+    curl_close($ch);
+    // 404/410 — подписка больше не существует; 403 — ключи не те, что при подписке
+    $gone = in_array($code, [404, 410], true);
+    return ['ok' => $code >= 200 && $code < 300, 'code' => $code, 'gone' => $gone,
+            'error' => $err ?: (($code >= 400) ? substr((string)$resp, 0, 200) : null)];
+}
+
+/** Собрать curl-хэндл для пуша (без выполнения) — для параллельной отправки. */
+function pushBuildHandle(string $endpoint, array $keys) {
+    $jwt = vapidJwt($endpoint, $keys);
+    if (!$jwt || !function_exists('curl_init')) return null;
+    $ch = curl_init($endpoint);
+    curl_setopt_array($ch, [
+        CURLOPT_POST => true,
+        CURLOPT_POSTFIELDS => '',
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_HTTPHEADER => [
+            'Authorization: vapid t=' . $jwt . ', k=' . $keys['public'],
+            'TTL: 3600', 'Urgency: high', 'Content-Length: 0',
+        ],
+        CURLOPT_TIMEOUT => 15,
+        CURLOPT_CONNECTTIMEOUT => 8,
+    ]);
+    return $ch;
+}
+
+/** Применить результат отправки к подписке: отметить успех, удалить мёртвую, копить ошибки. */
+function pushApplyResult(PDO $pdo, array $s, array $r, &$sent, &$removed, &$errors, &$details) {
+    $host = parse_url((string)$s['endpoint'], PHP_URL_HOST);
+    if ($r['ok']) {
+        $sent++; $details[] = ['host' => $host, 'code' => $r['code'], 'ok' => true];
+        if (!empty($s['id'])) { try { $pdo->prepare("UPDATE push_subs SET last_ok = NOW(), fails = 0 WHERE id = ?")->execute([$s['id']]); } catch (Exception $e) {} }
+        return;
+    }
+    if (!empty($r['gone'])) {
+        $removed++; $details[] = ['host' => $host, 'code' => $r['code'], 'ok' => false, 'gone' => true];
+        if (!empty($s['id'])) { try { $pdo->prepare("DELETE FROM push_subs WHERE id = ?")->execute([$s['id']]); } catch (Exception $e) {} }
+        return;
+    }
+    $errors[] = 'HTTP ' . $r['code'] . ($r['error'] ? ': ' . $r['error'] : '');
+    $details[] = ['host' => $host, 'code' => $r['code'], 'ok' => false];
+    if (!empty($s['id'])) {
+        try {
+            $pdo->prepare("UPDATE push_subs SET fails = fails + 1 WHERE id = ?")->execute([$s['id']]);
+            $pdo->prepare("DELETE FROM push_subs WHERE id = ? AND fails >= 5")->execute([$s['id']]);
+        } catch (Exception $e) {}
+    }
+}
+
+/**
+ * Отправить пустой пуш сразу по МНОГИМ подпискам параллельно (curl_multi).
+ * $subs — строки с полями id, endpoint. Раньше слали строго по одной подряд:
+ * группа на 30 человек занимала воркер на несколько секунд. Теперь — все разом.
+ */
+function pushSendMany(PDO $pdo, array $subs, array $keys) {
+    $sent = 0; $removed = 0; $errors = []; $details = [];
+    if (!$subs) return ['sent' => 0, 'removed' => 0, 'errors' => [], 'details' => []];
+    // Нет curl_multi — запасной путь по одной, поведение прежнее.
+    if (!function_exists('curl_multi_init')) {
+        foreach ($subs as $s) {
+            $r = pushSendOne($pdo, (string)$s['endpoint'], $keys);
+            pushApplyResult($pdo, $s, $r, $sent, $removed, $errors, $details);
+        }
+        return ['sent' => $sent, 'removed' => $removed, 'errors' => $errors, 'details' => $details];
+    }
+    $mh = curl_multi_init();
+    $handles = [];
+    foreach ($subs as $s) {
+        $ch = pushBuildHandle((string)$s['endpoint'], $keys);
+        if (!$ch) { $errors[] = 'не удалось подписать запрос'; continue; }
+        curl_multi_add_handle($mh, $ch);
+        $handles[] = ['ch' => $ch, 'sub' => $s];
+    }
+    do {
+        $status = curl_multi_exec($mh, $running);
+        if ($running) curl_multi_select($mh, 1.0);
+    } while ($running && $status === CURLM_OK);
+    foreach ($handles as $h) {
+        $ch = $h['ch'];
+        $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $err = curl_error($ch);
+        $resp = curl_multi_getcontent($ch);
+        $r = ['ok' => $code >= 200 && $code < 300, 'code' => $code,
+              'gone' => in_array($code, [404, 410], true),
+              'error' => $err ?: (($code >= 400) ? substr((string)$resp, 0, 200) : null)];
+        pushApplyResult($pdo, $h['sub'], $r, $sent, $removed, $errors, $details);
+        curl_multi_remove_handle($mh, $ch);
+        curl_close($ch);
+    }
+    curl_multi_close($mh);
+    return ['sent' => $sent, 'removed' => $removed, 'errors' => $errors, 'details' => $details];
+}
+
+/**
+ * Разослать пуш всем устройствам человека. Возвращает [отправлено, удалено, ошибки].
+ * Вызывается из notify_dispatch.php наравне с почтой и Telegram.
+ */
+function push_send_to_user(PDO $pdo, $userId) {
+    $keys = vapidKeys($pdo);
+    if (!$keys) return ['sent' => 0, 'removed' => 0, 'errors' => ['нет ключей VAPID']];
+    try {
+        $st = $pdo->prepare("SELECT id, endpoint FROM push_subs WHERE user_id = ? LIMIT 20");
+        $st->execute([$userId]);
+        $subs = $st->fetchAll(PDO::FETCH_ASSOC);
+    } catch (Exception $e) { return ['sent' => 0, 'removed' => 0, 'errors' => [$e->getMessage()]]; }
+    // Устройства одного человека отправляем параллельно (обычно 1–3, но не блокируем).
+    return pushSendMany($pdo, $subs, $keys);
+}
+
+/**
+ * Когда этому человеку последний раз успешно уходил пуш (или null).
+ * Нужно рассылке: если пуш уже ушёл сразу после сообщения (см. action=poke),
+ * второй раз через несколько минут он лишний — то же самое уведомление во
+ * второй раз, а если человек уже всё прочитал, то и вовсе пустое.
+ */
+function push_last_ok(PDO $pdo, $userId) {
+    try {
+        $st = $pdo->prepare("SELECT MAX(last_ok) FROM push_subs WHERE user_id = ?");
+        $st->execute([$userId]);
+        $v = $st->fetchColumn();
+        return $v ? (string)$v : null;
+    } catch (Exception $e) { return null; }
+}
+
+/** Сколько устройств подключено. Ноль — значит push этому человеку не канал вовсе. */
+function push_device_count(PDO $pdo, $userId) {
+    try {
+        $st = $pdo->prepare("SELECT COUNT(*) FROM push_subs WHERE user_id = ?");
+        $st->execute([$userId]);
+        return (int)$st->fetchColumn();
+    } catch (Exception $e) { return 0; }
+}
+
+/**
+ * Отдать ответ клиенту и продолжить работу в фоне.
+ * Пуши по группе на 20 человек — это 20 обращений к службам доставки; ждать их
+ * в момент отправки сообщения нельзя, иначе «отправить» начнёт подвисать.
+ */
+function push_flush_response() {
+    @ignore_user_abort(true);
+    if (function_exists('fastcgi_finish_request')) { @fastcgi_finish_request(); return true; }
+    while (ob_get_level() > 0) { @ob_end_flush(); }
+    @flush();
+    return false;
+}
+
+/** Пуш всем участникам группы, кроме автора сообщения — одним параллельным пакетом. */
+function push_notify_group(PDO $pdo, $groupId, $senderId, $limit = 30) {
+    $keys = vapidKeys($pdo);
+    if (!$keys) return 0;
+    // Берём подписки всех участников разом (JOIN), а не по одному человеку в цикле:
+    // раньше группа на 30 человек держала воркер несколько секунд подряд.
+    try {
+        $st = $pdo->prepare("SELECT s.id, s.endpoint
+                             FROM chat_group_members m
+                             JOIN push_subs s ON s.user_id = m.user_id
+                             WHERE m.group_id = ? AND m.user_id <> ? LIMIT 500");
+        $st->execute([$groupId, $senderId]);
+        $subs = $st->fetchAll(PDO::FETCH_ASSOC);
+        $r = pushSendMany($pdo, $subs, $keys);
+        return (int)$r['sent'];
+    } catch (Exception $e) {
+        // JOIN не удался (например, рассогласование collation) — запасной путь по одному.
+        try {
+            $st = $pdo->prepare("SELECT user_id FROM chat_group_members WHERE group_id = ? AND user_id <> ? LIMIT $limit");
+            $st->execute([$groupId, $senderId]);
+            $ids = $st->fetchAll(PDO::FETCH_COLUMN);
+        } catch (Exception $e2) { return 0; }
+        $n = 0;
+        foreach ($ids as $uid) { try { $rr = push_send_to_user($pdo, $uid); $n += (int)$rr['sent']; } catch (Exception $e3) {} }
+        return $n;
+    }
+}
+
+// ── Дальше — обработка запросов страницы ─────────────────────────────────────
+if ($PUSH_LIB_ONLY) return;      // подключили ради функции отправки — на этом всё
+
+$action = $_GET['action'] ?? '';
+$body = ($_SERVER['REQUEST_METHOD'] === 'POST') ? (json_decode(file_get_contents('php://input'), true) ?: []) : [];
+
+if ($action === 'key') {
+    $keys = vapidKeys($pdo);
+    if (!$keys) pushOut(['ok' => false, 'error' => 'На сервере недоступен OpenSSL с кривой P-256 — push невозможен'], 500);
+    pushOut(['ok' => true, 'key' => $keys['public']]);
+}
+
+if ($action === 'status') {
+    $keys = vapidKeys($pdo);
+    $cnt = 0;
+    if ($userId) {
+        try {
+            $st = $pdo->prepare("SELECT COUNT(*) FROM push_subs WHERE user_id = ?");
+            $st->execute([$userId]);
+            $cnt = (int)$st->fetchColumn();
+        } catch (Exception $e) {}
+    }
+    pushOut(['ok' => true, 'ready' => (bool)$keys, 'devices' => $cnt,
+             'table_error' => $pushErr ?: null]);
+}
+
+if (!$userId) pushOut(['ok' => false, 'error' => 'Требуется авторизация'], 401);
+
+if ($action === 'subscribe' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    $endpoint = trim((string)($body['endpoint'] ?? ''));
+    if ($endpoint === '' || !preg_match('~^https://~i', $endpoint)) {
+        pushOut(['ok' => false, 'error' => 'Некорректная подписка'], 400);
+    }
+    $p256 = substr((string)(($body['keys']['p256dh'] ?? '')), 0, 190);
+    $auth = substr((string)(($body['keys']['auth'] ?? '')), 0, 90);
+    $ua = substr((string)($_SERVER['HTTP_USER_AGENT'] ?? ''), 0, 250);
+    try {
+        // Один и тот же endpoint может прийти повторно (переустановка, смена аккаунта) —
+        // тогда он должен принадлежать тому, кто подписался последним.
+        $st = $pdo->prepare("SELECT id FROM push_subs WHERE endpoint = ? LIMIT 1");
+        $st->execute([$endpoint]);
+        $id = $st->fetchColumn();
+        if ($id) {
+            $pdo->prepare("UPDATE push_subs SET user_id = ?, p256dh = ?, auth = ?, ua = ?, fails = 0 WHERE id = ?")
+                ->execute([$userId, $p256, $auth, $ua, $id]);
+        } else {
+            $pdo->prepare("INSERT INTO push_subs (user_id, endpoint, p256dh, auth, ua, created_at)
+                            VALUES (?, ?, ?, ?, ?, NOW())")
+                ->execute([$userId, $endpoint, $p256, $auth, $ua]);
+        }
+    } catch (Exception $e) { pushOut(['ok' => false, 'error' => $e->getMessage()], 500); }
+    pushOut(['ok' => true]);
+}
+
+if ($action === 'unsubscribe' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    $endpoint = trim((string)($body['endpoint'] ?? ''));
+    try { $pdo->prepare("DELETE FROM push_subs WHERE endpoint = ? AND user_id = ?")->execute([$endpoint, $userId]); }
+    catch (Exception $e) {}
+    pushOut(['ok' => true]);
+}
+
+if ($action === 'pending') {
+    // Это спрашивает сервис-воркер, получив пустой пуш: что именно показать.
+    // Звонок важнее сообщений: если человеку прямо сейчас звонят, показываем вызов,
+    // а не «новое сообщение» — иначе о звонке он узнает только открыв сайт.
+    try {
+        $st = $pdo->prepare("SELECT c.kind, u.first_name, u.last_name
+                             FROM rtc_calls c LEFT JOIN users u ON u.id = c.from_id
+                             WHERE c.to_id = ? AND c.status = 'ringing'
+                               AND c.created_at > DATE_SUB(NOW(), INTERVAL 60 SECOND)
+                             ORDER BY c.id DESC LIMIT 1");
+        $st->execute([$userId]);
+        if ($call = $st->fetch(PDO::FETCH_ASSOC)) {
+            $who = trim((($call['first_name'] ?? '') . ' ' . ($call['last_name'] ?? ''))) ?: 'Собеседник';
+            pushOut(['ok' => true, 'count' => 0, 'call' => true,
+                     'title' => $who,
+                     'body' => 'Входящий звонок — нажмите, чтобы ответить',
+                     'url' => '/chat.html']);
+        }
+    } catch (Exception $e) { /* таблицы звонков может ещё не быть */ }
+
+    // Созревшее напоминание важнее обычного «новое сообщение»: человек сам просил
+    // напомнить в это время. Показываем его текстом со ссылкой на нужный чат.
+    if (@file_exists(__DIR__ . '/reminders.php')) {
+        try {
+            require_once __DIR__ . '/reminders.php';
+            if (function_exists('reminders_pending_for')) {
+                $rem = reminders_pending_for($pdo, $userId);
+                if ($rem) pushOut(['ok' => true, 'count' => 0, 'title' => $rem['title'], 'body' => $rem['body'], 'url' => $rem['url']]);
+            }
+        } catch (\Throwable $e) {}
+    }
+
+    // Короткий и «чистый» текст сообщения для уведомления: убираем служебные
+    // метки, схлопываем пробелы, режем длину; пустой текст (вложение) — значком.
+    $prev = function ($text) {
+        $t = preg_replace('/^\s*\[RE#[0-9A-Za-z]+\]\s*/', '', (string)$text);
+        $t = preg_replace('/^\s*\[ORDER#\d+\]\s*/', '', (string)$t);
+        $t = preg_replace('/^\s*\[\[sticker:([^\]]{1,12})\]\]\s*$/u', '$1', (string)$t);   // стикер → эмодзи
+        $t = preg_replace('/^\s*\[\[poll:\d+\]\]\s*$/', '📊 Опрос', (string)$t);
+        $t = trim(preg_replace('/\s+/u', ' ', (string)$t));
+        if ($t === '') return '📎 Вложение';
+        return (function_exists('mb_strlen') && mb_strlen($t) > 90) ? mb_substr($t, 0, 90) . '…' : $t;
+    };
+
+    // Личные: общий счёт (для бейджа) и самое свежее сообщение (для текста).
+    $cnt = 0;
+    try {
+        $st = $pdo->prepare("SELECT COUNT(*) FROM messages m
+                              WHERE m.receiver_id = ? AND m.sender_id <> ?
+                                AND NOT EXISTS (SELECT 1 FROM messages r
+                                    WHERE r.sender_id = m.receiver_id AND r.receiver_id = m.sender_id AND r.created_at > m.created_at)
+                                AND m.created_at > DATE_SUB(NOW(), INTERVAL 24 HOUR)");
+        $st->execute([$userId, $userId]);
+        $cnt = (int)$st->fetchColumn();
+    } catch (Exception $e) {}
+    $latestP = null;
+    try {
+        $st = $pdo->prepare("SELECT m.sender_id, m.content, m.created_at, u.first_name, u.last_name
+                              FROM messages m LEFT JOIN users u ON u.id = m.sender_id
+                              WHERE m.receiver_id = ? AND m.sender_id <> ?
+                                AND NOT EXISTS (SELECT 1 FROM messages r
+                                    WHERE r.sender_id = m.receiver_id AND r.receiver_id = m.sender_id AND r.created_at > m.created_at)
+                                AND m.created_at > DATE_SUB(NOW(), INTERVAL 24 HOUR)
+                              ORDER BY m.created_at DESC LIMIT 1");
+        $st->execute([$userId, $userId]);
+        $latestP = $st->fetch(PDO::FETCH_ASSOC) ?: null;
+    } catch (Exception $e) {}
+
+    // Группы: счёт и самое свежее непрочитанное сообщение.
+    $grp = 0; $latestG = null;
+    try {
+        $st = $pdo->prepare("SELECT COUNT(*) FROM chat_group_messages gm
+                              JOIN chat_group_members me ON me.group_id = gm.group_id AND me.user_id = ?
+                              WHERE gm.sender_id <> ? AND gm.id > COALESCE(me.last_read_message_id, 0)");
+        $st->execute([$userId, $userId]);
+        $grp = (int)$st->fetchColumn();
+    } catch (Exception $e) {}
+    try {
+        $st = $pdo->prepare("SELECT gm.group_id, gm.content, gm.created_at, gm.sender_id, u.first_name, u.last_name
+                              FROM chat_group_messages gm
+                              JOIN chat_group_members me ON me.group_id = gm.group_id AND me.user_id = ?
+                              LEFT JOIN users u ON u.id = gm.sender_id
+                              WHERE gm.sender_id <> ? AND gm.id > COALESCE(me.last_read_message_id, 0)
+                              ORDER BY gm.id DESC LIMIT 1");
+        $st->execute([$userId, $userId]);
+        $latestG = $st->fetch(PDO::FETCH_ASSOC) ?: null;
+    } catch (Exception $e) {}
+
+    $total = $cnt + $grp;
+    if ($total <= 0) pushOut(['ok' => true, 'count' => 0, 'title' => 'psytalk.pro', 'body' => 'Загляните в чаты', 'url' => '/chat.html']);
+
+    // Заголовок и текст — по самому свежему сообщению (личному или групповому).
+    $useGroup = ($latestG && (!$latestP || strtotime((string)$latestG['created_at']) > strtotime((string)$latestP['created_at'])));
+    $title = 'psytalk.pro'; $bodyTxt = 'Новое сообщение'; $url = '/chat.html'; $canReply = false;
+    $peer = ''; $kind = '';   // для быстрых ответов из уведомления: кому и каким путём слать
+    if ($useGroup && $latestG) {
+        $gname = 'Группа';
+        try { $g = $pdo->prepare("SELECT * FROM chat_groups WHERE id = ? LIMIT 1"); $g->execute([$latestG['group_id']]);
+              $gr = $g->fetch(PDO::FETCH_ASSOC) ?: []; $gname = trim((string)($gr['name'] ?? ($gr['title'] ?? ''))) ?: 'Группа'; } catch (Exception $e) {}
+        $sender = trim((($latestG['first_name'] ?? '') . ' ' . ($latestG['last_name'] ?? ''))) ?: 'Участник';
+        $title = $gname;
+        $bodyTxt = $sender . ': ' . $prev($latestG['content']);
+        $url = '/chat.html?open=group:' . rawurlencode((string)$latestG['group_id']);
+        $canReply = true; $peer = 'group:' . (string)$latestG['group_id']; $kind = 'group';
+    } elseif ($latestP) {
+        $title = trim((($latestP['first_name'] ?? '') . ' ' . ($latestP['last_name'] ?? ''))) ?: 'Собеседник';
+        $bodyTxt = $prev($latestP['content']);
+        $url = '/chat.html?open=' . rawurlencode((string)$latestP['sender_id']);
+        $canReply = true; $peer = (string)$latestP['sender_id']; $kind = 'msg';
+    }
+    // Есть ещё непрочитанные помимо показанного — намекнём цифрой.
+    if ($total > 1) $bodyTxt .= '  ·  +' . ($total - 1);
+
+    // quick_replies — только для одиночного диалога: в общем «+N» непонятно, кому слать.
+    $quick = ($canReply && $total === 1) ? true : false;
+    $qr = [];
+    if ($quick) {
+        $pair = ['👍 Ок', 'Отвечу позже 🙏'];
+        if (@file_exists(__DIR__ . '/status.php')) {
+            try { require_once __DIR__ . '/status.php'; if (function_exists('status_quick_replies')) $pair = status_quick_replies($pdo, $userId); }
+            catch (\Throwable $e) {}
+        }
+        $qr = [['id' => 'qr0', 'title' => $pair[0], 'text' => $pair[0]],
+               ['id' => 'qr1', 'title' => $pair[1], 'text' => $pair[1]]];
+    }
+    pushOut(['ok' => true, 'count' => $total, 'title' => $title, 'body' => $bodyTxt,
+             'url' => $url, 'can_reply' => $canReply, 'reply_url' => $canReply ? ($url . '&reply=1') : null,
+             'peer' => $peer, 'kind' => $kind, 'quick' => $quick, 'quick_replies' => $qr]);
+}
+
+/**
+ * Толчок: «я только что написал этому человеку — пришли ему пуш сейчас».
+ * Иначе уведомление ждало бы рассылки: она пропускает сообщения свежее пяти
+ * минут (человек, скорее всего, в диалоге) и запускается не чаще раза в четыре
+ * минуты. До девяти минут задержки в переписке — это и читалось как «приходят
+ * через раз».
+ *
+ * Позвать может только тот, кто действительно только что написал получателю:
+ * проверяем это по самой переписке, поэтому дёрнуть уведомление незнакомому
+ * человеку не получится.
+ */
+/**
+ * Толчок для звонка. Обычный poke требует свежего сообщения получателю, которого
+ * при звонке нет, поэтому право на пуш проверяем по самому звонку: разбудить можно
+ * только того, кому ты прямо сейчас звонишь.
+ */
+if ($action === 'poke-call' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    $to = trim((string)($body['to'] ?? ''));
+    if ($to === '' || $to === (string)$userId) pushOut(['ok' => false, 'error' => 'Некому'], 400);
+    try {
+        $st = $pdo->prepare("SELECT 1 FROM rtc_calls
+                             WHERE from_id = ? AND to_id = ? AND status = 'ringing'
+                               AND created_at > DATE_SUB(NOW(), INTERVAL 60 SECOND) LIMIT 1");
+        $st->execute([$userId, $to]);
+        if (!$st->fetchColumn()) pushOut(['ok' => false, 'error' => 'Нет активного вызова этому человеку'], 403);
+    } catch (Exception $e) { pushOut(['ok' => false, 'error' => 'Звонки недоступны'], 500); }
+    $r = push_send_to_user($pdo, $to);
+    pushOut(['ok' => true, 'sent' => $r['sent'], 'removed' => $r['removed']]);
+}
+
+if ($action === 'poke' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    $to = trim((string)($body['to'] ?? ''));
+    if ($to === '' || $to === (string)$userId) pushOut(['ok' => false, 'error' => 'Некому'], 400);
+    $wrote = false;
+    try {
+        $st = $pdo->prepare("SELECT 1 FROM messages
+                              WHERE sender_id = ? AND receiver_id = ?
+                                AND created_at > DATE_SUB(NOW(), INTERVAL 3 MINUTE) LIMIT 1");
+        $st->execute([$userId, $to]);
+        $wrote = (bool)$st->fetchColumn();
+    } catch (Exception $e) {}
+    if (!$wrote) pushOut(['ok' => false, 'error' => 'Нет свежего сообщения этому получателю'], 403);
+
+    // Автоответ получателя. Ядро сообщений серверное, поэтому ловим момент здесь:
+    // poke зовёт именно тот, кто только что написал получателю. Если у получателя
+    // включён автоответ — один раз в 4 часа шлём его отправителю и будим пушем.
+    try {
+        if (@file_exists(__DIR__ . '/status.php')) require_once __DIR__ . '/status.php';
+        if (@file_exists(__DIR__ . '/rate_limit.php')) require_once __DIR__ . '/rate_limit.php';
+        if (@file_exists(__DIR__ . '/rtc_lib.php')) require_once __DIR__ . '/rtc_lib.php';
+        if (function_exists('status_get_row') && function_exists('rtcSendDm')) {
+            $srow = status_get_row($pdo, $to);
+            $arText = $srow ? trim((string)($srow['auto_reply'] ?? '')) : '';
+            if ($srow && (int)($srow['auto_reply_on'] ?? 0) === 1 && $arText !== ''
+                && (!function_exists('psyRateLimit') || psyRateLimit($pdo, 'autoreply:' . $to . ':' . $userId, 1, 14400))) {
+                rtcSendDm($pdo, $to, $userId, $arText);
+                try { push_send_to_user($pdo, $userId); } catch (\Throwable $e) {}
+            }
+        }
+    } catch (\Throwable $e) {}
+
+    // Не чаще раза в 20 секунд на пару: при быстрой переписке иначе полетит
+    // по пушу на каждую реплику, а уведомление и так одно (одинаковый tag).
+    $last = push_last_ok($pdo, $to);
+    if ($last && strtotime($last) > time() - 20) pushOut(['ok' => true, 'skipped' => 'недавно уже отправляли']);
+
+    $r = push_send_to_user($pdo, $to);
+    pushOut(['ok' => true, 'sent' => $r['sent'], 'removed' => $r['removed']]);
+}
+
+if ($action === 'test' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    $r = push_send_to_user($pdo, $userId);
+    pushOut(['ok' => $r['sent'] > 0, 'sent' => $r['sent'], 'removed' => $r['removed'],
+             'errors' => $r['errors'],
+             // Куда и с каким кодом ушло — чтобы «отправили, а не пришло» можно
+             // было разобрать, а не гадать про чужой телефон.
+             'details' => $r['details'] ?? [],
+             'hint' => $r['sent'] > 0 ? null : 'Подписки нет или служба доставки отказала — включите уведомления в чате']);
+}
+
+pushOut(['ok' => false, 'error' => 'Неизвестное действие'], 400);

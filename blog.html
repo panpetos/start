@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
+    <title>Блог — psytalk.pro</title>
+    <link rel="stylesheet" href="/css/styles.css?v=20260823d">
+    <script src="/js/netguard.js?v=20260821c"></script>
+    <script src="/js/layout.js?v=20260921b"></script>
+    <script src="/js/lightbox.js?v=11"></script>
+    <link rel="preconnect" href="https://unpkg.com">
+    <script defer src="https://unpkg.com/lucide@1.41.0/dist/umd/lucide.min.js"></script>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', -apple-system, sans-serif; background: #FAFAFA; min-height: 100vh; display: flex; flex-direction: column; color: #1A1A1A; }
+        main { flex: 1; }
+        .container { max-width: 1100px; margin: 0 auto; padding: 0 1.5rem; }
+
+        /* Hero */
+        .hero {
+            background: linear-gradient(135deg, #047857 0%, #059669 60%, #6EE7B7 100%);
+            padding: 3.5rem 1rem 4rem; text-align: center; color: white;
+        }
+        .hero h1 { font-size: clamp(1.75rem, 4vw, 2.5rem); font-weight: 800; letter-spacing: -0.03em; margin-bottom: 0.6rem; }
+        .hero p { font-size: 1rem; opacity: 0.88; max-width: 480px; margin: 0 auto; line-height: 1.6; }
+
+        /* Articles grid */
+        .articles {
+            display: grid;
+            /* min(300px, 100%) вместо жёстких 300px: иначе на экране 320px колонка
+               остаётся 300px + отступы контейнера, и карточка обрезается по краю. */
+            grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr));
+            gap: 1.5rem;
+            margin-top: -2rem;
+            padding: 0 0 4rem;
+        }
+        .article-card {
+            background: white; border-radius: 1.25rem; overflow: hidden;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.06); border: 1px solid #EFF7F3;
+            transition: transform 0.2s, box-shadow 0.2s; display: flex; flex-direction: column;
+        }
+        .article-card:hover { transform: translateY(-4px); box-shadow: 0 10px 36px rgba(4,120,87,0.12); }
+        .article-thumb {
+            height: 160px; display: flex; align-items: center; justify-content: center;
+            font-size: 3rem;
+        }
+        .article-body { padding: 1.25rem 1.5rem 1.5rem; flex: 1; display: flex; flex-direction: column; }
+        .article-tag {
+            display: inline-block; background: #D1FAE5; color: #047857;
+            font-size: 0.75rem; font-weight: 600; padding: 0.2rem 0.6rem; border-radius: 2rem;
+            margin-bottom: 0.625rem;
+        }
+        .article-title { font-size: 1.0625rem; font-weight: 700; color: #1A1A1A; line-height: 1.4; margin-bottom: 0.5rem; }
+        .article-excerpt { font-size: 0.875rem; color: #6B7280; line-height: 1.6; flex: 1; margin-bottom: 1rem; }
+        .article-meta { display: flex; align-items: center; justify-content: space-between; font-size: 0.8rem; color: #9CA3AF; }
+        .read-link { color: #047857; font-weight: 600; text-decoration: none; font-size: 0.875rem; }
+        .read-link:hover { text-decoration: underline; }
+
+        /* Soon banner */
+        .soon-banner {
+            background: linear-gradient(135deg, #D1FAE5, #D1FAE5);
+            border-radius: 1.5rem; padding: 2rem 2.5rem; text-align: center; margin: 2.5rem 0 4rem;
+        }
+        .soon-banner h2 { font-size: 1.375rem; font-weight: 700; color: #047857; margin-bottom: 0.5rem; }
+        .soon-banner p { color: #6B7280; font-size: 0.9375rem; line-height: 1.6; max-width: 420px; margin: 0 auto 1.25rem; }
+        .btn-subscribe {
+            display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.75rem 1.75rem;
+            background: linear-gradient(135deg, #047857, #059669);
+            color: white; text-decoration: none; border-radius: 0.75rem; font-weight: 700; font-size: 0.9375rem;
+            box-shadow: 0 4px 14px rgba(4,120,87,0.3); transition: all 0.2s; border: none; cursor: pointer; font-family: inherit;
+        }
+        .btn-subscribe:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(4,120,87,0.45); color: white; }
+
+        body.dark { background: #191919 !important; color: #E6E6E6 !important; }
+        body.dark .article-card { background: #252525; border-color: #333; }
+        body.dark .article-card:hover { box-shadow: 0 10px 36px rgba(0,0,0,0.3); }
+        body.dark .article-tag { background: #0B3B2E; color: #6EE7B7; }
+        body.dark .article-title { color: #E6E6E6; }
+        body.dark .article-excerpt { color: #A8A8A8; }
+        body.dark .article-meta { color: #9A9A9A; }
+        body.dark .read-link { color: #6EE7B7; }
+        body.dark .soon-banner { background: linear-gradient(135deg, #0B3B2E, #10402F); }
+        body.dark .soon-banner p { color: #999; }
+
+        /* Модалка подписки */
+        .sub-backdrop { display: none; position: fixed; inset: 0; background: rgba(15,23,42,0.55);
+            z-index: 1000; align-items: center; justify-content: center; padding: 1rem; }
+        .sub-backdrop.open { display: flex; }
+        .sub-modal { background: #fff; border-radius: 1.25rem; padding: 1.75rem 1.75rem 1.5rem;
+            width: 100%; max-width: 420px; position: relative; box-shadow: 0 20px 60px rgba(0,0,0,0.25); }
+        .sub-modal h3 { font-size: 1.25rem; font-weight: 700; color: #1A1A1A; margin: 0 0 0.35rem; }
+        .sub-sub { font-size: 0.875rem; color: #6B7280; margin: 0 0 1rem; line-height: 1.5; }
+        .sub-input { width: 100%; padding: 0.75rem 0.9rem; border: 1px solid #E5E7EB; border-radius: 0.75rem;
+            font-size: 0.95rem; font-family: inherit; margin-bottom: 0.85rem; box-sizing: border-box; }
+        .sub-input:focus { outline: none; border-color: #047857; box-shadow: 0 0 0 3px rgba(4,120,87,0.12); }
+        .sub-consent { display: flex; gap: 0.55rem; align-items: flex-start; font-size: 0.8125rem;
+            color: #6B7280; line-height: 1.45; margin-bottom: 0.85rem; cursor: pointer; }
+        .sub-consent input { margin-top: 0.15rem; flex-shrink: 0; width: 1rem; height: 1rem; accent-color: #047857; }
+        .sub-consent a { color: #047857; }
+        .sub-captcha { margin-bottom: 0.85rem; min-height: 0; }
+        .sub-close { position: absolute; top: 0.75rem; right: 1rem; background: none; border: none;
+            font-size: 1.6rem; line-height: 1; color: #9CA3AF; cursor: pointer; }
+        .sub-msg { font-size: 0.85rem; margin-top: 0.75rem; text-align: center; min-height: 1.1em; }
+        .sub-msg.err { color: #DC2626; }
+        .sub-msg.ok { color: #047857; }
+        body.dark .sub-modal { background: #252525; }
+        body.dark .sub-modal h3 { color: #E6E6E6; }
+        body.dark .sub-input { background: #1b1b1b; border-color: #3a3a3a; color: #E6E6E6; }
+        body.dark .sub-consent, body.dark .sub-sub { color: #A8A8A8; }
+    </style>
+</head>
+<body>
+    <script>psyWriteHeader();</script>
+    <main>
+        <section class="hero">
+            <h1>Блог psytalk.pro</h1>
+            <p>Полезные статьи о психологии, ментальном здоровье и личностном росте</p>
+        </section>
+
+        <div class="container">
+            <div class="articles" id="articlesGrid"></div>
+
+            <div class="soon-banner">
+                <h2>✍️ Новые статьи каждую неделю</h2>
+                <p>Подпишитесь, чтобы получать полезные материалы о психологии и ментальном здоровье прямо на почту.</p>
+                <button class="btn-subscribe" onclick="openSubscribe()">
+                    Подписаться на рассылку
+                </button>
+            </div>
+        </div>
+    </main>
+
+    <!-- Модалка подписки: email + согласие (152-ФЗ/38-ФЗ) + Яндекс SmartCaptcha -->
+    <div id="subBackdrop" class="sub-backdrop" onclick="if(event.target===this)closeSubscribe()">
+        <div class="sub-modal" role="dialog" aria-modal="true" aria-labelledby="subTitle">
+            <button class="sub-close" onclick="closeSubscribe()" aria-label="Закрыть">×</button>
+            <h3 id="subTitle">Подписка на рассылку</h3>
+            <p class="sub-sub">Будем присылать новые статьи о психологии. Отписаться можно в любой момент.</p>
+            <input type="email" id="subEmail" class="sub-input" placeholder="Ваш email" autocomplete="email">
+            <label class="sub-consent">
+                <input type="checkbox" id="subConsent">
+                <span>Я соглашаюсь на <a href="/privacy.html" target="_blank" rel="noopener">обработку персональных данных</a> и получение рекламно-информационной рассылки.</span>
+            </label>
+            <div id="subCaptcha" class="sub-captcha"></div>
+            <button class="btn-subscribe" id="subSubmit" onclick="submitSubscribe()" style="width:100%;justify-content:center;margin-top:0.25rem;">Подписаться</button>
+            <div id="subMsg" class="sub-msg"></div>
+        </div>
+    </div>
+    <script>psyWriteFooter();</script>
+    <script src="/js/articles.js?v=20260821"></script>
+    <script>
+        function esc(s){ const d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
+
+        const GRADS = ['linear-gradient(135deg,#D1FAE5,#D1FAE5)','linear-gradient(135deg,#DBEAFE,#E0E7FF)',
+            'linear-gradient(135deg,#DCFCE7,#D1FAE5)','linear-gradient(135deg,#FEF3C7,#FDE68A)',
+            'linear-gradient(135deg,#FCE7F3,#FBCFE8)','linear-gradient(135deg,#CFFAFE,#E0F2FE)'];
+        function gradFor(key){ let h=0,s=String(key); for(let i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))>>>0; return GRADS[h%GRADS.length]; }
+
+        /** Карточка статьи из блога психолога (обложка-картинка либо цветная плашка с эмодзи). */
+        function apiCardHtml(a){
+            const author = `${a.first_name || ''} ${a.last_name || ''}`.trim();
+            const thumb = a.cover_url
+                ? `<div class="article-thumb" style="padding:0;overflow:hidden;"><img src="${esc(a.cover_url)}" alt="" style="width:100%;height:100%;object-fit:cover;"></div>`
+                : `<div class="article-thumb" style="background:${gradFor(a.slug || a.id)};">📝</div>`;
+            return `
+                <a class="article-card" href="/article.html?slug=${encodeURIComponent(a.slug)}" style="text-decoration:none;color:inherit;">
+                    ${thumb}
+                    <div class="article-body">
+                        <span class="article-tag">${esc(a.tag || 'Статья')}</span>
+                        <div class="article-title">${esc(a.title)}</div>
+                        <div class="article-excerpt">${esc(a.excerpt || '')}</div>
+                        <div class="article-meta">
+                            <span>${author ? esc(author) : 'Психолог psytalk.pro'}</span>
+                            <span class="read-link">Читать →</span>
+                        </div>
+                    </div>
+                </a>`;
+        }
+        function staticCardHtml(a){
+            return `
+                <a class="article-card" href="/article.html?id=${encodeURIComponent(a.id)}" style="text-decoration:none;color:inherit;">
+                    <div class="article-thumb" style="background:${a.grad};">${a.emoji}</div>
+                    <div class="article-body">
+                        <span class="article-tag">${esc(a.tag)}</span>
+                        <div class="article-title">${esc(a.title)}</div>
+                        <div class="article-excerpt">${esc(a.excerpt)}</div>
+                        <div class="article-meta">
+                            <span>${esc(a.read)} · Статья</span>
+                            <span class="read-link">Читать →</span>
+                        </div>
+                    </div>
+                </a>`;
+        }
+
+        // Статьи психологов из БД идут первыми, редакционные (js/articles.js) — после них.
+        (async function renderArticles(){
+            let apiRows = [];
+            try {
+                const r = await (await fetch('/api/blog.php?action=list&limit=60')).json();
+                if (r && r.ok) apiRows = r.data || [];
+            } catch(e) {}
+            const staticRows = window.PSY_ARTICLES || [];
+            document.getElementById('articlesGrid').innerHTML =
+                apiRows.map(apiCardHtml).join('') + staticRows.map(staticCardHtml).join('');
+        })();
+
+        // ——— Подписка на рассылку: модалка + согласие + Яндекс SmartCaptcha ———
+        let subSiteKey = null;        // '' = капча не настроена; null = ещё не загружали
+        let subCaptchaId = null;      // id виджета SmartCaptcha
+        let subCaptchaToken = '';     // токен от капчи
+
+        function subSetMsg(text, cls) {
+            const el = document.getElementById('subMsg');
+            el.textContent = text || ''; el.className = 'sub-msg' + (cls ? ' ' + cls : '');
+        }
+
+        async function fetchSiteKey() {
+            if (subSiteKey !== null) return subSiteKey;
+            try {
+                const d = await (await fetch('/api/subscribe.php?action=captcha-sitekey')).json();
+                subSiteKey = (d && d.site_key) ? d.site_key : '';
+            } catch(e) { subSiteKey = ''; }
+            return subSiteKey;
+        }
+
+        function loadSmartCaptchaScript() {
+            return new Promise((resolve) => {
+                if (window.smartCaptcha) return resolve();
+                const s = document.createElement('script');
+                s.src = 'https://smartcaptcha.yandexcloud.net/captcha.js';
+                s.defer = true; s.onload = () => resolve(); s.onerror = () => resolve();
+                document.head.appendChild(s);
+            });
+        }
+
+        async function renderCaptcha() {
+            const key = await fetchSiteKey();
+            const box = document.getElementById('subCaptcha');
+            if (!key) { box.innerHTML = ''; subCaptchaToken = 'nocaptcha'; return; } // капча не настроена — пропускаем
+            await loadSmartCaptchaScript();
+            if (!window.smartCaptcha) { subCaptchaToken = 'nocaptcha'; return; } // скрипт не загрузился — не блокируем
+            box.innerHTML = '';
+            subCaptchaToken = '';
+            subCaptchaId = window.smartCaptcha.render(box, {
+                sitekey: key,
+                callback: (t) => { subCaptchaToken = t; },
+            });
+        }
+
+        async function openSubscribe() {
+            document.getElementById('subBackdrop').classList.add('open');
+            subSetMsg('');
+            document.getElementById('subConsent').checked = false;
+            document.getElementById('subEmail').focus();
+            await renderCaptcha();
+        }
+        function closeSubscribe() {
+            document.getElementById('subBackdrop').classList.remove('open');
+        }
+
+        async function submitSubscribe() {
+            const email = document.getElementById('subEmail').value.trim();
+            const consent = document.getElementById('subConsent').checked;
+            if (!email.includes('@')) { subSetMsg('Введите корректный email.', 'err'); return; }
+            if (!consent) { subSetMsg('Нужно согласие на обработку данных и рассылку.', 'err'); return; }
+            if (subSiteKey && !subCaptchaToken) { subSetMsg('Подтвердите, что вы не робот.', 'err'); return; }
+            const btn = document.getElementById('subSubmit');
+            btn.disabled = true; subSetMsg('Отправляем…');
+            try {
+                const r = await fetch('/api/subscribe.php?action=newsletter', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, consent: true, captcha_token: subCaptchaToken })
+                });
+                const d = await r.json();
+                if (d.ok) {
+                    subSetMsg('Спасибо! Вы подписаны на рассылку.', 'ok');
+                    setTimeout(closeSubscribe, 1500);
+                } else {
+                    subSetMsg(d.error || 'Не удалось подписаться, попробуйте позже.', 'err');
+                    if (subCaptchaId !== null && window.smartCaptcha) window.smartCaptcha.reset(subCaptchaId);
+                    subCaptchaToken = '';
+                }
+            } catch(e) { subSetMsg('Ошибка соединения. Попробуйте позже.', 'err'); }
+            btn.disabled = false;
+        }
+        try { if (window.lucide) lucide.createIcons(); } catch(e) {}
+    </script>
+</body>
+</html>
