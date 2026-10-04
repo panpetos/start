@@ -125,8 +125,13 @@ function robokassaBuildPaymentUrl(PDO $pdo, array $ctx, $invId, string $outSum, 
                 if ($sup['phone'] !== '') $item['supplier_info']['phones'] = [$sup['phone']];
             }
         }
-        $receipt = ['sno' => $receiptCfg['sno'] ?? 'usn_income', 'items' => [$item]];
-        $receiptEnc = urlencode(json_encode($receipt, JSON_UNESCAPED_UNICODE));
+        // sno НЕ передаём: у Робочеков есть ограничения по СНО, поэтому берём систему
+        // налогообложения из настроек магазина в ЛК (по доке sno — необязательное поле).
+        $receipt = ['items' => [$item]];
+        // ВАЖНО: rawurlencode (пробел → %20), а НЕ urlencode (пробел → «+»). Робокасса
+        // при проверке подписи ждёт %20; из-за «+» в названии товара подпись не сходилась
+        // и приходил код 29 «Оплата счетов недоступна».
+        $receiptEnc = rawurlencode(json_encode($receipt, JSON_UNESCAPED_UNICODE));
         $sig = md5("$login:$outSum:$invId:$receiptEnc:$password1");
         $params['Receipt'] = $receiptEnc;
     } else {
