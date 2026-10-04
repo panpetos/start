@@ -143,11 +143,15 @@
         .stat-value { font-size: 2rem; font-weight: 800; color: var(--d-accent); letter-spacing: -0.03em; }
         .stat-label { color: var(--d-text-muted); font-size: 0.875rem; margin-top: 0.375rem; }
 
-        .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(350px, 100%), 1fr)); gap: 1.5rem; align-items: start; }
+        /* Чистая 2-колоночная раскладка кабинета: ровные колонки, выравнивание по верху. */
+        .cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.5rem; align-items: start; }
+        /* Рабочие карточки (записи, сессии) — вперёд и рядом, чтобы были под рукой. */
+        .dash-work { order: -1; }
         /* Длинные списки не раздвигают кабинет — прокручиваются внутри карточки. */
-        .appointments-list, #sessionsBox, #payoutsBox { max-height: 440px; overflow-y: auto; }
+        .appointments-list, #sessionsBox, #payoutsBox { max-height: 60vh; overflow-y: auto; }
         .appointments-list::-webkit-scrollbar, #sessionsBox::-webkit-scrollbar, #payoutsBox::-webkit-scrollbar { width: 7px; }
         .appointments-list::-webkit-scrollbar-thumb, #sessionsBox::-webkit-scrollbar-thumb, #payoutsBox::-webkit-scrollbar-thumb { background: var(--d-border); border-radius: 4px; }
+        @media (max-width: 900px) { .cards { grid-template-columns: 1fr; } }
         .card {
             background: var(--d-panel); border-radius: 1.25rem; padding: 1.75rem;
             box-shadow: 0 2px 12px rgba(0,0,0,0.06); border: 1px solid var(--d-border);
@@ -332,7 +336,7 @@
                 </a>
             </div>
 
-            <div class="card">
+            <div class="card dash-work">
                 <h2>
                     <i data-lucide="clock" style="width: 24px; height: 24px;"></i>
                     Ближайшие записи
@@ -344,7 +348,7 @@
 
             <!-- Сессии: оплаченные заказы, которые психолог принимает, проводит и завершает.
                  Вознаграждение идёт в баланс только после завершённой и подтверждённой сессии. -->
-            <div class="card">
+            <div class="card dash-work">
                 <h2>
                     <i data-lucide="calendar-check" style="width: 24px; height: 24px;"></i>
                     Мои сессии
