@@ -659,6 +659,15 @@
                 // чтобы они не выглядели как бронь. Не блокируем загрузку, если не удалось.
                 try { await fetch('/api/sessions.php?action=tick', { method: 'POST', credentials: 'include' }); } catch (e) {}
 
+                // Карта реально оплаченных записей (есть успешный платёж). Статус записи
+                // сам по себе ненадёжен — бывали 'scheduled' без оплаты. По этой карте
+                // решаем: «Начать диалог» (оплачено) или «Оплатить» (нет).
+                let paidSet = new Set();
+                try {
+                    const pm = await (await fetch('/api/sessions.php?action=paid-map', { method: 'POST', credentials: 'include' })).json();
+                    if (pm && pm.ok && Array.isArray(pm.paid)) paidSet = new Set(pm.paid.map(String));
+                } catch (e) {}
+
                 try {
                     const response = await fetch('/api/appointments.php?action=my', {
                         credentials: 'include'
@@ -713,6 +722,8 @@
                         // отменить запись было нельзя, потому что проверка требовала
                         // строгого равенства 'scheduled'.
                         const st = a.status || 'scheduled';
+                        // Главный признак — РЕАЛЬНАЯ оплата (есть успешный платёж), а не статус.
+                        const isPaid = paidSet.has(String(a.id));
 
                         let statusClass = 'status-scheduled';
                         let statusText = 'Запланировано';
@@ -722,25 +733,26 @@
                         } else if (st === 'cancelled') {
                             statusClass = 'status-cancelled';
                             statusText = 'Отменено';
-                        } else if (st === 'pending_payment' || st === 'pending') {
+                        } else if (!isPaid) {
+                            // Не оплачено (в т.ч. если запись почему-то 'scheduled' без оплаты).
                             statusClass = 'status-cancelled';
                             statusText = '⏳ Ждёт оплаты';
                         }
 
                         const past = apptIsPast(a);
-                        // Время прошло, а в базе всё ещё «запланировано» — статус там
-                        // никто не переставляет. Не выдаём это за предстоящую сессию.
-                        if (past && (st === 'scheduled' || st === 'pending_payment' || st === 'pending')) {
+                        if (past && st !== 'completed' && st !== 'cancelled') {
                             statusClass = 'status-completed';
-                            statusText = 'Прошла';
+                            statusText = isPaid ? 'Прошла' : 'Не оплачена';
                         }
-                        const canCancel = !past && (st === 'scheduled' || st === 'pending_payment' || st === 'pending')
+                        const canCancel = !past && st !== 'cancelled' && st !== 'completed'
                             && new Date(a.date_time) > new Date();
                         const hoursUntil = (new Date(a.date_time) - new Date()) / 36e5;
                         const lateCancel = hoursUntil < 24;
-                        const canReview = past && st !== 'cancelled';
-                        const canChat   = st !== 'cancelled';
-                        const canPay    = !past && (st === 'pending_payment' || st === 'pending');
+                        const canReview = past && st !== 'cancelled' && isPaid;
+                        // Диалог — только по ОПЛАЧЕННОЙ записи. Неоплаченную нельзя «начать».
+                        const canChat   = st !== 'cancelled' && isPaid;
+                        // Кнопка «Оплатить» — пока не оплачено и запись не прошла/не отменена.
+                        const canPay    = !past && !isPaid && st !== 'cancelled' && st !== 'completed';
 
                         return `
                         <div class="appointment-item">

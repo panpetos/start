@@ -306,6 +306,23 @@ if ($action === 'tick') {
     seOut(['ok' => true]);
 }
 
+// ── Карта реально ОПЛАЧЕННЫХ записей текущего пользователя (как клиента) ───────
+// «Оплачено» = есть строка в payments со статусом success (платные и бесплатные
+// промо/intro её создают). Статус записи сам по себе недостаточно надёжен —
+// бывали записи 'scheduled' без оплаты. Кабинет по этой карте решает: показать
+// «Начать диалог» (оплачено) или «Оплатить» (нет).
+if ($action === 'paid-map') {
+    $ids = [];
+    try {
+        $st = $pdo->prepare("SELECT DISTINCT a.id FROM appointments a
+                             JOIN payments p ON p.appointment_id = a.id AND p.status = 'success'
+                             WHERE a.client_id = ?");
+        $st->execute([$userId]);
+        $ids = array_map('strval', $st->fetchAll(PDO::FETCH_COLUMN));
+    } catch (Exception $e) {}
+    seOut(['ok' => true, 'paid' => $ids]);
+}
+
 // ── Список сессий психолога ──────────────────────────────────────────────────
 if ($action === 'list') {
     $pid = sePsyId($pdo, $userId);
@@ -324,6 +341,7 @@ if ($action === 'list') {
                           LEFT JOIN users u ON u.id = a.client_id
                               WHERE a.psychologist_id = ?
                                 AND a.status IN ('scheduled','confirmed','in_progress','completed','cancelled')
+                                AND EXISTS (SELECT 1 FROM payments p WHERE p.appointment_id = a.id AND p.status = 'success')
                            ORDER BY a.date_time DESC
                               LIMIT 100");
         $st->execute([$pid]);
