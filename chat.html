@@ -3167,6 +3167,16 @@
         }
         #chatHeader .avatar.has-dot.is-online::after { background: #16A34A; }
         body.dark #chatHeader .avatar.has-dot::after { border-color: #252525; }
+        /* Панель управления сессией в чате (у психолога) */
+        #chatSessionBar .csb-row { display:flex; align-items:center; gap:0.6rem; flex-wrap:wrap; padding:0.5rem 0.9rem; background:#ECFDF5; border-bottom:1px solid #A7F3D0; }
+        #chatSessionBar .csb-title { flex:1; min-width:140px; font-size:0.85rem; color:#065F46; font-weight:600; }
+        #chatSessionBar .csb-actions { display:flex; gap:0.4rem; flex-wrap:wrap; }
+        #chatSessionBar .csb-btn { padding:0.4rem 0.8rem; border-radius:0.5rem; font-size:0.82rem; font-weight:700; cursor:pointer; border:1px solid transparent; }
+        #chatSessionBar .csb-accept { background:#047857; color:#fff; }
+        #chatSessionBar .csb-ghost { background:transparent; color:#065F46; border-color:#A7F3D0; }
+        body.dark #chatSessionBar .csb-row { background:#0B3B2E; border-bottom-color:#14503B; }
+        body.dark #chatSessionBar .csb-title { color:#A7F3D0; }
+        body.dark #chatSessionBar .csb-ghost { color:#A7F3D0; border-color:#14503B; }
         /* Галочки были почти незаметны — теперь крупнее, плотнее и с явным цветом:
            прочитанное голубое, остальное белое/тёмное с полной непрозрачностью. */
         .msg-ticks {
@@ -4351,6 +4361,8 @@
 
             <div id="chatContent" style="display: none; flex-direction: column; height: 100%;">
                 <div class="chat-header" id="chatHeader"></div>
+                <!-- Панель управления сессией (у психолога): принять/начать/завершить -->
+                <div id="chatSessionBar" style="display:none;"></div>
                 <!-- Плашка закреплённого сообщения -->
                 <div class="pinned-bar" id="pinnedBar" style="display:none;" onclick="jumpToPinned()">
                     <svg width="17" height="17" class="pin-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4h6l-1 5 3.5 3.5H5.5L9 9 8 4z"/><path d="M12 12.5V20"/></svg>
@@ -7014,6 +7026,14 @@
             if (!isSupportPeer) {
                 const pid = String(other.id || selectedUserId || '');
                 if (pid) setTimeout(() => fillPeerStatus(pid), 0);
+                // Психологу — панель управления сессией с этим клиентом (принять/начать/завершить).
+                if (currentUser && currentUser.role === 'psychologist' && other.role !== 'psychologist' && other.role !== 'admin') {
+                    setTimeout(() => refreshChatSessionBar(pid), 0);
+                } else {
+                    const b = document.getElementById('chatSessionBar'); if (b) b.style.display = 'none';
+                }
+            } else {
+                const b = document.getElementById('chatSessionBar'); if (b) b.style.display = 'none';
             }
             const name = isSupportPeer ? 'Тех поддержка'
                 : (`${other.first_name || ''} ${other.last_name || ''}`.trim() || 'Пользователь');
@@ -7065,6 +7085,52 @@
                            <div class="role" id="chatPeerCustomStatus" style="display:none;font-style:italic;opacity:0.85;"></div>
                        </div>`}
                 ${headerActionsHtml(actions, '')}`;
+        }
+
+        // ── Панель управления сессией в чате (дублирует кнопки из «Мои сессии») ──
+        function csbWhen(dt) {
+            if (!dt) return '';
+            const d = new Date(String(dt).replace(' ', 'T'));
+            return isNaN(d) ? String(dt) : d.toLocaleString('ru', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+        }
+        async function refreshChatSessionBar(peerId) {
+            const bar = document.getElementById('chatSessionBar');
+            if (!bar) return;
+            let d = null;
+            try { d = await (await fetch('/api/sessions.php?action=for-peer&peer=' + encodeURIComponent(peerId), { credentials: 'include' })).json(); } catch (e) {}
+            const s = (d && d.ok) ? d.session : null;
+            if (!s) { bar.style.display = 'none'; bar.innerHTML = ''; return; }
+            const when = csbWhen(s.date_time);
+            let title = '', btns = '';
+            if (s.status === 'scheduled') {
+                title = '💳 Оплаченная запись · ' + when + ' — примите заказ';
+                btns = `<button class="csb-btn csb-accept" onclick="chatSession('${s.id}','accept')">✓ Принять</button>
+                        <button class="csb-btn csb-ghost" onclick="chatSession('${s.id}','decline')">Отказаться</button>`;
+            } else if (s.status === 'confirmed') {
+                title = '✅ Принято · ' + when;
+                btns = `<button class="csb-btn csb-accept" onclick="chatSession('${s.id}','start')">▶ Начать сессию</button>
+                        <button class="csb-btn csb-ghost" onclick="chatSession('${s.id}','decline')">Отменить</button>`;
+            } else if (s.status === 'in_progress') {
+                title = '🟢 Сессия идёт · ' + when;
+                btns = `<button class="csb-btn csb-accept" onclick="chatSession('${s.id}','end')">■ Завершить сессию</button>`;
+            } else { bar.style.display = 'none'; return; }
+            bar.innerHTML = `<div class="csb-row"><span class="csb-title">${escapeHtml(title)}</span><span class="csb-actions">${btns}</span></div>`;
+            bar.style.display = '';
+        }
+        async function chatSession(id, action) {
+            const msgs = { accept: 'Принять этот заказ?', decline: 'Отказаться от заказа? Клиенту оформят возврат.', start: 'Начать сессию?', end: 'Завершить сессию? Будет проверено, что она реально состоялась.' };
+            if (!confirm(msgs[action] || 'Продолжить?')) return;
+            const body = { appointment_id: id };
+            if (action === 'decline') body.reason = prompt('Причина (необязательно):') || '';
+            let d = null;
+            try {
+                d = await (await fetch('/api/sessions.php?action=' + action, {
+                    method: 'POST', credentials: 'include',
+                    headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+                })).json();
+            } catch (e) {}
+            if (d && d.ok) { if (d.note) alert(d.note); refreshChatSessionBar(selectedUserId); }
+            else alert((d && d.error) || 'Не удалось выполнить действие');
         }
 
         // ── Мини-карточка собеседника (клик по аватару/имени в шапке чата) ──

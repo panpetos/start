@@ -323,6 +323,34 @@ if ($action === 'paid-map') {
     seOut(['ok' => true, 'paid' => $ids]);
 }
 
+// ── Ближайшая действующая сессия с конкретным собеседником (для кнопок в чате) ──
+// Психолог видит в чате с клиентом кнопки принять/начать/завершить по его записи.
+if ($action === 'for-peer') {
+    $pid = sePsyId($pdo, $userId);
+    $peer = (string)($_GET['peer'] ?? $_POST['peer'] ?? ($body['peer'] ?? ''));
+    if ($pid === '' || $peer === '') seOut(['ok' => true, 'session' => null]);
+    sessionsAutoTick($pdo);
+    $durSel = seHasCol($pdo, 'duration') ? 'a.duration' : '50 AS duration';
+    try {
+        // Берём ближайшую актуальную (не завершённую/отменённую) оплаченную запись
+        // этого клиента у этого психолога.
+        $st = $pdo->prepare("SELECT a.id, a.date_time, a.status, a.format, $durSel
+                               FROM appointments a
+                              WHERE a.psychologist_id = ? AND a.client_id = ?
+                                AND a.status IN ('scheduled','confirmed','in_progress')
+                                AND EXISTS (SELECT 1 FROM payments p WHERE p.appointment_id = a.id AND p.status = 'success')
+                           ORDER BY (a.status='in_progress') DESC, (a.status='confirmed') DESC, a.date_time ASC
+                              LIMIT 1");
+        $st->execute([$pid, $peer]);
+        $r = $st->fetch(PDO::FETCH_ASSOC);
+    } catch (Exception $e) { $r = null; }
+    if (!$r) seOut(['ok' => true, 'session' => null]);
+    seOut(['ok' => true, 'session' => [
+        'id' => $r['id'], 'status' => $r['status'], 'date_time' => $r['date_time'],
+        'format' => $r['format'], 'duration' => (int)($r['duration'] ?: 50),
+    ]]);
+}
+
 // ── Список сессий психолога ──────────────────────────────────────────────────
 if ($action === 'list') {
     $pid = sePsyId($pdo, $userId);
