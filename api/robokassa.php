@@ -97,6 +97,16 @@ function robokassaSupplier(PDO $pdo, $psychologistId): array {
  * Собрать ссылку оплаты Робокассы (подпись + Receipt) — единая точка и для init,
  * и для повторной оплаты существующей записи. $ctx = login/password1/isTest/receiptCfg/base.
  */
+/** Email клиента для доставки чека Робокассой. '' если не нашли/некорректный. */
+function robokassaClientEmail(PDO $pdo, $userId): string {
+    try {
+        $st = $pdo->prepare("SELECT email FROM users WHERE id = ? LIMIT 1");
+        $st->execute([$userId]);
+        $e = trim((string)$st->fetchColumn());
+        return filter_var($e, FILTER_VALIDATE_EMAIL) ? $e : '';
+    } catch (Exception $e) { return ''; }
+}
+
 function robokassaBuildPaymentUrl(PDO $pdo, array $ctx, $invId, string $outSum, string $description, $psychologistId): string {
     $login = $ctx['login']; $password1 = $ctx['password1']; $isTest = (int)$ctx['isTest'];
     $receiptCfg = $ctx['receiptCfg']; $base = $ctx['base'];
@@ -138,6 +148,9 @@ function robokassaBuildPaymentUrl(PDO $pdo, array $ctx, $invId, string $outSum, 
         $sig = md5("$login:$outSum:$invId:$password1");
     }
     $params['SignatureValue'] = $sig;
+    // Email клиента — чтобы Робокасса (Робочеки) отправила кассовый чек на его почту.
+    // В подпись НЕ входит, поэтому добавляем после SignatureValue.
+    if (!empty($ctx['email'])) $params['Email'] = $ctx['email'];
     if ($isTest) $params['IsTest'] = 1;
     $qs = [];
     foreach ($params as $k => $v) {
@@ -313,7 +326,7 @@ if ($action === 'init' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         jsonOut(['error' => 'Не удалось создать платёж'], 500);
     }
 
-    $ctx = ['login' => $login, 'password1' => $password1, 'isTest' => $isTest, 'receiptCfg' => $receiptCfg, 'base' => $base];
+    $ctx = ['login' => $login, 'password1' => $password1, 'isTest' => $isTest, 'receiptCfg' => $receiptCfg, 'base' => $base, 'email' => robokassaClientEmail($pdo, $userId)];
     $paymentUrl = robokassaBuildPaymentUrl($pdo, $ctx, $invId, $outSum, $description, $psychologistId);
 
     vtLog('init', ['inv' => $invId, 'sum' => $outSum, 'appt' => $appointmentId, 'psy' => $psychologistId, 'test' => $isTest]);
@@ -366,7 +379,7 @@ if ($action === 'pay-existing' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         } catch (Exception $e) { jsonOut(['error' => 'Не удалось создать платёж'], 500); }
     }
 
-    $ctx = ['login' => $login, 'password1' => $password1, 'isTest' => $isTest, 'receiptCfg' => $receiptCfg, 'base' => $base];
+    $ctx = ['login' => $login, 'password1' => $password1, 'isTest' => $isTest, 'receiptCfg' => $receiptCfg, 'base' => $base, 'email' => robokassaClientEmail($pdo, $userId)];
     $paymentUrl = robokassaBuildPaymentUrl($pdo, $ctx, $invId, $outSum, $description, $psychologistId);
     vtLog('pay-existing', ['inv' => $invId, 'sum' => $outSum, 'appt' => $apptId]);
     jsonOut(['ok' => true, 'paymentUrl' => $paymentUrl, 'invId' => $invId, 'isTest' => $isTest]);
