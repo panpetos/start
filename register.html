@@ -233,6 +233,22 @@
               ></textarea>
             </div>
 
+            <!-- Фото профиля (аватар) — чтобы профиль был готов к работе сразу -->
+            <div class="form-group">
+              <label class="form-label">Фото профиля (аватар)</label>
+              <div style="display:flex;align-items:center;gap:0.9rem;">
+                <div id="regAvatarPreview" style="width:64px;height:64px;border-radius:50%;background:#ECFDF5;border:1px solid #D1FAE5;display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0;">
+                  <span id="regAvatarInitials" style="color:#047857;font-weight:700;font-size:1.3rem;">?</span>
+                  <img id="regAvatarImg" style="width:100%;height:100%;object-fit:cover;display:none;">
+                </div>
+                <div>
+                  <input type="file" id="regAvatarInput" accept="image/*" style="display:none;" onchange="onRegAvatarPick(event)">
+                  <button type="button" onclick="document.getElementById('regAvatarInput').click()" style="background:#047857;color:#fff;border:none;padding:0.5rem 1rem;border-radius:0.5rem;font-weight:600;cursor:pointer;font-family:inherit;">Загрузить фото</button>
+                  <div style="font-size:0.75rem;color:#999;margin-top:0.3rem;">Клиенты видят фото в вашей карточке. Можно изменить позже.</div>
+                </div>
+              </div>
+            </div>
+
             <!-- Дипломы и сертификаты -->
             <div class="form-group">
               <label class="form-label">Дипломы и сертификаты (фото или PDF)</label>
@@ -295,6 +311,19 @@
               />
               <div style="background:#ECFDF5;border:1px solid #D1FAE5;border-radius:0.75rem;padding:0.75rem 1rem;color:#6B7280;font-size:0.8125rem;line-height:1.5;margin-top:0.5rem;">
                 💡 Укажите желаемую стоимость одной сессии. Финальную цену устанавливает администрация при одобрении профиля.
+              </div>
+            </div>
+
+            <!-- Рабочие часы — чтобы клиенты могли записаться сразу после одобрения -->
+            <div class="form-group">
+              <label class="form-label">Рабочие часы</label>
+              <div style="font-size:0.8rem;color:#6B7280;margin-bottom:0.5rem;">Отметьте дни и укажите интервал. Детально настроить по часам можно позже в разделе «График».</div>
+              <div id="regDays" style="display:flex;flex-wrap:wrap;gap:0.4rem;margin-bottom:0.6rem;"></div>
+              <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;">
+                <span style="font-size:0.85rem;color:#6B7280;">с</span>
+                <select id="regFrom" class="form-input" style="width:auto;padding:0.4rem 0.6rem;"></select>
+                <span style="font-size:0.85rem;color:#6B7280;">по</span>
+                <select id="regTo" class="form-input" style="width:auto;padding:0.4rem 0.6rem;"></select>
               </div>
             </div>
 
@@ -660,9 +689,11 @@
             }).catch(() => {});
           } catch (e) {}
 
-          // Дипломы/сертификаты + ИНН — сохраняем после регистрации
+          // Дипломы/сертификаты + ИНН + аватар + график — сохраняем после регистрации
           if (data.role === 'psychologist') {
             try { await savePsychCredentials(); } catch (e) {}
+            try { await saveRegAvatar(); } catch (e) {}
+            try { await saveRegSchedule(); } catch (e) {}
           }
 
           setTimeout(() => {
@@ -767,6 +798,85 @@
             body: JSON.stringify({ type:'inn', name: innVal, meta: innVerified || { inn: innVal } }) });
         }
       } catch(e) {}
+    }
+
+    // ── Аватар: выбор и сохранение ───────────────────────────────────────────────
+    let regAvatarData = null; // base64 dataURL выбранного фото
+    function onRegAvatarPick(e) {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+      if (file.size > 10 * 1024 * 1024) { showRegError('Фото слишком большое (максимум 10 МБ).'); return; }
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        regAvatarData = ev.target.result;
+        const img = document.getElementById('regAvatarImg');
+        img.src = regAvatarData; img.style.display = 'block';
+        document.getElementById('regAvatarInitials').style.display = 'none';
+      };
+      reader.readAsDataURL(file);
+    }
+    window.onRegAvatarPick = onRegAvatarPick;
+
+    // Сохранить аватар после регистрации (сессия уже есть). Нужен id из auth.php?action=me.
+    async function saveRegAvatar() {
+      if (!regAvatarData) return;
+      let uid = null;
+      try {
+        const me = await (await fetch('/api/auth.php?action=me', { credentials:'include' })).json();
+        uid = (me && (me.user && me.user.id)) || (me && me.id) || (me && me.data && me.data.id) || null;
+      } catch (e) {}
+      if (!uid) return;
+      try {
+        await fetch('/api/users.php?action=update&id=' + encodeURIComponent(uid), {
+          method:'POST', headers:{'Content-Type':'application/json'}, credentials:'include',
+          body: JSON.stringify({ avatar: regAvatarData })
+        });
+      } catch (e) {}
+    }
+
+    // ── Рабочие часы: инициализация пикера и сохранение ──────────────────────────
+    const REG_DAYS = [['mon','Пн'],['tue','Вт'],['wed','Ср'],['thu','Чт'],['fri','Пт'],['sat','Сб'],['sun','Вс']];
+    const REG_TIMES = ['00:00','09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00','20:00','21:00','22:00','23:00'];
+    let regDaySel = {}; // mon:true/false
+    (function initRegSchedule(){
+      const daysBox = document.getElementById('regDays');
+      if (!daysBox) return;
+      REG_DAYS.forEach(([k, label]) => {
+        const on = (k !== 'sat' && k !== 'sun'); // по умолчанию Пн–Пт
+        regDaySel[k] = on;
+        const b = document.createElement('button');
+        b.type = 'button'; b.textContent = label; b.dataset.k = k;
+        b.style.cssText = 'padding:0.4rem 0.7rem;border-radius:0.5rem;border:1px solid #D1FAE5;cursor:pointer;font-family:inherit;font-size:0.85rem;' + (on ? 'background:#047857;color:#fff;' : 'background:#fff;color:#047857;');
+        b.onclick = () => {
+          regDaySel[k] = !regDaySel[k];
+          b.style.background = regDaySel[k] ? '#047857' : '#fff';
+          b.style.color = regDaySel[k] ? '#fff' : '#047857';
+        };
+        daysBox.appendChild(b);
+      });
+      const from = document.getElementById('regFrom'), to = document.getElementById('regTo');
+      REG_TIMES.filter(t => t !== '00:00').forEach(t => {
+        from.appendChild(new Option(t, t)); to.appendChild(new Option(t, t));
+      });
+      from.value = '10:00'; to.value = '18:00';
+    })();
+
+    async function saveRegSchedule() {
+      const from = document.getElementById('regFrom'), to = document.getElementById('regTo');
+      if (!from || !to) return;
+      const anyDay = Object.values(regDaySel).some(Boolean);
+      if (!anyDay) return; // не выбрано ни одного дня — пропускаем (заполнит позже)
+      const fi = REG_TIMES.indexOf(from.value), ti = REG_TIMES.indexOf(to.value);
+      if (fi < 0 || ti < 0 || ti <= fi) return;
+      const hours = REG_TIMES.slice(fi, ti); // старты сессий: с «от» до «до» (не включая «до»)
+      const slots = {};
+      REG_DAYS.forEach(([k]) => { slots[k] = regDaySel[k] ? hours.slice() : []; });
+      try {
+        await fetch('/api/schedule.php?action=save', {
+          method:'POST', headers:{'Content-Type':'application/json'}, credentials:'include',
+          body: JSON.stringify({ slots })
+        });
+      } catch (e) {}
     }
 
     // Фиксация факта согласий на сервере (user_id, тип, версия, дата-время, IP — берёт сервер)

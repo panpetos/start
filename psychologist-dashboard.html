@@ -324,6 +324,9 @@
             (самозанятость / ИП). Суммы в кабинете показаны <b>после</b> вычета комиссии.
         </div>
 
+        <!-- Готовность профиля к работе: что ещё не заполнено (аватар/ИНН/график/…) -->
+        <div id="readyBanner" style="display:none; background:#FFF7ED; border:1px solid #FED7AA; border-radius:12px; padding:14px 18px; margin-bottom:1.5rem; color:#9A3412; font-size:0.92rem; line-height:1.55;"></div>
+
         <div class="cards">
             <div class="card">
                 <h2>
@@ -494,6 +497,7 @@
                     loadMySessions();
                     loadMyPayouts();   // не await: начисления не должны задерживать кабинет
                     loadMyRequisites();
+                    loadReadiness();   // чек-лист готовности профиля
 
                     if (typeof lucide !== 'undefined') {
                         lucide.createIcons();
@@ -502,6 +506,23 @@
                     console.error('Init error:', error);
                     window.location.href = '/login.html';
                 }
+            }
+
+            // ── Готовность профиля к работе ─────────────────────────────────
+            async function loadReadiness() {
+                const box = document.getElementById('readyBanner');
+                if (!box) return;
+                try {
+                    const d = await (await fetch('/api/profile_reminders.php?action=mine', { credentials: 'include' })).json();
+                    if (!d || !d.ok || !d.is_psychologist || d.complete || !(d.missing || []).length) { box.style.display = 'none'; return; }
+                    const items = d.missing.map(m => '<li style="margin:2px 0;">' + m + '</li>').join('');
+                    box.innerHTML =
+                        '<b>Чтобы профиль был готов к работе и виден клиентам, осталось заполнить:</b>' +
+                        '<ul style="margin:0.5rem 0 0.75rem 1.1rem;padding:0;">' + items + '</ul>' +
+                        '<a href="/edit-profile.html" class="btn" style="padding:0.5rem 1rem;font-size:0.88rem;">Заполнить профиль</a> ' +
+                        '<a href="/schedule.html" class="btn" style="padding:0.5rem 1rem;font-size:0.88rem;background:#fff;color:#047857;border:1px solid #047857;">Настроить график</a>';
+                    box.style.display = 'block';
+                } catch (e) { box.style.display = 'none'; }
             }
 
             // ── Мои начисления ──────────────────────────────────────────────

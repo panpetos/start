@@ -887,6 +887,31 @@
         }
 
         // ── Psychologists ───────────────────────────────────────────────────
+        // Проверка/напоминание о незаполненных профилях психологов (profile_reminders.php)
+        async function scanIncompleteProfiles(btn){
+            const msg = document.getElementById('profScanMsg');
+            if (msg) msg.textContent = 'Проверяю…';
+            try {
+                const d = await (await fetch('/api/profile_reminders.php?action=scan', { credentials:'include' })).json();
+                if (!d.ok) { if(msg) msg.textContent = d.error || 'Ошибка'; return; }
+                if (!d.incomplete) { if(msg) msg.innerHTML = '<span style="color:#047857;">✓ У всех профили заполнены.</span>'; return; }
+                const lines = d.items.map(i => '• ' + (i.name || i.user_id) + ': ' + i.missing.join(', ')).join('<br>');
+                if (msg) msg.innerHTML = '<b>Незаполнено у ' + d.incomplete + ':</b><br>' + lines;
+            } catch(e){ if(msg) msg.textContent = 'Ошибка соединения'; }
+        }
+        async function remindIncompleteProfiles(btn){
+            if (!confirm('Отправить напоминание всем психологам с незаполненным профилем? (не чаще раза в несколько дней на каждого)')) return;
+            const msg = document.getElementById('profScanMsg');
+            if (msg) msg.textContent = 'Отправляю…';
+            try {
+                const d = await (await fetch('/api/profile_reminders.php?action=remind', {
+                    method:'POST', headers:{'Content-Type':'application/json'}, credentials:'include', body: JSON.stringify({})
+                })).json();
+                if (!d.ok) { if(msg) msg.textContent = d.error || 'Ошибка'; return; }
+                if (msg) msg.innerHTML = '<span style="color:#047857;">✓ Отправлено: ' + d.sent + (d.skipped?(', пропущено (недавно слали): '+d.skipped):'') + '. Незаполнено всего: ' + d.incomplete + '.</span>';
+            } catch(e){ if(msg) msg.textContent = 'Ошибка соединения'; }
+        }
+
         async function renderPsych(){
             const res = await apiGet('psychologists');
             if (!res.ok) return fail();
@@ -894,7 +919,12 @@
             if (!rows.length) return empty('Нет психологов');
             rows.sort((a,b)=> (String(a.is_approved)==='1'?1:0) - (String(b.is_approved)==='1'?1:0));
             _psychRows = rows;
-            const body = `<table id="dataTable"><thead><tr>
+            const toolbar = `<div style="display:flex;gap:0.6rem;flex-wrap:wrap;align-items:center;margin-bottom:0.9rem;">
+                <button class="btn-sm btn-outline" onclick="scanIncompleteProfiles(this)">🔎 Проверить незаполненные профили</button>
+                <button class="btn-sm btn-brand" onclick="remindIncompleteProfiles(this)">📨 Напомнить заполнить профиль</button>
+                <span id="profScanMsg" style="font-size:0.85rem;color:var(--a-text-sec);"></span>
+            </div>`;
+            const body = toolbar + `<table id="dataTable"><thead><tr>
                 <th>Имя</th><th>Контакты</th><th>Специализация</th><th>Цена</th><th>Опыт</th><th>Статус</th><th>Действия</th></tr></thead><tbody>` +
                 rows.map((p,idx) => {
                     const approved = String(p.is_approved)==='1';
