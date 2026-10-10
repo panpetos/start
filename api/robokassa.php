@@ -135,15 +135,21 @@ function robokassaBuildPaymentUrl(PDO $pdo, array $ctx, $invId, string $outSum, 
                 if ($sup['phone'] !== '') $item['supplier_info']['phones'] = [$sup['phone']];
             }
         }
-        // sno НЕ передаём: у Робочеков есть ограничения по СНО, поэтому берём систему
-        // налогообложения из настроек магазина в ЛК (по доке sno — необязательное поле).
-        $receipt = ['items' => [$item]];
-        // ВАЖНО: rawurlencode (пробел → %20), а НЕ urlencode (пробел → «+»). Робокасса
-        // при проверке подписи ждёт %20; из-за «+» в названии товара подпись не сходилась
-        // и приходил код 29 «Оплата счетов недоступна».
-        $receiptEnc = rawurlencode(json_encode($receipt, JSON_UNESCAPED_UNICODE));
-        $sig = md5("$login:$outSum:$invId:$receiptEnc:$password1");
-        $params['Receipt'] = $receiptEnc;
+        // sno (система налогообложения) — для Робочеков у ИП обычно обязателен.
+        // Берём из настроек (по умолчанию usn_income); можно отключить, задав '' / 'none'.
+        $receipt = [];
+        $sno = (string)($receiptCfg['sno'] ?? 'usn_income');
+        if ($sno !== '' && $sno !== 'none') $receipt['sno'] = $sno;
+        $receipt['items'] = [$item];
+        // Кодирование Receipt — ключевой момент (иначе код 29 «неверная подпись»):
+        //   • подпись считается по Receipt, закодированному ОДИН раз (rawurlencode, %20 для пробела);
+        //   • в самой ссылке Receipt кодируется ДВАЖДЫ — HTTP-слой Робокассы снимает один слой,
+        //     и на их стороне остаётся ровно та строка, по которой считалась подпись.
+        // Раньше в ссылку клали строку, закодированную один раз → Робокасса видела «голый» JSON,
+        // подпись не сходилась → код 29. Теперь кодируем дважды (общий rawurlencode в цикле ниже).
+        $receiptOnce = rawurlencode(json_encode($receipt, JSON_UNESCAPED_UNICODE));
+        $sig = md5("$login:$outSum:$invId:$receiptOnce:$password1");
+        $params['Receipt'] = $receiptOnce; // в цикле ниже будет ещё один rawurlencode → двойное кодирование
     } else {
         $sig = md5("$login:$outSum:$invId:$password1");
     }
@@ -154,7 +160,7 @@ function robokassaBuildPaymentUrl(PDO $pdo, array $ctx, $invId, string $outSum, 
     if ($isTest) $params['IsTest'] = 1;
     $qs = [];
     foreach ($params as $k => $v) {
-        $qs[] = ($k === 'Receipt') ? "$k=$v" : "$k=" . rawurlencode((string)$v);
+        $qs[] = "$k=" . rawurlencode((string)$v); // Receipt тоже кодируем здесь → двойное кодирование
     }
     return $base . '?' . implode('&', $qs);
 }
@@ -267,13 +273,22 @@ if (($action === 'test-pay' || $action === 'test-status')) {
         $invId = (int)$pdo->lastInsertId();
     } catch (Exception $e) { jsonOut(['error' => 'Не удалось создать тестовый инвойс'], 500); }
 
-    $ctx = ['login' => $login, 'password1' => $password1, 'isTest' => $isTest, 'receiptCfg' => $receiptCfg, 'base' => $base, 'email' => $email];
+    // Для теста чека ПРИНУДИТЕЛЬНО включаем Receipt (номенклатуру) — это и проверяем.
+    // Можно отключить, передав receipt:false. sno по умолчанию usn_income (ИП на УСН).
+    $testReceipt = $receiptCfg;
+    if (!array_key_exists('receipt', $data) || !empty($data['receipt'])) {
+        $testReceipt['enabled'] = true;
+        $testReceipt['agent_enabled'] = false; // агентские поля Робочеки отклоняют
+        if (!empty($data['sno'])) $testReceipt['sno'] = (string)$data['sno'];
+    }
+    $ctx = ['login' => $login, 'password1' => $password1, 'isTest' => $isTest, 'receiptCfg' => $testReceipt, 'base' => $base, 'email' => $email];
     $paymentUrl = robokassaBuildPaymentUrl($pdo, $ctx, $invId, $outSum, $description, null);
     $hasEmail = (strpos($paymentUrl, 'Email=') !== false);
-    vtLog('test-pay', ['inv' => $invId, 'sum' => $outSum, 'test' => $isTest, 'email' => $hasEmail ? 'yes' : 'no']);
+    $hasReceipt = (strpos($paymentUrl, 'Receipt=') !== false);
+    vtLog('test-pay', ['inv' => $invId, 'sum' => $outSum, 'test' => $isTest, 'email' => $hasEmail ? 'yes' : 'no', 'receipt' => $hasReceipt ? 'yes' : 'no']);
     jsonOut(['ok' => true, 'paymentUrl' => $paymentUrl, 'invId' => $invId, 'is_test' => $isTest,
-        'email' => $email, 'email_in_link' => $hasEmail,
-        'note' => 'Откройте ссылку, оплатите ' . $outSum . ' ₽ реальной картой (деньги придут на ваш же счёт магазина). Затем проверьте почту ' . $email . ' (и «Спам») — чек присылает Робокасса.']);
+        'email' => $email, 'email_in_link' => $hasEmail, 'receipt_in_link' => $hasReceipt,
+        'note' => 'Откройте ссылку, оплатите ' . $outSum . ' ₽ реальной картой (деньги придут на ваш же счёт магазина). Затем проверьте почту ' . $email . ' (и «Спам») — чек присылает Робокасса. Важно: в ЛК Робокассы в разделе «Фискализация» должны быть включены Робочеки.']);
 }
 
 // ── Запись конфига из админки (только admin) — чтобы не редактировать PHP руками ──

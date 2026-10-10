@@ -3699,13 +3699,14 @@
             try {
                 const d = await (await fetch('/api/robokassa.php?action=test-pay', {
                     method:'POST', headers:{'Content-Type':'application/json'}, credentials:'include',
-                    body: JSON.stringify({ amount: 10 })
+                    body: JSON.stringify({ amount: 10, receipt: true })
                 })).json();
                 if (!d.ok) { box.innerHTML = '<span style="color:#dc2626;">'+(d.error||'Не удалось создать тест')+'</span>'; return; }
                 testCheckInv = d.invId;
                 box.innerHTML =
                     '<div style="border:1px solid var(--a-border,#e5e7eb);border-radius:10px;padding:0.8rem 1rem;">' +
-                    '<div style="margin-bottom:0.5rem;">Чек уйдёт на <b>'+d.email+'</b>'+(d.email_in_link?' (email передан в ссылку ✓)':' <span style="color:#dc2626;">(email НЕ попал в ссылку!)</span>')+(d.is_test?' · <b>тестовый режим</b>':' · <b>боевой режим</b>')+'</div>' +
+                    '<div style="margin-bottom:0.3rem;">Чек уйдёт на <b>'+d.email+'</b>'+(d.email_in_link?' (email ✓)':' <span style="color:#dc2626;">(email НЕ в ссылке!)</span>')+(d.receipt_in_link?' · номенклатура ✓':' <span style="color:#dc2626;">· номенклатуры НЕТ!</span>')+(d.is_test?' · <b>тестовый режим</b>':' · <b>боевой режим</b>')+'</div>' +
+                    '<div style="margin-bottom:0.5rem;font-size:0.8rem;color:#b45309;">⚠️ Для чека в ЛК Робокассы → «Фискализация» должны быть включены Робочеки.</div>' +
                     '<a href="'+d.paymentUrl+'" target="_blank" rel="noopener" class="btn-sm" style="background:#047857;color:#fff;text-decoration:none;display:inline-block;">💳 Оплатить 10 ₽ и получить чек</a>' +
                     '<button class="btn-sm btn-outline" style="margin-left:0.5rem;" onclick="testCheckStatus()">↻ Проверить статус</button>' +
                     '<div id="testCheckStatus" style="margin-top:0.6rem;color:var(--a-text-sec);"></div>' +
