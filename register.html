@@ -333,6 +333,20 @@
               </div>
             </div>
 
+            <!-- Куда выводить деньги (реквизиты для выплат) — заполнить сразу -->
+            <div class="form-group">
+              <label class="form-label">💳 Куда выводить деньги (реквизиты для выплат)</label>
+              <div style="font-size:0.8rem;color:#6B7280;margin-bottom:0.6rem;">Сюда платформа будет перечислять ваше вознаграждение за проведённые сессии. Укажите один способ — можно изменить потом в кабинете. Данные хранятся в зашифрованном виде.</div>
+              <select id="regPayMethod" class="form-input" style="margin-bottom:0.5rem;" onchange="onRegPayMethod()">
+                <option value="card">Банковская карта</option>
+                <option value="account">Расчётный счёт</option>
+                <option value="sbp">СБП (по номеру телефона)</option>
+              </select>
+              <input type="text" id="regPayValue" class="form-input" inputmode="numeric" autocomplete="off" placeholder="Номер банковской карты (16 цифр)" style="margin-bottom:0.5rem;">
+              <input type="text" id="regPayHolder" class="form-input" autocomplete="off" placeholder="ФИО получателя (напр.: Иванов Иван Иванович)" style="margin-bottom:0.5rem;">
+              <input type="text" id="regPayBank" class="form-input" autocomplete="off" placeholder="Банк (напр.: Сбербанк, Т-Банк)">
+            </div>
+
             <!-- Контакты для связи (видит только администратор при модерации) -->
             <div style="border-top: 1px solid #F0F0F0; margin: 1.25rem 0; padding-top: 1.25rem;">
               <h3 style="font-size: 1rem; font-weight: 600; color: #1A1A1A; margin-bottom: 0.25rem;">Контакты для связи</h3>
@@ -706,6 +720,7 @@
             try { await savePsychCredentials(); } catch (e) {}
             try { await saveRegAvatar(); } catch (e) {}
             try { await saveRegSchedule(); } catch (e) {}
+            try { await saveRegPayout(); } catch (e) {}
           }
 
           setTimeout(() => {
@@ -872,6 +887,32 @@
       });
       from.value = '10:00'; to.value = '18:00';
     })();
+
+    // ── Реквизиты для выплат: подсказка по способу + сохранение ───────────────────
+    function onRegPayMethod() {
+      const m = (document.getElementById('regPayMethod') || {}).value || 'card';
+      const v = document.getElementById('regPayValue');
+      if (!v) return;
+      v.placeholder = m === 'account' ? 'Номер расчётного счёта (20 цифр)'
+                    : m === 'sbp' ? 'Телефон, привязанный к СБП (+7...)'
+                    : 'Номер банковской карты (16 цифр)';
+    }
+    window.onRegPayMethod = onRegPayMethod;
+
+    async function saveRegPayout() {
+      const value = ((document.getElementById('regPayValue') || {}).value || '').trim();
+      if (!value) return; // не заполнил — не блокируем, подскажем в кабинете
+      const method = (document.getElementById('regPayMethod') || {}).value || 'card';
+      const holder = ((document.getElementById('regPayHolder') || {}).value || '').trim();
+      const bank = ((document.getElementById('regPayBank') || {}).value || '').trim();
+      const tax = (innVerified && innVerified.self_employed === false) ? 'ip' : 'npd';
+      try {
+        await fetch('/api/payout_requisites.php?action=save', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+          body: JSON.stringify({ method, value, holder, bank, tax_mode: tax })
+        });
+      } catch (e) {}
+    }
 
     async function saveRegSchedule() {
       const from = document.getElementById('regFrom'), to = document.getElementById('regTo');

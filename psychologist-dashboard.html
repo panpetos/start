@@ -582,6 +582,11 @@
                      : m === 'sbp' ? '+7 999 123-45-67 (телефон для СБП)'
                      : '0000 0000 0000 0000';
             }
+            function reqValueLabelText(m) {
+                return m === 'account' ? 'Номер расчётного счёта (20 цифр)'
+                     : m === 'sbp' ? 'Телефон, привязанный к СБП'
+                     : 'Номер банковской карты (16 цифр)';
+            }
             async function loadMyRequisites() {
                 const box = document.getElementById('requisitesBox');
                 if (!box) return;
@@ -590,36 +595,46 @@
                 if (!d || !d.ok) { box.innerHTML = '<p style="color:var(--d-text-sec);font-size:0.86rem;">Не удалось загрузить реквизиты.</p>'; return; }
                 const m = d.method || 'card';
                 const tax = d.tax_mode || 'npd';
-                const saved = d.set ? `<div style="font-size:0.85rem;color:#047857;margin-bottom:0.6rem;">✓ Сохранено: ${escapeChannelHtml(REQ_LABELS[m] || m)} ${escapeChannelHtml(d.masked || '')}${d.holder ? ' · ' + escapeChannelHtml(d.holder) : ''}</div>`
-                    : `<div style="font-size:0.85rem;color:#b45309;margin-bottom:0.6rem;">Реквизиты не указаны — без них платформа не сможет перечислить вам вознаграждение.</div>`;
+                const saved = d.set ? `<div style="font-size:0.85rem;color:#047857;margin-bottom:0.6rem;">✓ Сейчас деньги уходят на: <b>${escapeChannelHtml(REQ_LABELS[m] || m)} ${escapeChannelHtml(d.masked || '')}</b>${d.holder ? ' · ' + escapeChannelHtml(d.holder) : ''}. Можно изменить ниже.</div>`
+                    : `<div style="font-size:0.9rem;color:#9A3412;background:#FFF7ED;border:1px solid #FED7AA;border-radius:0.6rem;padding:0.6rem 0.8rem;margin-bottom:0.7rem;">⚠️ Реквизиты ещё не указаны. <b>Без них платформа не сможет перечислить вам заработанное.</b> Заполните один способ ниже.</div>`;
+                const lbl = 'display:block;font-size:0.82rem;color:var(--d-text-sec);margin-bottom:0.2rem;font-weight:600;';
+                const inp = 'width:100%;box-sizing:border-box;padding:0.55rem 0.7rem;border:1px solid var(--d-border,#e5e7eb);border-radius:0.5rem;background:var(--d-panel,#fff);color:var(--d-text);';
                 box.innerHTML = saved +
-                    `<label style="display:block;max-width:420px;margin-bottom:0.6rem;">
-                        <span style="display:block;font-size:0.8rem;color:var(--d-text-sec);margin-bottom:0.25rem;font-weight:600;">Ваш налоговый статус</span>
-                        <select id="reqTax" onchange="saveMyTax()" style="width:100%;padding:0.5rem 0.6rem;border:1px solid var(--d-border,#e5e7eb);border-radius:0.5rem;background:var(--d-panel,#fff);color:var(--d-text);">
-                            <option value="npd"${tax==='npd'?' selected':''}>Самозанятый (НПД)</option>
-                            <option value="ip"${tax==='ip'?' selected':''}>Индивидуальный предприниматель (ИП)</option>
-                        </select>
-                        <span style="font-size:0.74rem;color:var(--d-text-sec);">Самозанятый — чек в «Мой налог». ИП — счёт/акт и налоги как ИП. Для самозанятых мы проверяем статус в ФНС перед выплатой.</span>
-                     </label>` +
-                    `<div style="display:flex;flex-direction:column;gap:0.5rem;max-width:420px;">
-                        <select id="reqMethod" onchange="reqOnMethodChange()" style="padding:0.5rem 0.6rem;border:1px solid var(--d-border,#e5e7eb);border-radius:0.5rem;background:var(--d-panel,#fff);color:var(--d-text);">
-                            <option value="card"${m==='card'?' selected':''}>Банковская карта</option>
-                            <option value="account"${m==='account'?' selected':''}>Расчётный счёт</option>
-                            <option value="sbp"${m==='sbp'?' selected':''}>СБП (по номеру телефона)</option>
-                        </select>
-                        <input id="reqValue" type="text" inputmode="numeric" autocomplete="off" placeholder="${reqPlaceholder(m)}" style="padding:0.5rem 0.6rem;border:1px solid var(--d-border,#e5e7eb);border-radius:0.5rem;background:var(--d-panel,#fff);color:var(--d-text);">
-                        <input id="reqHolder" type="text" autocomplete="off" placeholder="ФИО получателя" value="${escapeChannelHtml(d.holder || '')}" style="padding:0.5rem 0.6rem;border:1px solid var(--d-border,#e5e7eb);border-radius:0.5rem;background:var(--d-panel,#fff);color:var(--d-text);">
-                        <input id="reqBank" type="text" autocomplete="off" placeholder="Банк (для СБП/счёта)" value="${escapeChannelHtml(d.bank || '')}" style="padding:0.5rem 0.6rem;border:1px solid var(--d-border,#e5e7eb);border-radius:0.5rem;background:var(--d-panel,#fff);color:var(--d-text);">
-                        <div style="display:flex;gap:0.5rem;">
-                            <button class="btn" onclick="saveMyRequisites()" style="flex:1;">Сохранить реквизиты</button>
-                        </div>
-                        <p style="font-size:0.74rem;color:var(--d-text-sec);">Номер хранится в зашифрованном виде. Администратор видит его только при переводе вам денег.</p>
+                    `<p style="font-size:0.86rem;color:var(--d-text-sec);margin:0 0 0.8rem;max-width:460px;">Сюда платформа переводит ваше вознаграждение за проведённые сессии (раз в ~2 недели по заявке). Укажите <b>один</b> удобный способ.</p>
+                     <div style="display:flex;flex-direction:column;gap:0.85rem;max-width:460px;">
+                        <label><span style="${lbl}">1. Ваш налоговый статус</span>
+                            <select id="reqTax" onchange="saveMyTax()" style="${inp}">
+                                <option value="npd"${tax==='npd'?' selected':''}>Самозанятый (НПД)</option>
+                                <option value="ip"${tax==='ip'?' selected':''}>Индивидуальный предприниматель (ИП)</option>
+                            </select>
+                            <span style="display:block;font-size:0.74rem;color:var(--d-text-sec);margin-top:0.2rem;">Самозанятый — чек в «Мой налог» (статус проверяем в ФНС перед выплатой). ИП — счёт/акт и налоги как ИП.</span>
+                        </label>
+                        <label><span style="${lbl}">2. Способ выплаты</span>
+                            <select id="reqMethod" onchange="reqOnMethodChange()" style="${inp}">
+                                <option value="card"${m==='card'?' selected':''}>Банковская карта</option>
+                                <option value="account"${m==='account'?' selected':''}>Расчётный счёт</option>
+                                <option value="sbp"${m==='sbp'?' selected':''}>СБП (по номеру телефона)</option>
+                            </select>
+                        </label>
+                        <label><span id="reqValueLabel" style="${lbl}">3. ${reqValueLabelText(m)}</span>
+                            <input id="reqValue" type="text" inputmode="numeric" autocomplete="off" placeholder="${reqPlaceholder(m)}" style="${inp}">
+                        </label>
+                        <label><span style="${lbl}">4. ФИО получателя</span>
+                            <input id="reqHolder" type="text" autocomplete="off" placeholder="Иванов Иван Иванович" value="${escapeChannelHtml(d.holder || '')}" style="${inp}">
+                        </label>
+                        <label><span style="${lbl}">5. Банк</span>
+                            <input id="reqBank" type="text" autocomplete="off" placeholder="Например: Сбербанк, Т-Банк" value="${escapeChannelHtml(d.bank || '')}" style="${inp}">
+                        </label>
+                        <button class="btn" onclick="saveMyRequisites()">💾 Сохранить реквизиты</button>
+                        <p style="font-size:0.74rem;color:var(--d-text-sec);margin:0;">🔒 Номер хранится в зашифрованном виде. Администратор видит его только в момент перевода вам денег.</p>
                      </div>`;
             }
             function reqOnMethodChange() {
                 const sel = document.getElementById('reqMethod');
                 const val = document.getElementById('reqValue');
+                const lab = document.getElementById('reqValueLabel');
                 if (sel && val) val.placeholder = reqPlaceholder(sel.value);
+                if (sel && lab) lab.textContent = '3. ' + reqValueLabelText(sel.value);
             }
             async function saveMyTax() {
                 const tax = (document.getElementById('reqTax') || {}).value || 'npd';

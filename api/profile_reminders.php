@@ -96,6 +96,14 @@ function prMissing(PDO $pdo, array $psy, $userId): array {
         if (is_array($arr)) { foreach ($arr as $d) { if (is_array($d) && count($d)) { $hasSchedule = true; break; } } }
     } catch (Exception $e) { $hasSchedule = true; }
     if (!$hasSchedule) $miss[] = 'график работы (рабочие часы)';
+    // Реквизиты для выплат (psy_payout_requisites с непустым enc_blob)
+    $hasPayout = false;
+    try {
+        $st = $pdo->prepare("SELECT 1 FROM psy_payout_requisites WHERE psychologist_id = ? AND enc_blob IS NOT NULL AND enc_blob <> '' LIMIT 1");
+        $st->execute([$psy['id'] ?? 0]);
+        $hasPayout = (bool)$st->fetchColumn();
+    } catch (Exception $e) { $hasPayout = true; } // таблицы/колонки может не быть — не придираемся
+    if (!$hasPayout) $miss[] = 'реквизиты для выплат (куда перечислять деньги)';
     // Документы (диплом/сертификат)
     $hasDoc = false;
     try {
