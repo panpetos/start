@@ -3803,7 +3803,8 @@
                     '<div style="font-weight:700;margin:0.6rem 0 0.4rem;">Боевые пароли</div>' +
                     fld('rkProd1','PROD Password #1','password','оставьте пустым — не менять') +
                     fld('rkProd2','PROD Password #2','password','оставьте пустым — не менять') +
-                    `<label style="display:flex;align-items:center;gap:0.5rem;margin:0.5rem 0 0.5rem;cursor:pointer;"><input type="checkbox" id="rkReceipt" ${diag.receipt_enabled?'checked':''} style="width:18px;height:18px;accent-color:#047857;"> Фискализация чеков (Receipt)</label>` +
+                    `<label style="display:flex;align-items:center;gap:0.5rem;margin:0.5rem 0 0.25rem;cursor:pointer;"><input type="checkbox" id="rkReceipt" ${diag.receipt_enabled?'checked':''} style="width:18px;height:18px;accent-color:#047857;"> Фискализация чеков (Receipt)</label>` +
+                    `<div style="font-size:0.8rem;color:#047857;margin:0 0 0.5rem;">✓ Чеки формируются на всех оплатах по умолчанию (номенклатура передаётся всегда) — отдельно включать не нужно. В ЛК Робокассы должны быть включены Робочеки.</div>` +
                     '<div style="display:flex;gap:0.6rem;flex-wrap:wrap;margin:0 0 0.6rem;">' +
                       selFld('rkSno','Система налогообложения',[['usn_income','УСН доход'],['usn_income_outcome','УСН доход-расход'],['osn','ОСН'],['patent','Патент'],['envd','ЕНВД'],['esn','ЕСХН']], diag.receipt_sno||'usn_income') +
                       selFld('rkTax','Ставка НДС',[['none','Без НДС'],['vat0','0%'],['vat10','10%'],['vat20','20%'],['vat110','10/110'],['vat120','20/120']], diag.receipt_tax||'none') +

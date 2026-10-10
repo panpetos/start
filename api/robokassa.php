@@ -33,6 +33,12 @@ $creds     = $isTest ? ($cfg['test'] ?? []) : ($cfg['prod'] ?? []);
 $password1 = (string)($creds['password1'] ?? '');
 $password2 = (string)($creds['password2'] ?? '');
 $receiptCfg = $cfg['receipt'] ?? ['enabled' => false];
+// Чеки (фискализация) включены ПО УМОЛЧАНИЮ для всех боевых оплат: без номенклатуры
+// Робочеки не формируют чек. Агентские поля в нашем Receipt не шлём — Robokassa сама
+// добавляет их по агентской схеме, настроенной в ЛК. Галку в админке держать не нужно.
+$payReceiptCfg = $receiptCfg;
+$payReceiptCfg['enabled'] = true;
+$payReceiptCfg['agent_enabled'] = false;
 
 function robokassaConfigured($p1, $p2): bool {
     return $p1 !== '' && $p2 !== '' && strpos($p1, 'ВПИШИТЕ') === false && strpos($p2, 'ВПИШИТЕ') === false;
@@ -398,7 +404,7 @@ if ($action === 'init' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         jsonOut(['error' => 'Не удалось создать платёж'], 500);
     }
 
-    $ctx = ['login' => $login, 'password1' => $password1, 'isTest' => $isTest, 'receiptCfg' => $receiptCfg, 'base' => $base, 'email' => robokassaClientEmail($pdo, $userId)];
+    $ctx = ['login' => $login, 'password1' => $password1, 'isTest' => $isTest, 'receiptCfg' => $payReceiptCfg, 'base' => $base, 'email' => robokassaClientEmail($pdo, $userId)];
     $paymentUrl = robokassaBuildPaymentUrl($pdo, $ctx, $invId, $outSum, $description, $psychologistId);
 
     vtLog('init', ['inv' => $invId, 'sum' => $outSum, 'appt' => $appointmentId, 'psy' => $psychologistId, 'test' => $isTest]);
@@ -451,7 +457,7 @@ if ($action === 'pay-existing' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         } catch (Exception $e) { jsonOut(['error' => 'Не удалось создать платёж'], 500); }
     }
 
-    $ctx = ['login' => $login, 'password1' => $password1, 'isTest' => $isTest, 'receiptCfg' => $receiptCfg, 'base' => $base, 'email' => robokassaClientEmail($pdo, $userId)];
+    $ctx = ['login' => $login, 'password1' => $password1, 'isTest' => $isTest, 'receiptCfg' => $payReceiptCfg, 'base' => $base, 'email' => robokassaClientEmail($pdo, $userId)];
     $paymentUrl = robokassaBuildPaymentUrl($pdo, $ctx, $invId, $outSum, $description, $psychologistId);
     vtLog('pay-existing', ['inv' => $invId, 'sum' => $outSum, 'appt' => $apptId]);
     jsonOut(['ok' => true, 'paymentUrl' => $paymentUrl, 'invId' => $invId, 'isTest' => $isTest]);
