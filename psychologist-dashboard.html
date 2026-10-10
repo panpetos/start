@@ -324,6 +324,9 @@
             (самозанятость / ИП). Суммы в кабинете показаны <b>после</b> вычета комиссии.
         </div>
 
+        <!-- Принятие агентского договора — для уже зарегистрированных, кто не принимал явную галку -->
+        <div id="agentBanner" style="display:none; background:#EFF6FF; border:1px solid #BFDBFE; border-radius:12px; padding:14px 18px; margin-bottom:1.5rem; color:#1D4ED8; font-size:0.92rem; line-height:1.55;"></div>
+
         <!-- Готовность профиля к работе: что ещё не заполнено (аватар/ИНН/график/…) -->
         <div id="readyBanner" style="display:none; background:#FFF7ED; border:1px solid #FED7AA; border-radius:12px; padding:14px 18px; margin-bottom:1.5rem; color:#9A3412; font-size:0.92rem; line-height:1.55;"></div>
 
@@ -498,6 +501,7 @@
                     loadMyPayouts();   // не await: начисления не должны задерживать кабинет
                     loadMyRequisites();
                     loadReadiness();   // чек-лист готовности профиля
+                    loadAgentConsent(); // принятие агентского договора (для старых регистраций)
 
                     if (typeof lucide !== 'undefined') {
                         lucide.createIcons();
@@ -506,6 +510,44 @@
                     console.error('Init error:', error);
                     window.location.href = '/login.html';
                 }
+            }
+
+            // ── Агентский договор: принять, если ещё не принят ──────────────
+            async function loadAgentConsent() {
+                const box = document.getElementById('agentBanner');
+                if (!box) return;
+                try {
+                    const d = await (await fetch('/api/consent.php?action=status&type=agent_offer', { credentials: 'include' })).json();
+                    if (d && d.ok && d.granted) { box.style.display = 'none'; return; }
+                    box.innerHTML =
+                        '<b>Подтвердите агентский договор-оферту.</b> Вы работаете по ' +
+                        '<a href="/agent-offer.html" target="_blank" rel="noopener" style="color:#1D4ED8;text-decoration:underline;">агентскому договору</a>: ' +
+                        'платформа принимает оплату клиентов и перечисляет вам вознаграждение за вычетом сервисного сбора. ' +
+                        'Нужно подтвердить принятие (один раз).' +
+                        '<div style="margin-top:0.6rem;"><label style="display:inline-flex;align-items:flex-start;gap:0.5rem;cursor:pointer;">' +
+                        '<input type="checkbox" id="agentConsentChk" style="margin-top:0.2rem;"> ' +
+                        '<span>Я принимаю агентский договор-оферту и подтверждаю свой налоговый статус (самозанятый или ИП)</span></label></div>' +
+                        '<div style="margin-top:0.6rem;"><button class="btn" style="padding:0.5rem 1rem;font-size:0.88rem;" onclick="acceptAgentConsent(this)">Принять договор</button> ' +
+                        '<span id="agentConsentMsg" style="margin-left:0.5rem;font-size:0.85rem;"></span></div>';
+                    box.style.display = 'block';
+                } catch (e) { box.style.display = 'none'; }
+            }
+            async function acceptAgentConsent(btn) {
+                const chk = document.getElementById('agentConsentChk');
+                const msg = document.getElementById('agentConsentMsg');
+                if (!chk || !chk.checked) { if (msg) { msg.style.color = '#dc2626'; msg.textContent = 'Отметьте галочку согласия.'; } return; }
+                btn.disabled = true;
+                try {
+                    const d = await (await fetch('/api/consent.php?action=record', {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+                        body: JSON.stringify({ type: 'agent_offer', version: '1.0' })
+                    })).json();
+                    if (d && (d.ok || d.id)) {
+                        const box = document.getElementById('agentBanner');
+                        if (box) { box.style.background = '#ECFDF5'; box.style.borderColor = '#A7F3D0'; box.style.color = '#047857';
+                            box.innerHTML = '✓ Спасибо! Агентский договор принят и зафиксирован.'; setTimeout(() => { box.style.display = 'none'; }, 4000); }
+                    } else { if (msg) { msg.style.color = '#dc2626'; msg.textContent = (d && d.error) || 'Не удалось сохранить, попробуйте позже.'; } btn.disabled = false; }
+                } catch (e) { if (msg) { msg.style.color = '#dc2626'; msg.textContent = 'Ошибка соединения.'; } btn.disabled = false; }
             }
 
             // ── Готовность профиля к работе ─────────────────────────────────
