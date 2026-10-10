@@ -1880,7 +1880,9 @@
                     </div>
                     <button class="btn-sm btn-outline" onclick="checkRobokassaLink(this)">🔌 Проверить связь с Robokassa</button>
                     <button class="btn-sm btn-outline" onclick="renderRobokassa()">⚙ Ключи и режим Робокассы</button>
+                    <button class="btn-sm btn-outline" onclick="testCheck(this)">🧾 Тест чека (10 ₽)</button>
                   </div>
+                  <div id="testCheckBox" style="display:none;margin-top:0.8rem;font-size:0.86rem;"></div>
                   <div class="note" style="margin-top:0.9rem;">
                     Оплата принимается через <b>Robokassa</b> (Робочеки). Ключи и режим (тест/боевой) задаются
                     в разделе <b>«Робокасса»</b> и хранятся в файле <code>api/robokassa_config.php</code> на сервере
@@ -3656,6 +3658,46 @@
         }
 
         // ── Связь с Robokassa ───────────────────────────────────────────────
+        // Тест кассового чека: создаём реальный инвойс на 10 ₽ с вашим email и даём
+        // ссылку оплаты. Оплатив один раз, проверяете, пришёл ли чек от Робокассы.
+        // Статус оплаты подтягивается автоматически (ResultURL), чек — приходит письмом.
+        let testCheckInv = 0, testCheckPoll = null;
+        async function testCheck(btn){
+            const box = document.getElementById('testCheckBox');
+            box.style.display = 'block';
+            box.innerHTML = 'Создаю тестовую оплату…';
+            try {
+                const d = await (await fetch('/api/robokassa.php?action=test-pay', {
+                    method:'POST', headers:{'Content-Type':'application/json'}, credentials:'include',
+                    body: JSON.stringify({ amount: 10 })
+                })).json();
+                if (!d.ok) { box.innerHTML = '<span style="color:#dc2626;">'+(d.error||'Не удалось создать тест')+'</span>'; return; }
+                testCheckInv = d.invId;
+                box.innerHTML =
+                    '<div style="border:1px solid var(--a-border,#e5e7eb);border-radius:10px;padding:0.8rem 1rem;">' +
+                    '<div style="margin-bottom:0.5rem;">Чек уйдёт на <b>'+d.email+'</b>'+(d.email_in_link?' (email передан в ссылку ✓)':' <span style="color:#dc2626;">(email НЕ попал в ссылку!)</span>')+(d.is_test?' · <b>тестовый режим</b>':' · <b>боевой режим</b>')+'</div>' +
+                    '<a href="'+d.paymentUrl+'" target="_blank" rel="noopener" class="btn-sm" style="background:#047857;color:#fff;text-decoration:none;display:inline-block;">💳 Оплатить 10 ₽ и получить чек</a>' +
+                    '<button class="btn-sm btn-outline" style="margin-left:0.5rem;" onclick="testCheckStatus()">↻ Проверить статус</button>' +
+                    '<div id="testCheckStatus" style="margin-top:0.6rem;color:var(--a-text-sec);"></div>' +
+                    '<div style="margin-top:0.6rem;color:var(--a-text-sec);font-size:0.82rem;">После оплаты проверьте почту '+d.email+' и папку «Спам». Чек также виден в ЛК Робокассы → Операции. Если в боевом режиме чек не пришёл — проблема в настройке Робочеков в ЛК (раздел «Фискализация»), а не в сайте.</div>' +
+                    '</div>';
+                if (testCheckPoll) clearInterval(testCheckPoll);
+                testCheckPoll = setInterval(testCheckStatus, 8000);
+            } catch(e){ box.innerHTML = '<span style="color:#dc2626;">Ошибка соединения</span>'; }
+        }
+        async function testCheckStatus(){
+            if (!testCheckInv) return;
+            const el = document.getElementById('testCheckStatus');
+            try {
+                const d = await (await fetch('/api/robokassa.php?action=test-status&inv='+testCheckInv, { credentials:'include' })).json();
+                if (!d.ok) { if(el) el.textContent = d.error||''; return; }
+                if (el) el.innerHTML = d.paid
+                    ? '<span style="color:#047857;font-weight:700;">✓ Оплата подтверждена '+(d.paid_at||'')+'.</span> '+d.hint
+                    : '⏳ '+d.hint;
+                if (d.paid && testCheckPoll) { clearInterval(testCheckPoll); testCheckPoll = null; }
+            } catch(e){}
+        }
+
         // Проверяем готовность приёма платежей по диагностике robokassa.php: есть ли
         // конфиг, заданы ли пароли активного контура, какой режим и состояние чека.
         async function checkRobokassaLink(btn){

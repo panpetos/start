@@ -219,6 +219,63 @@ if ($action === 'diag') {
     ]);
 }
 
+// ── Тест кассового чека (только admin) ─────────────────────────────────────────
+// Минимальное участие человека: кнопка создаёт реальный инвойс на маленькую сумму
+// БЕЗ записи/психолога, но с Email администратора. Админ оплачивает один раз —
+// и проверяет, пришёл ли чек от Робокассы на почту. Side-effect'ов нет: ResultURL
+// для инвойса без appointment_id просто помечает его оплаченным.
+if (($action === 'test-pay' || $action === 'test-status')) {
+    if (session_status() === PHP_SESSION_NONE) session_start();
+    $uid = $_SESSION['user_id'] ?? null;
+    $role = ''; $adminEmail = '';
+    if ($uid) {
+        try { $st = $pdo->prepare("SELECT role, email FROM users WHERE id = ? LIMIT 1"); $st->execute([$uid]);
+            if ($r = $st->fetch(PDO::FETCH_ASSOC)) { $role = (string)$r['role']; $adminEmail = (string)$r['email']; } } catch (Exception $e) {}
+    }
+    if ($role !== 'admin') jsonOut(['error' => 'Только для администратора'], 403);
+
+    if ($action === 'test-status') {
+        $invId = (int)($_GET['inv'] ?? 0);
+        if (!$invId) jsonOut(['error' => 'Не указан inv'], 400);
+        try {
+            $st = $pdo->prepare("SELECT id, out_sum, status, is_test, created_at, paid_at FROM robokassa_invoices WHERE id = ? LIMIT 1");
+            $st->execute([$invId]); $inv = $st->fetch(PDO::FETCH_ASSOC);
+        } catch (Exception $e) { $inv = null; }
+        if (!$inv) jsonOut(['error' => 'Инвойс не найден'], 404);
+        jsonOut(['ok' => true, 'invId' => (int)$inv['id'], 'sum' => $inv['out_sum'],
+            'status' => $inv['status'], 'is_test' => (int)$inv['is_test'],
+            'paid' => $inv['status'] === 'paid', 'paid_at' => $inv['paid_at'], 'created_at' => $inv['created_at'],
+            'hint' => $inv['status'] === 'paid'
+                ? 'Оплата прошла (ResultURL сработал). Теперь проверьте почту (и «Спам») — чек присылает Робокасса отдельным письмом, а также он виден в ЛК Робокассы → Операции.'
+                : 'Оплата ещё не подтверждена. Если вы оплатили только что — подождите минуту и обновите.']);
+    }
+
+    // test-pay
+    if (!robokassaConfigured($password1, $password2)) jsonOut(['error' => 'Приём платежей ещё не настроен (нет паролей Робокассы).'], 503);
+    $data = json_decode(file_get_contents('php://input'), true) ?: [];
+    $amount = (float)($data['amount'] ?? 10);
+    if ($amount < 1) $amount = 1; if ($amount > 100) $amount = 100; // тест — только мелкая сумма
+    $email = trim((string)($data['email'] ?? $adminEmail));
+    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) jsonOut(['error' => 'Нет корректного email для доставки чека. Укажите email.'], 400);
+
+    $outSum = number_format($amount, 2, '.', '');
+    $description = 'Тест кассового чека psytalk.pro';
+    try {
+        $st = $pdo->prepare("INSERT INTO robokassa_invoices (appointment_id, client_user_id, psychologist_id, out_sum, description, status, is_test)
+                             VALUES (NULL, ?, NULL, ?, ?, 'pending', ?)");
+        $st->execute([$uid, $outSum, $description, $isTest]);
+        $invId = (int)$pdo->lastInsertId();
+    } catch (Exception $e) { jsonOut(['error' => 'Не удалось создать тестовый инвойс'], 500); }
+
+    $ctx = ['login' => $login, 'password1' => $password1, 'isTest' => $isTest, 'receiptCfg' => $receiptCfg, 'base' => $base, 'email' => $email];
+    $paymentUrl = robokassaBuildPaymentUrl($pdo, $ctx, $invId, $outSum, $description, null);
+    $hasEmail = (strpos($paymentUrl, 'Email=') !== false);
+    vtLog('test-pay', ['inv' => $invId, 'sum' => $outSum, 'test' => $isTest, 'email' => $hasEmail ? 'yes' : 'no']);
+    jsonOut(['ok' => true, 'paymentUrl' => $paymentUrl, 'invId' => $invId, 'is_test' => $isTest,
+        'email' => $email, 'email_in_link' => $hasEmail,
+        'note' => 'Откройте ссылку, оплатите ' . $outSum . ' ₽ реальной картой (деньги придут на ваш же счёт магазина). Затем проверьте почту ' . $email . ' (и «Спам») — чек присылает Робокасса.']);
+}
+
 // ── Запись конфига из админки (только admin) — чтобы не редактировать PHP руками ──
 if ($action === 'save-config' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     if (session_status() === PHP_SESSION_NONE) session_start();
