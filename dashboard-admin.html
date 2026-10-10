@@ -435,6 +435,9 @@
                     <button class="sidebar-item" data-tab="sitemap" onclick="switchTab('sitemap')">
                         <span class="sidebar-item-icon">🗺️</span> Карта сайта
                     </button>
+                    <button class="sidebar-item" data-tab="howto" onclick="switchTab('howto')">
+                        <span class="sidebar-item-icon">ℹ️</span> Как всё устроено
+                    </button>
                 </div>
             </nav>
             <div class="sidebar-footer">
@@ -591,7 +594,7 @@
             document.getElementById('sidebar').classList.remove('open');
             document.getElementById('sidebarOverlay').classList.remove('open');
             wrapTablesSoon();
-            ({ overview:renderOverview, support:renderSupport, users:renderUsers, psychologists:renderPsych, tariffs:renderTariffs, robokassa:renderRobokassa, yookassa:renderYookassa, devtasks:renderDevTasks, appointments:renderAppointments, replacements:renderReplacements, supervision:renderSupervision, calls:renderCalls, payments:renderPayments, payouts:renderPayouts, subscribers:renderSubscribers, referrals:renderReferrals, activity:renderActivity, notes:renderNotes, notifications:renderNotifications, adminperms:renderAdminPerms, metrics:renderMetrics, sitemap:renderSitemap, content:renderContentMod, complaints:renderComplaints, bots:renderBots, ipblock:renderIpBlock }[tab])();
+            ({ overview:renderOverview, support:renderSupport, users:renderUsers, psychologists:renderPsych, tariffs:renderTariffs, robokassa:renderRobokassa, yookassa:renderYookassa, devtasks:renderDevTasks, appointments:renderAppointments, replacements:renderReplacements, supervision:renderSupervision, calls:renderCalls, payments:renderPayments, payouts:renderPayouts, subscribers:renderSubscribers, referrals:renderReferrals, activity:renderActivity, notes:renderNotes, notifications:renderNotifications, adminperms:renderAdminPerms, metrics:renderMetrics, sitemap:renderSitemap, content:renderContentMod, complaints:renderComplaints, bots:renderBots, ipblock:renderIpBlock, howto:renderHowItWorks }[tab])();
         }
 
         /**
@@ -4177,6 +4180,65 @@
             noteReminderTimer = setInterval(psyGuardPoll(pollNoteReminders), 20000);
         }
 
+        // ── Памятка «Как всё устроено» ─────────────────────────────────────────
+        function renderHowItWorks(){
+            const card = (title, body) =>
+                `<div class="panel" style="margin-bottom:1rem;"><div class="panel-head"><h2>${title}</h2></div>
+                 <div style="padding:0.25rem 0.25rem 0.5rem;font-size:0.92rem;line-height:1.6;color:var(--a-text);">${body}</div></div>`;
+            document.getElementById('content').innerHTML =
+                `<div class="note">ℹ️ Короткая памятка, как работает платформа: оплаты, чеки, выплаты психологам, документы и налоги. Это обзор для вас; юридически значимые тексты — в офертах на сайте.</div>` +
+
+                card('💳 1. Как проходит оплата и чек', `
+                    <ol style="margin:0;padding-left:1.1rem;">
+                      <li>Клиент бронирует и оплачивает консультацию на сайте.</li>
+                      <li>Оплата уходит в <b>Robokassa</b> с составом чека (номенклатурой) и email клиента.</li>
+                      <li>Robokassa принимает платёж <b>как платёжный агент</b>, деньги за вычетом её комиссии поступают на <b>ваш расчётный счёт (ИП)</b>.</li>
+                      <li><b>Робочеки</b> выписывают фискальный чек по 54-ФЗ и отправляют его клиенту на email + данные в ФНС через ОФД.</li>
+                    </ol>
+                    <div style="margin-top:0.5rem;">На чеке: касса — <b>ООО «РОБОКАССА»</b> (признак «АГЕНТ»), поставщик — <b>ваш ИП</b>. Проверка — кнопка «🧾 Тест чека» в разделе «Тарифы».</div>
+                    <div style="margin-top:0.5rem;color:#b45309;">⚠️ В ЛК Robokassa → «Фискализация» → <b>Робочеки должны быть ВКЛючены</b>. На стороне сайта чеки включены по умолчанию (отдельная галка не нужна).</div>`) +
+
+                card('💸 2. Деньги и выплаты психологам', `
+                    <ul style="margin:0;padding-left:1.1rem;">
+                      <li>Вся сумма клиента приходит вам (ИП) на счёт.</li>
+                      <li>Психолог проводит сессию → система фиксирует этапы (принял / начал / завершил) и проверяет <b>реальность звонка (антифрод)</b>.</li>
+                      <li>Вознаграждение начисляется <b>только за реально проведённую и подтверждённую сессию</b>, уже <b>за вычетом комиссии платформы</b> (<code>platform_commission</code>).</li>
+                      <li>Выплата психологу — <b>вручную с р/с</b> по его заявке (≈раз в 14 дней), после проверки статуса НПД/ИП. Разделы «Оплаты» и «Выплаты».</li>
+                      <li>Психолог <b>сам платит налог</b> со своего вознаграждения: самозанятый — чек в «Мой налог»; ИП — по своему режиму.</li>
+                    </ul>`) +
+
+                card('🛡 3. Защита от недобросовестных действий', `
+                    <ul style="margin:0;padding-left:1.1rem;">
+                      <li><b>Антифрод:</b> деньги психологу — только если была реальная сессия (проверка звонка/чата), иначе уходит на ревью (раздел «Выплаты» → проверка).</li>
+                      <li>Клиент не может начать диалог, пока запись не оплачена.</li>
+                      <li>Реквизиты психологов хранятся в зашифрованном виде; перед выплатой — проверка статуса НПД в ФНС.</li>
+                      <li>Антиспам на формах: Яндекс SmartCaptcha (регистрация, подписка) + согласия 152-ФЗ/38-ФЗ.</li>
+                    </ul>`) +
+
+                card('📄 4. Документы и согласия', `
+                    <ul style="margin:0;padding-left:1.1rem;">
+                      <li><b>Клиенту:</b> <a href="/offer.html" target="_blank">Публичная оферта</a>, <a href="/refund.html" target="_blank">Условия возврата</a>, <a href="/privacy.html" target="_blank">Политика конфиденциальности</a>, <a href="/consent.html" target="_blank">согласие на ПДн</a> + согласие на данные о здоровье (для чата).</li>
+                      <li><b>Психологу:</b> <a href="/agent-offer.html" target="_blank">Агентский договор-оферта</a> — принимается <b>отдельной обязательной галочкой при регистрации</b> (факт акцепта фиксируется на сервере).</li>
+                      <li>Все согласия логируются (кто/когда/версия/IP). Агентский отчёт для ФНС — эндпоинт <code>api/agent_reports.php</code>.</li>
+                    </ul>`) +
+
+                card('🧾 5. Налоги и агентская схема (важно)', `
+                    Схема двухслойная:
+                    <ul style="margin:0.4rem 0;padding-left:1.1rem;">
+                      <li><b>Слой чека:</b> Robokassa — платёжный агент, <b>вы (ИП) — поставщик</b> всей суммы на чеке клиента.</li>
+                      <li><b>Слой бизнеса:</b> вы — <b>агент</b> психолога (принципала) по агентскому договору; ваш доход = <b>только сервисный сбор</b>, остальное — деньги принципала (ст. 251 НК РФ).</li>
+                    </ul>
+                    <div style="background:#FFF7ED;border:1px solid #FED7AA;border-radius:8px;padding:0.6rem 0.8rem;color:#9A3412;">
+                      ⚠️ <b>Обязательно подтвердите с бухгалтером:</b> поскольку на чеке поставщиком всей суммы указаны вы, чтобы вашим налогом облагался <b>только сервисный сбор</b> (а не вся выручка — риск «двойного налога»), нужны корректный агентский договор + агентские отчёты и правильный СНО. Это рабочая конструкция, но финальную квалификацию должен заверить бухгалтер.
+                    </div>`) +
+
+                card('🚀 6. Готовность психолога к работе', `
+                    <ul style="margin:0;padding-left:1.1rem;">
+                      <li>При регистрации психолог сразу заполняет: анкету, ИНН, дипломы, <b>фото</b> и <b>рабочие часы</b>.</li>
+                      <li>Если что-то не заполнено — у психолога в кабинете висит чек-лист, а вы можете разослать напоминания: раздел «Психологи» → «🔎 Проверить незаполненные профили» / «📨 Напомнить заполнить профиль».</li>
+                    </ul>`);
+        }
+
         // ── Права дополнительных акков админа ──────────────────────────────────
         const SECTION_LABELS = {
             overview:'📊 Обзор', users:'👤 Пользователи', psychologists:'🎓 Психологи', appointments:'📅 Записи',
@@ -4184,7 +4246,8 @@
             tariffs:'💰 Тарифы', robokassa:'🏦 Робокасса', yookassa:'🏦 ЮKassa', subscribers:'📧 Подписчики',
             referrals:'🔗 Источники', activity:'📜 Журнал', support:'💬 Поддержка', devtasks:'🤖 Задачи Клоду',
             notifications:'🔔 Уведомления', notes:'📝 Записки', adminperms:'🔐 Права админов', metrics:'📊 Метрики',
-            sitemap:'🗺️ Карта сайта', content:'🛡 Контент', bots:'🤖 Боты', ipblock:'🚫 Доступ по IP'
+            sitemap:'🗺️ Карта сайта', content:'🛡 Контент', bots:'🤖 Боты', ipblock:'🚫 Доступ по IP',
+            howto:'ℹ️ Как всё устроено'
         };
         // ── Доступ по IP (чёрный список) ─────────────────────────────────────
         async function ipBlockApi(action, payload){
