@@ -114,8 +114,9 @@
                 <h1>🔔 Уведомления</h1>
                 <div class="sub">Выберите, куда присылать сообщения о новых чатах, записях и оплатах.
                     Каналов можно включить сколько угодно — уведомление придёт в каждый включённый.
-                    О новых сообщениях пишем не мгновенно, а через несколько минут: пока вы в диалоге,
-                    дёргать вас незачем. Уведомления в браузере приходят сразу.</div>
+                    <b>Самые быстрые каналы — на устройство (push) и почта; рекомендуем включить их.</b>
+                    Telegram и MAX — дополнительные: удобные, но могут приходить с небольшой задержкой.
+                    Уведомления в браузере приходят сразу.</div>
                 <div id="body"><div class="card">Загрузка…</div></div>
             </div>
         </main>
@@ -182,7 +183,7 @@
 
             document.getElementById('body').innerHTML = `
                 <div class="card">
-                    <h2>✉️ Почта ${a.email ? '<span class="badge b-on">доступна</span>' : '<span class="badge b-warn">не настроена на платформе</span>'}</h2>
+                    <h2>✉️ Почта <span class="badge" style="background:#D1FAE5;color:#047857;">основной</span> ${a.email ? '<span class="badge b-on">доступна</span>' : '<span class="badge b-warn">не настроена на платформе</span>'}</h2>
                     <div class="hint">${a.email
                         ? 'Письма уходят через ' + esc(a.email_via || 'настроенный сервис') + '. Проверьте адрес и отправьте себе тестовое письмо.'
                         : 'Администратор ещё не подключил отправку писем — как только подключит, канал заработает.'}</div>
@@ -195,7 +196,7 @@
                 </div>
 
                 <div class="card">
-                    <h2>✈️ Telegram ${links.telegram ? '<span class="badge b-on">подключён</span>' : (a.telegram ? '<span class="badge b-off">не подключён</span>' : '<span class="badge b-warn">бот не настроен</span>')}</h2>
+                    <h2>✈️ Telegram <span class="badge" style="background:#FEF3C7;color:#92400E;">дополнительно</span> ${links.telegram ? '<span class="badge b-on">подключён</span>' : (a.telegram ? '<span class="badge b-off">не подключён</span>' : '<span class="badge b-warn">бот не настроен</span>')}</h2>
                     <div class="hint">${links.telegram
                         ? 'Уведомления приходят в чат «' + esc(links.telegram.label || links.telegram.chat_id) + '».'
                         : (a.telegram
@@ -215,7 +216,7 @@
                 </div>
 
                 <div class="card">
-                    <h2>🟣 MAX ${links.max ? '<span class="badge b-on">подключён</span>' : (a.max ? '<span class="badge b-off">не подключён</span>' : '<span class="badge b-warn">бот не настроен</span>')}</h2>
+                    <h2>🟣 MAX <span class="badge" style="background:#FEF3C7;color:#92400E;">дополнительно</span> ${links.max ? '<span class="badge b-on">подключён</span>' : (a.max ? '<span class="badge b-off">не подключён</span>' : '<span class="badge b-warn">бот не настроен</span>')}</h2>
                     <div class="hint">${links.max
                         ? 'Уведомления приходят в чат «' + esc(links.max.label || links.max.chat_id) + '».'
                         : (a.max
@@ -235,7 +236,7 @@
                 </div>
 
                 <div class="card">
-                    <h2>🔔 Уведомления на устройство <span class="badge ${ps.cls}">${ps.txt}</span></h2>
+                    <h2>🔔 Уведомления на устройство <span class="badge" style="background:#D1FAE5;color:#047857;">самые быстрые</span> <span class="badge ${ps.cls}">${ps.txt}</span></h2>
                     <div class="hint">Приходят как у обычного приложения — даже когда сайт закрыт: доставку
                         берёт на себя служба браузера. Нажатие на уведомление открывает нужный диалог.
                         ${srv.devices ? 'Подключено устройств: ' + srv.devices + '.' : 'Ни одного устройства пока не подключено.'}
