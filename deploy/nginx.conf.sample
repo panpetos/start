@@ -1,0 +1,127 @@
+# nginx.conf.sample — рабочий продакшн-конфиг psytalk.pro для ВДС.
+#
+# Это ШАБЛОН. Скопируй в /etc/nginx/sites-available/psytalk.pro, поправь пути,
+# домен и версию PHP-FPM-сокета, включи симлинком в sites-enabled и `nginx -t`.
+#
+# Что здесь уже сделано (то, чего нет на shared-хостинге reg.ru):
+#   • security-заголовки (X-Frame-Options, X-Content-Type-Options, HSTS, …);
+#   • gzip для текстовых ответов;
+#   • долгий кэш статики (js/css/img) с версиями (?v=) для сброса;
+#   • увеличенный, но разумный лимит загрузки (сейчас на проде 1 ГБ — много);
+#   • анти-флуд на уровне nginx (limit_req) поверх app-лимитов rate_limit.php;
+#   • закрыт прямой доступ к *_config.php, .git, *.sample.php, *.md, dotfiles.
+#
+# Перед nginx РЕКОМЕНДУЕТСЯ Cloudflare (бесплатный план): DDoS-щит, кэш, WAF.
+# Тогда реальные IP приходят в X-Forwarded-For — см. блок real_ip ниже.
+
+# ── Анти-флуд: зоны лимитов (объявляются в http-контексте) ───────────────────
+# Вынеси эти две строки в /etc/nginx/nginx.conf (секция http{}), если их там нет:
+#   limit_req_zone $binary_remote_addr zone=api:10m rate=10r/s;
+#   limit_req_zone $binary_remote_addr zone=login:10m rate=1r/s;
+
+# ── Восстановление реального IP из Cloudflare (иначе увидишь только IP CF) ─────
+# Списки сетей CF: https://www.cloudflare.com/ips/  (обновляй периодически)
+# set_real_ip_from 173.245.48.0/20;   # ... и остальные диапазоны CF
+# real_ip_header CF-Connecting-IP;
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name psytalk.pro www.psytalk.pro;
+    # Весь HTTP → HTTPS (кроме проверки Let's Encrypt).
+    location /.well-known/acme-challenge/ { root /var/www/certbot; }
+    location / { return 301 https://psytalk.pro$request_uri; }
+}
+
+server {
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
+    server_name www.psytalk.pro;
+    # www → без www (единый канонический домен для cookie и SEO).
+    ssl_certificate     /etc/letsencrypt/live/psytalk.pro/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/psytalk.pro/privkey.pem;
+    return 301 https://psytalk.pro$request_uri;
+}
+
+server {
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
+    server_name psytalk.pro;
+
+    root /var/www/psytalk.pro;         # ← сюда заливаются файлы репозитория
+    index index.html index.php;
+
+    # ── TLS ──────────────────────────────────────────────────────────────────
+    ssl_certificate     /etc/letsencrypt/live/psytalk.pro/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/psytalk.pro/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_prefer_server_ciphers off;
+    ssl_session_cache shared:SSL:10m;
+    ssl_session_timeout 1d;
+
+    # ── Security-заголовки (добавляются ко всем ответам) ──────────────────────
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-Frame-Options "SAMEORIGIN" always;          # защита от clickjacking
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+    add_header Permissions-Policy "geolocation=(), microphone=(self), camera=(self)" always;
+    # HSTS: включай ТОЛЬКО когда уверен, что HTTPS работает стабильно (откат тяжёлый).
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+    # CSP: у приложения много inline-обработчиков (onclick=…) и inline-скриптов,
+    # поэтому строгую политику включать нельзя без рефакторинга — иначе сайт «встанет».
+    # Ниже — рабочий вариант с 'unsafe-inline' (уже лучше, чем ничего: ограничивает
+    # источники). Проверь в консоли браузера, что ничего не блокируется, и включай:
+    # add_header Content-Security-Policy "default-src 'self'; img-src 'self' data: blob: https:; media-src 'self' blob: https:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https:; frame-ancestors 'self'; base-uri 'self'; object-src 'none'" always;
+
+    # ── Сжатие ────────────────────────────────────────────────────────────────
+    gzip on;
+    gzip_vary on;
+    gzip_comp_level 5;
+    gzip_min_length 1024;
+    gzip_types text/plain text/css application/javascript application/json image/svg+xml application/manifest+json;
+
+    # ── Лимит размера загрузки ───────────────────────────────────────────────
+    # Сейчас на проде 1 ГБ — это опасно много (память/диск). Начни с 64 МБ и
+    # синхронизируй с upload_max_filesize / post_max_size в PHP (см. .user.ini/php.ini).
+    client_max_body_size 64M;
+
+    # ── Прямой доступ к секретам и служебному — запретить ─────────────────────
+    location ~* _config\.php$        { deny all; return 404; }   # реальные конфиги (не sample)
+    location ~* \.sample\.php$        { deny all; return 404; }   # шаблоны в веб не нужны
+    location ~* /(config|db|auth|messages|payment|settings|users)\.php$ {
+        # server-only файлы ядра — их и так нет в репо, но подстрахуемся.
+        deny all; return 404;
+    }
+    location ~* \.(md|sql|log|ini|sh|yml|yaml)$ { deny all; return 404; }
+    location ~ /\.(?!well-known) { deny all; return 404; }        # .git, .env, dotfiles
+    location = /deploy/nginx.conf.sample { deny all; return 404; }
+
+    # ── Статика: долгий кэш (сброс через ?v= в ссылках) ───────────────────────
+    location ~* \.(js|css|png|jpg|jpeg|gif|webp|svg|ico|woff2?)$ {
+        expires 30d;
+        add_header Cache-Control "public, max-age=2592000";
+        add_header X-Content-Type-Options "nosniff" always;
+        try_files $uri =404;
+    }
+
+    # ── Анти-флуд для чувствительных путей ────────────────────────────────────
+    location ^~ /api/ {
+        limit_req zone=api burst=20 nodelay;
+        try_files $uri $uri/ =404;
+        location ~ \.php$ { include snippets/psy-php.conf; }
+    }
+    location = /api/auth.php   { limit_req zone=login burst=5 nodelay; include snippets/psy-php.conf; }
+    location = /login.html     { limit_req zone=login burst=5 nodelay; try_files $uri =404; }
+
+    # ── PHP (общий) ───────────────────────────────────────────────────────────
+    location ~ \.php$ { include snippets/psy-php.conf; }
+
+    # ── HTML и всё остальное ──────────────────────────────────────────────────
+    location / { try_files $uri $uri/ =404; }
+}
+
+# ── snippets/psy-php.conf (создай отдельным файлом /etc/nginx/snippets/psy-php.conf) ──
+#   include fastcgi_params;
+#   fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+#   fastcgi_pass unix:/run/php/php8.2-fpm.sock;   # ← проверь версию PHP-FPM
+#   fastcgi_read_timeout 120s;
+#   fastcgi_hide_header X-Powered-By;             # не светим версию PHP
