@@ -723,13 +723,9 @@
             try { await saveRegPayout(); } catch (e) {}
           }
 
-          setTimeout(() => {
-            if (data.role === 'psychologist') {
-              window.location.href = '/psychologist-dashboard.html';
-            } else {
-              window.location.href = '/client-dashboard.html';
-            }
-          }, 1500);
+          // Вместо авто-перехода — предложить установить приложение и включить
+          // быстрые уведомления (пуш). Почта уже подключена. Соцсети — как доп. канал.
+          showOnboarding(data.role, data.email);
         } else {
           let raw = {};
           try { raw = await response.json(); } catch (e) {}
@@ -1013,6 +1009,76 @@
 
     // Initialize Lucide icons
     if (window.lucide) lucide.createIcons();
+  </script>
+
+  <!-- Онбординг уведомлений после регистрации: установка приложения + пуш на устройство -->
+  <div id="onbBackdrop" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.55);z-index:3000;align-items:center;justify-content:center;padding:1rem;">
+    <div style="background:#fff;border-radius:1.1rem;max-width:440px;width:100%;padding:1.6rem 1.5rem 1.4rem;box-shadow:0 20px 60px rgba(0,0,0,0.25);">
+      <h3 style="font-size:1.25rem;font-weight:700;color:#1A1A1A;margin:0 0 0.3rem;">🎉 Почти готово!</h3>
+      <p style="font-size:0.9rem;color:#6B7280;margin:0 0 1rem;line-height:1.5;">Чтобы ничего не пропускать (новые записи, сообщения, оплаты), включите самые быстрые уведомления.</p>
+
+      <div style="border:1px solid #E5E7EB;border-radius:0.75rem;padding:0.8rem 0.9rem;margin-bottom:0.7rem;">
+        <div style="font-weight:600;color:#1A1A1A;font-size:0.95rem;margin-bottom:0.2rem;">✉️ Почта <span id="onbEmailOk" style="color:#047857;font-weight:600;font-size:0.82rem;">— подключена</span></div>
+        <div id="onbEmail" style="font-size:0.82rem;color:#6B7280;"></div>
+      </div>
+
+      <div style="border:1px solid #E5E7EB;border-radius:0.75rem;padding:0.8rem 0.9rem;margin-bottom:0.7rem;">
+        <div style="font-weight:600;color:#1A1A1A;font-size:0.95rem;margin-bottom:0.35rem;">📱 Уведомления на устройство <span style="color:#047857;font-size:0.8rem;">(самые быстрые)</span></div>
+        <button type="button" id="onbPushBtn" onclick="onbEnablePush()" style="background:#047857;color:#fff;border:none;padding:0.5rem 1rem;border-radius:0.5rem;font-weight:600;cursor:pointer;font-family:inherit;">Включить уведомления</button>
+        <div id="onbPushMsg" style="font-size:0.82rem;color:#6B7280;margin-top:0.4rem;"></div>
+      </div>
+
+      <div id="onbInstallCard" style="border:1px solid #E5E7EB;border-radius:0.75rem;padding:0.8rem 0.9rem;margin-bottom:1rem;">
+        <div style="font-weight:600;color:#1A1A1A;font-size:0.95rem;margin-bottom:0.35rem;">⬇️ Установить приложение <span style="color:#6B7280;font-size:0.8rem;">(чтобы уведомления работали всегда)</span></div>
+        <button type="button" id="onbInstallBtn" onclick="onbInstall()" style="background:#fff;color:#047857;border:1px solid #047857;padding:0.5rem 1rem;border-radius:0.5rem;font-weight:600;cursor:pointer;font-family:inherit;">Установить</button>
+        <div id="onbInstallMsg" style="font-size:0.82rem;color:#6B7280;margin-top:0.4rem;"></div>
+      </div>
+
+      <button type="button" onclick="onbContinue()" style="width:100%;background:#34C759;color:#fff;border:none;padding:0.65rem 1rem;border-radius:0.6rem;font-weight:700;cursor:pointer;font-family:inherit;font-size:0.95rem;">Перейти в кабинет →</button>
+      <div style="text-align:center;margin-top:0.5rem;"><a href="/notify-settings.html" style="font-size:0.8rem;color:#6B7280;">Настроить уведомления позже</a></div>
+    </div>
+  </div>
+  <script>
+    let onbTarget = '/client-dashboard.html';
+    function showOnboarding(role, email) {
+      onbTarget = (role === 'psychologist') ? '/psychologist-dashboard.html' : '/client-dashboard.html';
+      document.getElementById('onbEmail').textContent = email ? ('Будем присылать на ' + email + '. Соцсети можно подключить позже в настройках как дополнительный канал.') : 'Уведомления будут приходить на вашу почту.';
+      // Кнопка установки: показываем «Установить» только если браузер это умеет; иначе — инструкция.
+      try {
+        const canInstall = (typeof psyCanInstall === 'function') && psyCanInstall();
+        const standalone = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone === true;
+        if (standalone) { document.getElementById('onbInstallCard').style.display = 'none'; }
+        else if (!canInstall) {
+          document.getElementById('onbInstallBtn').style.display = 'none';
+          const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+          document.getElementById('onbInstallMsg').innerHTML = isIOS
+            ? 'На iPhone: нажмите «Поделиться» <b>⬆️</b> → «На экран «Домой»».'
+            : 'Откройте значок установки в адресной строке браузера или меню «⋮» → «Установить приложение».';
+        }
+      } catch (e) {}
+      document.getElementById('onbBackdrop').style.display = 'flex';
+    }
+    async function onbEnablePush() {
+      const btn = document.getElementById('onbPushBtn'), msg = document.getElementById('onbPushMsg');
+      msg.textContent = 'Запрашиваем разрешение…'; btn.disabled = true;
+      try {
+        if (typeof psySubscribePush !== 'function') { msg.textContent = 'Подключить можно в кабинете → «Куда мне присылать».'; btn.disabled = false; return; }
+        const ok = await psySubscribePush();
+        if (ok) { msg.style.color = '#047857'; msg.textContent = '✓ Готово — уведомления на это устройство включены.'; btn.textContent = 'Включено ✓'; }
+        else { msg.style.color = '#b45309'; msg.textContent = 'Не удалось включить (возможно, запрещено в браузере). Можно включить позже в кабинете.'; btn.disabled = false; }
+      } catch (e) { msg.textContent = 'Не удалось включить. Попробуйте позже в кабинете.'; btn.disabled = false; }
+    }
+    async function onbInstall() {
+      const msg = document.getElementById('onbInstallMsg');
+      try {
+        if (typeof psyInstallNow !== 'function') { msg.textContent = 'Установка доступна из кабинета.'; return; }
+        const res = await psyInstallNow();
+        if (res === 'accepted') { msg.style.color = '#047857'; msg.textContent = '✓ Приложение устанавливается.'; document.getElementById('onbInstallBtn').style.display = 'none'; }
+        else if (res === 'unavailable') { msg.textContent = 'Установка недоступна в этом браузере — откройте сайт в Chrome/Safari.'; }
+        else { msg.textContent = 'Установку можно повторить позже из кабинета.'; }
+      } catch (e) { msg.textContent = 'Не удалось — попробуйте позже.'; }
+    }
+    function onbContinue() { window.location.href = onbTarget; }
   </script>
 
   <!-- Подвал (сквозной — js/layout.js) -->
